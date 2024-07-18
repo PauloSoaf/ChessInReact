@@ -14,7 +14,7 @@ const BoardSquare: React.FC<IBoardSquare> = ({piece, backgroundColor, handleClic
         aspectRatio: 1 / 1,
         width: `${boardDisplay.length < 12 ? '95%' : '100%'}`,
         height: `${boardDisplay.length < 12 ? '95%' : '100%'}`,
-        border: `${isSelected ? '1px solid white' : 'none'}`,
+        boxShadow: `${isSelected ? 'inset 0 0 0 1px white' : 'none'}`,
       }}
       onClick={() => handleClick(squareInfo, piece)}
     >
