@@ -114,7 +114,7 @@ const App = () => {
       <button style={{
         width: '15%',
         height: '4rem',
-        fontSize: '2rem'
+        fontSize: '1rem'
       }}
         onClick={fillBoard}
       > reset Board</button>
