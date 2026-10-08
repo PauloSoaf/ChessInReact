@@ -1,7 +1,7 @@
 import { useState } from "react";
 import BoardSquare from "../BoardSquare/BoardSquare";
 import { IChessPiece, ISquareInfo } from "../../Interfaces/Interfaces";
-import { chessPieces } from "../../App";
+import { chessPieces } from "../../constants/chessPieces";
 
 interface IChessBoard {
   boardDisplay: IChessPiece[][];

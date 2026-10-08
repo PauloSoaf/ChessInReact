@@ -2,37 +2,7 @@ import { useState } from "react";
 import ChessBoard from "./components/ChessBoard/ChessBoard"
 import { IChessPiece, IChessPieces } from "./Interfaces/Interfaces";
 import { Input } from "antd";
-export const chessPieces: IChessPieces = {
-  pawn: {
-    symbol: '♟',
-    name: 'pawn',
-  },
-  knight: {
-    symbol: '♞',
-    name: 'knight',
-  },
-  bishop: {
-    symbol: '♝',
-    name: 'bishop',
-  },
-  rook: {
-    symbol: '♜',
-    name: 'rook',
-  },
-  queen: {
-    symbol: '♛',
-    name: 'queen',
-  },
-  king: {
-    symbol: '♚',
-    name: 'king',
-  },
-  none: {
-    symbol: '',
-    name: 'none',
-    color: 'transparent'
-  },
-};
+import { chessPieces } from "./constants/chessPieces";
 
 const App = () => {
   const [boardSize, setBoardSize] = useState(8)
