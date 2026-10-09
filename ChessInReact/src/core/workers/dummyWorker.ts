@@ -56,6 +56,39 @@ export function processWorkerRequest(req: IWorkerRequest): IWorkerResponse {
         };
       }
 
+      case 'ECHO_DESERIALIZED_ENTITIES': {
+        const buffer = req.payload?.buffer;
+        const stringTable = req.payload?.stringTable;
+        if (!buffer) {
+          return { id: req.id, type: 'ERROR', error: 'Missing ArrayBuffer payload' };
+        }
+        if (!stringTable) {
+          return { id: req.id, type: 'ERROR', error: 'Missing stringTable payload' };
+        }
+        const state = deserializeWorkerState(new Int32Array(buffer), stringTable);
+        return {
+          id: req.id,
+          type: 'DESERIALIZED_ENTITIES_RESULT',
+          result: {
+            entityCount: state.entityCount,
+            activePlayer: state.activePlayer,
+            turnNumber: state.turnNumber,
+            schemaVersion: state.schemaVersion,
+            entities: state.entities.map((e) => ({
+              id: e.id,
+              type: e.type,
+              ownerId: e.ownerId,
+              x: e.x,
+              y: e.y,
+              z: e.z,
+              position: e.z !== 0 ? `${e.x},${e.y},${e.z}` : `${e.x},${e.y}`,
+              isCaptured: e.isCaptured,
+              variantId: 'variantId' in e ? (e as { variantId?: string }).variantId : undefined,
+            })),
+          },
+        };
+      }
+
       default:
         return {
           id: req.id,

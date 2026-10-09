@@ -7,12 +7,14 @@ export type WorkerRequestType =
   | 'PING'
   | 'ECHO_STATE_METADATA'
   | 'VALIDATE_SERIALIZATION'
+  | 'ECHO_DESERIALIZED_ENTITIES'
   | 'CALCULATE_BEST_MOVE';
 
 export type WorkerResponseType =
   | 'PONG'
   | 'METADATA_RESULT'
   | 'VALIDATION_RESULT'
+  | 'DESERIALIZED_ENTITIES_RESULT'
   | 'BEST_MOVE_RESULT'
   | 'ERROR';
 
@@ -40,6 +42,26 @@ export interface IEngineMetadataResponse {
   readonly activePlayer: PlayerId;
   readonly turnNumber: number;
   readonly schemaVersion: number;
+}
+
+export interface IDeserializedEchoEntity {
+  readonly id: string;
+  readonly type: string;
+  readonly ownerId: string;
+  readonly position: string;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  readonly isCaptured: boolean;
+  readonly variantId?: string;
+}
+
+export interface IDeserializedEchoResponse {
+  readonly entityCount: number;
+  readonly activePlayer: PlayerId;
+  readonly turnNumber: number;
+  readonly schemaVersion: number;
+  readonly entities: readonly IDeserializedEchoEntity[];
 }
 
 /**

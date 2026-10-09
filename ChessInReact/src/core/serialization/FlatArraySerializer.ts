@@ -229,6 +229,9 @@ export function deserializeWorkerState(
   }
 
   const entityCount = buffer[HeaderOffset.ENTITY_COUNT];
+  if (entityCount < 0) {
+    throw new Error(`Malformed buffer: negative entityCount ${entityCount}`);
+  }
   const expectedLength = HEADER_SIZE_INTS + entityCount * ENTITY_STRIDE_INTS;
   if (buffer.length !== expectedLength) {
     throw new Error(
@@ -293,6 +296,13 @@ export function deserializeWorkerState(
     const x = buffer[offset + EntityFieldOffset.X_OR_Q];
     const y = buffer[offset + EntityFieldOffset.Y_OR_R];
     const z = buffer[offset + EntityFieldOffset.Z_OR_S];
+
+    if (z !== 0 && x + y + z !== 0) {
+      throw new Error(
+        `Buffer corruption: hex coordinate at entity index ${i} violates q+r+s=0 constraint (${x},${y},${z}).`
+      );
+    }
+
     const idIndex = buffer[offset + EntityFieldOffset.ID_STRING_INDEX];
 
     if (idIndex < 0 || idIndex >= stringTable.length) {

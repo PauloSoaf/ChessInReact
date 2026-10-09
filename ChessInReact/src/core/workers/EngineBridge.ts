@@ -1,6 +1,7 @@
 import { serializeStateForWorker } from '../serialization/FlatArraySerializer';
 import { IDomainState } from '../state/gameState';
 import {
+  IDeserializedEchoResponse,
   IEngineMetadataResponse,
   IWorkerPort,
   IWorkerRequest,
@@ -107,6 +108,17 @@ export class EngineBridge {
     return this.sendRequest<{ valid: boolean; entityCount: number }>(
       'VALIDATE_SERIALIZATION',
       { buffer: snapshot.buffer.buffer, stringTable: snapshot.stringTable },
+      [snapshot.buffer.buffer]
+    );
+  }
+
+  public async echoDeserializedEntities(
+    state: IDomainState
+  ): Promise<IDeserializedEchoResponse> {
+    const snapshot = serializeStateForWorker(state);
+    return this.sendRequest<IDeserializedEchoResponse>(
+      'ECHO_DESERIALIZED_ENTITIES',
+      { buffer: snapshot.buffer.buffer, stringTable: snapshot.stringTable, activePlayer: state.activePlayer },
       [snapshot.buffer.buffer]
     );
   }

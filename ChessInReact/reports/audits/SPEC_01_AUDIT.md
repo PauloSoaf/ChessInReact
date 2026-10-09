@@ -7,6 +7,34 @@
 
 ---
 
+## 🔒 Prova de Estado do Git (Fase 0 Baseline)
+
+- **Branch:** `feat/core-state-architecture`
+- **SHA local inicial:** `30d7abae5c6bd4b9029a47f893538b17803da624`
+- **SHA remoto inicial (`origin/feat/core-state-architecture`):** `30d7abae5c6bd4b9029a47f893538b17803da624`
+- **Data e hora do commit remoto mais recente antes:** `2026-10-09 00:06:52 -0400`
+- **Existência de commits locais ainda não publicados antes:** NÃO (`HEAD..origin/feat/core-state-architecture` vazio)
+- **Existência de commits remotos ainda não incorporados:** NÃO (`origin/feat/core-state-architecture..HEAD` vazio)
+- **Estado das alterações não commitadas antes:** Working tree sincronizada e preservada.
+
+---
+
+## 🎯 Matriz de Correção Direcionada (FIX-01 a FIX-09)
+
+| ID | Problema | Teste de regressão | Arquivo corrigido | Status |
+|---|---|---|---|---|
+| **FIX-01** | Atomicidade de `replaceEntity` | `src/core/entities/__tests__/entities.test.ts` (`reproduces FASE 1: atomic rollback if replacement entity has existing ID of another piece`, `preserves original state if target position is occupied`) | `src/core/entities/EntityManager.ts` | **FIXED** |
+| **FIX-02** | Proteção contra referências mutáveis | `src/core/entities/__tests__/entities.test.ts` (`defensive copying: mutating returned entity from getEntity does not corrupt internal state`, `defensive copying: mutating entity from getOccupant`, `defensive copying: mutating array/entities from getAllEntities`, `toSnapshot`) | `src/core/entities/EntityManager.ts` | **FIXED** |
+| **FIX-03** | Contrato seguro de `updateEntity` | `src/core/entities/__tests__/entities.test.ts` (`forbids mutating entity ID via updateEntity to prevent index corruption`, `forbids mutating entity position directly via updateEntity`) | `src/core/entities/EntityManager.ts` | **FIXED** |
+| **FIX-04** | Limpeza de `clear()` | `src/core/entities/__tests__/entities.test.ts` (`clear() wipes all entities and occupancy, leaves validateInvariants valid`) | `src/core/entities/EntityManager.ts` | **FIXED** |
+| **FIX-05** | Contrato de identidade do serializer | `src/core/serialization/__tests__/serialization.test.ts` (`rejects worker deserialization if stringTable sidecar is missing or empty`, `fails deserialization if stringTable contains duplicate entity IDs`, `fails if buffer references out-of-bounds stringTable index`) | `src/core/serialization/FlatArraySerializer.ts` | **FIXED** |
+| **FIX-06** | Validação estrita de coordenadas binárias | `src/core/serialization/__tests__/serialization.test.ts` (`rejects non-integer coordinate values`, `rejects coordinates out of Int32Array signed range [-2147483648, 2147483647]`, `rejects invalid cubic constraint on hex coordinates`) | `src/core/serialization/FlatArraySerializer.ts` | **FIXED** |
+| **FIX-07** | Integridade do layout do buffer binário | `src/core/serialization/__tests__/serialization.test.ts` (`rejects truncated buffers smaller than header size`, `rejects buffers with negative entityCount`, `rejects mismatched entity count buffer lengths`) | `src/core/serialization/FlatArraySerializer.ts` | **FIXED** |
+| **FIX-08** | Integração ponta a ponta com Worker | `src/core/workers/__tests__/EngineBridge.test.ts` (`transfers binary buffer end-to-end to worker, deserializes and preserves exact entity IDs and coordinates (FASE 8 - FIX-08)`) | `src/core/workers/EngineBridge.ts`, `src/core/workers/dummyWorker.ts`, `src/core/workers/types.ts` | **FIXED** |
+| **FIX-09** | Regressão visual reativa do tabuleiro | `src/bindings/react/__tests__/ChessBoardVisual.test.tsx` (`verifies the full reactive flow: bootstrap -> Core Store -> selector -> render -> move -> visual update -> undo -> restore -> redo`, `renders captured piece removal reactively on visual board`, `guarantees reset re-initializes all 32 pieces and resets turn number to 1`) | `src/App.tsx`, `src/components/ChessBoard/ChessBoard.tsx`, `src/core/state/gameState.ts` | **FIXED** |
+
+---
+
 ## 🔎 Sumário Executivo de Achados
 
 | ID | Título | Severidade | Status Anterior | Status Atual | Requisito |

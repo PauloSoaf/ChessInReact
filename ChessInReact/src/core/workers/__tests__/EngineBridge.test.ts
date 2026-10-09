@@ -56,6 +56,53 @@ describe('Worker Protocol & EngineBridge (Zero-Copy & Leak Prevention)', () => {
     expect(bridge.getPendingCount()).toBe(0);
   });
 
+  it('transfers binary buffer end-to-end to worker, deserializes and preserves exact entity IDs and coordinates (FASE 8 - FIX-08)', async () => {
+    const domain = createDefaultDomainState('bridge-e2e-game');
+    const piece1: IPieceEntity = {
+      id: asEntityId('white-rook-1'),
+      type: 'PIECE',
+      ownerId: 'P1',
+      variantId: 'ROOK',
+      position: asCoordinateKey('0,0'),
+      hasMoved: false,
+      isCaptured: false,
+    };
+    const piece2: IPieceEntity = {
+      id: asEntityId('black-king-0'),
+      type: 'PIECE',
+      ownerId: 'P2',
+      variantId: 'KING',
+      position: asCoordinateKey('4,7'),
+      hasMoved: true,
+      isCaptured: false,
+    };
+    domain.boardEntities[piece1.id] = piece1;
+    domain.boardEntities[piece2.id] = piece2;
+
+    const response = await bridge.echoDeserializedEntities(domain);
+
+    expect(response.entityCount).toBe(2);
+    expect(response.activePlayer).toBe('P1');
+    expect(response.schemaVersion).toBe(1);
+
+    const rook = response.entities.find((e) => e.id === 'white-rook-1');
+    const king = response.entities.find((e) => e.id === 'black-king-0');
+
+    expect(rook).toBeDefined();
+    expect(rook?.position).toBe('0,0');
+    expect(rook?.ownerId).toBe('P1');
+    expect(rook?.variantId).toBe('ROOK');
+    expect(rook?.isCaptured).toBe(false);
+
+    expect(king).toBeDefined();
+    expect(king?.position).toBe('4,7');
+    expect(king?.ownerId).toBe('P2');
+    expect(king?.variantId).toBe('KING');
+    expect(king?.isCaptured).toBe(false);
+
+    expect(bridge.getPendingCount()).toBe(0);
+  });
+
   it('handles request timeout gracefully and purges pending promises (Section R)', async () => {
     // Port with 200ms delay while timeout is set to 50ms
     const slowPort = new MockWorkerPort(200);

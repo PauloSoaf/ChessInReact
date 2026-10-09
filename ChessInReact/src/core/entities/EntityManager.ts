@@ -7,28 +7,32 @@ export interface InvariantValidationResult {
 }
 
 /**
- * Restricted patch type for safe entity updates (AUDIT-01).
- * Forbids structural mutations (id, type, isCaptured).
+ * Restricted patch type for safe entity updates (AUDIT-01 & FASE 3).
+ * Strictly forbids structural mutations (id, position, type, isCaptured).
+ * Position changes MUST use moveEntity(id, newCoord).
+ * Capture changes MUST use captureEntity(id) or restoreEntity(id, coord).
  */
 export interface EntityUpdatePatch {
-  readonly position?: CoordinateKey;
   readonly hasMoved?: boolean;
   readonly variantId?: string;
   readonly metadata?: Readonly<Record<string, unknown>>;
-  readonly properties?: Readonly<Record<string, unknown>>;
+  readonly elevation?: number;
+  readonly destructible?: boolean;
+  readonly hp?: number;
   readonly id?: never;
   readonly type?: never;
+  readonly position?: never;
   readonly isCaptured?: never;
 }
 
 /**
  * Clones an entity object defensively to prevent external mutations
- * from compromising internal store and spatial indices (AUDIT-01).
+ * from compromising internal store and spatial indices (AUDIT-01 & FASE 2).
  */
 function cloneEntity<T extends IEntity>(entity: T): T {
   return {
     ...entity,
-    metadata: entity.metadata ? { ...entity.metadata } : undefined,
+    metadata: entity.metadata ? JSON.parse(JSON.stringify(entity.metadata)) : undefined,
   };
 }
 
@@ -181,22 +185,20 @@ export class EntityManager {
       throw new Error(`Forbidden: Entity type is immutable. Cannot change type from "${entity.type}" to "${patch.type}".`);
     }
 
+    if ('position' in patch && (patch as { position?: unknown }).position !== undefined) {
+      throw new Error(
+        'Forbidden: Direct mutation of position is not allowed via updateEntity. Use moveEntity() to maintain spatial index consistency.'
+      );
+    }
+
     if ('isCaptured' in patch && patch.isCaptured !== undefined) {
       throw new Error(
         'Forbidden: Direct mutation of isCaptured is not allowed via updateEntity. Use captureEntity() or restoreEntity() to guarantee spatial index consistency.'
       );
     }
 
-    if (patch.position && patch.position !== entity.position) {
-      this.moveEntity(id, patch.position);
-      // Re-fetch updated entity after position move
-      const movedEntity = this.entityById.get(id)!;
-      const combined = { ...movedEntity, ...patch, position: patch.position } as IEntity;
-      this.entityById.set(id, combined);
-    } else {
-      const combined = { ...entity, ...patch } as IEntity;
-      this.entityById.set(id, combined);
-    }
+    const combined = { ...entity, ...patch } as IEntity;
+    this.entityById.set(id, cloneEntity(combined));
   }
 
   /**
@@ -376,6 +378,17 @@ export class EntityManager {
       if (entity.type === 'PIECE' && !entity.isCaptured) {
         result.push(cloneEntity(entity) as IPieceEntity);
       }
+    }
+    return result;
+  }
+
+  /**
+   * Get all registered entities (returns defensive copies).
+   */
+  public getAllEntities(): readonly IEntity[] {
+    const result: IEntity[] = [];
+    for (const entity of this.entityById.values()) {
+      result.push(cloneEntity(entity));
     }
     return result;
   }

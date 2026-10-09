@@ -13,7 +13,7 @@
 
 | Gate | Status | Details |
 |---|---|---|
-| **Unit, Integration & Visual Tests** | `PASS` | 111 passed, 0 failed across 17 test files (100% pass rate) |
+| **Unit, Integration & Visual Tests** | `PASS` | 117 passed, 0 failed across 17 test files (100% pass rate) |
 | **TypeScript Typecheck** | `PASS` | 0 errors (`tsc && vite build` clean) |
 | **ESLint Validation** | `PASS` | 0 errors, 0 warnings (`--max-warnings 0`) |
 | **Production Build** | `PASS` | Vite built production bundle clean (`dist/`) |
@@ -29,32 +29,33 @@
 ```text
  ✓ src/core/bootstrap/__tests__/bootstrap.test.ts          (3 tests)
  ✓ src/core/coordinates/__tests__/coordinates.test.ts      (6 tests)
- ✓ src/core/entities/__tests__/entities.test.ts            (22 tests - added 5 atomic/defensive tests)
+ ✓ src/core/entities/__tests__/entities.test.ts            (27 tests - atomic rollback, defensive copies, invariant protections)
  ✓ src/core/events/__tests__/events.test.ts                (4 tests)
  ✓ src/core/history/__tests__/history.test.ts              (3 tests)
  ✓ src/core/commands/__tests__/commands.test.ts            (10 tests)
  ✓ src/core/persistence/__tests__/persistence.test.ts      (3 tests)
  ✓ src/core/state/__tests__/store.test.ts                  (7 tests)
- ✓ src/core/serialization/__tests__/serialization.test.ts  (9 tests - added 3 adversarial bounds/hex tests)
+ ✓ src/core/serialization/__tests__/serialization.test.ts  (10 tests - coordinate bounds, stringTable integrity, hex cubic checks)
  ✓ src/core/optimistic/__tests__/optimistic.test.ts        (4 tests)
  ✓ src/bindings/r3f/__tests__/PieceAnimationSystem.test.ts  (3 tests)
  ✓ src/bindings/react/__tests__/ChessBoardVisual.test.tsx  (5 tests - visual integration suite)
  ✓ src/core/__tests__/isolation.test.ts                    (1 test)
  ✓ src/core/__tests__/integration.test.ts                  (2 tests)
  ✓ src/core/__tests__/adversarial.test.ts                  (14 tests)
- ✓ src/core/workers/__tests__/EngineBridge.test.ts          (8 tests)
+ ✓ src/core/workers/__tests__/EngineBridge.test.ts          (9 tests - e2e worker serialization transfer and deserialization)
  ✓ src/core/benchmarks/__tests__/benchmarks.test.ts        (2 tests)
 
 Test Files  17 passed (17)
-Tests       111 passed (111)
-Duration    2.57s
+Tests       117 passed (117)
+Duration    ~2.5s
 ```
 
 ### 📜 Histórico de Execuções
 
 - **Execução Inicial (Baseline alegado):** 69 testes (não reproduzidos isoladamente).
 - **Primeira Auditoria:** 98 testes em 16 arquivos (commit `f93f9d4`).
-- **Auditoria Corretiva Final:** 111 testes em 17 arquivos (inclui 5 testes de atomicidade/clonagem defensiva no `EntityManager`, 3 testes adversariais no `FlatArraySerializer` e 5 testes de integração visual no `ChessBoardVisual`).
+- **Segunda Auditoria:** 111 testes em 17 arquivos.
+- **Auditoria Corretiva Definitiva:** 117 testes em 17 arquivos (inclui 5 testes de atomicidade/clonagem defensiva no `EntityManager`, testes adversariais no `FlatArraySerializer`, teste de e2e worker deserialization no `EngineBridge` e 5 testes de integração visual no `ChessBoardVisual`).
 
 ---
 
