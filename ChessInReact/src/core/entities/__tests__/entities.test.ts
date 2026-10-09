@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { asCoordinateKey, asEntityId } from '../../coordinates';
-import { EntityManager } from '../EntityManager';
+import { EntityManager, EntityUpdatePatch } from '../EntityManager';
 import { IPieceEntity, ITerrainEntity } from '../types';
 
 describe('EntityManager & Spatial Dual Index', () => {
@@ -168,7 +168,7 @@ describe('EntityManager & Spatial Dual Index', () => {
     it('forbids mutating entity ID via updateEntity to prevent index corruption', () => {
       manager.addEntity(piece1);
       expect(() =>
-        manager.updateEntity(piece1.id, { id: asEntityId('hacked-id') } as unknown as Partial<IPieceEntity>)
+        manager.updateEntity(piece1.id, { id: asEntityId('hacked-id') } as unknown as EntityUpdatePatch)
       ).toThrow(/Entity ID is immutable/);
       expect(manager.validateInvariants().valid).toBe(true);
     });
@@ -176,7 +176,7 @@ describe('EntityManager & Spatial Dual Index', () => {
     it('forbids mutating entity type via updateEntity', () => {
       manager.addEntity(piece1);
       expect(() =>
-        manager.updateEntity(piece1.id, { type: 'TERRAIN' } as unknown as Partial<IPieceEntity>)
+        manager.updateEntity(piece1.id, { type: 'TERRAIN' } as unknown as EntityUpdatePatch)
       ).toThrow(/Entity type is immutable/);
       expect(manager.validateInvariants().valid).toBe(true);
     });
@@ -184,7 +184,7 @@ describe('EntityManager & Spatial Dual Index', () => {
     it('forbids mutating isCaptured directly via updateEntity', () => {
       manager.addEntity(piece1);
       expect(() =>
-        manager.updateEntity(piece1.id, { isCaptured: true } as unknown as Partial<IPieceEntity>)
+        manager.updateEntity(piece1.id, { isCaptured: true } as unknown as EntityUpdatePatch)
       ).toThrow(/Direct mutation of isCaptured is not allowed/);
       // Index remained untouched
       expect(manager.getOccupant(piece1.position)?.id).toBe(piece1.id);
@@ -242,5 +242,80 @@ describe('EntityManager & Spatial Dual Index', () => {
       expect(manager.getOccupant(piece1.position)?.id).toBe(promotedPiece.id);
       expect(manager.validateInvariants().valid).toBe(true);
     });
+
+    it('preserves existing entity when replaceEntity fails due to ID collision (atomic rollback)', () => {
+      manager.addEntities([piece1, piece2]);
+
+      // Attempt replacing piece1 with a new entity whose ID collides with piece2
+      const collidingPiece: IPieceEntity = {
+        ...piece1,
+        id: piece2.id, // ID collision!
+        variantId: 'QUEEN',
+      };
+
+      expect(() => manager.replaceEntity(piece1.id, collidingPiece)).toThrow(/already exists/);
+
+      // Verify piece1 was NOT deleted and indices remain perfectly intact
+      expect(manager.getEntity(piece1.id)).toBeDefined();
+      expect(manager.getOccupant(piece1.position)?.id).toBe(piece1.id);
+      expect(manager.validateInvariants().valid).toBe(true);
+    });
+
+    it('preserves existing entity when replaceEntity fails due to target coordinate occupancy', () => {
+      manager.addEntities([piece1, piece2]);
+
+      // Attempt replacing piece1 with a piece whose position is occupied by piece2
+      const collidingPosPiece: IPieceEntity = {
+        ...piece1,
+        id: asEntityId('new-promoted-piece'),
+        position: piece2.position, // Occupied by piece2!
+        variantId: 'QUEEN',
+      };
+
+      expect(() => manager.replaceEntity(piece1.id, collidingPosPiece)).toThrow(/already occupied/);
+
+      // Verify piece1 was NOT deleted
+      expect(manager.getEntity(piece1.id)).toBeDefined();
+      expect(manager.getOccupant(piece1.position)?.id).toBe(piece1.id);
+      expect(manager.validateInvariants().valid).toBe(true);
+    });
+
+    it('protects internal store objects from external reference mutations (defensive copies)', () => {
+      manager.addEntity(piece1);
+
+      const retrieved = manager.getEntity(piece1.id) as IPieceEntity;
+      expect(retrieved).toBeDefined();
+
+      // Maliciously or accidentally mutate the retrieved object
+      (retrieved as unknown as { position: string }).position = '99,99';
+      (retrieved as unknown as { id: string }).id = 'corrupted-id';
+
+      // Verify internal store was NOT modified
+      const freshLookup = manager.getEntity(piece1.id) as IPieceEntity;
+      expect(freshLookup.position).toBe('0,1');
+      expect(freshLookup.id).toBe(piece1.id);
+
+      expect(manager.getOccupant(asCoordinateKey('0,1'))?.id).toBe(piece1.id);
+      expect(manager.getOccupant(asCoordinateKey('99,99'))).toBeUndefined();
+      expect(manager.validateInvariants().valid).toBe(true);
+    });
+
+    it('rejects capturing an entity that is already captured', () => {
+      manager.addEntity(piece1);
+      manager.captureEntity(piece1.id);
+
+      expect(() => manager.captureEntity(piece1.id)).toThrow(/already captured/);
+      expect(manager.validateInvariants().valid).toBe(true);
+    });
+
+    it('rejects restoring an entity that is not captured', () => {
+      manager.addEntity(piece1);
+
+      expect(() => manager.restoreEntity(piece1.id, asCoordinateKey('4,4'))).toThrow(
+        /because it is not captured/
+      );
+      expect(manager.validateInvariants().valid).toBe(true);
+    });
   });
 });
+

@@ -111,10 +111,10 @@ describe('Serialization Subsystem (FlatArray Int32 & Snapshot JSON)', () => {
     expect(restoredIds).toEqual(idList);
   });
 
-  it('falls back safely to ordinal identifiers when stringTable is omitted', () => {
+  it('strictly rejects worker deserialization when stringTable is omitted, incomplete, or contains duplicates (AUDIT-03)', () => {
     const domain = createDefaultDomainState();
-    const p: IPieceEntity = {
-      id: asEntityId('my-special-id'),
+    const p1: IPieceEntity = {
+      id: asEntityId('p-1'),
       type: 'PIECE',
       ownerId: 'P1',
       variantId: 'ROOK',
@@ -122,37 +122,183 @@ describe('Serialization Subsystem (FlatArray Int32 & Snapshot JSON)', () => {
       hasMoved: false,
       isCaptured: false,
     };
+    const p2: IPieceEntity = {
+      id: asEntityId('p-2'),
+      type: 'PIECE',
+      ownerId: 'P1',
+      variantId: 'PAWN',
+      position: asCoordinateKey('0,1'),
+      hasMoved: false,
+      isCaptured: false,
+    };
+    domain.boardEntities[p1.id] = p1;
+    domain.boardEntities[p2.id] = p2;
+
+    const snapshot = serializeStateForWorker(domain);
+
+    // 1. Omitted / non-array stringTable
+    expect(() => deserializeWorkerState(snapshot.buffer, undefined as unknown as string[])).toThrow(
+      /stringTable is mandatory/
+    );
+
+    // 2. Incomplete stringTable (length mismatch)
+    expect(() => deserializeWorkerState(snapshot.buffer, ['p-1'])).toThrow(
+      /stringTable integrity failure: stringTable has 1 entries, expected 2/
+    );
+
+    // 3. Duplicate IDs in stringTable
+    expect(() => deserializeWorkerState(snapshot.buffer, ['p-dup', 'p-dup'])).toThrow(
+      /duplicate entity ID "p-dup"/
+    );
+
+    // 4. Empty or invalid ID in stringTable
+    expect(() => deserializeWorkerState(snapshot.buffer, ['p-1', ''])).toThrow(
+      /entry at index 1 is empty or not a string/
+    );
+  });
+
+  it('rejects corrupted buffers with out-of-bounds stringTable index or invalid codes', () => {
+    const domain = createDefaultDomainState();
+    const p: IPieceEntity = {
+      id: asEntityId('p-1'),
+      type: 'PIECE',
+      ownerId: 'P1',
+      variantId: 'KNIGHT',
+      position: asCoordinateKey('2,2'),
+      hasMoved: false,
+      isCaptured: false,
+    };
     domain.boardEntities[p.id] = p;
 
     const snapshot = serializeStateForWorker(domain);
-    // Omitting stringTable simulates headless math-only worker
-    const restored = deserializeWorkerState(snapshot.buffer);
 
-    expect(restored.entities[0].id).toBe('entity_0');
+    // Corrupt the string index in buffer to out of bounds
+    const corruptedBuffer = new Int32Array(snapshot.buffer);
+    // Entity stride offset for string index is 4 (EntityFieldOffset.ID_STRING_INDEX)
+    corruptedBuffer[4 + 4] = 999;
+    expect(() => deserializeWorkerState(corruptedBuffer, snapshot.stringTable)).toThrow(
+      /out-of-bounds stringTable index 999/
+    );
+
+    // Corrupt type code
+    const badTypeBuffer = new Int32Array(snapshot.buffer);
+    // Overwrite type bits with invalid code 0x50000000
+    badTypeBuffer[4] = 0x50000000;
+    expect(() => deserializeWorkerState(badTypeBuffer, snapshot.stringTable)).toThrow(
+      /unrecognized entity type code/
+    );
   });
 
-  it('preserves negative coordinates and large values in signed 32-bit ints', () => {
+  it('preserves negative coordinates and signed 32-bit int extrema', () => {
     const domain = createDefaultDomainState();
     const negPiece: IPieceEntity = {
       id: asEntityId('deep-space-probe'),
       type: 'PIECE',
       ownerId: 'P4',
       variantId: 'ROOK',
-      position: asCoordinateKey('-42,-1337,2048'),
+      position: asCoordinateKey('-42,-1337,1379'), // Valid hex cubic: -42 + -1337 + 1379 === 0
+      hasMoved: false,
+      isCaptured: false,
+    };
+    const extremaPiece: IPieceEntity = {
+      id: asEntityId('extrema-piece'),
+      type: 'PIECE',
+      ownerId: 'P1',
+      variantId: 'KING',
+      position: asCoordinateKey('-2147483648,2147483647'), // Exact MIN_INT32 and MAX_INT32
       hasMoved: false,
       isCaptured: false,
     };
 
     domain.boardEntities[negPiece.id] = negPiece;
+    domain.boardEntities[extremaPiece.id] = extremaPiece;
 
     const snapshot = serializeStateForWorker(domain);
     const result = deserializeWorkerState(snapshot.buffer, snapshot.stringTable);
 
-    const entity = result.entities[0];
-    expect(entity.id).toBe('deep-space-probe');
-    expect(entity.x).toBe(-42);
-    expect(entity.y).toBe(-1337);
-    expect(entity.z).toBe(2048);
+    const probe = result.entities.find((e) => e.id === 'deep-space-probe');
+    expect(probe).toBeDefined();
+    expect(probe?.x).toBe(-42);
+    expect(probe?.y).toBe(-1337);
+    expect(probe?.z).toBe(1379);
+
+    const extrema = result.entities.find((e) => e.id === 'extrema-piece');
+    expect(extrema).toBeDefined();
+    expect(extrema?.x).toBe(-2147483648);
+    expect(extrema?.y).toBe(2147483647);
+    expect(extrema?.z).toBe(0);
+  });
+
+  it('strictly validates coordinate formats and rejects out-of-bound or invalid values', () => {
+    const domain = createDefaultDomainState();
+    const overflowPiece: IPieceEntity = {
+      id: asEntityId('overflow'),
+      type: 'PIECE',
+      ownerId: 'P1',
+      variantId: 'PAWN',
+      position: asCoordinateKey('2147483648,0'), // Beyond MAX_INT32
+      hasMoved: false,
+      isCaptured: false,
+    };
+    domain.boardEntities[overflowPiece.id] = overflowPiece;
+
+    expect(() => serializeStateForWorker(domain)).toThrow(RangeError);
+
+    // Non-integer coordinate
+    const nonIntPiece: IPieceEntity = {
+      id: asEntityId('non-int'),
+      type: 'PIECE',
+      ownerId: 'P1',
+      variantId: 'PAWN',
+      position: asCoordinateKey('3.14,2'),
+      hasMoved: false,
+      isCaptured: false,
+    };
+    const nonIntDomain = createDefaultDomainState();
+    nonIntDomain.boardEntities[nonIntPiece.id] = nonIntPiece;
+    expect(() => serializeStateForWorker(nonIntDomain)).toThrow(/Must be a valid integer/);
+
+    // Invalid cubic hex sum (q + r + s !== 0)
+    const badHexPiece: IPieceEntity = {
+      id: asEntityId('bad-hex'),
+      type: 'PIECE',
+      ownerId: 'P1',
+      variantId: 'PAWN',
+      position: asCoordinateKey('1,2,3'), // 1 + 2 + 3 = 6 !== 0
+      hasMoved: false,
+      isCaptured: false,
+    };
+    const badHexDomain = createDefaultDomainState();
+    badHexDomain.boardEntities[badHexPiece.id] = badHexPiece;
+    expect(() => serializeStateForWorker(badHexDomain)).toThrow(/sum of q\+r\+s must equal 0/);
+  });
+
+  it('rejects unsupported entity types and variants with explicit errors', () => {
+    const domain = createDefaultDomainState();
+    const badVariantPiece = {
+      id: asEntityId('laser-tank'),
+      type: 'PIECE',
+      ownerId: 'P1',
+      variantId: 'LASER_TANK_UNKNOWN',
+      position: asCoordinateKey('0,0'),
+      hasMoved: false,
+      isCaptured: false,
+    } as unknown as IPieceEntity;
+    domain.boardEntities[badVariantPiece.id] = badVariantPiece;
+
+    expect(() => serializeStateForWorker(domain)).toThrow(/Unsupported piece\/terrain variant/);
+
+    const badTypeEntity = {
+      id: asEntityId('npc-goblin'),
+      type: 'MONSTER',
+      ownerId: 'P1',
+      variantId: 'PAWN',
+      position: asCoordinateKey('0,0'),
+    } as unknown as IPieceEntity;
+    const badTypeDomain = createDefaultDomainState();
+    badTypeDomain.boardEntities[badTypeEntity.id] = badTypeEntity;
+
+    expect(() => serializeStateForWorker(badTypeDomain)).toThrow(/Unsupported entity type/);
   });
 
   it('rejects buffers with schema version mismatch or truncated data', () => {
@@ -161,11 +307,22 @@ describe('Serialization Subsystem (FlatArray Int32 & Snapshot JSON)', () => {
     // Corrupt schema version
     const badVersionBuffer = new Int32Array(validSnapshot.buffer);
     badVersionBuffer[0] = 999;
-    expect(() => deserializeWorkerState(badVersionBuffer)).toThrow(/Schema version mismatch/);
+    expect(() => deserializeWorkerState(badVersionBuffer, validSnapshot.stringTable)).toThrow(
+      /Schema version mismatch/
+    );
 
     // Truncated buffer
     const truncatedBuffer = validSnapshot.buffer.slice(0, 2);
-    expect(() => deserializeWorkerState(truncatedBuffer)).toThrow(/Malformed buffer/);
+    expect(() => deserializeWorkerState(truncatedBuffer, validSnapshot.stringTable)).toThrow(
+      /Malformed buffer/
+    );
+
+    // Buffer length mismatch with entityCount
+    const sizeCorruptedBuffer = new Int32Array(validSnapshot.buffer.length + 2);
+    sizeCorruptedBuffer.set(validSnapshot.buffer);
+    expect(() => deserializeWorkerState(sizeCorruptedBuffer, validSnapshot.stringTable)).toThrow(
+      /Buffer corruption: length is/
+    );
   });
 
   it('serializes snapshot JSON and verifies size is well under 25KB for 64 pieces (RNF-10)', () => {

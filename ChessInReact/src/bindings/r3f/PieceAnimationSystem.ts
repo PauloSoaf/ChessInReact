@@ -1,5 +1,6 @@
 import { CoordinateKey, EntityId } from '../../core/coordinates';
 import { GameStoreInstance } from '../../core/state/gameStore';
+import { IGameStore } from '../../core/state/gameState';
 
 export interface Vector3Like {
   x: number;
@@ -37,7 +38,7 @@ export class PieceAnimationSystem {
 
     // Listen to changes in boardEntities imperatively without triggering React re-renders
     this.unsubscribeStore = this.store.subscribe(
-      (state) => state.domain.boardEntities,
+      (state: IGameStore) => state.domain.boardEntities,
       (boardEntities) => {
         for (const [id, targetRecord] of this.targets.entries()) {
           const entity = boardEntities[id];

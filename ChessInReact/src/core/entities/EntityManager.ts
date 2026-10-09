@@ -7,6 +7,32 @@ export interface InvariantValidationResult {
 }
 
 /**
+ * Restricted patch type for safe entity updates (AUDIT-01).
+ * Forbids structural mutations (id, type, isCaptured).
+ */
+export interface EntityUpdatePatch {
+  readonly position?: CoordinateKey;
+  readonly hasMoved?: boolean;
+  readonly variantId?: string;
+  readonly metadata?: Readonly<Record<string, unknown>>;
+  readonly properties?: Readonly<Record<string, unknown>>;
+  readonly id?: never;
+  readonly type?: never;
+  readonly isCaptured?: never;
+}
+
+/**
+ * Clones an entity object defensively to prevent external mutations
+ * from compromising internal store and spatial indices (AUDIT-01).
+ */
+function cloneEntity<T extends IEntity>(entity: T): T {
+  return {
+    ...entity,
+    metadata: entity.metadata ? { ...entity.metadata } : undefined,
+  };
+}
+
+/**
  * EntityManager manages game entities with bidirectional index consistency:
  * - entityById: Lookup by EntityId in expected O(1)
  * - occupancyByCoordinate: Spatial lookup by CoordinateKey in expected O(1)
@@ -40,6 +66,7 @@ export class EntityManager {
 
   /**
    * Add a single entity, registering both by ID and coordinate occupancy.
+   * Defensive: stores a cloned copy to prevent external mutation leaks.
    * Throws if entity with same ID exists or target coordinate is already occupied.
    */
   public addEntity(entity: IEntity): void {
@@ -59,7 +86,7 @@ export class EntityManager {
       this.occupancyByCoordinate.set(entity.position, entity.id);
     }
 
-    this.entityById.set(entity.id, entity);
+    this.entityById.set(entity.id, cloneEntity(entity));
   }
 
   /**
@@ -82,19 +109,21 @@ export class EntityManager {
   }
 
   /**
-   * Get entity by ID.
+   * Get entity by ID (returns defensive copy to protect internal integrity).
    */
   public getEntity(id: EntityId): IEntity | undefined {
-    return this.entityById.get(id);
+    const entity = this.entityById.get(id);
+    return entity ? cloneEntity(entity) : undefined;
   }
 
   /**
-   * Get entity currently occupying a specific coordinate.
+   * Get entity currently occupying a specific coordinate (returns defensive copy).
    */
   public getOccupant(coord: CoordinateKey): IEntity | undefined {
     const entityId = this.occupancyByCoordinate.get(coord);
     if (!entityId) return undefined;
-    return this.entityById.get(entityId);
+    const entity = this.entityById.get(entityId);
+    return entity ? cloneEntity(entity) : undefined;
   }
 
   /**
@@ -138,17 +167,17 @@ export class EntityManager {
    * Strictly forbids altering identity, type, or capture flags directly,
    * preserving index consistency (AUDIT-01).
    */
-  public updateEntity(id: EntityId, patch: Partial<IEntity>): void {
+  public updateEntity(id: EntityId, patch: EntityUpdatePatch): void {
     const entity = this.entityById.get(id);
     if (!entity) {
       throw new Error(`Cannot update non-existent entity with ID: ${id}`);
     }
 
-    if (patch.id && patch.id !== id) {
+    if ('id' in patch && patch.id !== undefined && patch.id !== id) {
       throw new Error(`Forbidden: Entity ID is immutable. Cannot change ID from "${id}" to "${patch.id}".`);
     }
 
-    if (patch.type && patch.type !== entity.type) {
+    if ('type' in patch && patch.type !== undefined && patch.type !== entity.type) {
       throw new Error(`Forbidden: Entity type is immutable. Cannot change type from "${entity.type}" to "${patch.type}".`);
     }
 
@@ -197,7 +226,7 @@ export class EntityManager {
       throw new Error(`Cannot capture non-piece entity with ID: ${id} (type: ${entity.type})`);
     }
     if (entity.isCaptured) {
-      return; // Already captured, idempotent
+      throw new Error(`Cannot capture entity with ID: ${id} because it is already captured.`);
     }
 
     this.occupancyByCoordinate.delete(entity.position);
@@ -227,6 +256,9 @@ export class EntityManager {
     if (entity.type !== 'PIECE') {
       throw new Error(`Cannot restore non-piece entity with ID: ${id}`);
     }
+    if (!entity.isCaptured) {
+      throw new Error(`Cannot restore entity with ID: ${id} because it is not captured.`);
+    }
 
     const currentOccupant = this.occupancyByCoordinate.get(toCoordinate);
     if (currentOccupant && currentOccupant !== id) {
@@ -245,7 +277,9 @@ export class EntityManager {
   }
 
   /**
-   * Atomically replaces an entity with a new entity definition.
+   * Atomically replaces an entity with a new entity definition (AUDIT-01).
+   * Validates ALL pre-conditions BEFORE altering any index so failure never leaves
+   * half-applied or lost state.
    */
   public replaceEntity(oldId: EntityId, newEntity: IEntity): void {
     const existing = this.entityById.get(oldId);
@@ -253,8 +287,42 @@ export class EntityManager {
       throw new Error(`Cannot replace non-existent entity with ID: ${oldId}`);
     }
 
-    this.removeEntity(oldId);
-    this.addEntity(newEntity);
+    // 1. If replacing with a different ID, ensure target ID is not already used
+    if (newEntity.id !== oldId && this.entityById.has(newEntity.id)) {
+      throw new Error(
+        `Cannot replace entity "${oldId}": target entity ID "${newEntity.id}" already exists.`
+      );
+    }
+
+    // 2. If new entity is active (uncaptured), ensure target coordinate is not occupied by another entity
+    const isNewCaptured = newEntity.type === 'PIECE' && newEntity.isCaptured;
+    if (!isNewCaptured) {
+      const occupant = this.occupancyByCoordinate.get(newEntity.position);
+      if (occupant && occupant !== oldId) {
+        throw new Error(
+          `Cannot replace entity "${oldId}": target coordinate "${newEntity.position}" is already occupied by "${occupant}".`
+        );
+      }
+    }
+
+    // All pre-conditions passed! Apply atomic mutations:
+    // Remove old coordinate occupancy if position changed or new entity is captured
+    if (existing.position !== newEntity.position || isNewCaptured) {
+      if (this.occupancyByCoordinate.get(existing.position) === oldId) {
+        this.occupancyByCoordinate.delete(existing.position);
+      }
+    }
+
+    // Set new coordinate occupancy if active
+    if (!isNewCaptured) {
+      this.occupancyByCoordinate.set(newEntity.position, newEntity.id);
+    }
+
+    // Update entity map
+    if (newEntity.id !== oldId) {
+      this.entityById.delete(oldId);
+    }
+    this.entityById.set(newEntity.id, cloneEntity(newEntity));
   }
 
   /**
@@ -268,11 +336,11 @@ export class EntityManager {
       this.occupancyByCoordinate.delete(entity.position);
     }
     this.entityById.delete(id);
-    return entity;
+    return cloneEntity(entity);
   }
 
   /**
-   * Query all entities of a specific type.
+   * Query all entities of a specific type (returns defensive copies).
    */
   public getEntitiesByType<T extends IEntity['type']>(
     type: T
@@ -280,33 +348,33 @@ export class EntityManager {
     const result: Extract<IEntity, { type: T }>[] = [];
     for (const entity of this.entityById.values()) {
       if (entity.type === type) {
-        result.push(entity as Extract<IEntity, { type: T }>);
+        result.push(cloneEntity(entity) as Extract<IEntity, { type: T }>);
       }
     }
     return result;
   }
 
   /**
-   * Query all piece entities owned by a specific player.
+   * Query all piece entities owned by a specific player (returns defensive copies).
    */
   public getEntitiesByOwner(ownerId: PlayerId): readonly IPieceEntity[] {
     const result: IPieceEntity[] = [];
     for (const entity of this.entityById.values()) {
       if (entity.type === 'PIECE' && entity.ownerId === ownerId) {
-        result.push(entity);
+        result.push(cloneEntity(entity) as IPieceEntity);
       }
     }
     return result;
   }
 
   /**
-   * Get all active (non-captured) pieces.
+   * Get all active (non-captured) pieces (returns defensive copies).
    */
   public getActivePieces(): readonly IPieceEntity[] {
     const result: IPieceEntity[] = [];
     for (const entity of this.entityById.values()) {
       if (entity.type === 'PIECE' && !entity.isCaptured) {
-        result.push(entity);
+        result.push(cloneEntity(entity) as IPieceEntity);
       }
     }
     return result;
@@ -327,10 +395,9 @@ export class EntityManager {
   }
 
   /**
-   * Clear all entities.
+   * Clear all entities (AUDIT-01: cleanly clears maps with no dead code).
    */
   public clear(): void {
-    this.entityById.clear;
     this.entityById.clear();
     this.occupancyByCoordinate.clear();
   }
@@ -348,12 +415,12 @@ export class EntityManager {
     for (const [coord, id] of this.occupancyByCoordinate.entries()) {
       const entity = this.entityById.get(id);
       if (!entity) {
-        errors.push(`Orphan occupancy index: coordinate ${coord} references missing entity ${id}`);
+        errors.push(`Occupancy at ${coord} references non-existent entity ${id}`);
         continue;
       }
       if (entity.position !== coord) {
         errors.push(
-          `Position mismatch: occupancy has ${coord} -> ${id}, but entity position is ${entity.position}`
+          `Spatial mismatch: Entity ${id} recorded at ${coord}, but entity.position is ${entity.position}`
         );
       }
       if (entity.type === 'PIECE' && entity.isCaptured) {
@@ -381,7 +448,7 @@ export class EntityManager {
   }
 
   /**
-   * Export plain record snapshot.
+   * Export plain record snapshot (returns defensive copies).
    */
   public toSnapshot(): {
     entityById: Record<EntityId, IEntity>;
@@ -389,7 +456,7 @@ export class EntityManager {
   } {
     const entityById: Record<EntityId, IEntity> = {} as Record<EntityId, IEntity>;
     for (const [k, v] of this.entityById.entries()) {
-      entityById[k] = v;
+      entityById[k] = cloneEntity(v);
     }
     const occupancyByCoordinate: Record<CoordinateKey, EntityId> = {} as Record<CoordinateKey, EntityId>;
     for (const [k, v] of this.occupancyByCoordinate.entries()) {

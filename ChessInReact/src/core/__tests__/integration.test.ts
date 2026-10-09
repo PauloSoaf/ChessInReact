@@ -11,6 +11,7 @@ import {
   selectTurnNumber,
 } from '../state/selectors';
 import { IPieceEntity } from '../entities/types';
+import { IGameStore } from '../state/gameState';
 
 describe('End-to-End Multi-Layer Integration: Core State Pipeline', () => {
   let store: GameStoreInstance;
@@ -40,8 +41,8 @@ describe('End-to-End Multi-Layer Integration: Core State Pipeline', () => {
     let subscriptionNotifications = 0;
     let lastObservedRevision = 0;
     const unsubscribe = store.subscribe(
-      (state) => state.domain.revision,
-      (revision) => {
+      (state: IGameStore) => state.domain.revision,
+      (revision: number) => {
         subscriptionNotifications++;
         lastObservedRevision = revision;
       }

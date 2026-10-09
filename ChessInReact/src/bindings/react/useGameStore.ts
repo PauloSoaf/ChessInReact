@@ -1,4 +1,4 @@
-import { useStore } from 'zustand';
+import { type StoreApi, useStore } from 'zustand';
 import { CoordinateKey, EntityId } from '../../core/coordinates';
 import { gameStore } from '../../core/state/gameStore';
 import { IGameStore } from '../../core/state/gameState';
@@ -12,7 +12,7 @@ export function useGameStore<T>(
   selector: (state: IGameStore) => T,
   equalityFn?: (left: T, right: T) => boolean
 ): T {
-  return useStore(gameStore, selector, equalityFn);
+  return useStore(gameStore as StoreApi<IGameStore>, selector, equalityFn);
 }
 
 /**

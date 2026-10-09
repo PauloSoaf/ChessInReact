@@ -22,7 +22,7 @@ import {
   selectVisibilityWindow,
   selectWinnerId,
 } from '../index';
-import { IStoreCommand } from '../gameState';
+import { IGameStore, IStoreCommand } from '../gameState';
 
 describe('Vanilla Zustand GameStore & Selectors', () => {
   let store: ReturnType<typeof createGameStore>;
@@ -113,7 +113,7 @@ describe('Vanilla Zustand GameStore & Selectors', () => {
 
     // Subscribe ONLY to UI selectedPieceId
     const unsubscribe = store.subscribe(
-      (state) => state.ui.selectedPieceId,
+      (state: IGameStore) => state.ui.selectedPieceId,
       listener
     );
 

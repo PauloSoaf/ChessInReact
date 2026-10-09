@@ -96,15 +96,15 @@ describe('Adversarial & Fault Injection Test Suite (Spec 01 Verification)', () =
 
   it('rejects deserializing corrupted or truncated binary worker buffers', () => {
     const truncatedBuffer = new Int32Array([1, 2]); // Less than header size 4
-    expect(() => deserializeWorkerState(truncatedBuffer)).toThrow(/Malformed buffer/);
+    expect(() => deserializeWorkerState(truncatedBuffer, [])).toThrow(/Malformed buffer/);
 
     const badLengthBuffer = new Int32Array([1, 5, 1, 1]); // Claims 5 entities, but buffer is only 4 ints long
-    expect(() => deserializeWorkerState(badLengthBuffer)).toThrow(/Buffer corruption/);
+    expect(() => deserializeWorkerState(badLengthBuffer, [])).toThrow(/Buffer corruption/);
   });
 
   it('rejects unsupported schemaVersion in binary serialization', () => {
     const badSchemaBuffer = new Int32Array([999, 0, 1, 1]);
-    expect(() => deserializeWorkerState(badSchemaBuffer)).toThrow(/Schema version mismatch/);
+    expect(() => deserializeWorkerState(badSchemaBuffer, [])).toThrow(/Schema version mismatch/);
   });
 
   it('handles worker timeout safely', async () => {

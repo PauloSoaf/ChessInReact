@@ -20,6 +20,9 @@ export function processWorkerRequest(req: IWorkerRequest): IWorkerResponse {
         if (!buffer) {
           return { id: req.id, type: 'ERROR', error: 'Missing ArrayBuffer payload' };
         }
+        if (!stringTable) {
+          return { id: req.id, type: 'ERROR', error: 'Missing stringTable payload' };
+        }
         const state = deserializeWorkerState(new Int32Array(buffer), stringTable);
         return {
           id: req.id,
@@ -38,6 +41,9 @@ export function processWorkerRequest(req: IWorkerRequest): IWorkerResponse {
         const stringTable = req.payload?.stringTable;
         if (!buffer) {
           return { id: req.id, type: 'ERROR', error: 'Missing ArrayBuffer payload' };
+        }
+        if (!stringTable) {
+          return { id: req.id, type: 'ERROR', error: 'Missing stringTable payload' };
         }
         const state = deserializeWorkerState(new Int32Array(buffer), stringTable);
         return {

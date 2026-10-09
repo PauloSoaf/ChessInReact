@@ -23,7 +23,7 @@ export function createGameStore(
 ) {
   const history = historyManager ?? new HistoryManager();
 
-  return createStore<IGameStore>()(
+  const store = createStore<IGameStore>()(
     subscribeWithSelector((set) => ({
       domain: initialDomain ?? createDefaultDomainState(),
       ui: initialUI ?? createDefaultUIState(),
@@ -134,6 +134,12 @@ export function createGameStore(
       },
     }))
   );
+
+  // Ensure SSR / headless renderers (e.g. React 18 useSyncExternalStore getServerSnapshot)
+  // always read the active, live domain state rather than a stale module-load snapshot.
+  (store as unknown as { getInitialState: () => IGameStore }).getInitialState = () => store.getState();
+
+  return store;
 }
 
 /**
