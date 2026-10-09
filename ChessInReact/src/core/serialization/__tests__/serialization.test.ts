@@ -8,8 +8,9 @@ import {
   serializeStateForWorker,
 } from '../index';
 
+
 describe('Serialization Subsystem (FlatArray Int32 & Snapshot JSON)', () => {
-  it('serializes and deserializes domain state to Int32Array with full fidelity', () => {
+  it('serializes and deserializes domain state to Int32Array with full fidelity and stringTable identity preservation (AUDIT-03)', () => {
     const domain = createDefaultDomainState('match-serialize-test');
 
     const p1: IPieceEntity = {
@@ -43,28 +44,91 @@ describe('Serialization Subsystem (FlatArray Int32 & Snapshot JSON)', () => {
     domain.boardEntities[p2.id] = p2;
     domain.boardEntities[t1.id] = t1;
 
-    const buffer = serializeStateForWorker(domain);
+    const snapshot = serializeStateForWorker(domain);
 
-    expect(buffer).toBeInstanceOf(Int32Array);
+    expect(snapshot.buffer).toBeInstanceOf(Int32Array);
     // Header (4) + 3 entities * stride (5) = 19 ints
-    expect(buffer.length).toBe(4 + 3 * 5);
+    expect(snapshot.buffer.length).toBe(4 + 3 * 5);
+    expect(snapshot.stringTable).toEqual([
+      'white-knight-b1',
+      'black-queen-d8',
+      'hex-mountain-center',
+    ]);
 
-    const deserialized = deserializeWorkerState(buffer);
+    const deserialized = deserializeWorkerState(snapshot.buffer, snapshot.stringTable);
     expect(deserialized.entityCount).toBe(3);
     expect(deserialized.activePlayer).toBe('P1');
     expect(deserialized.turnNumber).toBe(1);
 
+    // AUDIT-03: Verify exact entity IDs are preserved (zero hash loss)
     const knight = deserialized.entities.find((e) => e.variantId === 'KNIGHT');
     expect(knight).toBeDefined();
+    expect(knight?.id).toBe('white-knight-b1');
     expect(knight?.ownerId).toBe('P1');
     expect(knight?.hasMoved).toBe(true);
     expect(knight?.isCaptured).toBe(false);
     expect(knight?.x).toBe(1);
     expect(knight?.y).toBe(0);
 
+    const queen = deserialized.entities.find((e) => e.variantId === 'QUEEN');
+    expect(queen?.id).toBe('black-queen-d8');
+
     const mountain = deserialized.entities.find((e) => e.variantId === 'MOUNTAIN');
     expect(mountain).toBeDefined();
+    expect(mountain?.id).toBe('hex-mountain-center');
     expect(mountain?.type).toBe('TERRAIN');
+  });
+
+  it('guarantees zero hash collisions for arbitrary entity IDs (AUDIT-03 & ADR-002)', () => {
+    const domain = createDefaultDomainState('collision-test');
+
+    // Create entities with arbitrary, complex IDs
+    const idList = [
+      'piece_alpha_#1_unique',
+      'piece_alpha_#2_unique',
+      'weird_id_🚀_unicode',
+      'custom-mod-uuid-123e4567-e89b-12d3-a456-426614174000',
+    ];
+
+    idList.forEach((id, idx) => {
+      const piece: IPieceEntity = {
+        id: asEntityId(id),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: 'PAWN',
+        position: asCoordinateKey(`${idx},0`),
+        hasMoved: false,
+        isCaptured: false,
+      };
+      domain.boardEntities[piece.id] = piece;
+    });
+
+    const snapshot = serializeStateForWorker(domain);
+    const restored = deserializeWorkerState(snapshot.buffer, snapshot.stringTable);
+
+    // Verify all IDs match identically
+    const restoredIds = restored.entities.map((e) => e.id);
+    expect(restoredIds).toEqual(idList);
+  });
+
+  it('falls back safely to ordinal identifiers when stringTable is omitted', () => {
+    const domain = createDefaultDomainState();
+    const p: IPieceEntity = {
+      id: asEntityId('my-special-id'),
+      type: 'PIECE',
+      ownerId: 'P1',
+      variantId: 'ROOK',
+      position: asCoordinateKey('0,0'),
+      hasMoved: false,
+      isCaptured: false,
+    };
+    domain.boardEntities[p.id] = p;
+
+    const snapshot = serializeStateForWorker(domain);
+    // Omitting stringTable simulates headless math-only worker
+    const restored = deserializeWorkerState(snapshot.buffer);
+
+    expect(restored.entities[0].id).toBe('entity_0');
   });
 
   it('preserves negative coordinates and large values in signed 32-bit ints', () => {
@@ -81,25 +145,26 @@ describe('Serialization Subsystem (FlatArray Int32 & Snapshot JSON)', () => {
 
     domain.boardEntities[negPiece.id] = negPiece;
 
-    const buffer = serializeStateForWorker(domain);
-    const result = deserializeWorkerState(buffer);
+    const snapshot = serializeStateForWorker(domain);
+    const result = deserializeWorkerState(snapshot.buffer, snapshot.stringTable);
 
     const entity = result.entities[0];
+    expect(entity.id).toBe('deep-space-probe');
     expect(entity.x).toBe(-42);
     expect(entity.y).toBe(-1337);
     expect(entity.z).toBe(2048);
   });
 
   it('rejects buffers with schema version mismatch or truncated data', () => {
-    const validBuffer = serializeStateForWorker(createDefaultDomainState());
+    const validSnapshot = serializeStateForWorker(createDefaultDomainState());
 
     // Corrupt schema version
-    const badVersionBuffer = new Int32Array(validBuffer);
+    const badVersionBuffer = new Int32Array(validSnapshot.buffer);
     badVersionBuffer[0] = 999;
     expect(() => deserializeWorkerState(badVersionBuffer)).toThrow(/Schema version mismatch/);
 
     // Truncated buffer
-    const truncatedBuffer = validBuffer.slice(0, 2);
+    const truncatedBuffer = validSnapshot.buffer.slice(0, 2);
     expect(() => deserializeWorkerState(truncatedBuffer)).toThrow(/Malformed buffer/);
   });
 
@@ -136,3 +201,4 @@ describe('Serialization Subsystem (FlatArray Int32 & Snapshot JSON)', () => {
     expect(restored.matchId).toBe('fide-64-pieces');
   });
 });
+

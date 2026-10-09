@@ -46,10 +46,11 @@ describe('Core Headless Isolation (Zero DOM, Zero React, Zero THREE)', () => {
     history.undo(draft);
     expect(draft.boardEntities[testPiece.id].position).toBe('0,1');
 
-    // 5. Serialize to Int32Array
-    const buffer = serializeStateForWorker(draft);
-    expect(buffer).toBeInstanceOf(Int32Array);
-    expect(buffer.length).toBeGreaterThan(0);
+    // 5. Serialize to Int32Array with stringTable sidecar
+    const snapshot = serializeStateForWorker(draft);
+    expect(snapshot.buffer).toBeInstanceOf(Int32Array);
+    expect(snapshot.buffer.length).toBeGreaterThan(0);
+    expect(snapshot.stringTable.length).toBeGreaterThan(0);
 
     // 6. Emit event through EventBus
     let eventFired = false;

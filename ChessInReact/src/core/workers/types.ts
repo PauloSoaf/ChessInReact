@@ -21,6 +21,7 @@ export interface IWorkerRequest {
   readonly type: WorkerRequestType;
   readonly payload?: {
     readonly buffer?: ArrayBuffer;
+    readonly stringTable?: readonly string[];
     readonly depth?: number;
     readonly activePlayer?: PlayerId;
     readonly [key: string]: unknown;

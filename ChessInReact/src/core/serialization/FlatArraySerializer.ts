@@ -11,6 +11,7 @@ import {
   HeaderOffset,
   PlayerBinary,
   VariantBinary,
+  WorkerSnapshot,
 } from './types';
 
 function playerToBinary(player: PlayerId): PlayerBinary {
@@ -71,25 +72,15 @@ function binaryToVariant(val: number): string {
 }
 
 /**
- * Deterministic numeric hash for string entity IDs to store in 32-bit signed int.
+ * Serializes domain state into a contiguous Int32Array buffer with an accompanying
+ * stringTable dictionary sidecar. This avoids 32-bit hash truncation and guarantees
+ * 100% collision-free entity identity round-trip (AUDIT-03 & ADR-002).
  */
-function hashStringToInt32(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (Math.imul(31, hash) + str.charCodeAt(i)) | 0;
-  }
-  return hash;
-}
-
-/**
- * Serializes domain state into a contiguous Int32Array for zero-copy worker transfer.
- * Documented Stride: 5 integers per entity.
- * Total size: 4 integers (header) + entityCount * 5 integers.
- */
-export function serializeStateForWorker(domain: IDomainState): Int32Array {
+export function serializeStateForWorker(domain: IDomainState): WorkerSnapshot {
   const entities = Object.values(domain.boardEntities);
   const totalLength = HEADER_SIZE_INTS + entities.length * ENTITY_STRIDE_INTS;
   const buffer = new Int32Array(totalLength);
+  const stringTable: string[] = [];
 
   // Write header
   buffer[HeaderOffset.SCHEMA_VERSION] = BINARY_SCHEMA_VERSION;
@@ -101,6 +92,7 @@ export function serializeStateForWorker(domain: IDomainState): Int32Array {
 
   for (let i = 0; i < entities.length; i++) {
     const entity = entities[i];
+    stringTable.push(entity.id);
 
     let typeCode = EntityTypeBinary.UNKNOWN;
     let ownerCode = PlayerBinary.NONE;
@@ -136,18 +128,23 @@ export function serializeStateForWorker(domain: IDomainState): Int32Array {
     buffer[offset + EntityFieldOffset.Y_OR_R] = coordParts[1] ?? 0;
     buffer[offset + EntityFieldOffset.Z_OR_S] = coordParts[2] ?? 0;
 
-    buffer[offset + EntityFieldOffset.ID_NUMERIC] = hashStringToInt32(entity.id);
+    // Index into stringTable sidecar (zero-collision identity)
+    buffer[offset + EntityFieldOffset.ID_STRING_INDEX] = i;
 
     offset += ENTITY_STRIDE_INTS;
   }
 
-  return buffer;
+  return { buffer, stringTable };
 }
 
 /**
- * Deserializes an Int32Array into typed structure for worker consumption.
+ * Deserializes an Int32Array and optional stringTable sidecar into typed structure
+ * for worker consumption.
  */
-export function deserializeWorkerState(buffer: Int32Array): DeserializedWorkerState {
+export function deserializeWorkerState(
+  buffer: Int32Array,
+  stringTable?: readonly string[]
+): DeserializedWorkerState {
   if (buffer.length < HEADER_SIZE_INTS) {
     throw new Error(
       `Malformed buffer: length ${buffer.length} is less than header size ${HEADER_SIZE_INTS}`
@@ -194,10 +191,15 @@ export function deserializeWorkerState(buffer: Int32Array): DeserializedWorkerSt
     const x = buffer[offset + EntityFieldOffset.X_OR_Q];
     const y = buffer[offset + EntityFieldOffset.Y_OR_R];
     const z = buffer[offset + EntityFieldOffset.Z_OR_S];
-    const idHash = buffer[offset + EntityFieldOffset.ID_NUMERIC];
+    const idIndex = buffer[offset + EntityFieldOffset.ID_STRING_INDEX];
+
+    const entityId =
+      stringTable && stringTable[idIndex] !== undefined
+        ? stringTable[idIndex]
+        : `entity_${idIndex}`;
 
     entities.push({
-      id: `entity_hash_${idHash}`,
+      id: entityId,
       type: typeStr,
       ownerId,
       variantId,
@@ -219,3 +221,4 @@ export function deserializeWorkerState(buffer: Int32Array): DeserializedWorkerSt
     entities,
   };
 }
+

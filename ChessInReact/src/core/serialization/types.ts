@@ -1,4 +1,20 @@
 import { PlayerId } from '../coordinates/types';
+import { IDomainState } from '../state/gameState';
+
+/**
+ * Snapshot contracts:
+ * 1. DomainSnapshot: In-memory structured representation of the full game state.
+ * 2. PersistenceSnapshot: Lossless JSON string representing the full match history and state.
+ * 3. WorkerSnapshot: Compact, contiguous Int32Array buffer with an immutable stringTable sidecar
+ *    for zero-copy Worker transfer and 100% collision-free identity restoration.
+ */
+export type DomainSnapshot = IDomainState;
+export type PersistenceSnapshot = string;
+
+export interface WorkerSnapshot {
+  readonly buffer: Int32Array;
+  readonly stringTable: readonly string[];
+}
 
 /**
  * Binary protocol layout constants for worker flat array serialization.
@@ -28,7 +44,7 @@ export enum EntityFieldOffset {
   X_OR_Q = 1,                   // Signed 32-bit integer coordinate
   Y_OR_R = 2,                   // Signed 32-bit integer coordinate
   Z_OR_S = 3,                   // Signed 32-bit integer coordinate
-  ID_NUMERIC = 4,               // Numeric hash of entity ID for reconstruction
+  ID_STRING_INDEX = 4,          // Integer index into stringTable sidecar (lossless, zero-collision)
 }
 
 export enum EntityTypeBinary {
@@ -86,3 +102,4 @@ export interface DeserializedWorkerState {
     readonly isCaptured: boolean;
   }[];
 }
+

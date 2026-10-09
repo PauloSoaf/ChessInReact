@@ -92,22 +92,22 @@ export class EngineBridge {
   }
 
   public async echoStateMetadata(state: IDomainState): Promise<IEngineMetadataResponse> {
-    const flat = serializeStateForWorker(state);
+    const snapshot = serializeStateForWorker(state);
     return this.sendRequest<IEngineMetadataResponse>(
       'ECHO_STATE_METADATA',
-      { buffer: flat.buffer, activePlayer: state.activePlayer },
-      [flat.buffer]
+      { buffer: snapshot.buffer.buffer, stringTable: snapshot.stringTable, activePlayer: state.activePlayer },
+      [snapshot.buffer.buffer]
     );
   }
 
   public async validateSerialization(
     state: IDomainState
   ): Promise<{ valid: boolean; entityCount: number }> {
-    const flat = serializeStateForWorker(state);
+    const snapshot = serializeStateForWorker(state);
     return this.sendRequest<{ valid: boolean; entityCount: number }>(
       'VALIDATE_SERIALIZATION',
-      { buffer: flat.buffer },
-      [flat.buffer]
+      { buffer: snapshot.buffer.buffer, stringTable: snapshot.stringTable },
+      [snapshot.buffer.buffer]
     );
   }
 

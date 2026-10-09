@@ -16,10 +16,11 @@ export function processWorkerRequest(req: IWorkerRequest): IWorkerResponse {
 
       case 'ECHO_STATE_METADATA': {
         const buffer = req.payload?.buffer;
+        const stringTable = req.payload?.stringTable;
         if (!buffer) {
           return { id: req.id, type: 'ERROR', error: 'Missing ArrayBuffer payload' };
         }
-        const state = deserializeWorkerState(new Int32Array(buffer));
+        const state = deserializeWorkerState(new Int32Array(buffer), stringTable);
         return {
           id: req.id,
           type: 'METADATA_RESULT',
@@ -34,10 +35,11 @@ export function processWorkerRequest(req: IWorkerRequest): IWorkerResponse {
 
       case 'VALIDATE_SERIALIZATION': {
         const buffer = req.payload?.buffer;
+        const stringTable = req.payload?.stringTable;
         if (!buffer) {
           return { id: req.id, type: 'ERROR', error: 'Missing ArrayBuffer payload' };
         }
-        const state = deserializeWorkerState(new Int32Array(buffer));
+        const state = deserializeWorkerState(new Int32Array(buffer), stringTable);
         return {
           id: req.id,
           type: 'VALIDATION_RESULT',
