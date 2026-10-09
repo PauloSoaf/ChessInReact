@@ -76,6 +76,8 @@ export interface IStoreCommand {
 export interface IGameActions {
   // Domain actions
   executeCommand(command: IStoreCommand): void;
+  undo(): boolean;
+  redo(): boolean;
   syncDomainState(newDomainState: IDomainState): void;
   resetDomainState(initialDomain: IDomainState): void;
   setGameStatus(isGameOver: boolean, winnerId?: PlayerId | null): void;

@@ -8,6 +8,7 @@ export interface BootstrapConfig {
   readonly matchId?: string;
   readonly variantId?: 'classic_square' | 'hex_ffa';
   readonly initialPieces?: readonly IPieceEntity[];
+  readonly targetStore?: GameStoreInstance;
 }
 
 export interface BootstrapContext {
@@ -108,7 +109,10 @@ export function bootstrapGame(config?: BootstrapConfig): BootstrapContext {
     domain.occupancy[piece.position] = piece.id;
   }
 
-  const store = createGameStore(domain);
+  const store = config?.targetStore ?? createGameStore(domain);
+  if (config?.targetStore) {
+    config.targetStore.getState().resetDomainState(domain);
+  }
 
   const durationMs = performance.now() - startTime;
 
@@ -118,3 +122,4 @@ export function bootstrapGame(config?: BootstrapConfig): BootstrapContext {
     bootstrapDurationMs: durationMs,
   };
 }
+

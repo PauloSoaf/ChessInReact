@@ -2,6 +2,8 @@ import { createStore } from 'zustand/vanilla';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { produce } from 'immer';
 import { CoordinateKey, EntityId, PlayerId } from '../coordinates/types';
+import { HistoryManager } from '../history/HistoryManager';
+import { ICommand } from '../commands/types';
 import {
   IDomainState,
   IGameStore,
@@ -16,8 +18,11 @@ import { createDefaultDomainState, createDefaultUIState } from './initialState';
  */
 export function createGameStore(
   initialDomain?: IDomainState,
-  initialUI?: IPresentationUIState
+  initialUI?: IPresentationUIState,
+  historyManager?: HistoryManager
 ) {
+  const history = historyManager ?? new HistoryManager();
+
   return createStore<IGameStore>()(
     subscribeWithSelector((set) => ({
       domain: initialDomain ?? createDefaultDomainState(),
@@ -26,12 +31,42 @@ export function createGameStore(
       executeCommand: (command: IStoreCommand) => {
         set((state) => ({
           domain: produce(state.domain, (draft) => {
-            command.execute(draft as IDomainState);
+            history.execute(command as ICommand, draft as IDomainState);
             (draft as { revision: number }).revision += 1;
             (draft as { turnState: { lastActionTimestamp: number } }).turnState.lastActionTimestamp =
               Date.now();
           }),
         }));
+      },
+
+      undo: () => {
+        let success = false;
+        set((state) => ({
+          domain: produce(state.domain, (draft) => {
+            success = history.undo(draft as IDomainState);
+            if (success) {
+              (draft as { revision: number }).revision += 1;
+              (draft as { turnState: { lastActionTimestamp: number } }).turnState.lastActionTimestamp =
+                Date.now();
+            }
+          }),
+        }));
+        return success;
+      },
+
+      redo: () => {
+        let success = false;
+        set((state) => ({
+          domain: produce(state.domain, (draft) => {
+            success = history.redo(draft as IDomainState);
+            if (success) {
+              (draft as { revision: number }).revision += 1;
+              (draft as { turnState: { lastActionTimestamp: number } }).turnState.lastActionTimestamp =
+                Date.now();
+            }
+          }),
+        }));
+        return success;
       },
 
       syncDomainState: (newDomainState: IDomainState) => {
@@ -41,6 +76,7 @@ export function createGameStore(
       },
 
       resetDomainState: (newDomain: IDomainState) => {
+        history.clear();
         set(() => ({
           domain: newDomain,
           ui: createDefaultUIState(),

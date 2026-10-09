@@ -49,8 +49,11 @@ export function useHighlightedCoords() {
 export function useGameActions() {
   return useGameStore((state) => ({
     executeCommand: state.executeCommand,
+    undo: state.undo,
+    redo: state.redo,
     syncDomainState: state.syncDomainState,
     resetDomainState: state.resetDomainState,
+    setActivePlayer: state.setActivePlayer,
     selectPiece: state.selectPiece,
     setHighlights: state.setHighlights,
     setHoveredCoord: state.setHoveredCoord,
