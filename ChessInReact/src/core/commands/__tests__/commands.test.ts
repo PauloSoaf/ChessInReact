@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { asCoordinateKey, asEntityId } from '../../coordinates';
-import { IPieceEntity } from '../../entities/types';
+import { IEntity, IPieceEntity } from '../../entities/types';
 import { createDefaultDomainState } from '../../state/initialState';
 import { IDomainState } from '../../state/gameState';
 import { CompositeCommand, MovePieceCommand } from '../index';
@@ -184,4 +184,85 @@ describe('Command Pattern: MovePieceCommand & CompositeCommand', () => {
     expect(domain.boardEntities[whitePawn.id].position).toBe('4,1');
     expect(domain.occupancy[asCoordinateKey('4,1')]).toBe(whitePawn.id);
   });
+
+  describe('AUDIT-02 Core Invariants Enforcement', () => {
+    it('rejects moving an entity that is not of type PIECE', () => {
+      const obstacleEntity: IEntity = {
+        id: asEntityId('obstacle-4-1'),
+        type: 'OBSTACLE',
+        position: asCoordinateKey('4,1'),
+        destructible: false,
+        hp: 100,
+      };
+      domain.boardEntities[obstacleEntity.id] = obstacleEntity;
+
+      const cmd = new MovePieceCommand(
+        obstacleEntity.id,
+        asCoordinateKey('4,1'),
+        asCoordinateKey('4,2'),
+        'P1'
+      );
+
+      expect(() => cmd.execute(domain)).toThrow(/only "PIECE" entities can be moved/);
+    });
+
+    it('rejects moving an opponent piece (player authorization invariant)', () => {
+      // P1 attempting to move P2's piece
+      const cmd = new MovePieceCommand(
+        blackPawn.id,
+        asCoordinateKey('3,2'),
+        asCoordinateKey('3,3'),
+        'P1'
+      );
+
+      expect(() => cmd.execute(domain)).toThrow(/belongs to player "P2", not acting player "P1"/);
+    });
+
+    it('rejects moving a piece that is already captured', () => {
+      const capturedPawn: IPieceEntity = {
+        id: asEntityId('white-pawn-captured'),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: 'PAWN',
+        position: asCoordinateKey('1,1'),
+        hasMoved: true,
+        isCaptured: true,
+      };
+      domain.boardEntities[capturedPawn.id] = capturedPawn;
+      domain.occupancy[capturedPawn.position] = capturedPawn.id;
+
+      const cmd = new MovePieceCommand(
+        capturedPawn.id,
+        asCoordinateKey('1,1'),
+        asCoordinateKey('1,2'),
+        'P1'
+      );
+
+      expect(() => cmd.execute(domain)).toThrow(/because it is already captured/);
+    });
+
+    it('rejects friendly fire / self-capture', () => {
+      const secondWhitePawn: IPieceEntity = {
+        id: asEntityId('white-pawn-e3'),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: 'PAWN',
+        position: asCoordinateKey('4,2'),
+        hasMoved: false,
+        isCaptured: false,
+      };
+      domain.boardEntities[secondWhitePawn.id] = secondWhitePawn;
+      domain.occupancy[secondWhitePawn.position] = secondWhitePawn.id;
+
+      const friendlyCaptureCmd = new MovePieceCommand(
+        whitePawn.id,
+        asCoordinateKey('4,1'),
+        asCoordinateKey('4,2'), // Destination occupied by friendly piece
+        'P1'
+      );
+
+      expect(() => friendlyCaptureCmd.execute(domain)).toThrow(/Self-capture is forbidden/);
+    });
+  });
 });
+

@@ -32,6 +32,22 @@ export class MovePieceCommand implements ICommand {
       throw new Error(`Invalid move: Entity with ID "${this.pieceId}" does not exist.`);
     }
 
+    // AUDIT-02: Core invariant: Only non-captured PIECE entities can be moved
+    if (piece.type !== 'PIECE') {
+      throw new Error(`Invalid move: Entity "${this.pieceId}" is of type "${piece.type}", only "PIECE" entities can be moved.`);
+    }
+
+    if (piece.isCaptured) {
+      throw new Error(`Invalid move: Cannot move piece "${this.pieceId}" because it is already captured.`);
+    }
+
+    // AUDIT-02: Core invariant: Players may only command their own pieces
+    if (piece.ownerId !== this.actingPlayer) {
+      throw new Error(
+        `Invalid move: Piece "${this.pieceId}" belongs to player "${piece.ownerId}", not acting player "${this.actingPlayer}".`
+      );
+    }
+
     // RF-03: Validate piece exists at origin coordinate before dispatching
     if (piece.position !== this.from) {
       throw new Error(
@@ -45,11 +61,22 @@ export class MovePieceCommand implements ICommand {
       );
     }
 
-    // Handle capture at destination coordinate
+    // Handle destination target
     const targetEntityId = draft.occupancy[this.to];
     if (targetEntityId) {
+      if (targetEntityId === this.pieceId) {
+        return; // No-op move to identical square
+      }
+
       const targetEntity = draft.boardEntities[targetEntityId];
       if (targetEntity) {
+        // AUDIT-02: Core invariant: Self-capture of friendly pieces is prohibited
+        if (targetEntity.type === 'PIECE' && targetEntity.ownerId === this.actingPlayer) {
+          throw new Error(
+            `Invalid move: Destination coordinate "${this.to}" is occupied by friendly piece "${targetEntityId}". Self-capture is forbidden.`
+          );
+        }
+
         // Deep clone snapshot of captured entity for lossless undo
         this.capturedEntitySnapshot = JSON.parse(JSON.stringify(targetEntity));
 

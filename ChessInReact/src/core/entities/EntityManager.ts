@@ -134,7 +134,9 @@ export class EntityManager {
   }
 
   /**
-   * Updates properties of an existing entity.
+   * Updates non-structural properties of an existing entity.
+   * Strictly forbids altering identity, type, or capture flags directly,
+   * preserving index consistency (AUDIT-01).
    */
   public updateEntity(id: EntityId, patch: Partial<IEntity>): void {
     const entity = this.entityById.get(id);
@@ -142,11 +144,25 @@ export class EntityManager {
       throw new Error(`Cannot update non-existent entity with ID: ${id}`);
     }
 
+    if (patch.id && patch.id !== id) {
+      throw new Error(`Forbidden: Entity ID is immutable. Cannot change ID from "${id}" to "${patch.id}".`);
+    }
+
+    if (patch.type && patch.type !== entity.type) {
+      throw new Error(`Forbidden: Entity type is immutable. Cannot change type from "${entity.type}" to "${patch.type}".`);
+    }
+
+    if ('isCaptured' in patch && patch.isCaptured !== undefined) {
+      throw new Error(
+        'Forbidden: Direct mutation of isCaptured is not allowed via updateEntity. Use captureEntity() or restoreEntity() to guarantee spatial index consistency.'
+      );
+    }
+
     if (patch.position && patch.position !== entity.position) {
       this.moveEntity(id, patch.position);
-      // Re-fetch updated entity
-      const fresh = this.entityById.get(id)!;
-      const combined = { ...fresh, ...patch, position: patch.position } as IEntity;
+      // Re-fetch updated entity after position move
+      const movedEntity = this.entityById.get(id)!;
+      const combined = { ...movedEntity, ...patch, position: patch.position } as IEntity;
       this.entityById.set(id, combined);
     } else {
       const combined = { ...entity, ...patch } as IEntity;
@@ -155,12 +171,33 @@ export class EntityManager {
   }
 
   /**
-   * Mark piece as captured: sets isCaptured to true and removes from spatial occupancy.
+   * Safely updates domain metadata on an entity without touching spatial indices.
    */
-  public capturePiece(id: EntityId): void {
+  public updateEntityMetadata(id: EntityId, metadataPatch: Readonly<Record<string, unknown>>): void {
     const entity = this.entityById.get(id);
-    if (!entity || entity.type !== 'PIECE') {
-      throw new Error(`Cannot capture non-piece entity: ${id}`);
+    if (!entity) {
+      throw new Error(`Cannot update metadata for non-existent entity with ID: ${id}`);
+    }
+    const updated = {
+      ...entity,
+      metadata: { ...(entity.metadata ?? {}), ...metadataPatch },
+    } as IEntity;
+    this.entityById.set(id, updated);
+  }
+
+  /**
+   * Mark piece as captured: sets isCaptured to true and atomically removes from spatial occupancy.
+   */
+  public captureEntity(id: EntityId): void {
+    const entity = this.entityById.get(id);
+    if (!entity) {
+      throw new Error(`Cannot capture non-existent entity with ID: ${id}`);
+    }
+    if (entity.type !== 'PIECE') {
+      throw new Error(`Cannot capture non-piece entity with ID: ${id} (type: ${entity.type})`);
+    }
+    if (entity.isCaptured) {
+      return; // Already captured, idempotent
     }
 
     this.occupancyByCoordinate.delete(entity.position);
@@ -169,6 +206,55 @@ export class EntityManager {
       isCaptured: true,
     };
     this.entityById.set(id, updatedPiece);
+  }
+
+  /**
+   * Backward-compatible alias for captureEntity.
+   */
+  public capturePiece(id: EntityId): void {
+    this.captureEntity(id);
+  }
+
+  /**
+   * Restores a previously captured piece to an unoccupied coordinate.
+   * Atomically updates isCaptured to false and sets occupancy index.
+   */
+  public restoreEntity(id: EntityId, toCoordinate: CoordinateKey): void {
+    const entity = this.entityById.get(id);
+    if (!entity) {
+      throw new Error(`Cannot restore non-existent entity with ID: ${id}`);
+    }
+    if (entity.type !== 'PIECE') {
+      throw new Error(`Cannot restore non-piece entity with ID: ${id}`);
+    }
+
+    const currentOccupant = this.occupancyByCoordinate.get(toCoordinate);
+    if (currentOccupant && currentOccupant !== id) {
+      throw new Error(
+        `Cannot restore entity "${id}" to coordinate "${toCoordinate}": already occupied by "${currentOccupant}".`
+      );
+    }
+
+    const updatedPiece: IPieceEntity = {
+      ...entity,
+      position: toCoordinate,
+      isCaptured: false,
+    };
+    this.occupancyByCoordinate.set(toCoordinate, id);
+    this.entityById.set(id, updatedPiece);
+  }
+
+  /**
+   * Atomically replaces an entity with a new entity definition.
+   */
+  public replaceEntity(oldId: EntityId, newEntity: IEntity): void {
+    const existing = this.entityById.get(oldId);
+    if (!existing) {
+      throw new Error(`Cannot replace non-existent entity with ID: ${oldId}`);
+    }
+
+    this.removeEntity(oldId);
+    this.addEntity(newEntity);
   }
 
   /**
