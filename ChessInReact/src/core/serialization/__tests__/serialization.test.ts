@@ -357,5 +357,217 @@ describe('Serialization Subsystem (FlatArray Int32 & Snapshot JSON)', () => {
     expect(Object.keys(restored.boardEntities).length).toBe(64);
     expect(restored.matchId).toBe('fide-64-pieces');
   });
-});
 
+  describe('PATCH-06: Distinction Between Square and Hex Coordinates', () => {
+    it('round-trips and preserves exact coordinate geometry without ambiguous z=0 fallback', () => {
+      const domain = createDefaultDomainState('coord-geometry-test');
+
+      const sq1: IPieceEntity = {
+        id: asEntityId('sq-zero'),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: 'PAWN',
+        position: asCoordinateKey('0,0'),
+        hasMoved: false,
+        isCaptured: false,
+      };
+
+      const sq2: IPieceEntity = {
+        id: asEntityId('sq-normal'),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: 'ROOK',
+        position: asCoordinateKey('5,7'),
+        hasMoved: false,
+        isCaptured: false,
+      };
+
+      const hex1: ITerrainEntity = {
+        id: asEntityId('hex-zero-cubic'),
+        type: 'TERRAIN',
+        variantId: 'MOUNTAIN',
+        position: asCoordinateKey('0,0,0'),
+      };
+
+      const hex2: ITerrainEntity = {
+        id: asEntityId('hex-z-zero'),
+        type: 'TERRAIN',
+        variantId: 'WATER',
+        position: asCoordinateKey('1,-1,0'), // Valid cubic hex with z=0
+      };
+
+      const hex3: ITerrainEntity = {
+        id: asEntityId('hex-three-dim'),
+        type: 'TERRAIN',
+        variantId: 'MOUNTAIN',
+        position: asCoordinateKey('-2,1,1'),
+      };
+
+      domain.boardEntities[sq1.id] = sq1;
+      domain.boardEntities[sq2.id] = sq2;
+      domain.boardEntities[hex1.id] = hex1;
+      domain.boardEntities[hex2.id] = hex2;
+      domain.boardEntities[hex3.id] = hex3;
+
+      const snapshot = serializeStateForWorker(domain);
+      const restored = deserializeWorkerState(snapshot.buffer, snapshot.stringTable);
+
+      const rSq1 = restored.entities.find((e) => e.id === 'sq-zero');
+      expect(rSq1?.kind).toBe('SQUARE');
+      expect(rSq1?.x).toBe(0);
+      expect(rSq1?.y).toBe(0);
+      expect(rSq1?.z).toBe(0);
+
+      const rSq2 = restored.entities.find((e) => e.id === 'sq-normal');
+      expect(rSq2?.kind).toBe('SQUARE');
+      expect(rSq2?.x).toBe(5);
+      expect(rSq2?.y).toBe(7);
+      expect(rSq2?.z).toBe(0);
+
+      const rHex1 = restored.entities.find((e) => e.id === 'hex-zero-cubic');
+      expect(rHex1?.kind).toBe('HEX_CUBIC');
+      expect(rHex1?.x).toBe(0);
+      expect(rHex1?.y).toBe(0);
+      expect(rHex1?.z).toBe(0);
+
+      const rHex2 = restored.entities.find((e) => e.id === 'hex-z-zero');
+      expect(rHex2?.kind).toBe('HEX_CUBIC');
+      expect(rHex2?.x).toBe(1);
+      expect(rHex2?.y).toBe(-1);
+      expect(rHex2?.z).toBe(0);
+
+      const rHex3 = restored.entities.find((e) => e.id === 'hex-three-dim');
+      expect(rHex3?.kind).toBe('HEX_CUBIC');
+      expect(rHex3?.x).toBe(-2);
+      expect(rHex3?.y).toBe(1);
+      expect(rHex3?.z).toBe(1);
+    });
+  });
+
+  describe('PATCH-07: Strict Validation of Entire Binary Protocol', () => {
+    it('rejects duplicate stringTable index references within binary buffer', () => {
+      const domain = createDefaultDomainState();
+      const p1: IPieceEntity = {
+        id: asEntityId('p-1'),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: 'PAWN',
+        position: asCoordinateKey('0,0'),
+        hasMoved: false,
+        isCaptured: false,
+      };
+      const p2: IPieceEntity = {
+        id: asEntityId('p-2'),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: 'ROOK',
+        position: asCoordinateKey('1,0'),
+        hasMoved: false,
+        isCaptured: false,
+      };
+      domain.boardEntities[p1.id] = p1;
+      domain.boardEntities[p2.id] = p2;
+
+      const snapshot = serializeStateForWorker(domain);
+      const corruptedBuf = new Int32Array(snapshot.buffer);
+
+      // Make entity 1 reference stringTable index 0 (same as entity 0)
+      corruptedBuf[4 + 1 * 5 + 4] = 0;
+
+      expect(() => deserializeWorkerState(corruptedBuf, snapshot.stringTable)).toThrow(
+        /duplicate stringTable index 0 referenced.*Bijection required/
+      );
+    });
+
+    it('rejects unsupported flag bits in entity record', () => {
+      const domain = createDefaultDomainState();
+      const p1: IPieceEntity = {
+        id: asEntityId('p-1'),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: 'PAWN',
+        position: asCoordinateKey('0,0'),
+        hasMoved: false,
+        isCaptured: false,
+      };
+      domain.boardEntities[p1.id] = p1;
+
+      const snapshot = serializeStateForWorker(domain);
+      const corruptedBuf = new Int32Array(snapshot.buffer);
+
+      // Inject unsupported flag bit (e.g. 0x80 << 16)
+      corruptedBuf[4] |= (0x80 << 16);
+
+      expect(() => deserializeWorkerState(corruptedBuf, snapshot.stringTable)).toThrow(
+        /unsupported flag bits/
+      );
+    });
+
+    it('rejects invalid owner codes in entity record', () => {
+      const domain = createDefaultDomainState();
+      const p1: IPieceEntity = {
+        id: asEntityId('p-1'),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: 'PAWN',
+        position: asCoordinateKey('0,0'),
+        hasMoved: false,
+        isCaptured: false,
+      };
+      domain.boardEntities[p1.id] = p1;
+
+      const snapshot = serializeStateForWorker(domain);
+      const corruptedBuf = new Int32Array(snapshot.buffer);
+
+      // Set ownerCode to invalid value 15 (0x0f << 24)
+      corruptedBuf[4] = (corruptedBuf[4] & ~(0x0f << 24)) | (15 << 24);
+
+      expect(() => deserializeWorkerState(corruptedBuf, snapshot.stringTable)).toThrow(
+        /unrecognized player code 15/
+      );
+    });
+
+    it('rejects PIECE with owner NONE or TERRAIN with owner P1', () => {
+      const domain = createDefaultDomainState();
+      const p1: IPieceEntity = {
+        id: asEntityId('p-1'),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: 'PAWN',
+        position: asCoordinateKey('0,0'),
+        hasMoved: false,
+        isCaptured: false,
+      };
+      domain.boardEntities[p1.id] = p1;
+
+      const snapshot = serializeStateForWorker(domain);
+      const corruptedBuf = new Int32Array(snapshot.buffer);
+
+      // Set owner to NONE (0 << 24)
+      corruptedBuf[4] = corruptedBuf[4] & ~(0x0f << 24);
+
+      expect(() => deserializeWorkerState(corruptedBuf, snapshot.stringTable)).toThrow(
+        /PIECE entity at index 0 has owner NONE/
+      );
+    });
+
+    it('rejects invalid header metadata (activePlayer NONE or turnNumber < 1)', () => {
+      const domain = createDefaultDomainState();
+      const snapshot = serializeStateForWorker(domain);
+
+      // Header activePlayer = 0 (NONE)
+      const badPlayerBuf = new Int32Array(snapshot.buffer);
+      badPlayerBuf[2] = 0;
+      expect(() => deserializeWorkerState(badPlayerBuf, snapshot.stringTable)).toThrow(
+        /Player NONE is not allowed/
+      );
+
+      // Header turnNumber = 0
+      const badTurnBuf = new Int32Array(snapshot.buffer);
+      badTurnBuf[3] = 0;
+      expect(() => deserializeWorkerState(badTurnBuf, snapshot.stringTable)).toThrow(
+        /invalid turnNumber 0/
+      );
+    });
+  });
+});

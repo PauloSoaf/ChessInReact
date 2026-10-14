@@ -2,6 +2,7 @@ import { PlayerId } from '../coordinates/types';
 import { IDomainState } from '../state/gameState';
 import {
   BINARY_SCHEMA_VERSION,
+  CoordinateKind,
   DeserializedWorkerState,
   ENTITY_STRIDE_INTS,
   EntityFieldOffset,
@@ -31,8 +32,11 @@ function playerToBinary(player: PlayerId): PlayerBinary {
   }
 }
 
-function binaryToPlayer(val: number): PlayerId {
+function binaryToPlayer(val: number, allowNone = true): PlayerId {
   switch (val) {
+    case PlayerBinary.NONE:
+      if (!allowNone) throw new Error('Buffer corruption: Player NONE is not allowed in this context.');
+      return 'NONE';
     case PlayerBinary.P1: return 'P1';
     case PlayerBinary.P2: return 'P2';
     case PlayerBinary.P3: return 'P3';
@@ -41,7 +45,8 @@ function binaryToPlayer(val: number): PlayerId {
     case PlayerBinary.P6: return 'P6';
     case PlayerBinary.P7: return 'P7';
     case PlayerBinary.P8: return 'P8';
-    default: return 'NONE';
+    default:
+      throw new Error(`Buffer corruption: unrecognized player code ${val}.`);
   }
 }
 
@@ -83,13 +88,14 @@ function binaryToVariant(val: number): string {
 }
 
 interface ParsedCoordinates {
+  readonly kind: CoordinateKind;
   readonly x: number;
   readonly y: number;
   readonly z: number;
 }
 
 /**
- * Validates coordinate string format, bounds, and cubic hex constraints.
+ * Validates coordinate string format, bounds, and cubic hex constraints (PATCH-06).
  */
 function parseAndValidateCoordinates(coord: string, entityId: string): ParsedCoordinates {
   if (typeof coord !== 'string' || coord.trim() === '') {
@@ -122,7 +128,7 @@ function parseAndValidateCoordinates(coord: string, entityId: string): ParsedCoo
 
   if (parts.length === 2) {
     // 2D square grid: (x, y) with z = 0
-    return { x: intParts[0], y: intParts[1], z: 0 };
+    return { kind: 'SQUARE', x: intParts[0], y: intParts[1], z: 0 };
   } else {
     // 3D cubic hex coordinate: (q, r, s) with q + r + s = 0
     const [q, r, s] = intParts;
@@ -131,7 +137,7 @@ function parseAndValidateCoordinates(coord: string, entityId: string): ParsedCoo
         `Invalid hex cubic coordinate "${coord}" for entity "${entityId}": sum of q+r+s must equal 0, got ${q + r + s}.`
       );
     }
-    return { x: q, y: r, z: s };
+    return { kind: 'HEX_CUBIC', x: q, y: r, z: s };
   }
 }
 
@@ -181,6 +187,12 @@ export function serializeStateForWorker(domain: IDomainState): WorkerSnapshot {
       );
     }
 
+    // Parse and strictly validate coordinates
+    const coords = parseAndValidateCoordinates(entity.position, entity.id);
+    if (coords.kind === 'HEX_CUBIC') {
+      flags |= EntityFlagsBinary.IS_HEX_COORDINATE;
+    }
+
     // Bit packing:
     // [Type: bits 28..31] | [Owner: bits 24..27] | [Flags: bits 16..23] | [Variant: bits 0..15]
     const packedWord =
@@ -191,8 +203,6 @@ export function serializeStateForWorker(domain: IDomainState): WorkerSnapshot {
 
     buffer[offset + EntityFieldOffset.TYPE_OWNER_FLAGS_VARIANT] = packedWord;
 
-    // Parse and strictly validate coordinates
-    const coords = parseAndValidateCoordinates(entity.position, entity.id);
     buffer[offset + EntityFieldOffset.X_OR_Q] = coords.x;
     buffer[offset + EntityFieldOffset.Y_OR_R] = coords.y;
     buffer[offset + EntityFieldOffset.Z_OR_S] = coords.z;
@@ -210,6 +220,8 @@ export function serializeStateForWorker(domain: IDomainState): WorkerSnapshot {
  * Deserializes an Int32Array and stringTable sidecar into typed structure
  * for worker consumption.
  * stringTable is mandatory for lossless identity restoration (AUDIT-03).
+ * Validates full binary protocol schema, bijunctive stringTable references,
+ * and coordinate geometries (PATCH-06, PATCH-07).
  */
 export function deserializeWorkerState(
   buffer: Int32Array,
@@ -264,9 +276,13 @@ export function deserializeWorkerState(
     seenIds.add(id);
   }
 
-  const activePlayer = binaryToPlayer(buffer[HeaderOffset.ACTIVE_PLAYER]);
+  const activePlayer = binaryToPlayer(buffer[HeaderOffset.ACTIVE_PLAYER], false);
   const turnNumber = buffer[HeaderOffset.TURN_NUMBER];
+  if (!Number.isInteger(turnNumber) || turnNumber < 1) {
+    throw new Error(`Buffer corruption: invalid turnNumber ${turnNumber} in header. Must be integer >= 1.`);
+  }
 
+  const seenTableIndices = new Set<number>();
   const entities: DeserializedWorkerState['entities'][number][] = [];
   let offset = HEADER_SIZE_INTS;
 
@@ -276,6 +292,18 @@ export function deserializeWorkerState(
     const ownerCode = (packed >>> 24) & 0x0f;
     const flags = (packed >>> 16) & 0xff;
     const variantCode = packed & 0xffff;
+
+    // Validate flag bits
+    const validFlagsMask =
+      EntityFlagsBinary.HAS_MOVED |
+      EntityFlagsBinary.IS_CAPTURED |
+      EntityFlagsBinary.IS_HEX_COORDINATE;
+    if ((flags & ~validFlagsMask) !== 0) {
+      throw new Error(`Buffer corruption: unsupported flag bits 0x${flags.toString(16)} at entity index ${i}.`);
+    }
+
+    const isHex = (flags & EntityFlagsBinary.IS_HEX_COORDINATE) !== 0;
+    const kind: CoordinateKind = isHex ? 'HEX_CUBIC' : 'SQUARE';
 
     let typeStr: 'PIECE' | 'TERRAIN' | 'OBSTACLE';
     if (typeCode === EntityTypeBinary.PIECE) {
@@ -288,19 +316,50 @@ export function deserializeWorkerState(
       throw new Error(`Buffer corruption: unrecognized entity type code ${typeCode}.`);
     }
 
-    const ownerId = binaryToPlayer(ownerCode);
+    const ownerId = binaryToPlayer(ownerCode, true);
     const variantId = binaryToVariant(variantCode);
     const hasMoved = (flags & EntityFlagsBinary.HAS_MOVED) !== 0;
     const isCaptured = (flags & EntityFlagsBinary.IS_CAPTURED) !== 0;
+
+    // Validate combinations
+    if (typeStr === 'PIECE') {
+      if (ownerId === 'NONE') {
+        throw new Error(`Buffer corruption: PIECE entity at index ${i} has owner NONE.`);
+      }
+      if (variantId === 'MOUNTAIN' || variantId === 'WATER' || variantId === 'OBSTACLE_WALL') {
+        throw new Error(`Buffer corruption: PIECE entity at index ${i} has invalid variant ${variantId}.`);
+      }
+    } else {
+      if (ownerId !== 'NONE') {
+        throw new Error(`Buffer corruption: ${typeStr} entity at index ${i} must have owner NONE, got ${ownerId}.`);
+      }
+      if (hasMoved || isCaptured) {
+        throw new Error(`Buffer corruption: ${typeStr} entity at index ${i} cannot have hasMoved or isCaptured flags.`);
+      }
+      if (typeStr === 'TERRAIN' && variantId !== 'MOUNTAIN' && variantId !== 'WATER') {
+        throw new Error(`Buffer corruption: TERRAIN entity at index ${i} has invalid variant ${variantId}.`);
+      }
+      if (typeStr === 'OBSTACLE' && variantId !== 'OBSTACLE_WALL') {
+        throw new Error(`Buffer corruption: OBSTACLE entity at index ${i} has invalid variant ${variantId}.`);
+      }
+    }
 
     const x = buffer[offset + EntityFieldOffset.X_OR_Q];
     const y = buffer[offset + EntityFieldOffset.Y_OR_R];
     const z = buffer[offset + EntityFieldOffset.Z_OR_S];
 
-    if (z !== 0 && x + y + z !== 0) {
-      throw new Error(
-        `Buffer corruption: hex coordinate at entity index ${i} violates q+r+s=0 constraint (${x},${y},${z}).`
-      );
+    if (isHex) {
+      if (x + y + z !== 0) {
+        throw new Error(
+          `Buffer corruption: hex coordinate at entity index ${i} violates q+r+s=0 constraint (${x},${y},${z}).`
+        );
+      }
+    } else {
+      if (z !== 0) {
+        throw new Error(
+          `Buffer corruption: square coordinate at entity index ${i} has non-zero z component (${z}).`
+        );
+      }
     }
 
     const idIndex = buffer[offset + EntityFieldOffset.ID_STRING_INDEX];
@@ -310,6 +369,14 @@ export function deserializeWorkerState(
         `Buffer corruption: entity at index ${i} has out-of-bounds stringTable index ${idIndex} (stringTable length is ${stringTable.length}).`
       );
     }
+
+    if (seenTableIndices.has(idIndex)) {
+      throw new Error(
+        `Buffer corruption: duplicate stringTable index ${idIndex} referenced at entity index ${i}. Bijection required.`
+      );
+    }
+    seenTableIndices.add(idIndex);
+
     const entityId = stringTable[idIndex];
 
     entities.push({
@@ -317,6 +384,7 @@ export function deserializeWorkerState(
       type: typeStr,
       ownerId,
       variantId,
+      kind,
       x,
       y,
       z,

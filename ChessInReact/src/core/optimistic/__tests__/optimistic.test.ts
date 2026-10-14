@@ -60,11 +60,11 @@ describe('OptimisticManager (Client-side Prediction & Rollback Reconciliation)',
     const authoritativeBase = JSON.parse(JSON.stringify(domain)) as IDomainState;
 
     // Apply move 1 (which will be rejected)
-    const cmd1 = new MovePieceCommand(piece1.id, asCoordinateKey('0,1'), asCoordinateKey('0,2'), 'P1');
+    const cmd1 = new MovePieceCommand(piece1.id, asCoordinateKey('0,1'), asCoordinateKey('0,2'), 'P1', undefined, false);
     const optId1 = optimistic.applyOptimistic(cmd1, domain);
 
     // Apply move 2 on independent piece (which remains pending)
-    const cmd2 = new MovePieceCommand(piece2.id, asCoordinateKey('1,1'), asCoordinateKey('1,2'), 'P1');
+    const cmd2 = new MovePieceCommand(piece2.id, asCoordinateKey('1,1'), asCoordinateKey('1,2'), 'P1', undefined, false);
     const optId2 = optimistic.applyOptimistic(cmd2, domain);
 
     expect(optimistic.getPendingCount()).toBe(2);

@@ -3,7 +3,7 @@ export interface IBoardSquare {
   backgroundColor?: string;
   handleClick: (squareID: ISquareInfo, piece: IChessPiece) => void;
   name?: string;
-  key: string;
+  key?: string;
   isSelected?: boolean;
   squareInfo: ISquareInfo;
   boardDisplay: IChessPiece[][];

@@ -28,8 +28,8 @@ describe('HistoryManager (Undo / Redo / Stack limit)', () => {
   });
 
   it('handles execute, undo, and redo sequence accurately', () => {
-    const cmd1 = new MovePieceCommand(piece.id, asCoordinateKey('0,0'), asCoordinateKey('0,1'), 'P1');
-    const cmd2 = new MovePieceCommand(piece.id, asCoordinateKey('0,1'), asCoordinateKey('0,2'), 'P1');
+    const cmd1 = new MovePieceCommand(piece.id, asCoordinateKey('0,0'), asCoordinateKey('0,1'), 'P1', undefined, false);
+    const cmd2 = new MovePieceCommand(piece.id, asCoordinateKey('0,1'), asCoordinateKey('0,2'), 'P1', undefined, false);
 
     history.execute(cmd1, domain);
     history.execute(cmd2, domain);
@@ -60,9 +60,9 @@ describe('HistoryManager (Undo / Redo / Stack limit)', () => {
   });
 
   it('invalidates redo stack when a new command is executed after undo (Branching)', () => {
-    const cmd1 = new MovePieceCommand(piece.id, asCoordinateKey('0,0'), asCoordinateKey('0,1'), 'P1');
-    const cmd2 = new MovePieceCommand(piece.id, asCoordinateKey('0,1'), asCoordinateKey('0,2'), 'P1');
-    const branchCmd = new MovePieceCommand(piece.id, asCoordinateKey('0,1'), asCoordinateKey('1,1'), 'P1');
+    const cmd1 = new MovePieceCommand(piece.id, asCoordinateKey('0,0'), asCoordinateKey('0,1'), 'P1', undefined, false);
+    const cmd2 = new MovePieceCommand(piece.id, asCoordinateKey('0,1'), asCoordinateKey('0,2'), 'P1', undefined, false);
+    const branchCmd = new MovePieceCommand(piece.id, asCoordinateKey('0,1'), asCoordinateKey('1,1'), 'P1', undefined, false);
 
     history.execute(cmd1, domain);
     history.execute(cmd2, domain);
@@ -89,10 +89,93 @@ describe('HistoryManager (Undo / Redo / Stack limit)', () => {
       (domain.boardEntities[piece.id] as { position: unknown }).position = from;
       domain.occupancy[from] = piece.id;
 
-      const cmd = new MovePieceCommand(piece.id, from, to, 'P1');
+      const cmd = new MovePieceCommand(piece.id, from, to, 'P1', undefined, false);
       history.execute(cmd, domain);
     }
 
     expect(history.getUndoCount()).toBe(5);
+  });
+
+  describe('PATCH-09: HistoryManager Failure Safety & Fault Injection', () => {
+    it('preserves undoStack and does not corrupt history when command.undo() throws', () => {
+      let failUndo = false;
+      const faultyCommand: import('../../commands/types').ICommand = {
+        id: 'cmd-fault-1',
+        type: 'MOVE_PIECE',
+        actingPlayer: 'P1',
+        description: 'Faulty undo command',
+        execute: (draft) => {
+          (draft.boardEntities[piece.id] as { position: unknown }).position = asCoordinateKey('0,1');
+        },
+        undo: () => {
+          if (failUndo) {
+            throw new Error('Injected Undo Failure');
+          }
+          (domain.boardEntities[piece.id] as { position: unknown }).position = asCoordinateKey('0,0');
+        },
+      };
+
+      history.execute(faultyCommand, domain);
+      expect(history.getUndoCount()).toBe(1);
+      expect(history.getRedoCount()).toBe(0);
+
+      // Arm failure
+      failUndo = true;
+      expect(() => history.undo(domain)).toThrow('Injected Undo Failure');
+
+      // Crucial verification: command must NOT have been dropped from undoStack!
+      expect(history.getUndoCount()).toBe(1);
+      expect(history.getRedoCount()).toBe(0);
+      expect(history.canUndo()).toBe(true);
+
+      // Disarm failure: subsequent undo succeeds cleanly
+      failUndo = false;
+      expect(history.undo(domain)).toBe(true);
+      expect(history.getUndoCount()).toBe(0);
+      expect(history.getRedoCount()).toBe(1);
+    });
+
+    it('preserves redoStack and does not duplicate or drop commands when command.execute() throws on redo', () => {
+      let failRedo = false;
+      const faultyCommand: import('../../commands/types').ICommand = {
+        id: 'cmd-fault-2',
+        type: 'MOVE_PIECE',
+        actingPlayer: 'P1',
+        description: 'Faulty redo command',
+        execute: (draft) => {
+          if (failRedo) {
+            throw new Error('Injected Redo Failure');
+          }
+          (draft.boardEntities[piece.id] as { position: unknown }).position = asCoordinateKey('0,1');
+        },
+        undo: (draft) => {
+          (draft.boardEntities[piece.id] as { position: unknown }).position = asCoordinateKey('0,0');
+        },
+      };
+
+      // Initial execution works
+      history.execute(faultyCommand, domain);
+      expect(history.getUndoCount()).toBe(1);
+
+      // Undo works
+      expect(history.undo(domain)).toBe(true);
+      expect(history.getRedoCount()).toBe(1);
+      expect(history.getUndoCount()).toBe(0);
+
+      // Arm redo failure
+      failRedo = true;
+      expect(() => history.redo(domain)).toThrow('Injected Redo Failure');
+
+      // Crucial verification: command remains on redoStack, not lost or duplicated
+      expect(history.getRedoCount()).toBe(1);
+      expect(history.getUndoCount()).toBe(0);
+      expect(history.canRedo()).toBe(true);
+
+      // Disarm redo failure: subsequent redo succeeds
+      failRedo = false;
+      expect(history.redo(domain)).toBe(true);
+      expect(history.getUndoCount()).toBe(1);
+      expect(history.getRedoCount()).toBe(0);
+    });
   });
 });

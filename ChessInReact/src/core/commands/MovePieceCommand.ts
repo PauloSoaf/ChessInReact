@@ -5,7 +5,8 @@ import { ICommand } from './types';
 
 /**
  * MovePieceCommand executes a piece movement from one coordinate to another,
- * handling captures, crazyhouse inventory, and full atomic reversibility.
+ * handling captures, crazyhouse inventory, turn progression, and full atomic reversibility.
+ * (AUDIT-02, PATCH-04, PATCH-05)
  */
 export class MovePieceCommand implements ICommand {
   public readonly id: string;
@@ -14,13 +15,16 @@ export class MovePieceCommand implements ICommand {
 
   private capturedEntitySnapshot: IEntity | null = null;
   private previousHasMovedState = false;
+  private previousActivePlayer: PlayerId | null = null;
+  private previousTurnNumber: number | null = null;
 
   constructor(
     public readonly pieceId: EntityId,
     public readonly from: CoordinateKey,
     public readonly to: CoordinateKey,
     public readonly actingPlayer: PlayerId,
-    id?: string
+    id?: string,
+    public advanceTurn: boolean = true
   ) {
     this.id = id ?? `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     this.description = `Move ${pieceId} from ${from} to ${to}`;
@@ -48,6 +52,13 @@ export class MovePieceCommand implements ICommand {
       );
     }
 
+    // PATCH-04: Turn validation for ordinary turn-based command execution
+    if (this.advanceTurn && draft.activePlayer !== this.actingPlayer) {
+      throw new Error(
+        `Invalid move: It is player "${draft.activePlayer}"'s turn, not acting player "${this.actingPlayer}".`
+      );
+    }
+
     // RF-03: Validate piece exists at origin coordinate before dispatching
     if (piece.position !== this.from) {
       throw new Error(
@@ -61,7 +72,7 @@ export class MovePieceCommand implements ICommand {
       );
     }
 
-    // Handle destination target
+    // Handle destination target (PATCH-05)
     const targetEntityId = draft.occupancy[this.to];
     if (targetEntityId) {
       if (targetEntityId === this.pieceId) {
@@ -69,9 +80,22 @@ export class MovePieceCommand implements ICommand {
       }
 
       const targetEntity = draft.boardEntities[targetEntityId];
-      if (targetEntity) {
+      if (!targetEntity) {
+        throw new Error(
+          `Invalid move: Destination coordinate "${this.to}" references occupant ID "${targetEntityId}", but entity does not exist in boardEntities.`
+        );
+      }
+
+      // PATCH-05: Non-piece entities cannot be moved onto or captured in standard chess
+      if (targetEntity.type === 'TERRAIN' || targetEntity.type === 'OBSTACLE') {
+        throw new Error(
+          `Invalid move: Destination coordinate "${this.to}" is occupied by ${targetEntity.type} entity "${targetEntityId}". Standard piece movement cannot capture or pass through ${targetEntity.type.toLowerCase()}.`
+        );
+      }
+
+      if (targetEntity.type === 'PIECE') {
         // AUDIT-02: Core invariant: Self-capture of friendly pieces is prohibited
-        if (targetEntity.type === 'PIECE' && targetEntity.ownerId === this.actingPlayer) {
+        if (targetEntity.ownerId === this.actingPlayer) {
           throw new Error(
             `Invalid move: Destination coordinate "${this.to}" is occupied by friendly piece "${targetEntityId}". Self-capture is forbidden.`
           );
@@ -81,14 +105,16 @@ export class MovePieceCommand implements ICommand {
         this.capturedEntitySnapshot = JSON.parse(JSON.stringify(targetEntity));
 
         // Mark captured in domain entity storage (RF-09: keep entity record, set isCaptured)
-        if (targetEntity.type === 'PIECE') {
-          (targetEntity as { isCaptured: boolean }).isCaptured = true;
+        (targetEntity as { isCaptured: boolean }).isCaptured = true;
 
-          // Crazyhouse variant support
-          if (draft.capturedInventory && draft.capturedInventory[this.actingPlayer]) {
-            draft.capturedInventory[this.actingPlayer].push(targetEntity.variantId);
-          }
+        // Crazyhouse variant support
+        if (draft.capturedInventory && draft.capturedInventory[this.actingPlayer]) {
+          draft.capturedInventory[this.actingPlayer].push(targetEntity.variantId);
         }
+      } else {
+        throw new Error(
+          `Invalid move: Destination coordinate "${this.to}" is occupied by unsupported entity type "${(targetEntity as { type: string }).type}".`
+        );
       }
     }
 
@@ -100,6 +126,14 @@ export class MovePieceCommand implements ICommand {
     delete draft.occupancy[this.from];
     (piece as { position: CoordinateKey }).position = this.to;
     draft.occupancy[this.to] = this.pieceId;
+
+    // PATCH-04: Turn state progression
+    if (this.advanceTurn) {
+      this.previousActivePlayer = draft.activePlayer;
+      this.previousTurnNumber = draft.turnNumber;
+      (draft as { activePlayer: PlayerId }).activePlayer = draft.activePlayer === 'P1' ? 'P2' : 'P1';
+      (draft as { turnNumber: number }).turnNumber += 1;
+    }
   }
 
   public undo(draft: IDomainState): void {
@@ -133,6 +167,16 @@ export class MovePieceCommand implements ICommand {
         if (lastIdx !== -1) {
           inv.splice(lastIdx, 1);
         }
+      }
+    }
+
+    // PATCH-04: Revert turn state
+    if (this.advanceTurn) {
+      if (this.previousActivePlayer !== null) {
+        (draft as { activePlayer: PlayerId }).activePlayer = this.previousActivePlayer;
+      }
+      if (this.previousTurnNumber !== null) {
+        (draft as { turnNumber: number }).turnNumber = this.previousTurnNumber;
       }
     }
   }

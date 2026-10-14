@@ -49,6 +49,7 @@ export interface IDeserializedEchoEntity {
   readonly type: string;
   readonly ownerId: string;
   readonly position: string;
+  readonly kind: 'SQUARE' | 'HEX_CUBIC';
   readonly x: number;
   readonly y: number;
   readonly z: number;

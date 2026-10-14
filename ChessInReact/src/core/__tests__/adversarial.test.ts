@@ -154,7 +154,7 @@ describe('Adversarial & Fault Injection Test Suite (Spec 01 Verification)', () =
     for (let i = 0; i < 5; i++) {
       const from = asCoordinateKey(`0,${i + 1}`);
       const to = asCoordinateKey(`0,${i + 2}`);
-      const cmd = new MovePieceCommand(p1.id, from, to, 'P1');
+      const cmd = new MovePieceCommand(p1.id, from, to, 'P1', undefined, false);
       history.execute(cmd, domain);
     }
 
@@ -168,7 +168,7 @@ describe('Adversarial & Fault Injection Test Suite (Spec 01 Verification)', () =
     domain.boardEntities[p1.id] = { ...p1 };
     domain.occupancy[p1.position] = p1.id;
 
-    const cmd1 = new MovePieceCommand(p1.id, asCoordinateKey('0,1'), asCoordinateKey('0,2'), 'P1');
+    const cmd1 = new MovePieceCommand(p1.id, asCoordinateKey('0,1'), asCoordinateKey('0,2'), 'P1', undefined, false);
     history.execute(cmd1, domain);
     expect(history.canUndo()).toBe(true);
 
@@ -177,7 +177,7 @@ describe('Adversarial & Fault Injection Test Suite (Spec 01 Verification)', () =
     expect(history.getRedoCount()).toBe(1);
 
     // New divergent move branch
-    const cmd2 = new MovePieceCommand(p1.id, asCoordinateKey('0,1'), asCoordinateKey('0,3'), 'P1');
+    const cmd2 = new MovePieceCommand(p1.id, asCoordinateKey('0,1'), asCoordinateKey('0,3'), 'P1', undefined, false);
     history.execute(cmd2, domain);
 
     // Redo stack MUST be invalidated

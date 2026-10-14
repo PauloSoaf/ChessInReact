@@ -66,10 +66,13 @@ export enum PlayerBinary {
   P8 = 8,
 }
 
+export type CoordinateKind = 'SQUARE' | 'HEX_CUBIC';
+
 export enum EntityFlagsBinary {
   NONE = 0,
   HAS_MOVED = 1 << 0,
   IS_CAPTURED = 1 << 1,
+  IS_HEX_COORDINATE = 1 << 2,
 }
 
 export enum VariantBinary {
@@ -95,6 +98,7 @@ export interface DeserializedWorkerState {
     readonly type: 'PIECE' | 'TERRAIN' | 'OBSTACLE';
     readonly ownerId: PlayerId;
     readonly variantId: string;
+    readonly kind: CoordinateKind;
     readonly x: number;
     readonly y: number;
     readonly z: number;

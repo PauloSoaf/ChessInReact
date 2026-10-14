@@ -1,0 +1,45 @@
+name: Spec 01 CI - ChessInReact Quality Gates
+
+on:
+  push:
+    branches:
+      - feat/core-state-architecture
+      - main
+      - develop
+  pull_request:
+    branches:
+      - feat/core-state-architecture
+      - main
+      - develop
+
+jobs:
+  validate-spec-01:
+    name: Build, Lint & Test (Node 22)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ChessInReact
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: ChessInReact/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Verify TypeScript & Build bundle
+        run: npm run build
+
+      - name: Run Test Suite with Coverage
+        run: npx vitest run --coverage

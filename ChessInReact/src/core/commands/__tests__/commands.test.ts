@@ -263,6 +263,143 @@ describe('Command Pattern: MovePieceCommand & CompositeCommand', () => {
 
       expect(() => friendlyCaptureCmd.execute(domain)).toThrow(/Self-capture is forbidden/);
     });
+
+    describe('PATCH-04: Complete Turn-State Undo/Redo & Atomic Progression', () => {
+      it('atomically advances activePlayer and turnNumber on valid move, and restores them on undo', () => {
+        expect(domain.activePlayer).toBe('P1');
+        expect(domain.turnNumber).toBe(1);
+
+        const moveCmd = new MovePieceCommand(
+          whitePawn.id,
+          asCoordinateKey('4,1'),
+          asCoordinateKey('4,3'),
+          'P1'
+        );
+
+        // Execute: P1 moves -> P2 active, turn 2
+        moveCmd.execute(domain);
+        expect(domain.activePlayer).toBe('P2');
+        expect(domain.turnNumber).toBe(2);
+        expect(domain.occupancy[asCoordinateKey('4,3')]).toBe(whitePawn.id);
+
+        // Undo: restores P1 active, turn 1
+        moveCmd.undo(domain);
+        expect(domain.activePlayer).toBe('P1');
+        expect(domain.turnNumber).toBe(1);
+        expect(domain.occupancy[asCoordinateKey('4,1')]).toBe(whitePawn.id);
+        expect(domain.occupancy[asCoordinateKey('4,3')]).toBeUndefined();
+
+        // Redo: re-execute
+        moveCmd.execute(domain);
+        expect(domain.activePlayer).toBe('P2');
+        expect(domain.turnNumber).toBe(2);
+      });
+
+      it('rejects move if command actingPlayer does not match draft.activePlayer, preserving turn state', () => {
+        expect(domain.activePlayer).toBe('P1');
+        expect(domain.turnNumber).toBe(1);
+
+        // P2 attempts to move out of turn
+        const outOfTurnCmd = new MovePieceCommand(
+          blackPawn.id,
+          asCoordinateKey('3,2'),
+          asCoordinateKey('3,3'),
+          'P2'
+        );
+
+        expect(() => outOfTurnCmd.execute(domain)).toThrow(/It is player "P1"'s turn, not acting player "P2"/);
+
+        // State remains intact
+        expect(domain.activePlayer).toBe('P1');
+        expect(domain.turnNumber).toBe(1);
+        expect(domain.boardEntities[blackPawn.id].position).toBe('3,2');
+      });
+
+      it('supports consecutive moves by both players with complete turn and capture restoration', () => {
+        // Move 1: P1 moves white pawn 4,1 -> 4,3
+        const move1 = new MovePieceCommand(whitePawn.id, asCoordinateKey('4,1'), asCoordinateKey('4,3'), 'P1');
+        move1.execute(domain);
+        expect(domain.activePlayer).toBe('P2');
+        expect(domain.turnNumber).toBe(2);
+
+        // Move 2: P2 moves black pawn 3,2 -> 3,3
+        const move2 = new MovePieceCommand(blackPawn.id, asCoordinateKey('3,2'), asCoordinateKey('3,3'), 'P2');
+        move2.execute(domain);
+        expect(domain.activePlayer).toBe('P1');
+        expect(domain.turnNumber).toBe(3);
+
+        // Undo Move 2
+        move2.undo(domain);
+        expect(domain.activePlayer).toBe('P2');
+        expect(domain.turnNumber).toBe(2);
+        expect(domain.boardEntities[blackPawn.id].position).toBe('3,2');
+
+        // Undo Move 1
+        move1.undo(domain);
+        expect(domain.activePlayer).toBe('P1');
+        expect(domain.turnNumber).toBe(1);
+        expect(domain.boardEntities[whitePawn.id].position).toBe('4,1');
+      });
+    });
+
+    describe('PATCH-05: Prevent Invalid Capture of Terrain and Obstacles', () => {
+      it('rejects moving onto TERRAIN entity, preserving state and turn', () => {
+        const mountain: IEntity = {
+          id: asEntityId('terrain-mountain-1'),
+          type: 'TERRAIN',
+          variantId: 'MOUNTAIN',
+          position: asCoordinateKey('4,2'),
+          elevation: 5,
+        };
+        domain.boardEntities[mountain.id] = mountain;
+        domain.occupancy[mountain.position] = mountain.id;
+
+        const cmd = new MovePieceCommand(whitePawn.id, asCoordinateKey('4,1'), asCoordinateKey('4,2'), 'P1');
+
+        expect(() => cmd.execute(domain)).toThrow(/occupied by TERRAIN entity/);
+
+        // Verify terrain remains intact in both indices
+        expect(domain.occupancy[mountain.position]).toBe(mountain.id);
+        expect(domain.boardEntities[mountain.id]).toEqual(mountain);
+        expect(domain.occupancy[whitePawn.position]).toBe(whitePawn.id);
+        expect(domain.activePlayer).toBe('P1');
+        expect(domain.turnNumber).toBe(1);
+      });
+
+      it('rejects moving onto OBSTACLE entity, preserving state and turn', () => {
+        const wall: IEntity = {
+          id: asEntityId('obstacle-wall-1'),
+          type: 'OBSTACLE',
+          position: asCoordinateKey('4,2'),
+          destructible: false,
+          hp: 100,
+        };
+        domain.boardEntities[wall.id] = wall;
+        domain.occupancy[wall.position] = wall.id;
+
+        const cmd = new MovePieceCommand(whitePawn.id, asCoordinateKey('4,1'), asCoordinateKey('4,2'), 'P1');
+
+        expect(() => cmd.execute(domain)).toThrow(/occupied by OBSTACLE entity/);
+
+        expect(domain.occupancy[wall.position]).toBe(wall.id);
+        expect(domain.boardEntities[wall.id]).toEqual(wall);
+        expect(domain.occupancy[whitePawn.position]).toBe(whitePawn.id);
+        expect(domain.activePlayer).toBe('P1');
+        expect(domain.turnNumber).toBe(1);
+      });
+
+      it('rejects moving onto a coordinate with corrupted occupancy referencing missing entity', () => {
+        domain.occupancy[asCoordinateKey('4,2')] = asEntityId('ghost-entity');
+
+        const cmd = new MovePieceCommand(whitePawn.id, asCoordinateKey('4,1'), asCoordinateKey('4,2'), 'P1');
+
+        expect(() => cmd.execute(domain)).toThrow(/references occupant ID "ghost-entity", but entity does not exist/);
+
+        expect(domain.occupancy[whitePawn.position]).toBe(whitePawn.id);
+        expect(domain.activePlayer).toBe('P1');
+        expect(domain.turnNumber).toBe(1);
+      });
+    });
   });
 });
 

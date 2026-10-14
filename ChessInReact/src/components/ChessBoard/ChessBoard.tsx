@@ -30,7 +30,7 @@ const getSquareBackground = (row: number, column: number) => {
 export const ChessBoard: React.FC<IChessBoardProps> = ({ boardSize = 8 }) => {
   const domain = useGameStore((state) => state.domain);
   const ui = useGameStore((state) => state.ui);
-  const { executeCommand, selectPiece, setActivePlayer } = useGameActions();
+  const { executeCommand, selectPiece } = useGameActions();
 
   // Derive board display matrix reactively from Core domain state (Single Source of Truth - AUDIT-04)
   const derivedBoard = useMemo(() => {
@@ -114,7 +114,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({ boardSize = 8 }) => {
       return;
     }
 
-    // Dispatch MovePieceCommand through Core State Store
+    // Dispatch MovePieceCommand through Core State Store (atomically handles move + turn transition - PATCH-04)
     try {
       const moveCmd = new MovePieceCommand(
         selectedEntity.id,
@@ -123,9 +123,6 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({ boardSize = 8 }) => {
         domain.activePlayer
       );
       executeCommand(moveCmd);
-
-      // Advance turn
-      setActivePlayer(domain.activePlayer === 'P1' ? 'P2' : 'P1');
     } catch (err) {
       console.warn('Move rejected by Core invariants:', err);
     } finally {
@@ -152,20 +149,33 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({ boardSize = 8 }) => {
           const isSelected = Boolean(ui.selectedPieceId && entityId === ui.selectedPieceId);
 
           return (
-            <BoardSquare
+            <div
               key={`${columnIndex}-${rowIndex}`}
-              piece={piece}
-              boardDisplay={derivedBoard}
-              squareInfo={{
-                row: rowIndex,
-                column: columnIndex,
-                squareID: `${columnIndex}-${rowIndex}`,
-                name: `${piece.name}${rowIndex}`,
-              }}
-              backgroundColor={getSquareBackground(rowIndex, columnIndex)}
-              isSelected={isSelected}
-              handleClick={handleSquareClick}
-            />
+              data-testid={`square-${gameX},${gameY}`}
+              style={{ display: 'contents' }}
+              onClick={() =>
+                handleSquareClick({
+                  row: rowIndex,
+                  column: columnIndex,
+                  squareID: `${columnIndex}-${rowIndex}`,
+                  name: `${piece.name}${rowIndex}`,
+                })
+              }
+            >
+              <BoardSquare
+                piece={piece}
+                boardDisplay={derivedBoard}
+                squareInfo={{
+                  row: rowIndex,
+                  column: columnIndex,
+                  squareID: `${columnIndex}-${rowIndex}`,
+                  name: `${piece.name}${rowIndex}`,
+                }}
+                backgroundColor={getSquareBackground(rowIndex, columnIndex)}
+                isSelected={isSelected}
+                handleClick={handleSquareClick}
+              />
+            </div>
           );
         })
       )}

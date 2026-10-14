@@ -26,13 +26,91 @@ export interface EntityUpdatePatch {
 }
 
 /**
+ * Supported JSON-compatible primitive values for metadata.
+ */
+export type MetadataPrimitive = string | number | boolean | null;
+export type MetadataValue =
+  | MetadataPrimitive
+  | { [key: string]: MetadataValue }
+  | MetadataValue[];
+
+/**
+ * Validates and produces a deep defensive clone of metadata (PATCH-03).
+ * Prohibits circular references, BigInt, functions, symbols, and non-finite numbers (NaN/Infinity).
+ * Operates on plain objects and arrays recursively.
+ */
+export function validateAndDeepCloneMetadata(
+  value: unknown,
+  seen = new WeakSet<object>()
+): MetadataValue {
+  if (value === null || typeof value === 'boolean' || typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      throw new Error(`Invalid metadata number: "${value}" is not finite.`);
+    }
+    return value;
+  }
+  if (typeof value === 'bigint') {
+    throw new Error('Unsupported metadata value: BigInt is not allowed in entity metadata.');
+  }
+  if (typeof value === 'function' || typeof value === 'symbol' || typeof value === 'undefined') {
+    throw new Error(`Unsupported metadata value: values of type "${typeof value}" are not allowed.`);
+  }
+  if (typeof value === 'object') {
+    if (seen.has(value)) {
+      throw new Error('Invalid metadata: circular reference detected.');
+    }
+    seen.add(value);
+
+    if (Array.isArray(value)) {
+      const clonedArr: MetadataValue[] = [];
+      for (let i = 0; i < value.length; i++) {
+        clonedArr.push(validateAndDeepCloneMetadata(value[i], seen));
+      }
+      return clonedArr;
+    }
+
+    const proto = Object.getPrototypeOf(value);
+    if (proto !== null && proto !== Object.prototype) {
+      throw new Error('Unsupported metadata object: only plain objects and arrays are permitted.');
+    }
+
+    const clonedObj: Record<string, MetadataValue> = {};
+    const keys = Reflect.ownKeys(value);
+    for (const key of keys) {
+      if (typeof key !== 'string') {
+        throw new Error('Unsupported metadata key: symbol keys are not allowed.');
+      }
+      clonedObj[key] = validateAndDeepCloneMetadata((value as Record<string, unknown>)[key], seen);
+    }
+    return clonedObj;
+  }
+  throw new Error(`Unsupported metadata value of type "${typeof value}".`);
+}
+
+/**
+ * Validates and deeply clones an entity's metadata dictionary.
+ */
+export function cloneMetadataDict(
+  metadata: Readonly<Record<string, unknown>> | undefined
+): Record<string, unknown> | undefined {
+  if (metadata === undefined) return undefined;
+  if (typeof metadata !== 'object' || metadata === null || Array.isArray(metadata)) {
+    throw new Error('Metadata must be a plain object.');
+  }
+  return validateAndDeepCloneMetadata(metadata) as Record<string, unknown>;
+}
+
+/**
  * Clones an entity object defensively to prevent external mutations
- * from compromising internal store and spatial indices (AUDIT-01 & FASE 2).
+ * from compromising internal store and spatial indices (AUDIT-01, PATCH-01, PATCH-03).
  */
 function cloneEntity<T extends IEntity>(entity: T): T {
   return {
     ...entity,
-    metadata: entity.metadata ? JSON.parse(JSON.stringify(entity.metadata)) : undefined,
+    metadata: cloneMetadataDict(entity.metadata),
   };
 }
 
@@ -72,25 +150,31 @@ export class EntityManager {
    * Add a single entity, registering both by ID and coordinate occupancy.
    * Defensive: stores a cloned copy to prevent external mutation leaks.
    * Throws if entity with same ID exists or target coordinate is already occupied.
+   * Transactional (PATCH-01): validates and clones completely before modifying internal storage.
    */
   public addEntity(entity: IEntity): void {
-    if (this.entityById.has(entity.id)) {
-      throw new Error(`Entity already exists with ID: ${entity.id}`);
+    // 1. Produce complete defensive copy and validate metadata contract FIRST
+    const cloned = cloneEntity(entity);
+
+    // 2. Validate identity uniqueness
+    if (this.entityById.has(cloned.id)) {
+      throw new Error(`Entity already exists with ID: ${cloned.id}`);
     }
 
-    // Uncaptured pieces or other entities require coordinate occupancy
-    const isCapturedPiece = entity.type === 'PIECE' && entity.isCaptured;
+    // 3. Uncaptured pieces or other entities require coordinate occupancy
+    const isCapturedPiece = cloned.type === 'PIECE' && cloned.isCaptured;
     if (!isCapturedPiece) {
-      const occupant = this.occupancyByCoordinate.get(entity.position);
+      const occupant = this.occupancyByCoordinate.get(cloned.position);
       if (occupant) {
         throw new Error(
-          `Coordinate ${entity.position} is already occupied by entity ${occupant}. Cannot add ${entity.id}`
+          `Coordinate ${cloned.position} is already occupied by entity ${occupant}. Cannot add ${cloned.id}`
         );
       }
-      this.occupancyByCoordinate.set(entity.position, entity.id);
+      this.occupancyByCoordinate.set(cloned.position, cloned.id);
     }
 
-    this.entityById.set(entity.id, cloneEntity(entity));
+    // 4. Commit to entityById
+    this.entityById.set(cloned.id, cloned);
   }
 
   /**
@@ -167,9 +251,9 @@ export class EntityManager {
   }
 
   /**
-   * Updates non-structural properties of an existing entity.
-   * Strictly forbids altering identity, type, or capture flags directly,
-   * preserving index consistency (AUDIT-01).
+   * Updates non-structural properties of an existing entity with a strict runtime whitelist (PATCH-02).
+   * Structural properties (id, position, type, isCaptured, ownerId) are strictly forbidden,
+   * even if passed as undefined.
    */
   public updateEntity(id: EntityId, patch: EntityUpdatePatch): void {
     const entity = this.entityById.get(id);
@@ -177,42 +261,105 @@ export class EntityManager {
       throw new Error(`Cannot update non-existent entity with ID: ${id}`);
     }
 
-    if ('id' in patch && patch.id !== undefined && patch.id !== id) {
-      throw new Error(`Forbidden: Entity ID is immutable. Cannot change ID from "${id}" to "${patch.id}".`);
+    // Structural properties that must NEVER be mutated via updateEntity (PATCH-02):
+    if (Reflect.has(patch, 'id')) {
+      throw new Error('Forbidden: Entity ID is immutable. Property "id" is structural and cannot be modified via updateEntity (even if undefined).');
     }
-
-    if ('type' in patch && patch.type !== undefined && patch.type !== entity.type) {
-      throw new Error(`Forbidden: Entity type is immutable. Cannot change type from "${entity.type}" to "${patch.type}".`);
+    if (Reflect.has(patch, 'type')) {
+      throw new Error('Forbidden: Entity type is immutable. Property "type" is structural and cannot be modified via updateEntity (even if undefined).');
     }
-
-    if ('position' in patch && (patch as { position?: unknown }).position !== undefined) {
+    if (Reflect.has(patch, 'position')) {
       throw new Error(
-        'Forbidden: Direct mutation of position is not allowed via updateEntity. Use moveEntity() to maintain spatial index consistency.'
+        'Forbidden: Direct mutation of position is not allowed via updateEntity (even if undefined). Property "position" is structural. Use moveEntity() to maintain spatial index consistency.'
       );
     }
-
-    if ('isCaptured' in patch && patch.isCaptured !== undefined) {
+    if (Reflect.has(patch, 'isCaptured')) {
       throw new Error(
-        'Forbidden: Direct mutation of isCaptured is not allowed via updateEntity. Use captureEntity() or restoreEntity() to guarantee spatial index consistency.'
+        'Forbidden: Direct mutation of isCaptured is not allowed via updateEntity (even if undefined). Property "isCaptured" is structural. Use captureEntity() or restoreEntity() to guarantee spatial index consistency.'
       );
     }
+    if (Reflect.has(patch, 'ownerId')) {
+      throw new Error('Forbidden: Property "ownerId" is structural and cannot be modified via updateEntity (even if undefined).');
+    }
 
-    const combined = { ...entity, ...patch } as IEntity;
-    this.entityById.set(id, cloneEntity(combined));
+    // Whitelist per entity type:
+    const patchKeys = Reflect.ownKeys(patch);
+    const allowedKeysByType: Record<IEntity['type'], string[]> = {
+      PIECE: ['hasMoved', 'variantId', 'metadata'],
+      TERRAIN: ['elevation', 'metadata'],
+      OBSTACLE: ['destructible', 'hp', 'metadata'],
+    };
+
+    const allowedKeys = new Set(allowedKeysByType[entity.type]);
+    for (const key of patchKeys) {
+      if (typeof key !== 'string' || !allowedKeys.has(key)) {
+        throw new Error(
+          `Forbidden: Unknown or disallowed property "${String(key)}" for entity type "${entity.type}" in updateEntity.`
+        );
+      }
+    }
+
+    // Validate allowed values
+    if (Reflect.has(patch, 'variantId')) {
+      if (typeof patch.variantId !== 'string' || patch.variantId.trim() === '') {
+        throw new Error('Validation error: variantId must be a non-empty string.');
+      }
+    }
+    if (Reflect.has(patch, 'hasMoved')) {
+      if (typeof patch.hasMoved !== 'boolean') {
+        throw new Error('Validation error: hasMoved must be a boolean.');
+      }
+    }
+    if (Reflect.has(patch, 'elevation')) {
+      if (typeof patch.elevation !== 'number' || !Number.isFinite(patch.elevation)) {
+        throw new Error('Validation error: elevation must be a finite number.');
+      }
+    }
+    if (Reflect.has(patch, 'destructible')) {
+      if (typeof patch.destructible !== 'boolean') {
+        throw new Error('Validation error: destructible must be a boolean.');
+      }
+    }
+    if (Reflect.has(patch, 'hp')) {
+      if (typeof patch.hp !== 'number' || !Number.isFinite(patch.hp) || patch.hp < 0) {
+        throw new Error('Validation error: hp must be a finite non-negative number.');
+      }
+    }
+
+    // Validate and deep clone metadata if present
+    let clonedMetadata = entity.metadata ? cloneMetadataDict(entity.metadata) : undefined;
+    if (Reflect.has(patch, 'metadata')) {
+      clonedMetadata = cloneMetadataDict(patch.metadata);
+    }
+
+    const updated = {
+      ...entity,
+      ...patch,
+      metadata: clonedMetadata,
+    } as IEntity;
+
+    this.entityById.set(id, updated);
   }
 
   /**
    * Safely updates domain metadata on an entity without touching spatial indices.
+   * Guarantees deep isolation of nested metadata objects (PATCH-03).
    */
   public updateEntityMetadata(id: EntityId, metadataPatch: Readonly<Record<string, unknown>>): void {
     const entity = this.entityById.get(id);
     if (!entity) {
       throw new Error(`Cannot update metadata for non-existent entity with ID: ${id}`);
     }
+
+    // Validate and deep clone patch FIRST
+    const clonedPatch = cloneMetadataDict(metadataPatch) ?? {};
+    const existingCloned = entity.metadata ? cloneMetadataDict(entity.metadata) ?? {} : {};
+
     const updated = {
       ...entity,
-      metadata: { ...(entity.metadata ?? {}), ...metadataPatch },
+      metadata: { ...existingCloned, ...clonedPatch },
     } as IEntity;
+
     this.entityById.set(id, updated);
   }
 
@@ -307,24 +454,25 @@ export class EntityManager {
       }
     }
 
-    // All pre-conditions passed! Apply atomic mutations:
-    // Remove old coordinate occupancy if position changed or new entity is captured
-    if (existing.position !== newEntity.position || isNewCaptured) {
+    // 4. Produce complete defensive copy and validate metadata BEFORE modifying internal storage (PATCH-01)
+    const cloned = cloneEntity(newEntity);
+
+    // 5. Apply atomic mutations:
+    const isExistingCaptured = existing.type === 'PIECE' && existing.isCaptured;
+    if (!isExistingCaptured && (existing.position !== cloned.position || isNewCaptured)) {
       if (this.occupancyByCoordinate.get(existing.position) === oldId) {
         this.occupancyByCoordinate.delete(existing.position);
       }
     }
 
-    // Set new coordinate occupancy if active
     if (!isNewCaptured) {
-      this.occupancyByCoordinate.set(newEntity.position, newEntity.id);
+      this.occupancyByCoordinate.set(cloned.position, cloned.id);
     }
 
-    // Update entity map
-    if (newEntity.id !== oldId) {
+    if (cloned.id !== oldId) {
       this.entityById.delete(oldId);
     }
-    this.entityById.set(newEntity.id, cloneEntity(newEntity));
+    this.entityById.set(cloned.id, cloned);
   }
 
   /**

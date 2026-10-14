@@ -37,14 +37,19 @@ export class HistoryManager {
   /**
    * Reverts the most recent command on the domain draft.
    * Returns true if a command was undone, false if undo stack was empty.
+   * Transactional (PATCH-09): If command.undo throws, command remains on undoStack
+   * and redoStack is not modified.
    */
   public undo(draft: IDomainState): boolean {
-    const command = this.undoStack.pop();
-    if (!command) {
+    if (this.undoStack.length === 0) {
       return false;
     }
 
+    const command = this.undoStack[this.undoStack.length - 1];
     command.undo(draft);
+
+    // Only commit stack mutation upon successful command execution
+    this.undoStack.pop();
     this.redoStack.push(command);
     return true;
   }
@@ -52,14 +57,19 @@ export class HistoryManager {
   /**
    * Reapplies the most recently undone command on the domain draft.
    * Returns true if a command was redone, false if redo stack was empty.
+   * Transactional (PATCH-09): If command.execute throws, command remains on redoStack
+   * and undoStack is not modified.
    */
   public redo(draft: IDomainState): boolean {
-    const command = this.redoStack.pop();
-    if (!command) {
+    if (this.redoStack.length === 0) {
       return false;
     }
 
+    const command = this.redoStack[this.redoStack.length - 1];
     command.execute(draft);
+
+    // Only commit stack mutation upon successful command execution
+    this.redoStack.pop();
     this.undoStack.push(command);
     return true;
   }

@@ -161,3 +161,127 @@ describe('Worker Protocol & EngineBridge (Zero-Copy & Leak Prevention)', () => {
     await expect(bridge.ping()).rejects.toThrow(/disposed/);
   });
 });
+
+describe('Real Multi-threaded Worker Integration (PATCH-08)', () => {
+  let realPort: import('../NodeWorkerPort').NodeWorkerPort;
+  let realBridge: EngineBridge;
+
+  beforeEach(async () => {
+    const { NodeWorkerPort } = await import('../NodeWorkerPort');
+    realPort = new NodeWorkerPort();
+    realBridge = new EngineBridge({
+      timeoutMs: 2000,
+      workerPort: realPort,
+    });
+  });
+
+  afterEach(() => {
+    realBridge.dispose();
+  });
+
+  it('performs true multi-threaded PING / PONG across OS worker thread boundary', async () => {
+    const reply = await realBridge.ping();
+    expect(reply).toBe('PONG');
+    expect(realBridge.getPendingCount()).toBe(0);
+  });
+
+  it('proves native zero-copy Transferable ArrayBuffer detachment on sender thread', async () => {
+    const domain = createDefaultDomainState('transfer-domain');
+    const piece: IPieceEntity = {
+      id: asEntityId('detachable-rook'),
+      type: 'PIECE',
+      ownerId: 'P1',
+      variantId: 'ROOK',
+      position: asCoordinateKey('0,0'),
+      hasMoved: false,
+      isCaptured: false,
+    };
+    domain.boardEntities[piece.id] = piece;
+
+    const { serializeStateForWorker } = await import('../../serialization/FlatArraySerializer');
+    const snapshot = serializeStateForWorker(domain);
+    const rawBuffer = snapshot.buffer.buffer;
+
+    expect(rawBuffer.byteLength).toBeGreaterThan(0);
+
+    // Post with transfer list
+    realPort.postMessage(
+      {
+        id: 777,
+        type: 'ECHO_DESERIALIZED_ENTITIES',
+        payload: { buffer: rawBuffer, stringTable: snapshot.stringTable },
+      },
+      [rawBuffer]
+    );
+
+    // In native V8 / Node.js worker_threads, transferable buffer is immediately neutered/detached!
+    expect(rawBuffer.byteLength).toBe(0);
+  });
+
+  it('deserializes square and cubic-hex entities accurately on real worker thread', async () => {
+    const domain = createDefaultDomainState('multi-thread-domain');
+    const squarePiece: IPieceEntity = {
+      id: asEntityId('sq-piece'),
+      type: 'PIECE',
+      ownerId: 'P1',
+      variantId: 'PAWN',
+      position: asCoordinateKey('3,4'),
+      hasMoved: false,
+      isCaptured: false,
+    };
+    const hexPiece: IPieceEntity = {
+      id: asEntityId('hex-piece'),
+      type: 'PIECE',
+      ownerId: 'P2',
+      variantId: 'KNIGHT',
+      position: asCoordinateKey('1,-1,0'),
+      hasMoved: true,
+      isCaptured: false,
+    };
+    domain.boardEntities[squarePiece.id] = squarePiece;
+    domain.boardEntities[hexPiece.id] = hexPiece;
+
+    const response = await realBridge.echoDeserializedEntities(domain);
+
+    expect(response.entityCount).toBe(2);
+    expect(response.activePlayer).toBe('P1');
+    expect(response.schemaVersion).toBe(1);
+
+    const sq = response.entities.find((e) => e.id === 'sq-piece');
+    const hx = response.entities.find((e) => e.id === 'hex-piece');
+
+    expect(sq).toBeDefined();
+    expect(sq?.kind).toBe('SQUARE');
+    expect(sq?.position).toBe('3,4');
+    expect(sq?.ownerId).toBe('P1');
+
+    expect(hx).toBeDefined();
+    expect(hx?.kind).toBe('HEX_CUBIC');
+    expect(hx?.position).toBe('1,-1,0');
+    expect(hx?.ownerId).toBe('P2');
+  });
+
+  it('handles worker error and supports clean resource termination', async () => {
+    // Send invalid payload directly
+    const invalidPromise = new Promise((resolve, reject) => {
+      realPort.onmessage = (event) => {
+        if (event.data.type === 'ERROR') {
+          resolve(event.data.error);
+        } else {
+          reject(new Error('Expected ERROR response'));
+        }
+      };
+      realPort.postMessage({
+        id: 9999,
+        type: 'ECHO_STATE_METADATA',
+        payload: { buffer: undefined, stringTable: [] },
+      });
+    });
+
+    const errorMsg = await invalidPromise;
+    expect(errorMsg).toMatch(/Missing ArrayBuffer payload/);
+
+    // Clean disposal terminates the worker thread
+    realBridge.dispose();
+  });
+});

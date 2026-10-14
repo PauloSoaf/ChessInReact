@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { asCoordinateKey, asEntityId } from '../../coordinates';
 import { EntityManager, EntityUpdatePatch } from '../EntityManager';
-import { IPieceEntity, ITerrainEntity } from '../types';
+import { IEntity, IPieceEntity, ITerrainEntity } from '../types';
 
 describe('EntityManager & Spatial Dual Index', () => {
   let manager: EntityManager;
@@ -424,6 +424,209 @@ describe('EntityManager & Spatial Dual Index', () => {
       );
       expect(manager.validateInvariants().valid).toBe(true);
     });
+
+    describe('PATCH-01: Transactional Entity Replacement & Addition', () => {
+      it('preserves complete state and indices when replaceEntity fails due to invalid metadata', () => {
+        manager.addEntities([piece1, piece2]);
+        const initialCount = manager.count();
+        const initialOccupancy = manager.occupancyCount();
+
+        // Circular metadata object
+        const circularMeta: Record<string, unknown> = { key: 'value' };
+        circularMeta.self = circularMeta;
+
+        const badReplacement: IPieceEntity = {
+          ...piece1,
+          metadata: circularMeta,
+        };
+
+        expect(() => manager.replaceEntity(piece1.id, badReplacement)).toThrow(/circular reference/i);
+
+        expect(manager.getEntity(piece1.id)).toEqual(piece1);
+        expect(manager.getOccupant(piece1.position)?.id).toBe(piece1.id);
+        expect(manager.count()).toBe(initialCount);
+        expect(manager.occupancyCount()).toBe(initialOccupancy);
+        expect(manager.validateInvariants().valid).toBe(true);
+      });
+
+      it('preserves complete state and indices when addEntity fails due to invalid metadata or BigInt', () => {
+        manager.addEntity(piece1);
+        const initialOccupancy = manager.occupancyCount();
+
+        const badEntity: IPieceEntity = {
+          id: asEntityId('bigint-piece'),
+          type: 'PIECE',
+          ownerId: 'P1',
+          variantId: 'PAWN',
+          position: asCoordinateKey('5,5'),
+          hasMoved: false,
+          isCaptured: false,
+          metadata: { amount: BigInt(123) } as unknown as Record<string, unknown>,
+        };
+
+        expect(() => manager.addEntity(badEntity)).toThrow(/BigInt is not allowed/i);
+
+        // Occupancy for 5,5 must NOT have been registered
+        expect(manager.getOccupant(asCoordinateKey('5,5'))).toBeUndefined();
+        expect(manager.count()).toBe(1);
+        expect(manager.occupancyCount()).toBe(initialOccupancy);
+        expect(manager.validateInvariants().valid).toBe(true);
+      });
+
+      it('handles replacing an active entity with a captured entity transactionally', () => {
+        manager.addEntity(piece1);
+        expect(manager.occupancyCount()).toBe(1);
+
+        const capturedReplacement: IPieceEntity = {
+          ...piece1,
+          isCaptured: true,
+        };
+
+        manager.replaceEntity(piece1.id, capturedReplacement);
+
+        expect(manager.count()).toBe(1);
+        // Captured entity has no spatial occupancy
+        expect(manager.occupancyCount()).toBe(0);
+        expect(manager.getOccupant(piece1.position)).toBeUndefined();
+        expect((manager.getEntity(piece1.id) as IPieceEntity).isCaptured).toBe(true);
+        expect(manager.validateInvariants().valid).toBe(true);
+      });
+
+      it('handles replacing a captured entity with an active entity transactionally', () => {
+        manager.addEntity(piece1);
+        manager.captureEntity(piece1.id);
+        expect(manager.occupancyCount()).toBe(0);
+
+        const activeReplacement: IPieceEntity = {
+          ...piece1,
+          position: asCoordinateKey('2,2'),
+          isCaptured: false,
+        };
+
+        manager.replaceEntity(piece1.id, activeReplacement);
+
+        expect(manager.count()).toBe(1);
+        expect(manager.occupancyCount()).toBe(1);
+        expect(manager.getOccupant(asCoordinateKey('2,2'))?.id).toBe(piece1.id);
+        expect(manager.validateInvariants().valid).toBe(true);
+      });
+    });
+
+    describe('PATCH-02: Strict Runtime Whitelist for updateEntity', () => {
+      it('rejects forbidden structural properties even if value is undefined', () => {
+        manager.addEntity(piece1);
+
+        expect(() =>
+          manager.updateEntity(piece1.id, { position: undefined } as unknown as EntityUpdatePatch)
+        ).toThrow(/Property "position" is structural/);
+
+        expect(() =>
+          manager.updateEntity(piece1.id, { id: undefined } as unknown as EntityUpdatePatch)
+        ).toThrow(/Property "id" is structural/);
+
+        expect(() =>
+          manager.updateEntity(piece1.id, { isCaptured: undefined } as unknown as EntityUpdatePatch)
+        ).toThrow(/Property "isCaptured" is structural/);
+
+        expect(() =>
+          manager.updateEntity(piece1.id, { type: 'TERRAIN' } as unknown as EntityUpdatePatch)
+        ).toThrow(/Property "type" is structural/);
+
+        expect(() =>
+          manager.updateEntity(piece1.id, { ownerId: 'P2' } as unknown as EntityUpdatePatch)
+        ).toThrow(/Property "ownerId" is structural/);
+
+        expect(() =>
+          manager.updateEntity(piece1.id, { unknownProperty: 123 } as unknown as EntityUpdatePatch)
+        ).toThrow(/Unknown or disallowed property "unknownProperty"/);
+
+        expect(manager.getEntity(piece1.id)).toEqual(piece1);
+        expect(manager.validateInvariants().valid).toBe(true);
+      });
+
+      it('permits valid whitelisted updates for each entity type and validates bounds', () => {
+        manager.addEntity(piece1);
+
+        // Valid PIECE update
+        manager.updateEntity(piece1.id, { hasMoved: true, variantId: 'QUEEN' });
+        const updatedPiece = manager.getEntity(piece1.id) as IPieceEntity;
+        expect(updatedPiece.hasMoved).toBe(true);
+        expect(updatedPiece.variantId).toBe('QUEEN');
+
+        // Rejection of empty variantId
+        expect(() =>
+          manager.updateEntity(piece1.id, { variantId: '' })
+        ).toThrow(/variantId must be a non-empty string/);
+
+        // Add OBSTACLE entity
+        const obstacle: IEntity = {
+          id: asEntityId('obs-1'),
+          type: 'OBSTACLE',
+          position: asCoordinateKey('3,3'),
+          destructible: true,
+          hp: 50,
+        };
+        manager.addEntity(obstacle);
+
+        // Valid OBSTACLE update
+        manager.updateEntity(obstacle.id, { hp: 30, destructible: false });
+        const updatedObs = manager.getEntity(obstacle.id) as Extract<IEntity, { type: 'OBSTACLE' }>;
+        expect(updatedObs.hp).toBe(30);
+        expect(updatedObs.destructible).toBe(false);
+
+        // Invalid hp
+        expect(() =>
+          manager.updateEntity(obstacle.id, { hp: -5 })
+        ).toThrow(/hp must be a finite non-negative number/);
+
+        expect(manager.validateInvariants().valid).toBe(true);
+      });
+    });
+
+    describe('PATCH-03: Defensive Metadata Isolation', () => {
+      it('guarantees deep isolation of nested metadata objects and arrays on write and read', () => {
+        const metadata = {
+          stats: { health: 100, tags: ['armored', 'boss'] },
+        };
+        const pieceWithMeta: IPieceEntity = {
+          ...piece1,
+          metadata,
+        };
+        manager.addEntity(pieceWithMeta);
+
+        // 1. External mutation of source metadata after addEntity does NOT change stored state
+        metadata.stats.health = 0;
+        metadata.stats.tags.push('dead');
+
+        const read1 = manager.getEntity(piece1.id);
+        expect((read1?.metadata?.stats as { health: number }).health).toBe(100);
+        expect((read1?.metadata?.stats as { tags: string[] }).tags).toEqual(['armored', 'boss']);
+
+        // 2. External mutation via updateEntityMetadata
+        const patchMeta = { stats: { health: 80, tags: ['wounded'] } };
+        manager.updateEntityMetadata(piece1.id, patchMeta);
+        patchMeta.stats.health = 10;
+
+        const read2 = manager.getEntity(piece1.id);
+        expect((read2?.metadata?.stats as { health: number }).health).toBe(80);
+
+        // 3. Mutation on object returned by getEntity does NOT mutate internal state
+        const exposed = manager.getEntity(piece1.id);
+        (exposed?.metadata?.stats as { health: number }).health = 999;
+        const read3 = manager.getEntity(piece1.id);
+        expect((read3?.metadata?.stats as { health: number }).health).toBe(80);
+
+        // 4. Rejection of unsupported values (functions, symbols, NaN)
+        expect(() =>
+          manager.updateEntityMetadata(piece1.id, { fn: () => {} })
+        ).toThrow(/values of type "function" are not allowed/);
+
+        expect(() =>
+          manager.updateEntityMetadata(piece1.id, { nan: NaN })
+        ).toThrow(/is not finite/);
+
+        expect(manager.validateInvariants().valid).toBe(true);
+      });
+    });
   });
 });
-
