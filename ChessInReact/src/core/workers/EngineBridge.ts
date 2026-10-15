@@ -132,6 +132,13 @@ export class EngineBridge {
     seed: string;
     chunkCoords: { chunkX: number; chunkY: number }[];
     chunkSize?: number;
+    topologyOptions?: {
+      width?: number | null;
+      height?: number | null;
+      toroidal?: boolean;
+      cellSize?: number;
+      boundingRadius?: number;
+    };
   }): Promise<IChunkData[]> {
     return this.sendRequest<IChunkData[]>('GENERATE_CHUNKS', options);
   }
@@ -141,6 +148,13 @@ export class EngineBridge {
     start: CoordinateKey;
     goal: CoordinateKey;
     obstacleCoords?: CoordinateKey[];
+    topologyOptions?: {
+      width?: number | null;
+      height?: number | null;
+      toroidal?: boolean;
+      cellSize?: number;
+      boundingRadius?: number;
+    };
   }): Promise<IPathResult> {
     return this.sendRequest<IPathResult>('COMPUTE_PATHFINDING', options);
   }

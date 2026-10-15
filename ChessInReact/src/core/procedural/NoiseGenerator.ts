@@ -92,11 +92,11 @@ export class NoiseGenerator {
     if (raw < this.config.waterThreshold) {
       biome = 'WATER';
       isObstacle = true;
-      costMultiplier = Infinity;
+      costMultiplier = 999.0;
     } else if (raw > this.config.obstacleThreshold) {
       biome = 'CHASM';
       isObstacle = true;
-      costMultiplier = Infinity;
+      costMultiplier = 999.0;
     } else if (raw > this.config.mountainThreshold) {
       biome = 'MOUNTAIN';
       isObstacle = true; // Impassable for regular ground units

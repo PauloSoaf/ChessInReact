@@ -20,6 +20,7 @@ export interface IDomainState {
    */
   readonly boardEntities: Record<EntityId, IEntity>;
   readonly occupancy: Record<CoordinateKey, EntityId>;
+  readonly terrain?: Record<CoordinateKey, EntityId>;
 
   /**
    * Crazyhouse / capture inventory.
@@ -82,6 +83,13 @@ export interface IGameActions {
   resetDomainState(initialDomain: IDomainState): void;
   setGameStatus(isGameOver: boolean, winnerId?: PlayerId | null): void;
   setActivePlayer(player: PlayerId): void;
+  applyChunkStreamingDelta(
+    delta: {
+      readonly newEntities: Record<EntityId, IEntity>;
+      readonly unloadedEntityIds: readonly EntityId[];
+    },
+    expectedRevision?: number
+  ): boolean;
 
   // UI / Presentation actions
   selectPiece(pieceId: EntityId | null): void;

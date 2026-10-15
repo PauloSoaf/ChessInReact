@@ -1,5 +1,5 @@
 import { CoordinateKey, EntityId, PlayerId } from '../coordinates/types';
-import { IEntity, IPieceEntity } from './types';
+import { IEntity, IPieceEntity, ITerrainEntity } from './types';
 
 export interface InvariantValidationResult {
   valid: boolean;
@@ -125,6 +125,7 @@ function cloneEntity<T extends IEntity>(entity: T): T {
 export class EntityManager {
   private entityById: Map<EntityId, IEntity> = new Map();
   private occupancyByCoordinate: Map<CoordinateKey, EntityId> = new Map();
+  private terrainByCoordinate: Map<CoordinateKey, EntityId> = new Map();
 
   constructor(initialEntities?: readonly IEntity[]) {
     if (initialEntities) {
@@ -138,6 +139,7 @@ export class EntityManager {
   public static fromSnapshot(snapshot: {
     entityById: Record<string, IEntity>;
     occupancyByCoordinate?: Record<string, string>;
+    terrainByCoordinate?: Record<string, string>;
   }): EntityManager {
     const manager = new EntityManager();
     for (const entity of Object.values(snapshot.entityById)) {
@@ -147,10 +149,11 @@ export class EntityManager {
   }
 
   /**
-   * Add a single entity, registering both by ID and coordinate occupancy.
+   * Add a single entity, registering both by ID and spatial layer.
    * Defensive: stores a cloned copy to prevent external mutation leaks.
-   * Throws if entity with same ID exists or target coordinate is already occupied.
-   * Transactional (PATCH-01): validates and clones completely before modifying internal storage.
+   * - TERRAIN entities are registered in terrainByCoordinate and do NOT block piece occupancy.
+   * - PIECE and OBSTACLE entities are registered in occupancyByCoordinate and require exclusive occupancy.
+   * Transactional: validates and clones completely before modifying internal storage.
    */
   public addEntity(entity: IEntity): void {
     // 1. Produce complete defensive copy and validate metadata contract FIRST
@@ -161,16 +164,26 @@ export class EntityManager {
       throw new Error(`Entity already exists with ID: ${cloned.id}`);
     }
 
-    // 3. Uncaptured pieces or other entities require coordinate occupancy
-    const isCapturedPiece = cloned.type === 'PIECE' && cloned.isCaptured;
-    if (!isCapturedPiece) {
-      const occupant = this.occupancyByCoordinate.get(cloned.position);
-      if (occupant) {
+    // 3. Register spatial indices depending on entity layer:
+    if (cloned.type === 'TERRAIN') {
+      const existingTerrainId = this.terrainByCoordinate.get(cloned.position);
+      if (existingTerrainId && existingTerrainId !== cloned.id) {
         throw new Error(
-          `Coordinate ${cloned.position} is already occupied by entity ${occupant}. Cannot add ${cloned.id}`
+          `Coordinate ${cloned.position} already has terrain entity ${existingTerrainId}. Cannot add ${cloned.id}`
         );
       }
-      this.occupancyByCoordinate.set(cloned.position, cloned.id);
+      this.terrainByCoordinate.set(cloned.position, cloned.id);
+    } else {
+      const isCapturedPiece = cloned.type === 'PIECE' && cloned.isCaptured;
+      if (!isCapturedPiece) {
+        const occupant = this.occupancyByCoordinate.get(cloned.position);
+        if (occupant) {
+          throw new Error(
+            `Coordinate ${cloned.position} is already occupied by entity ${occupant}. Cannot add ${cloned.id}`
+          );
+        }
+        this.occupancyByCoordinate.set(cloned.position, cloned.id);
+      }
     }
 
     // 4. Commit to entityById
@@ -206,12 +219,30 @@ export class EntityManager {
 
   /**
    * Get entity currently occupying a specific coordinate (returns defensive copy).
+   * Strictly returns physical occupants (pieces and obstacles).
    */
   public getOccupant(coord: CoordinateKey): IEntity | undefined {
     const entityId = this.occupancyByCoordinate.get(coord);
     if (!entityId) return undefined;
     const entity = this.entityById.get(entityId);
     return entity ? cloneEntity(entity) : undefined;
+  }
+
+  /**
+   * Get background terrain entity at coordinate (returns defensive copy).
+   */
+  public getTerrain(coord: CoordinateKey): ITerrainEntity | undefined {
+    const terrainId = this.terrainByCoordinate.get(coord);
+    if (!terrainId) return undefined;
+    const entity = this.entityById.get(terrainId);
+    return entity && entity.type === 'TERRAIN' ? (cloneEntity(entity) as ITerrainEntity) : undefined;
+  }
+
+  /**
+   * Get entity at coordinate: prioritizes physical occupant, falling back to background terrain.
+   */
+  public getEntityAt(coord: CoordinateKey): IEntity | undefined {
+    return this.getOccupant(coord) ?? this.getTerrain(coord);
   }
 
   /**
@@ -443,14 +474,23 @@ export class EntityManager {
       );
     }
 
-    // 2. If new entity is active (uncaptured), ensure target coordinate is not occupied by another entity
-    const isNewCaptured = newEntity.type === 'PIECE' && newEntity.isCaptured;
-    if (!isNewCaptured) {
-      const occupant = this.occupancyByCoordinate.get(newEntity.position);
-      if (occupant && occupant !== oldId) {
+    // 2. Validate target coordinate occupancy based on layer
+    if (newEntity.type === 'TERRAIN') {
+      const existingTerrain = this.terrainByCoordinate.get(newEntity.position);
+      if (existingTerrain && existingTerrain !== oldId) {
         throw new Error(
-          `Cannot replace entity "${oldId}": target coordinate "${newEntity.position}" is already occupied by "${occupant}".`
+          `Cannot replace entity "${oldId}": target coordinate "${newEntity.position}" already has terrain "${existingTerrain}".`
         );
+      }
+    } else {
+      const isNewCaptured = newEntity.type === 'PIECE' && newEntity.isCaptured;
+      if (!isNewCaptured) {
+        const occupant = this.occupancyByCoordinate.get(newEntity.position);
+        if (occupant && occupant !== oldId) {
+          throw new Error(
+            `Cannot replace entity "${oldId}": target coordinate "${newEntity.position}" is already occupied by "${occupant}".`
+          );
+        }
       }
     }
 
@@ -458,15 +498,27 @@ export class EntityManager {
     const cloned = cloneEntity(newEntity);
 
     // 5. Apply atomic mutations:
-    const isExistingCaptured = existing.type === 'PIECE' && existing.isCaptured;
-    if (!isExistingCaptured && (existing.position !== cloned.position || isNewCaptured)) {
-      if (this.occupancyByCoordinate.get(existing.position) === oldId) {
-        this.occupancyByCoordinate.delete(existing.position);
+    if (existing.type === 'TERRAIN') {
+      if (this.terrainByCoordinate.get(existing.position) === oldId) {
+        this.terrainByCoordinate.delete(existing.position);
+      }
+    } else {
+      const isExistingCaptured = existing.type === 'PIECE' && existing.isCaptured;
+      const isNewCaptured = cloned.type === 'PIECE' && cloned.isCaptured;
+      if (!isExistingCaptured && (existing.position !== cloned.position || isNewCaptured)) {
+        if (this.occupancyByCoordinate.get(existing.position) === oldId) {
+          this.occupancyByCoordinate.delete(existing.position);
+        }
       }
     }
 
-    if (!isNewCaptured) {
-      this.occupancyByCoordinate.set(cloned.position, cloned.id);
+    if (cloned.type === 'TERRAIN') {
+      this.terrainByCoordinate.set(cloned.position, cloned.id);
+    } else {
+      const isNewCaptured = cloned.type === 'PIECE' && cloned.isCaptured;
+      if (!isNewCaptured) {
+        this.occupancyByCoordinate.set(cloned.position, cloned.id);
+      }
     }
 
     if (cloned.id !== oldId) {
@@ -476,14 +528,20 @@ export class EntityManager {
   }
 
   /**
-   * Remove entity completely from both indices.
+   * Remove entity completely from corresponding indices.
    */
   public removeEntity(id: EntityId): IEntity | undefined {
     const entity = this.entityById.get(id);
     if (!entity) return undefined;
 
-    if (this.occupancyByCoordinate.get(entity.position) === id) {
-      this.occupancyByCoordinate.delete(entity.position);
+    if (entity.type === 'TERRAIN') {
+      if (this.terrainByCoordinate.get(entity.position) === id) {
+        this.terrainByCoordinate.delete(entity.position);
+      }
+    } else {
+      if (this.occupancyByCoordinate.get(entity.position) === id) {
+        this.occupancyByCoordinate.delete(entity.position);
+      }
     }
     this.entityById.delete(id);
     return cloneEntity(entity);
@@ -556,11 +614,19 @@ export class EntityManager {
   }
 
   /**
-   * Clear all entities (AUDIT-01: cleanly clears maps with no dead code).
+   * Total terrain coordinate count.
+   */
+  public terrainCount(): number {
+    return this.terrainByCoordinate.size;
+  }
+
+  /**
+   * Clear all entities.
    */
   public clear(): void {
     this.entityById.clear();
     this.occupancyByCoordinate.clear();
+    this.terrainByCoordinate.clear();
   }
 
   /**
@@ -572,7 +638,7 @@ export class EntityManager {
   public validateInvariants(): InvariantValidationResult {
     const errors: string[] = [];
 
-    // Check occupancy -> entity direction
+    // Check physical occupancy -> entity direction
     for (const [coord, id] of this.occupancyByCoordinate.entries()) {
       const entity = this.entityById.get(id);
       if (!entity) {
@@ -587,17 +653,46 @@ export class EntityManager {
       if (entity.type === 'PIECE' && entity.isCaptured) {
         errors.push(`Captured piece ${id} is erroneously present in occupancy at ${coord}`);
       }
+      if (entity.type === 'TERRAIN') {
+        errors.push(`Terrain entity ${id} is erroneously present in piece occupancy at ${coord}`);
+      }
     }
 
-    // Check entity -> occupancy direction
+    // Check terrain layer -> entity direction
+    for (const [coord, id] of this.terrainByCoordinate.entries()) {
+      const entity = this.entityById.get(id);
+      if (!entity) {
+        errors.push(`Terrain at ${coord} references non-existent entity ${id}`);
+        continue;
+      }
+      if (entity.position !== coord) {
+        errors.push(
+          `Spatial mismatch: Terrain ${id} recorded at ${coord}, but entity.position is ${entity.position}`
+        );
+      }
+      if (entity.type !== 'TERRAIN') {
+        errors.push(`Non-terrain entity ${id} is erroneously present in terrainByCoordinate at ${coord}`);
+      }
+    }
+
+    // Check entity -> spatial direction
     for (const [id, entity] of this.entityById.entries()) {
-      const isCaptured = entity.type === 'PIECE' && entity.isCaptured;
-      if (!isCaptured) {
-        const occupant = this.occupancyByCoordinate.get(entity.position);
-        if (occupant !== id) {
+      if (entity.type === 'TERRAIN') {
+        const terr = this.terrainByCoordinate.get(entity.position);
+        if (terr !== id) {
           errors.push(
-            `Missing or mismatched spatial index for active entity ${id} at ${entity.position}. Occupant is: ${occupant}`
+            `Missing or mismatched terrain index for entity ${id} at ${entity.position}. Found: ${terr}`
           );
+        }
+      } else {
+        const isCaptured = entity.type === 'PIECE' && entity.isCaptured;
+        if (!isCaptured) {
+          const occupant = this.occupancyByCoordinate.get(entity.position);
+          if (occupant !== id) {
+            errors.push(
+              `Missing or mismatched spatial index for active entity ${id} at ${entity.position}. Occupant is: ${occupant}`
+            );
+          }
         }
       }
     }
@@ -614,6 +709,7 @@ export class EntityManager {
   public toSnapshot(): {
     entityById: Record<EntityId, IEntity>;
     occupancyByCoordinate: Record<CoordinateKey, EntityId>;
+    terrainByCoordinate: Record<CoordinateKey, EntityId>;
   } {
     const entityById: Record<EntityId, IEntity> = {} as Record<EntityId, IEntity>;
     for (const [k, v] of this.entityById.entries()) {
@@ -623,6 +719,10 @@ export class EntityManager {
     for (const [k, v] of this.occupancyByCoordinate.entries()) {
       occupancyByCoordinate[k] = v;
     }
-    return { entityById, occupancyByCoordinate };
+    const terrainByCoordinate: Record<CoordinateKey, EntityId> = {} as Record<CoordinateKey, EntityId>;
+    for (const [k, v] of this.terrainByCoordinate.entries()) {
+      terrainByCoordinate[k] = v;
+    }
+    return { entityById, occupancyByCoordinate, terrainByCoordinate };
   }
 }

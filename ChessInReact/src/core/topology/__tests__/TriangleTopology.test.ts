@@ -63,26 +63,102 @@ describe('TriangleTopology (Spec 02 Verification)', () => {
     }
   });
 
-  it('calculates barycentric distance accurately', () => {
+  it('calculates exact graph distance matching BFS and triangular coordinates (PATCH-03)', () => {
     expect(tri.getDistance('0,0' as CoordinateKey, '0,0' as CoordinateKey)).toBe(0);
     expect(tri.getDistance('0,0' as CoordinateKey, '1,0' as CoordinateKey)).toBe(1);
     expect(tri.getDistance('0,0' as CoordinateKey, '2,0' as CoordinateKey)).toBe(2);
     expect(tri.getDistance('0,0' as CoordinateKey, '1,1' as CoordinateKey)).toBe(2);
+
+    // Verified defect from audit: (0,0) and (0,1) must be 3 steps apart, not 1:
+    expect(tri.getDistance('0,0' as CoordinateKey, '0,1' as CoordinateKey)).toBe(3);
+    expect(tri.getDistance('0,1' as CoordinateKey, '0,0' as CoordinateKey)).toBe(3);
   });
 
-  it('computes line of sight across triangle grid', () => {
-    const los = tri.getLineOfSight('0,0' as CoordinateKey, '3,0' as CoordinateKey);
+  it('guarantees distance symmetry and triangle inequality across arbitrary pairs', () => {
+    const coords: CoordinateKey[] = [
+      '0,0', '1,0', '0,1', '1,1', '-1,0', '0,-1', '-2,2', '3,-3', '4,2'
+    ].map((c) => c as CoordinateKey);
+
+    for (const a of coords) {
+      for (const b of coords) {
+        // Symmetry
+        expect(tri.getDistance(a, b)).toBe(tri.getDistance(b, a));
+
+        // Direct neighbors must have distance 1
+        if (tri.getAllNeighbors(a).includes(b)) {
+          expect(tri.getDistance(a, b)).toBe(1);
+        }
+
+        // Triangle Inequality: d(a, c) <= d(a, b) + d(b, c)
+        for (const c of coords) {
+          expect(tri.getDistance(a, c)).toBeLessThanOrEqual(
+            tri.getDistance(a, b) + tri.getDistance(b, c)
+          );
+        }
+      }
+    }
+  });
+
+  it('matches BFS ground truth across a grid of negative and positive coordinates', () => {
+    function bfsDistance(start: CoordinateKey, goal: CoordinateKey): number {
+      if (start === goal) return 0;
+      const queue: [CoordinateKey, number][] = [[start, 0]];
+      const visited = new Set<string>([start]);
+
+      while (queue.length > 0) {
+        const [curr, d] = queue.shift()!;
+        for (const n of tri.getAllNeighbors(curr)) {
+          if (n === goal) return d + 1;
+          if (!visited.has(n)) {
+            visited.add(n);
+            queue.push([n, d + 1]);
+          }
+        }
+      }
+      return Infinity;
+    }
+
+    const testPoints: CoordinateKey[] = [
+      '0,0', '1,0', '-1,0', '0,1', '0,-1', '1,1', '-1,-1', '2,1', '-2,-1', '3,0', '-3,2'
+    ].map((c) => c as CoordinateKey);
+
+    for (const p1 of testPoints) {
+      for (const p2 of testPoints) {
+        const bfsD = bfsDistance(p1, p2);
+        const formulaD = tri.getDistance(p1, p2);
+        expect(formulaD).toBe(bfsD);
+      }
+    }
+  });
+
+  it('guarantees that every consecutive cell in getLineOfSight is a true adjacent neighbor', () => {
+    const los = tri.getLineOfSight('0,0' as CoordinateKey, '0,1' as CoordinateKey);
     expect(los[0]).toBe('0,0');
-    expect(los[los.length - 1]).toBe('3,0');
-    expect(los.length).toBeGreaterThanOrEqual(4);
+    expect(los[los.length - 1]).toBe('0,1');
+    expect(los.length).toBe(4); // 3 steps: 4 cells
+
+    for (let i = 0; i < los.length - 1; i++) {
+      const stepDist = tri.getDistance(los[i], los[i + 1]);
+      expect(stepDist).toBe(1); // Must share an edge
+      expect(tri.getAllNeighbors(los[i])).toContain(los[i + 1]);
+    }
   });
 
-  it('computes world coordinates for triangular tessellation', () => {
+  it('computes world coordinates and validates roundtrip worldToCoordinate', () => {
     const world00 = tri.toWorldPosition('0,0' as CoordinateKey);
     expect(world00.x).toBeCloseTo(0);
     expect(world00.y).toBe(0);
 
     const world10 = tri.toWorldPosition('1,0' as CoordinateKey);
     expect(world10.x).toBeCloseTo(0.5);
+
+    const coordsToTest: CoordinateKey[] = ['0,0', '1,0', '2,1', '-3,4', '-5,-2'].map(
+      (c) => c as CoordinateKey
+    );
+    for (const c of coordsToTest) {
+      const world = tri.toWorldPosition(c);
+      const restored = tri.worldToCoordinate(world);
+      expect(restored).toBe(c);
+    }
   });
 });

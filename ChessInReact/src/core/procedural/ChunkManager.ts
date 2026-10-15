@@ -245,34 +245,45 @@ export class ChunkManager {
       // Extract entities for cells not yet in the domain state
       for (const [coord, cell] of Object.entries(chunk.cells)) {
         const cKey = coord as CoordinateKey;
-        // If coordinate is not occupied or not registered as terrain
-        if (!state.occupancy[cKey]) {
-          const eid = asEntityId(`terr_${cell.biome.toLowerCase()}_${cKey.replace(/,/g, '_')}`);
-          if (!state.boardEntities[eid]) {
-            if (cell.biome === 'CHASM') {
-              const obs: IObstacleEntity = {
-                id: eid,
-                type: 'OBSTACLE',
-                destructible: false,
-                position: cKey,
-                metadata: { biome: 'CHASM', elevation: cell.elevation },
-              };
-              newEntities[eid] = obs;
-            } else {
-              const terr: ITerrainEntity = {
-                id: eid,
-                type: 'TERRAIN',
-                variantId: cell.biome,
-                position: cKey,
+        const hasExistingTerrain = Boolean(
+          state.terrain?.[cKey] ||
+            (state.boardEntities &&
+              Object.values(state.boardEntities).some(
+                (e) => (e.type === 'TERRAIN' || e.type === 'OBSTACLE') && e.position === cKey
+              ))
+        );
+        const eid = asEntityId(`terr_${cell.biome.toLowerCase()}_${cKey.replace(/,/g, '_')}`);
+        if (!hasExistingTerrain && !state.boardEntities[eid]) {
+          if (cell.biome === 'CHASM') {
+            const obs: IObstacleEntity = {
+              id: eid,
+              type: 'OBSTACLE',
+              destructible: false,
+              position: cKey,
+              metadata: {
+                biome: 'CHASM',
                 elevation: cell.elevation,
-                metadata: {
-                  biome: cell.biome,
-                  colorIndex: cell.colorIndex,
-                  costMultiplier: cell.costMultiplier,
-                },
-              };
-              newEntities[eid] = terr;
-            }
+                isObstacle: true,
+                costMultiplier: 999.0,
+              },
+            };
+            newEntities[eid] = obs;
+          } else {
+            const terr: ITerrainEntity = {
+              id: eid,
+              type: 'TERRAIN',
+              variantId: cell.biome,
+              position: cKey,
+              elevation: cell.elevation,
+              metadata: {
+                biome: cell.biome,
+                colorIndex: cell.colorIndex,
+                costMultiplier: cell.costMultiplier,
+                isObstacle: cell.isObstacle,
+                isWalkable: !cell.isObstacle,
+              },
+            };
+            newEntities[eid] = terr;
           }
         }
       }
@@ -280,7 +291,8 @@ export class ChunkManager {
 
     // 2. Garbage Collection: identify chunks eligible for unloading
     const unloadedEntityIds: EntityId[] = [];
-    const totalEntitiesCount = Object.keys(state.boardEntities).length + Object.keys(newEntities).length;
+    const totalEntitiesCount =
+      Object.keys(state.boardEntities).length + Object.keys(newEntities).length;
 
     for (const [cid, chunk] of this.loadedChunks.entries()) {
       if (!requiredChunkIds.has(cid)) {
@@ -290,11 +302,9 @@ export class ChunkManager {
         if (isStale || isOverMemoryLimit) {
           // Verify no active piece is inside this chunk
           let hasActivePiece = false;
-          for (const cellCoord of Object.keys(chunk.cells)) {
-            const occupantId = state.occupancy[cellCoord as CoordinateKey];
-            if (occupantId) {
-              const occupant = state.boardEntities[occupantId];
-              if (occupant && occupant.type === 'PIECE' && !occupant.isCaptured) {
+          for (const ent of Object.values(state.boardEntities)) {
+            if (ent && ent.type === 'PIECE' && !ent.isCaptured) {
+              if (chunk.cells[ent.position]) {
                 hasActivePiece = true;
                 break;
               }
@@ -302,9 +312,14 @@ export class ChunkManager {
           }
 
           if (!hasActivePiece) {
-            // Unload this chunk
+            // Unload non-piece entities belonging to this chunk
             for (const cellCoord of Object.keys(chunk.cells)) {
-              const occupantId = state.occupancy[cellCoord as CoordinateKey];
+              const cKey = cellCoord as CoordinateKey;
+              const terrainId = state.terrain?.[cKey];
+              if (terrainId) {
+                unloadedEntityIds.push(terrainId);
+              }
+              const occupantId = state.occupancy[cKey];
               if (occupantId) {
                 const ent = state.boardEntities[occupantId];
                 if (ent && ent.type !== 'PIECE') {
@@ -326,6 +341,23 @@ export class ChunkManager {
 
   public getLoadedChunksCount(): number {
     return this.loadedChunks.size;
+  }
+
+  /**
+   * Synchronizes streaming chunk state transactionally with a gameStore instance.
+   * Protects against stale asynchronous overwrites using the domain revision counter.
+   */
+  public syncWithStore(store: {
+    getState: () => {
+      domain: IDomainState;
+      applyChunkStreamingDelta: (delta: IChunkStreamingDelta, revision?: number) => boolean;
+    };
+  }): { applied: boolean; delta: IChunkStreamingDelta } {
+    const state = store.getState().domain;
+    const revision = state.revision;
+    const delta = this.updateStreaming(state);
+    const applied = store.getState().applyChunkStreamingDelta(delta, revision);
+    return { applied, delta };
   }
 
   public clear(): void {

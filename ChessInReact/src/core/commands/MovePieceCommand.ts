@@ -72,6 +72,31 @@ export class MovePieceCommand implements ICommand {
       );
     }
 
+    // Handle destination terrain: check if background terrain is impassable
+    const terrainEntityId =
+      draft.terrain?.[this.to] ??
+      Object.values(draft.boardEntities).find(
+        (e) => e.type === 'TERRAIN' && e.position === this.to
+      )?.id;
+
+    if (terrainEntityId) {
+      const terrainEntity = draft.boardEntities[terrainEntityId];
+      if (terrainEntity && terrainEntity.type === 'TERRAIN') {
+        const isImpassable =
+          terrainEntity.variantId === 'WATER' ||
+          terrainEntity.variantId === 'CHASM' ||
+          terrainEntity.variantId === 'MOUNTAIN' ||
+          terrainEntity.metadata?.isObstacle === true ||
+          (typeof terrainEntity.metadata?.costMultiplier === 'number' &&
+            terrainEntity.metadata.costMultiplier >= 900);
+        if (isImpassable) {
+          throw new Error(
+            `Invalid move: Destination coordinate "${this.to}" is impassable terrain (${terrainEntity.variantId}).`
+          );
+        }
+      }
+    }
+
     // Handle destination target (PATCH-05)
     const targetEntityId = draft.occupancy[this.to];
     if (targetEntityId) {

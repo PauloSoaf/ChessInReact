@@ -47,3 +47,6 @@ jobs:
 
       - name: Run Test Suite with Coverage
         run: npx vitest run --coverage
+
+      - name: Run Native Chromium Worker Smoke Test
+        run: node scripts/runChromiumSmoke.js

@@ -11,6 +11,7 @@ export function createDefaultDomainState(matchId = 'local_sandbox', variantId = 
     revision: 0,
     boardEntities: {},
     occupancy: {},
+    terrain: {},
     capturedInventory: {
       P1: [],
       P2: [],

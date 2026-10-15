@@ -85,6 +85,9 @@ export enum VariantBinary {
   KING = 6,
   MOUNTAIN = 10,
   WATER = 11,
+  PLAINS = 12,
+  FOREST = 13,
+  CHASM = 14,
   OBSTACLE_WALL = 20,
 }
 

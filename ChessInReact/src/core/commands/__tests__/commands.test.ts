@@ -356,7 +356,7 @@ describe('Command Pattern: MovePieceCommand & CompositeCommand', () => {
 
         const cmd = new MovePieceCommand(whitePawn.id, asCoordinateKey('4,1'), asCoordinateKey('4,2'), 'P1');
 
-        expect(() => cmd.execute(domain)).toThrow(/occupied by TERRAIN entity/);
+        expect(() => cmd.execute(domain)).toThrow(/(occupied by TERRAIN entity|impassable terrain)/);
 
         // Verify terrain remains intact in both indices
         expect(domain.occupancy[mountain.position]).toBe(mountain.id);

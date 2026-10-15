@@ -63,6 +63,9 @@ function variantToBinary(variantId?: string): VariantBinary {
     case 'KING': return VariantBinary.KING;
     case 'MOUNTAIN': return VariantBinary.MOUNTAIN;
     case 'WATER': return VariantBinary.WATER;
+    case 'PLAINS': return VariantBinary.PLAINS;
+    case 'FOREST': return VariantBinary.FOREST;
+    case 'CHASM': return VariantBinary.CHASM;
     case 'OBSTACLE_WALL': return VariantBinary.OBSTACLE_WALL;
     default:
       throw new Error(
@@ -81,6 +84,9 @@ function binaryToVariant(val: number): string {
     case VariantBinary.KING: return 'KING';
     case VariantBinary.MOUNTAIN: return 'MOUNTAIN';
     case VariantBinary.WATER: return 'WATER';
+    case VariantBinary.PLAINS: return 'PLAINS';
+    case VariantBinary.FOREST: return 'FOREST';
+    case VariantBinary.CHASM: return 'CHASM';
     case VariantBinary.OBSTACLE_WALL: return 'OBSTACLE_WALL';
     default:
       throw new Error(`Buffer corruption: unrecognized variant code ${val}.`);
@@ -326,7 +332,14 @@ export function deserializeWorkerState(
       if (ownerId === 'NONE') {
         throw new Error(`Buffer corruption: PIECE entity at index ${i} has owner NONE.`);
       }
-      if (variantId === 'MOUNTAIN' || variantId === 'WATER' || variantId === 'OBSTACLE_WALL') {
+      if (
+        variantId === 'MOUNTAIN' ||
+        variantId === 'WATER' ||
+        variantId === 'PLAINS' ||
+        variantId === 'FOREST' ||
+        variantId === 'CHASM' ||
+        variantId === 'OBSTACLE_WALL'
+      ) {
         throw new Error(`Buffer corruption: PIECE entity at index ${i} has invalid variant ${variantId}.`);
       }
     } else {
@@ -336,10 +349,17 @@ export function deserializeWorkerState(
       if (hasMoved || isCaptured) {
         throw new Error(`Buffer corruption: ${typeStr} entity at index ${i} cannot have hasMoved or isCaptured flags.`);
       }
-      if (typeStr === 'TERRAIN' && variantId !== 'MOUNTAIN' && variantId !== 'WATER') {
+      if (
+        typeStr === 'TERRAIN' &&
+        variantId !== 'MOUNTAIN' &&
+        variantId !== 'WATER' &&
+        variantId !== 'PLAINS' &&
+        variantId !== 'FOREST' &&
+        variantId !== 'CHASM'
+      ) {
         throw new Error(`Buffer corruption: TERRAIN entity at index ${i} has invalid variant ${variantId}.`);
       }
-      if (typeStr === 'OBSTACLE' && variantId !== 'OBSTACLE_WALL') {
+      if (typeStr === 'OBSTACLE' && variantId !== 'OBSTACLE_WALL' && variantId !== 'CHASM') {
         throw new Error(`Buffer corruption: OBSTACLE entity at index ${i} has invalid variant ${variantId}.`);
       }
     }

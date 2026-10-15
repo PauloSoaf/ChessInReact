@@ -102,6 +102,61 @@ export function createGameStore(
         }));
       },
 
+      applyChunkStreamingDelta: (
+        delta: {
+          readonly newEntities: Record<EntityId, import('../entities/types').IEntity>;
+          readonly unloadedEntityIds: readonly EntityId[];
+        },
+        expectedRevision?: number
+      ): boolean => {
+        let applied = false;
+        set((state) => {
+          if (expectedRevision !== undefined && state.domain.revision !== expectedRevision) {
+            return state; // Stale delta rejection: do not overwrite newer state
+          }
+          applied = true;
+          return {
+            domain: produce(state.domain, (draft) => {
+              if (!draft.terrain) {
+                draft.terrain = {};
+              }
+              const terrainMap = draft.terrain;
+
+              // Apply newly streamed entities
+              for (const [id, entity] of Object.entries(delta.newEntities)) {
+                draft.boardEntities[id as EntityId] = entity;
+                if (entity.type === 'TERRAIN') {
+                  terrainMap[entity.position] = id as EntityId;
+                } else if (entity.type === 'OBSTACLE') {
+                  draft.occupancy[entity.position] = id as EntityId;
+                }
+              }
+
+              // Unload inactive non-piece entities
+              for (const id of delta.unloadedEntityIds) {
+                const ent = draft.boardEntities[id];
+                if (ent) {
+                  // Never unload active pieces
+                  if (ent.type === 'PIECE' && !ent.isCaptured) {
+                    continue;
+                  }
+                  if (ent.type === 'TERRAIN' && terrainMap[ent.position] === id) {
+                    delete terrainMap[ent.position];
+                  }
+                  if (ent.type === 'OBSTACLE' && draft.occupancy[ent.position] === id) {
+                    delete draft.occupancy[ent.position];
+                  }
+                  delete draft.boardEntities[id];
+                }
+              }
+
+              (draft as { revision: number }).revision += 1;
+            }),
+          };
+        });
+        return applied;
+      },
+
       // Presentation UI actions - fully decoupled from domain snapshots
       selectPiece: (pieceId: EntityId | null) => {
         set((state) => ({

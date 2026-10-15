@@ -1,13 +1,14 @@
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { createServer } from 'vite';
 
 const CHROME_PATHS = [
-  'C:\\Program Files\\Google\Chrome\\Application\\chrome.exe',
+  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
   'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
   '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
   '/usr/bin/chromium-browser',
   '/usr/bin/chromium',
 ];
@@ -15,9 +16,31 @@ const CHROME_PATHS = [
 export async function runChromiumWorkerSmokeTest() {
   const browserPath = CHROME_PATHS.find((p) => existsSync(p));
   if (!browserPath) {
-    console.warn('Skipping Chromium smoke test: No Chromium browser executable found on system.');
-    return { success: true, skipped: true, result: 'SUCCESS: SKIPPED (No browser installed in environment)' };
+    if (process.env.CI) {
+      throw new Error(
+        'Chromium smoke test gate failed: No Chromium executable found in CI environment! (Silent skip prohibited in CI)'
+      );
+    }
+    console.warn('Skipping Chromium smoke test: No Chromium browser executable found on local dev system.');
+    return {
+      success: true,
+      skipped: true,
+      browserPath: null,
+      browserVersion: null,
+      result: 'SUCCESS: SKIPPED (No browser installed in local environment)',
+    };
   }
+
+  // Obtain browser version
+  let browserVersion = 'unknown';
+  try {
+    const rawVer = execFileSync(browserPath, ['--version'], { encoding: 'utf8', timeout: 3000 });
+    browserVersion = rawVer.trim();
+  } catch {
+    browserVersion = 'headless-chromium';
+  }
+
+  console.log(`[CHROMIUM SMOKE] Detected browser: "${browserPath}" (${browserVersion})`);
 
   const port = 5198;
   const cdpPort = 9223;
@@ -32,22 +55,26 @@ export async function runChromiumWorkerSmokeTest() {
   const url = `http://127.0.0.1:${port}/worker-smoke.html`;
 
   // 2. Launch real Chromium in headless mode
-  const chromeProc = spawn(browserPath, [
-    '--headless=new',
-    '--disable-gpu',
-    `--remote-debugging-port=${cdpPort}`,
-    '--no-first-run',
-    '--no-default-browser-check',
-    '--disable-background-networking',
-    url,
-  ], { stdio: 'ignore' });
+  const chromeProc = spawn(
+    browserPath,
+    [
+      '--headless=new',
+      '--disable-gpu',
+      `--remote-debugging-port=${cdpPort}`,
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-background-networking',
+      url,
+    ],
+    { stdio: 'ignore' }
+  );
 
   try {
     // 3. Poll CDP endpoint for page result
     const startTime = Date.now();
     let result = '';
 
-    while (Date.now() - startTime < 8000) {
+    while (Date.now() - startTime < 12000) {
       await new Promise((r) => setTimeout(r, 300));
       try {
         const resp = await fetch(`http://127.0.0.1:${cdpPort}/json`);
@@ -66,14 +93,17 @@ export async function runChromiumWorkerSmokeTest() {
             const ws = new WebSocketImpl(wsUrl);
             const reqId = 1;
             ws.onopen = () => {
-              ws.send(JSON.stringify({
-                id: reqId,
-                method: 'Runtime.evaluate',
-                params: {
-                  expression: "document.getElementById('result') ? document.getElementById('result').textContent : ''",
-                  returnByValue: true,
-                },
-              }));
+              ws.send(
+                JSON.stringify({
+                  id: reqId,
+                  method: 'Runtime.evaluate',
+                  params: {
+                    expression:
+                      "document.getElementById('result') ? document.getElementById('result').textContent : ''",
+                    returnByValue: true,
+                  },
+                })
+              );
             };
             ws.onmessage = (event) => {
               try {
@@ -103,7 +133,7 @@ export async function runChromiumWorkerSmokeTest() {
             }
           }
         }
-      } catch (pollErr) {
+      } catch {
         // Retry next tick
       }
     }
@@ -112,15 +142,19 @@ export async function runChromiumWorkerSmokeTest() {
       throw new Error(`Browser smoke test timed out or did not succeed. Last status: "${result}"`);
     }
 
+    console.log(`[CHROMIUM SMOKE] Worker execution verified: ${result}`);
+
     return {
       success: true,
+      skipped: false,
       browserPath,
+      browserVersion,
       result,
     };
   } finally {
     try {
       chromeProc.kill();
-    } catch (_) {}
+    } catch {}
     await viteServer.close();
   }
 }

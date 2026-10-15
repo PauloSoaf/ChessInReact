@@ -128,30 +128,66 @@ export class TriangleTopology implements ITopology {
     return this.getAllNeighbors(coord);
   }
 
+  /**
+   * Projects 2D alternating triangular coordinates (q, r) into canonical
+   * 3-axis triangular coordinate space (x, y, z) where each graph step
+   * alters exactly one coordinate by 1.
+   */
+  public toTriangular3D(q: number, r: number): { x: number; y: number; z: number } {
+    const up = ((((q + r) % 2) + 2) % 2) === 0;
+    const x = up ? (q + r) / 2 : (q + r + 1) / 2;
+    const y = up ? (r - q) / 2 : (r - q + 1) / 2;
+    const z = r;
+    return { x, y, z };
+  }
+
+  /**
+   * Computes exact minimum step distance in the triangular adjacency graph (RF-03, PATCH-03).
+   * Satisfies:
+   * - distance(0,0 to 0,1) === 3
+   * - distance(n1, n2) === 1 for all direct neighbors
+   * - Symmetry: distance(a, b) === distance(b, a)
+   * - Triangle Inequality: distance(a, c) <= distance(a, b) + distance(b, c)
+   */
   public getDistance(a: CoordinateKey, b: CoordinateKey): number {
     const p1 = this.parse(a);
     const p2 = this.parse(b);
-    return Math.abs(p1.q - p2.q) + Math.abs(p1.r - p2.r);
+    const t1 = this.toTriangular3D(p1.q, p1.r);
+    const t2 = this.toTriangular3D(p2.q, p2.r);
+    return Math.abs(t1.x - t2.x) + Math.abs(t1.y - t2.y) + Math.abs(t1.z - t2.z);
   }
 
+  /**
+   * Computes continuous Line of Sight where every consecutive cell
+   * shares a valid edge (distance = 1) along the shortest path.
+   */
   public getLineOfSight(start: CoordinateKey, target: CoordinateKey): CoordinateKey[] {
-    const p1 = this.parse(start);
-    const p2 = this.parse(target);
-    const dist = this.getDistance(start, target);
-    if (dist === 0) return [start];
+    if (start === target) return [start];
+    const path: CoordinateKey[] = [start];
+    let current = start;
+    const visited = new Set<CoordinateKey>([start]);
 
-    const path: CoordinateKey[] = [];
-    const dq = p2.q - p1.q;
-    const dr = p2.r - p1.r;
+    while (current !== target) {
+      const neighbors = this.getAllNeighbors(current);
+      let next: CoordinateKey | null = null;
+      let bestDist = Infinity;
 
-    for (let i = 0; i <= dist; i++) {
-      const t = i / dist;
-      const q = Math.round(p1.q + dq * t);
-      const r = Math.round(p1.r + dr * t);
-      const key = asCoordinateKey(`${q},${r}`);
-      if (path.length === 0 || path[path.length - 1] !== key) {
-        path.push(key);
+      for (const n of neighbors) {
+        if (visited.has(n)) continue;
+        const d = this.getDistance(n, target);
+        if (d < bestDist) {
+          bestDist = d;
+          next = n;
+        }
       }
+
+      if (!next || bestDist >= this.getDistance(current, target)) {
+        break;
+      }
+
+      current = next;
+      visited.add(current);
+      path.push(current);
     }
 
     return path;

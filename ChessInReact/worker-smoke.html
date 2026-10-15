@@ -15,13 +15,13 @@
       const resultEl = document.getElementById('result');
       try {
         // Instantiate EngineBridge with native browser Worker (no workerPort override!)
-        const bridge = new EngineBridge({ timeoutMs: 3000 });
+        const bridge = new EngineBridge({ timeoutMs: 5000 });
 
-        // 1. Protocol PING / PONG
+        // 1. Protocol PING / PONG handshake
         const pong = await bridge.ping();
         if (pong !== 'PONG') throw new Error(`PING failed: got ${pong}`);
 
-        // 2. Transfer state metadata
+        // 2. Transfer ArrayBuffer & state metadata
         const domain = createDefaultDomainState('browser-worker-smoke');
         domain.boardEntities[asEntityId('p1')] = {
           id: asEntityId('p1'),
@@ -43,10 +43,42 @@
           throw new Error(`Entity echo mismatch: ${JSON.stringify(echoed)}`);
         }
 
-        // Clean disposal
+        // 4. Real procedural generation request (chunk 16x16 with 256 cells)
+        const chunks = await bridge.generateChunks({
+          topologyType: 'SQUARE',
+          seed: 'browser-smoke-seed',
+          chunkCoords: [{ chunkX: 0, chunkY: 0 }],
+          chunkSize: 16,
+        });
+        if (!chunks || chunks.length !== 1) {
+          throw new Error(`GENERATE_CHUNKS failed: expected 1 chunk, got ${chunks?.length}`);
+        }
+        const cellCount = Object.keys(chunks[0].cells).length;
+        if (cellCount !== 256) {
+          throw new Error(`GENERATE_CHUNKS cell count mismatch: expected 256, got ${cellCount}`);
+        }
+
+        // 5. Real A* pathfinding computation in worker thread
+        const pathResult = await bridge.computePath({
+          topologyType: 'SQUARE',
+          start: asCoordinateKey('0,0'),
+          goal: asCoordinateKey('3,3'),
+          obstacleCoords: [asCoordinateKey('1,1'), asCoordinateKey('2,2')],
+        });
+        if (!pathResult.found || pathResult.path.length === 0) {
+          throw new Error(`COMPUTE_PATHFINDING failed to find path around obstacles`);
+        }
+
+        // 6. Clean worker termination
         bridge.dispose();
 
-        resultEl.textContent = 'SUCCESS: ' + JSON.stringify(echoed);
+        resultEl.textContent = 'SUCCESS: ' + JSON.stringify({
+          handshake: pong,
+          entityCount: meta.entityCount,
+          cellCount,
+          pathFound: pathResult.found,
+          pathLength: pathResult.path.length,
+        });
       } catch (err) {
         resultEl.textContent = 'ERROR: ' + (err instanceof Error ? err.message : String(err));
       }

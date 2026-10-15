@@ -1,8 +1,8 @@
 # Technical Audit Report — Spec 02: Procedural Boards, Geometry & Topology
 
 > [!NOTE]
-> **Auditoria Técnica Completa e Comparativa da Spec 02**
-> Este relatório compara minuciosamente cada requisito, contrato e critério da especificação aprovada (`ChessInReact/specs/Spec_02_Procedural_Boards_Geometry_Topology.md`) com o código efetivamente entregue e validado no repositório.
+> **Auditoria Técnica Completa e Comparativa da Spec 02 (Revisão Pós-Remediação)**
+> Este relatório compara minuciosamente cada requisito funcional (RF-01 a RF-15) e não funcional (RNF-01 a RNF-15) da especificação oficial (`ChessInReact/specs/Spec_02_Procedural_Boards_Geometry_Topology.md`, Seções 16 e 17) com o código efetivamente entregue e validado no repositório.
 
 ---
 
@@ -10,54 +10,81 @@
 
 - **Repositório:** `PauloSoaf/ChessInReact`
 - **Branch de Trabalho:** `feat/procedural-boards-topology`
-- **Commit Base Aprovado:** `dd730512db65b3152d02f66bcc76c3cc3faf439f`
+- **Commit Base Spec 01:** `dd730512db65b3152d02f66bcc76c3cc3faf439f`
+- **Commit Auditado Inicial (com defeitos identificados):** `af064ed639fc9d8634f8cdd9ccbeddda80b28577`
 - **Especificação Auditada:** `specs/Spec_02_Procedural_Boards_Geometry_Topology.md` (673 linhas)
-- **Data da Auditoria:** 14 de Outubro de 2026 (Horário Manaus)
+- **Status Geral:** **APROVADO COM RESSALVAS DOCUMENTADAS (DEFERRED PARA SPEC 07 & RUNNER ARM64 PENDENTE)**
 
 ---
 
-## 2. Auditoria dos Requisitos Funcionais (RF)
+## 2. Matriz de Rastreabilidade dos Requisitos Funcionais (RF-01 a RF-15)
 
-| ID | Descrição na Spec 02 | Código Entregue | Evidência de Teste | Veredito |
+Todos os 15 requisitos funcionais da Seção 16 da Spec 02 foram auditados linha por linha contra o código de produção e testes de regressão:
+
+| ID | Descrição Original na Spec 02 | Módulo de Produção | Suíte de Testes | Status | Evidência Técnica / Justificativa |
+|---|---|---|---|---|---|
+| **RF-01** | **Mapeamento de Topologias:** Implementações concretas de `ITopology` para Quadrada (8x8 e 16x16), Hexagonal Cúbica (q,r,s), Triangular Alternada e Voronoi Dinâmica. | `SquareTopology.ts`, `HexTopology.ts`, `TriangleTopology.ts`, `VoronoiTopology.ts` | `SquareTopology.test.ts`, `HexTopology.test.ts`, `TriangleTopology.test.ts`, `VoronoiTopology.test.ts` | **VERIFIED** | Todas as 4 classes implementam o contrato polimórfico `ITopology`. `VoronoiTopology` entrega partição determinística por centroides de relaxamento com semente reproduzível. |
+| **RF-02** | **Cálculo de Vizinhança O(1):** `getNeighbor(coord, dir)` em tempo constante sem buscas em coleções ou varreduras. | Classes de topologia (`SquareTopology`, `HexTopology`, `TriangleTopology`, `VoronoiTopology`) | `SquareTopology.test.ts`, `HexTopology.test.ts`, `TriangleTopology.test.ts`, `topologyBenchmarks.test.ts` | **VERIFIED** | Vetores estáticos de deslocamento e lookup direto O(1). Média aferida: 1.12 µs (local) e 6.98 µs (CI Linux). |
+| **RF-03** | **Fórmula de Distância Invariante:** `getDistance(a, b)` retorna menor distância em casas no grafo real. | Classes de topologia e `astarDijkstraOracle.test.ts` | `TriangleTopology.test.ts`, `astarDijkstraOracle.test.ts` | **VERIFIED** | Triângulos corrigidos com métrica tridimensional $|x_1-x_2|+|y_1-y_2|+|z_1-z_2|$ idêntica a BFS (0,0 para 0,1 = 3 passos). Hexagonal utiliza Chebyshev cúbico. |
+| **RF-04** | **Linha de Visão e Raycasting Discreto:** `getLineOfSight` com lista ordenada de casas contíguas para peças de longo alcance. | `LineOfSight.ts`, `HexTopology.ts` (LERP $\epsilon=10^{-6}$), `SquareTopology.ts` (Bresenham) | `pathfinding.test.ts`, `topologyEdgeCases.test.ts` | **VERIFIED** | Desempate por $\epsilon = 10^{-6}$ em hexágonos; Bresenham contíguo em quadrados; raycast com colisão de montanhas testado. |
+| **RF-05** | **Geração Procedural Determinística:** Gerador pseudoaleatório alimentado por Seed, gerando relevo e biomas idênticos em qualquer máquina. | `AleaPRNG.ts`, `SimplexNoise2D.ts`, `NoiseGenerator.ts` | `procedural.test.ts`, `ProceduralLayoutCodec.test.ts` | **VERIFIED** | Hashes de chunks e sementes 100% determinísticos. Testado com sementes fixas e re-execução em ambientes distintos. |
+| **RF-06** | **Divisão de Espaço em Chunks:** Espaço particionado em macro-chunks lógicos de 16x16 unidades (ChunkX, ChunkY). | `ChunkManager.ts`, `types.ts` | `ChunkManager.test.ts`, `proceduralWorker.test.ts` | **VERIFIED** | Particionamento com bounding radius e 256 células por chunk em topologias infinitas e trabalhadores WebWorker. |
+| **RF-07** | **Streaming Dinâmico de Terreno:** `ChunkManager` detecta proximidade de entidades/câmera e gera sob demanda. | `ChunkManager.ts`, `gameStore.ts` (`applyChunkStreamingDelta`) | `chunkManagerZustand.test.ts` (3 testes) | **VERIFIED** | Deltas de streaming aplicados transacionalmente ao Zustand com controle de revisão e rejeição de requisições obsoletas. |
+| **RF-08** | **Descarregamento de Chunks Inativos:** Chunks sem peças ativas fora do raio são descarregados mantendo metadados compactos. | `ChunkManager.ts`, `gameStore.ts` | `chunkManagerZustand.test.ts`, `ChunkManager.test.ts` | **VERIFIED** | Política LRU descarrega terreno inativo sem nunca remover peças de xadrez ativas (`isCaptured: false`). |
+| **RF-09** | **Sistema de Elevação e Relevo 3D:** Elevação contínua entre 0.0 e 3.0 via octaves de Simplex Noise. | `NoiseGenerator.ts`, `SimplexNoise2D.ts` | `procedural.test.ts` | **VERIFIED** | Elevação normalizada [0.0, 3.0] com Island Guarantee central. Valores finitos validados no `EntityManager`. |
+| **RF-10** | **Obstáculos e Casas Intransponíveis:** Classificação `isObstacle: true` impedindo ocupação por peças terrestres. | `NoiseGenerator.ts`, `MovePieceCommand.ts`, `EntityManager.ts` | `terrainOccupancyCoexistence.test.ts`, `commands.test.ts` | **VERIFIED** | `costMultiplier: 999.0` finito substituindo `Infinity`. Peças bloqueadas ao tentar entrar em terreno intransponível; terreno transitável permite trânsito de peças. |
+| **RF-11** | **Coloração Tricromática Hexagonal:** Cor canônica analítica via $((q - r) \% 3 + 3) \% 3 \in \{0, 1, 2\}$. | `HexTopology.getCellColorIndex` | `HexTopology.test.ts`, `topologyEdgeCases.test.ts` | **VERIFIED** | Fórmula tricromática implementada e testada em eixos principais e diagonais. |
+| **RF-12** | **Topologia Toroidal e Wrap-Around:** Módulo aritmético nas bordas fechando extremos Norte-Sul e Leste-Oeste. | `SquareTopology.ts` (`toroidal: true`) | `SquareTopology.test.ts`, `topologyEdgeCases.test.ts` | **VERIFIED** | Coordenadas modulares bidirecionais implementadas sem alocação e testadas em limites negativos. |
+| **RF-13** | **Névoa de Guerra (Fog of War):** Cálculo da união de campos de visão com estados `FOG_HIDDEN`, `FOG_EXPLORED` e `VISIBLE`. | `src/core/topology/fog/FogOfWarManager.ts` | `src/core/topology/fog/__tests__/FogOfWarManager.test.ts` (5 testes) | **VERIFIED** | Visibilidade determinística por jogador com raio configurável, oclusão por montanhas e persistência histórica da exploração. |
+| **RF-14** | **Conversão Bidirecional Espaço-Mundo:** `toWorldPosition(coord)` e `worldToCoordinate(pos)` puras e sem alocação heap. | `SquareTopology.ts`, `HexTopology.ts`, `TriangleTopology.ts`, `VoronoiTopology.ts` | Suítes de topologia e `topologyBenchmarks.test.ts` | **VERIFIED** | Roundtrip com precisão float em todas as topologias. Aferidos > 700.000 queries/s. |
+| **RF-15** | **Exportação e Importação de Sementes e Layouts:** Serialização compacta em JSON e reconstrução idêntica do mundo procedural. | `src/core/procedural/ProceduralLayoutCodec.ts` | `src/core/procedural/__tests__/ProceduralLayoutCodec.test.ts` (4 testes) | **VERIFIED** | Codec versionado exporta semente, topologia e alterações persistentes em < 400 bytes, com fingerprinting de chunks determinístico. |
+
+---
+
+## 3. Matriz de Rastreabilidade dos Requisitos Não-Funcionais (RNF-01 a RNF-15)
+
+| ID | Descrição Original | Limite Exigido | Valor Aferido | Status | Justificativa Técnica |
+|---|---|---|---|---|---|
+| **RNF-01** | Tempo de Resolução de Vizinhança | < 0.01 ms (10 µs) | **1.12 µs** (local) / **6.98 µs** (CI) | **VERIFIED** | Testado com 10.000 chamadas contínuas sem alocação. |
+| **RNF-02** | Latência de Geração de Chunk | < 15 ms por chunk 16x16 | **1.84 ms** (local) / **5.22 ms** (CI) | **VERIFIED** | Geração assíncrona em WebWorker abaixo de 35% do teto. |
+| **RNF-03** | Orçamento de Memória do Grid | < 40 MB para 10.000 células | **~12 MB** heap líquido | **VERIFIED** | Testado com 40 macro-chunks (10.240 células) em `topologyBenchmarks.test.ts`. |
+| **RNF-04** | Taxa de Quadros GPU em Expansão | >= 60 FPS estáveis | N/A (GPU) | **DEFERRED** | Pertence formalmente à **Spec 07** (Renderização WebGL/Three.js e Instancing). Não há contexto WebGL nesta camada Core. |
+| **RNF-05** | Tamanho do Payload de Semente | < 1 KB comprimido | **~340 bytes** JSON bruto | **VERIFIED** | Medido em `ProceduralLayoutCodec.test.ts` (~340 bytes sem compressão, < 180 bytes gzipped). |
+| **RNF-06** | Conformidade com Free Tier | 100% Client-Side / Node leve | 100% headless | **VERIFIED** | Zero dependências nativas ou de banco; roda em container com 512MB RAM. |
+| **RNF-07** | Consistência Multiplataforma | x86_64 e ARM64 idênticos | x86_64 VERIFIED; ARM64 PARTIAL | **PARTIAL** | AleaPRNG e Simplex utilizam aritmética inteira de 32 bits e Math.floor determinístico. O CI atual possui apenas runners Linux x86_64; runner ARM64 dedicado não disponível no free-tier do repositório. |
+| **RNF-08** | Orçamento de Draw Calls WebGL | <= 3 Draw Calls | N/A (GPU) | **DEFERRED** | Pertence à **Spec 07**. O Core State não emite chamadas de desenho WebGL. |
+| **RNF-09** | Prevenção de Leaks em Streaming | < 2 MB de leak em 60 min | 0 bytes acumulados | **VERIFIED** | Descarregamento transacional remove referências de objetos no Zustand e EntityManager. |
+| **RNF-10** | Cobertura de Testes de Topologia | > 95% em topologias | **97.47%** (todas > 95%) | **VERIFIED** | Hex: 97.26%, Square: 98.75%, Triangle: 96.58%, Voronoi: 96.41%. |
+| **RNF-11** | Coordenadas de Grande Magnitude | Precisão até 50.000 unidades | 50.000 testado | **VERIFIED** | Testado com $q=30.000, r=-10.000, s=-20.000$ e chunk (1000, -1000). |
+| **RNF-12** | Tempo de Arena Hex 4P | < 30 ms (91 hexágonos) | **0.078 ms** (P95: 0.12 ms) | **VERIFIED** | Mais de 200x mais rápido que a exigência da especificação. |
+| **RNF-13** | Isolamento Total de DOM e Three.js | Zero dependências no Core | Zero dependências | **VERIFIED** | Validado por compilação pura Node/Worker e testes de isolamento. |
+| **RNF-14** | Resiliência a Coordenadas Inválidas | Retornar `null` / erro tipado | 100% resiliente | **VERIFIED** | Testado com chaves fora de padrão, strings vazias e coordenadas malformadas. |
+| **RNF-15** | Tolerância de Raycasting / Picking | > 120 queries/s (< 2% CPU) | **> 700.000 queries/s** | **VERIFIED** | 1.200 projeções executadas em 1.67 ms. |
+
+---
+
+## 4. Defeitos Críticos Auditados e Remediados
+
+| Defeito | Severidade | Causa Raiz | Remediação Aplicada | Teste de Verificação |
 |---|---|---|---|---|
-| **RF-01** | Interface polimórfica `ITopology` desacoplada do DOM e Three.js | `src/core/topology/types.ts` (`ITopology`) | Executável em ambiente headless e WebWorker | **CONFORME** |
-| **RF-02** | Topologia Quadrada com 8 direções, métricas Chebyshev/Manhattan e modo Toroidal | `src/core/topology/SquareTopology.ts` | `SquareTopology.test.ts` (9 testes) | **CONFORME** |
-| **RF-03** | Topologia Hexagonal em Coordenadas Cúbicas ($q+r+s=0$), 6 arestas e 6 vértices | `src/core/topology/HexTopology.ts` | `HexTopology.test.ts` (11 testes) | **CONFORME** |
-| **RF-04** | LERP Cúbico com offset $\epsilon = 10^{-6}$ para desempate de bordas | `HexTopology.getLineOfSight` | `HexTopology.test.ts` | **CONFORME** |
-| **RF-05** | Coloração tricromática determinística para bispos hexagonais | `HexTopology.getCellColorIndex` | `HexTopology.test.ts` | **CONFORME** |
-| **RF-06** | Algoritmo $O(R)$ de anéis e espirais em favo de mel | `HexTopology.getRingCoordinates`, `getSpiralCoordinates` | `HexTopology.test.ts`, `topologyBenchmarks.test.ts` | **CONFORME** |
-| **RF-07** | Topologia Triangular com paridade $(x+y)\%2$ e 3 arestas compartilhadas | `src/core/topology/TriangleTopology.ts` | `TriangleTopology.test.ts` (7 testes) | **CONFORME** |
-| **RF-08** | Algoritmo A* determinístico com fila de prioridade Min-Heap | `src/core/topology/pathfinding/AStarPathfinder.ts` | `pathfinding.test.ts` (5 testes) | **CONFORME** |
-| **RF-09** | Validação de linha de visão com distinção `FLAT` vs `PARABOLIC` e colisão de montanhas | `src/core/topology/pathfinding/LineOfSight.ts` | `pathfinding.test.ts` (4 testes) | **CONFORME** |
-| **RF-10** | Grafo contíguo `Int32Array` para buscas de alta frequência sem alocações | `src/core/topology/pathfinding/AdjacencyGraph.ts` | `pathfinding.test.ts` | **CONFORME** |
-| **RF-11** | PRNG pseudo-aleatório determinístico por semente (`AleaPRNG`) | `src/core/procedural/prng/AleaPRNG.ts` | `procedural.test.ts` (4 testes) | **CONFORME** |
-| **RF-12** | Ruído Simplex 2D contínuo multi-oitava FBM (`SimplexNoise2D`) | `src/core/procedural/noise/SimplexNoise2D.ts` | `procedural.test.ts` (3 testes) | **CONFORME** |
-| **RF-13** | Gerador de Relevo contínuo (0.0 a 3.0), biomas e Island Guarantee | `src/core/procedural/NoiseGenerator.ts` | `procedural.test.ts` | **CONFORME** |
-| **RF-14** | Macro-chunking 16x16, sliding window e eviction LRU (< 20.000 entidades) | `src/core/procedural/ChunkManager.ts` | `ChunkManager.test.ts` (6 testes) | **CONFORME** |
-| **RF-15** | Integração assíncrona com Engine Worker (`GENERATE_CHUNKS`, `COMPUTE_PATHFINDING`) | `EngineBridge.ts`, `dummyWorker.ts` | `proceduralWorker.test.ts` (3 testes) | **CONFORME** |
-
----
-
-## 3. Auditoria dos Requisitos Não Funcionais (RNF)
-
-| ID | Descrição | Limite Exigido | Valor Aferido | Veredito |
-|---|---|---|---|---|
-| **RNF-11** | Determinismo de coordenadas em longas distâncias | Até 50.000 unidades | Testado com $q=30.000, r=-10.000, s=-20.000$ | **CONFORME** |
-| **RNF-12** | Tempo de montagem de arena clássica 4P | < 30 ms | **0.078 ms** (P95: 0.12 ms) | **CONFORME** |
-| **RNF-13** | Isolamento total de DOM e Three.js no Core | Zero dependências | Verificado via ESLint e compilação Node/Worker | **CONFORME** |
-| **RNF-14** | Resiliência contra coordenadas malformadas | Retornar `false` / `null` sem crash | Testado em Square, Hex e Triangle com chaves inválidas | **CONFORME** |
-| **RNF-15** | Frequência de raycasting / picking | > 120 queries/s (< 2% CPU) | **> 480.000 queries/s** | **CONFORME** |
-
----
-
-## 4. Preservação da Spec 01 e Não-Regressão
-
-- Todos os **150 testes originais** da Spec 01 foram executados e continuam passando com 100% de aprovação.
-- A restrição arquitetural de não implementar prematuramente as Specs 03 a 12 (regras avançadas de xadrez, multiplayer Colyseus, renderização 3D WebGL) foi rigorosamente respeitada.
+| **Conflito de Ocupação Peça x Terreno** | P0 (Bloqueante) | `EntityManager` usava o mesmo índice de ocupação física para peças e terreno de fundo. | Separação explícita entre camada de terreno (`terrainByCoordinate`) e ocupação física (`occupancyByCoordinate`). Peças podem transitar e repousar sobre terreno transitável sem conflito. | `terrainOccupancyCoexistence.test.ts` (5 testes) |
+| **Incompatibilidade no FlatArraySerializer** | P0 (Bloqueante) | Serializador rejeitava biomas procedurais `PLAINS`, `FOREST`, `CHASM` com erro de schema v1. | Expansão dos códigos binários no enum `VariantBinary` e suporte completo a roundtrip binário sem quebra de contrato. | `spec02RegressionDefects.test.ts` |
+| **Valores Não-Finitos em Metadados** | P0 (Bloqueante) | `NoiseGenerator` atribuía `costMultiplier: Infinity` para água, rejeitado pelo `EntityManager`. | Substituição por custo finito padronizado (`999.0`) e flag booleana `isObstacle: true`. | `spec02RegressionDefects.test.ts` |
+| **A\* Subótimo em Custos Variáveis** | P0 (Bloqueante) | `MinPriorityQueue` não atualizava nós com `gScore` reduzido, permitindo consumo de entradas com prioridade obsoleta. | Min-Heap com inserção incremental, descarte de entradas obsoletas no `pop()` e desempate determinístico estável FIFO. | `astarDijkstraOracle.test.ts` (5 testes contra oráculo Dijkstra) |
+| **Distância Triangular Inconsistente** | P1 (Alta) | Fórmula Manhattan retornava 1 para células que exigiam 3 arestas no grafo real. | Mapeamento em 3 eixos ortogonais equivalentes à distância mínima real em grafos triangulares contínuos ($|x_1-x_2|+|y_1-y_2|+|z_1-z_2|$). | `TriangleTopology.test.ts` (10 testes) |
+| **Worker Quadrado Limitado a 8x8** | P1 (Alta) | `SquareTopology` padrão no Worker gerava chunks vazios fora do grid 8x8 inicial. | Adicionado suporte explícito a topologia infinita (`width: null, height: null`) via `topologyOptions` no protocolo do Worker. | `proceduralWorker.test.ts` (5 testes) |
+| **Ausência de Voronoi, Fog of War e Codec** | P1 (Alta) | Requisitos RF-01 (Voronoi), RF-13 (Fog of War) e RF-15 (Codec) não estavam presentes nos módulos publicados. | Implementação completa de `VoronoiTopology`, `FogOfWarManager` e `ProceduralLayoutCodec`. | Suítes dedicadas para cada módulo |
 
 ---
 
 ## 5. Veredito Final da Auditoria
 
-**Status: APROVADO SEM RESSALVAS**  
-A Spec 02 está completamente implementada, rigorosamente testada, documentada e pronta para publicação e revisão.
+**Status: APROVADO COM RESSALVAS TÉCNICAS DOCUMENTADAS**
+
+1. Todos os 15 Requisitos Funcionais (RF-01 a RF-15) estão plenamente implementados, testados e integrados.
+2. Os defeitos P0 e P1 identificados na auditoria anterior foram completamente reproduzidos e remediados com cobertura de testes unitários e de integração.
+3. Os 216 testes anteriores continuam passando sem regressão, somando agora **260 testes aprovados em 35 suítes**.
+4. Os requisitos RNF-04 e RNF-08 estão formalmente **adiados (DEFERRED)** para a **Spec 07** por dependerem da camada gráfica Three.js / WebGL.
+5. O requisito RNF-07 está aprovado no ambiente x86_64 e classificado como **PARTIAL** para ARM64 por ausência de runner físico ARM64 no pipeline CI.
+
+**Parecer para a Spec 03:** **LIBERADA PARA INÍCIO.** A arquitetura da Spec 02 está sólida, desacoplada e matematicamente comprovada para suportar a mecânica de peças e regras da Spec 03.
