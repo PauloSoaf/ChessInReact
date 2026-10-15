@@ -42,8 +42,8 @@ export async function runChromiumWorkerSmokeTest() {
 
   console.log(`[CHROMIUM SMOKE] Detected browser: "${browserPath}" (${browserVersion})`);
 
-  const port = 5198;
-  const cdpPort = 9223;
+  const port = 5200 + Math.floor(Math.random() * 500);
+  const cdpPort = 9300 + Math.floor(Math.random() * 500);
 
   // 1. Start Vite server programmatically
   const viteServer = await createServer({
@@ -59,6 +59,9 @@ export async function runChromiumWorkerSmokeTest() {
     browserPath,
     [
       '--headless=new',
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
       '--disable-gpu',
       `--remote-debugging-port=${cdpPort}`,
       '--no-first-run',
@@ -66,15 +69,22 @@ export async function runChromiumWorkerSmokeTest() {
       '--disable-background-networking',
       url,
     ],
-    { stdio: 'ignore' }
+    { stdio: ['ignore', 'ignore', 'pipe'] }
   );
+
+  let chromeStderr = '';
+  if (chromeProc.stderr) {
+    chromeProc.stderr.on('data', (d) => {
+      chromeStderr += d.toString();
+    });
+  }
 
   try {
     // 3. Poll CDP endpoint for page result
     const startTime = Date.now();
     let result = '';
 
-    while (Date.now() - startTime < 12000) {
+    while (Date.now() - startTime < 18000) {
       await new Promise((r) => setTimeout(r, 300));
       try {
         const resp = await fetch(`http://127.0.0.1:${cdpPort}/json`);
