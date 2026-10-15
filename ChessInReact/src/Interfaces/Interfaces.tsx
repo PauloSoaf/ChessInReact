@@ -4,6 +4,7 @@ export interface IBoardSquare {
   handleClick: (squareID: ISquareInfo, piece: IChessPiece) => void;
   name?: string;
   key?: string;
+  testId?: string;
   isSelected?: boolean;
   squareInfo: ISquareInfo;
   boardDisplay: IChessPiece[][];

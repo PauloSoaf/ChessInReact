@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { render, fireEvent, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ChessBoard from '../../../components/ChessBoard/ChessBoard';
 import { bootstrapGame } from '../../../core/bootstrap/GameInitializer';
 import { gameStore } from '../../../core/state/gameStore';
@@ -166,5 +166,28 @@ describe('Mounted UI Integration: Reactive User Interactions & Turn Progression 
     // Turn and active player remain unchanged
     expect(screen.getByTestId('active-player').textContent).toBe('P1');
     expect(screen.getByTestId('turn-number').textContent).toBe('1');
+  });
+
+  it('dispatches exactly once per click on the real clickable square (no duplicated handler)', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    render(<TestGameApp />);
+
+    const origin = screen.getByTestId('square-4,1');
+    // The element carrying the test id must itself own the click handler (no wrapper handler)
+    expect(origin.parentElement?.getAttribute('data-testid')).toBe('chess-board');
+
+    fireEvent.click(origin);
+    fireEvent.click(screen.getByTestId('square-4,3'));
+
+    // A duplicated handler would re-run the move with stale state and be rejected (warn)
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(screen.getByTestId('turn-number').textContent).toBe('2');
+
+    fireEvent.click(screen.getByTestId('btn-undo'));
+    // Exactly one history entry existed: a second undo is a no-op
+    fireEvent.click(screen.getByTestId('btn-undo'));
+    expect(screen.getByTestId('turn-number').textContent).toBe('1');
+    expect(screen.getByTestId('active-player').textContent).toBe('P1');
+    warnSpy.mockRestore();
   });
 });

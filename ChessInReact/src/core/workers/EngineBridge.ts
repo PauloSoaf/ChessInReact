@@ -37,7 +37,7 @@ export class EngineBridge {
       this.worker = options.workerPort;
     } else if (typeof Worker !== 'undefined') {
       // Browser WebWorker initialization
-      this.worker = new Worker(new URL('./dummyWorker.ts', import.meta.url), {
+      this.worker = new Worker(new URL('./engineWorker.ts', import.meta.url), {
         type: 'module',
       }) as unknown as IWorkerPort;
     } else {

@@ -1,6 +1,28 @@
-import { Worker } from 'node:worker_threads';
 import path from 'node:path';
+import { Worker } from 'node:worker_threads';
+import { buildSync } from 'esbuild';
 import { IWorkerPort, IWorkerRequest, IWorkerResponse } from './types';
+
+let cachedBundle: string | null = null;
+
+/**
+ * Bundles nodeWorkerEntry.ts (and the shared serializer it imports) into a single CJS script,
+ * so the Node worker thread runs the same TypeScript protocol implementation as the browser.
+ */
+function getWorkerBundle(): string {
+  if (cachedBundle === null) {
+    const result = buildSync({
+      entryPoints: [path.resolve(__dirname, 'nodeWorkerEntry.ts')],
+      bundle: true,
+      platform: 'node',
+      format: 'cjs',
+      target: 'node18',
+      write: false,
+    });
+    cachedBundle = result.outputFiles[0].text;
+  }
+  return cachedBundle;
+}
 
 /**
  * Real multi-threaded Worker port executing in a separate OS thread via Node.js worker_threads.
@@ -11,9 +33,8 @@ export class NodeWorkerPort implements IWorkerPort {
   public onmessage: ((event: { data: IWorkerResponse }) => void) | null = null;
   public onerror: ((error: ErrorEvent | Error) => void) | null = null;
 
-  constructor(scriptPath?: string) {
-    const defaultPath = path.resolve(__dirname, 'workerThreadRunner.cjs');
-    this.worker = new Worker(scriptPath ?? defaultPath);
+  constructor() {
+    this.worker = new Worker(getWorkerBundle(), { eval: true });
 
     this.worker.on('message', (data: IWorkerResponse) => {
       if (this.onmessage) {
@@ -36,6 +57,6 @@ export class NodeWorkerPort implements IWorkerPort {
   }
 
   public terminate(): void {
-    this.worker.terminate();
+    void this.worker.terminate();
   }
 }

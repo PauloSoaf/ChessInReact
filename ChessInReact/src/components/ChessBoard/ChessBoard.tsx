@@ -149,33 +149,21 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({ boardSize = 8 }) => {
           const isSelected = Boolean(ui.selectedPieceId && entityId === ui.selectedPieceId);
 
           return (
-            <div
+            <BoardSquare
               key={`${columnIndex}-${rowIndex}`}
-              data-testid={`square-${gameX},${gameY}`}
-              style={{ display: 'contents' }}
-              onClick={() =>
-                handleSquareClick({
-                  row: rowIndex,
-                  column: columnIndex,
-                  squareID: `${columnIndex}-${rowIndex}`,
-                  name: `${piece.name}${rowIndex}`,
-                })
-              }
-            >
-              <BoardSquare
-                piece={piece}
-                boardDisplay={derivedBoard}
-                squareInfo={{
-                  row: rowIndex,
-                  column: columnIndex,
-                  squareID: `${columnIndex}-${rowIndex}`,
-                  name: `${piece.name}${rowIndex}`,
-                }}
-                backgroundColor={getSquareBackground(rowIndex, columnIndex)}
-                isSelected={isSelected}
-                handleClick={handleSquareClick}
-              />
-            </div>
+              testId={`square-${gameX},${gameY}`}
+              piece={piece}
+              boardDisplay={derivedBoard}
+              squareInfo={{
+                row: rowIndex,
+                column: columnIndex,
+                squareID: `${columnIndex}-${rowIndex}`,
+                name: `${piece.name}${rowIndex}`,
+              }}
+              backgroundColor={getSquareBackground(rowIndex, columnIndex)}
+              isSelected={isSelected}
+              handleClick={handleSquareClick}
+            />
           );
         })
       )}

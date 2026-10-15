@@ -12,7 +12,7 @@
 
 | Gate | Status | Details |
 |---|---|---|
-| **Unit, Integration, Visual & Mounted Tests** | `PASS` | 145 passed, 0 failed across 18 test files (100% pass rate) |
+| **Unit, Integration, Visual & Mounted Tests** | `PASS` | 150 passed, 0 failed across 18 test files (hotfix run; 145 at 7207005) |
 | **TypeScript Typecheck** | `PASS` | 0 errors (`npx tsc --noEmit` clean) |
 | **ESLint Validation** | `PASS` | 0 errors, 0 warnings (`--max-warnings 0`) |
 | **Production Build** | `PASS` | Vite built production bundle clean (`dist/`) |
@@ -44,7 +44,7 @@
  ✓ src/core/__tests__/isolation.test.ts                    (1 test)
  ✓ src/core/__tests__/integration.test.ts                  (2 tests)
  ✓ src/core/__tests__/adversarial.test.ts                  (14 tests)
- ✓ src/core/workers/__tests__/EngineBridge.test.ts          (13 tests - mock worker + real OS thread integration)
+ ✓ src/core/workers/__tests__/EngineBridge.test.ts          (17 tests - mock worker, real OS thread, shared protocol, browser handler)
  ✓ src/core/benchmarks/__tests__/benchmarks.test.ts        (2 tests)
 
 Test Files  18 passed (18)

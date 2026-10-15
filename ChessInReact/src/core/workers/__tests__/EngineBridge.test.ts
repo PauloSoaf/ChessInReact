@@ -4,6 +4,12 @@ import { IPieceEntity } from '../../entities/types';
 import { createDefaultDomainState } from '../../state/initialState';
 import { EngineBridge } from '../EngineBridge';
 import { MockWorkerPort } from '../dummyWorker';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { IEntity } from '../../entities/types';
+import { deserializeWorkerState } from '../../serialization/FlatArraySerializer';
+import { attachWorkerHandler, IWorkerScope } from '../workerHandler';
+import { IWorkerResponse } from '../types';
 
 describe('Worker Protocol & EngineBridge (Zero-Copy & Leak Prevention)', () => {
   let bridge: EngineBridge;
@@ -283,5 +289,76 @@ describe('Real Multi-threaded Worker Integration (PATCH-08)', () => {
 
     // Clean disposal terminates the worker thread
     realBridge.dispose();
+  });
+
+  it('round-trips PIECE, TERRAIN and OBSTACLE entities with exact ids, variants and owners on the real worker', async () => {
+    const domain = createDefaultDomainState('variants');
+    const entities: IEntity[] = [
+      { id: asEntityId('p'), type: 'PIECE', ownerId: 'P2', variantId: 'QUEEN', position: asCoordinateKey('1,1'), hasMoved: true, isCaptured: false },
+      { id: asEntityId('m'), type: 'TERRAIN', variantId: 'MOUNTAIN', position: asCoordinateKey('2,2') },
+      { id: asEntityId('w'), type: 'TERRAIN', variantId: 'WATER', position: asCoordinateKey('1,-1,0') },
+      { id: asEntityId('o'), type: 'OBSTACLE', destructible: true, position: asCoordinateKey('3,3') },
+    ];
+    for (const e of entities) {
+      domain.boardEntities[e.id] = e;
+    }
+
+    const response = await realBridge.echoDeserializedEntities(domain);
+    const byId = new Map(response.entities.map((e) => [e.id, e]));
+
+    expect(byId.get('p')).toMatchObject({ type: 'PIECE', ownerId: 'P2', variantId: 'QUEEN', position: '1,1', kind: 'SQUARE' });
+    expect(byId.get('m')).toMatchObject({ type: 'TERRAIN', variantId: 'MOUNTAIN', position: '2,2', ownerId: 'NONE' });
+    expect(byId.get('w')).toMatchObject({ type: 'TERRAIN', variantId: 'WATER', position: '1,-1,0', kind: 'HEX_CUBIC' });
+    expect(byId.get('o')).toMatchObject({ type: 'OBSTACLE', variantId: 'OBSTACLE_WALL', position: '3,3', ownerId: 'NONE' });
+  });
+
+  it('applies the full shared validation on VALIDATE_SERIALIZATION (rejects corrupted buffers)', async () => {
+    const domain = createDefaultDomainState('corrupt');
+    domain.boardEntities[asEntityId('a')] = { id: asEntityId('a'), type: 'PIECE', ownerId: 'P1', variantId: 'PAWN', position: asCoordinateKey('0,0'), hasMoved: false, isCaptured: false };
+    domain.boardEntities[asEntityId('b')] = { id: asEntityId('b'), type: 'PIECE', ownerId: 'P1', variantId: 'PAWN', position: asCoordinateKey('1,0'), hasMoved: false, isCaptured: false };
+
+    const { serializeStateForWorker } = await import('../../serialization/FlatArraySerializer');
+    const snapshot = serializeStateForWorker(domain);
+
+    // Repeated identity index: both records reference stringTable[0] (header=4 ints, stride=5, idIdx at +4)
+    const corrupted = new Int32Array(snapshot.buffer);
+    corrupted[4 + 5 + 4] = corrupted[4 + 4];
+
+    // Reference behaviour of the shared implementation
+    expect(() => deserializeWorkerState(corrupted, snapshot.stringTable)).toThrow();
+
+    const rawPort = new (await import('../NodeWorkerPort')).NodeWorkerPort();
+    try {
+      const reply = await new Promise<{ type: string; error?: string }>((res) => {
+        rawPort.onmessage = (event) => res(event.data);
+        const buf = corrupted.buffer as ArrayBuffer;
+        rawPort.postMessage(
+          { id: 1, type: 'VALIDATE_SERIALIZATION', payload: { buffer: buf, stringTable: snapshot.stringTable } },
+          [buf]
+        );
+      });
+      expect(reply.type).toBe('ERROR');
+    } finally {
+      rawPort.terminate();
+    }
+  });
+});
+
+describe('Browser worker entrypoint (engineWorker protocol handler)', () => {
+  it('attachWorkerHandler registers onmessage and answers through postMessage', () => {
+    const sent: IWorkerResponse[] = [];
+    const scope: IWorkerScope = { onmessage: null, postMessage: (m) => sent.push(m) };
+
+    attachWorkerHandler(scope);
+    expect(scope.onmessage).toBeTypeOf('function');
+
+    scope.onmessage?.({ data: { id: 42, type: 'PING' } });
+    expect(sent).toEqual([{ id: 42, type: 'PONG', result: 'PONG' }]);
+  });
+
+  it('EngineBridge points the browser Worker at engineWorker.ts, not the passive dummyWorker module', () => {
+    const source = readFileSync(resolve(__dirname, '../EngineBridge.ts'), 'utf8');
+    expect(source).toContain('./engineWorker.ts');
+    expect(source).not.toContain("new URL('./dummyWorker.ts'");
   });
 });

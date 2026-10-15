@@ -4,7 +4,7 @@
 - **Target Branch:** `feat/core-state-architecture`
 - **Baseline SHA:** `fe247acc49fe33927493bbed537afac5295cc7a3`
 - **Audit Scope:** Spec 01 (Architecture & Core Design) Final Corrective Patch (PATCH-01 to PATCH-12)
-- **Status:** **VERIFIED** (All 12 patches fully implemented, verified with 145 executable regression tests, clean typecheck, clean lint, clean build, zero benchmark regressions, and GitHub Actions CI workflow).
+- **Status:** **VERIFIED (Node + CI); browser Worker runtime NOT VERIFIED in a real browser** — 150 tests passing, lint/build/tsc clean. See "Hotfix 720700555c99 → follow-up" below.
 
 ---
 
@@ -100,3 +100,19 @@
 Todas as 12 correções de deficiências residuais (PATCH-01 a PATCH-12) foram completamente implementadas, comprovadas por testes de regressão executáveis e validadas por todas as ferramentas de qualidade do repositório.
 
 A especificação **Spec 01 — Architecture & Core Design** está consolidada e **VERIFIED**.
+
+---
+
+## Hotfix 720700555c99 → follow-up (independent audit findings A, B, C)
+
+| ID | Finding (independent audit of 7207005) | Fix | Regression test |
+|---|---|---|---|
+| A | `EngineBridge` instantiated `dummyWorker.ts` as the browser Worker; that module never registers `onmessage`, so requests would time out. | New entrypoint `src/core/workers/engineWorker.ts` (uses `attachWorkerHandler` from `workerHandler.ts`); `EngineBridge` now points to it. | `EngineBridge.test.ts` › "Browser worker entrypoint" (handler answers PING through `postMessage`; bridge URL guard). |
+| B | `workerThreadRunner.cjs` re-implemented the decoder with wrong variant codes (MOUNTAIN/WATER/OBSTACLE_WALL) and a shallow `VALIDATE_SERIALIZATION`. | Removed the duplicate decoder. `NodeWorkerPort` bundles `nodeWorkerEntry.ts` with esbuild so the Node thread runs the same `processWorkerRequest` / `deserializeWorkerState` code as the browser. | "round-trips PIECE, TERRAIN and OBSTACLE…" and "applies the full shared validation… (rejects corrupted buffers)" on a real `worker_threads` thread. |
+| C | `ChessBoard` wrapped `BoardSquare` in a `<div onClick>` while `BoardSquare` already had its own `onClick` (duplicate dispatch). | Wrapper removed; `BoardSquare` receives `testId`, so tests click the element that owns the handler. | `ChessBoardMounted.test.tsx` › "dispatches exactly once per click…". |
+
+### Status of evidence after hotfix
+- **Tested locally:** 150 tests / 18 files pass; `tsc`, `eslint --max-warnings 0`, `npm run build` clean.
+- **Not verified:** the Web Worker path has not been executed in a real browser. Only the shared handler (fake worker scope) and the Node `worker_threads` transport are executed in tests. `engineWorker.ts` is not imported by the app bundle, so `vite build` does not emit it either.
+- **Not verified:** the new click regression test was not run against the pre-fix code to confirm it fails there.
+- **CI:** result for the hotfix SHA is recorded in the commit/PR, not in this file.

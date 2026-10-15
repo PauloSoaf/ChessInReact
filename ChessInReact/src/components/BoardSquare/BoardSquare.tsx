@@ -1,9 +1,10 @@
 import { IBoardSquare } from '../../Interfaces/Interfaces';
 
-const BoardSquare: React.FC<IBoardSquare> = ({piece, backgroundColor, handleClick, squareInfo, isSelected, boardDisplay}) => {
+const BoardSquare: React.FC<IBoardSquare> = ({piece, backgroundColor, handleClick, squareInfo, isSelected, boardDisplay, testId}) => {
 
   return (
     <div
+      data-testid={testId}
       style={{
         backgroundColor: `${backgroundColor}`,
         fontSize: `${boardDisplay.length < 12 ? '200%' : 200 - boardDisplay.length * 5 + '%'}`,
