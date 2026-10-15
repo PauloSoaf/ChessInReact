@@ -2,7 +2,7 @@
 
 > [!NOTE]
 > **Relatório Oficial de Implementação e Remediação Técnica da Spec 02**
-> Este documento registra a arquitetura, módulos entregues, correções de integração e remediação dos 10 patches corretivos executados para a **Spec 02 — Geometria, Topologia e Tabuleiros Procedurais Infinitos** no projeto `ChessInReact`.
+> Este documento registra a arquitetura, módulos entregues, correções de integração e remediação dos 16 patches corretivos executados para a **Spec 02 — Geometria, Topologia e Tabuleiros Procedurais Infinitos** no projeto `ChessInReact`.
 
 ---
 
@@ -11,11 +11,11 @@
 - **Specification:** Spec 02 — Geometria, Topologia e Tabuleiros Procedurais Infinitos
 - **Target Branch:** `feat/procedural-boards-topology` (preservando o baseline da Spec 01 `dd730512db65b3152d02f66bcc76c3cc3faf439f`)
 - **Status:** **INTEGRALMENTE REMEDIADA, IMPLEMENTADA E VALIDADA**
-- **Testes Aprovados:** **260 testes aprovados em 35 suítes** (0 falhas, 0 skips, preservando 100% dos 150 testes da Spec 01 e os 216 testes anteriores).
+- **Testes Aprovados:** **292 testes aprovados em 41 suítes** (0 falhas, 0 skips, preservando 100% dos 150 testes da Spec 01 e os 260 testes dos ciclos anteriores).
 - **TypeScript:** `npx tsc --noEmit` — 0 erros.
 - **ESLint:** `npm run lint` — 0 erros, 0 avisos.
 - **Production Build:** Vite production bundle aprovado (`dist/assets/index-*.js`, 1397 módulos transformados).
-- **Native Web Worker Smoke Test:** Executado com sucesso em Chromium real sem falso positivo por skip.
+- **Native Web Worker Smoke Test:** Executado com sucesso em Chromium real sem falso positivo por skip (Voronoi, chunking e pathfinding verificados).
 
 ---
 
@@ -25,9 +25,10 @@
 src/core/
 ├── topology/
 │   ├── types.ts                     # Contratos ITopology, DirectionIndex, IWorldPosition, TopologyType
+│   ├── topologyFactory.ts           # Fábrica unificada createTopology (SQUARE, HEX, TRIANGLE, VORONOI)
 │   ├── SquareTopology.ts            # Topologia Quadrada (8 direções, Chebyshev/Manhattan, Bresenham, Toroidal, Unbounded)
 │   ├── HexTopology.ts               # Topologia Hexagonal Cúbica (q,r,s), LERP epsilon 1e-6, Tricromática, O(R) Anéis/Espirais
-│   ├── TriangleTopology.ts          # Topologia Triangular com métrica 3-eixos matematicamente consistente com BFS
+│   ├── TriangleTopology.ts          # Topologia Triangular com métrica 3-eixos e raycasting retificado sem ciclos
 │   ├── VoronoiTopology.ts           # Topologia Voronoi Irregular determinística por relaxamento (RF-01)
 │   ├── index.ts                     # Re-exportações canônicas
 │   ├── fog/
@@ -115,4 +116,46 @@ src/core/
 - **Solução:** Auditoria minuciosa da Seção 16 e 17 da Spec 02, classificação precisa de requisitos (VERIFIED, PARTIAL, DEFERRED) e sincronização dos relatórios com números reais do CI.
 
 ### PATCH-10: Execução dos Gates de Qualidade e Publicação
-- **Resultado:** Todos os gates locais e remotos executados com sucesso (TypeScript, ESLint, Vite Build, Vitest 260/260, Chromium Smoke).
+- **Resultado:** Todos os gates locais e remotos executados com sucesso no ciclo intermediário (260/260 testes).
+
+### PATCH-11: Serialização e Invariantes de Terreno v2 (P1)
+- **Problema:** `SnapshotSerializer` serializava `boardEntities` e `occupancyByCoordinate`, mas omitia a camada `terrain`. Ao restaurar snapshots, o estado ficava com inconsistência de terreno ou sem metadados procedurais.
+- **Solução:** Introduzido `SNAPSHOT_VERSION = 2`. O serializador exporta a camada `terrain`, valida a consistência de ocupação vs terreno vs entidades e implementa migrador automático v1 -> v2 sem quebrar saves antigos.
+- **Validação:** Suíte `src/core/serialization/__tests__/snapshotTerrainPersistence.test.ts` (5 testes: T11-01 a T11-05).
+
+### PATCH-12: Sobrescritas Persistentes em Chunks Procedurais (P1)
+- **Problema:** Quando um macro-chunk modificado sofria eviction por LRU e o jogador retornava à mesma coordenada, o terreno era re-gerado a partir da semente pura, perdendo edições do jogador.
+- **Solução:** `ProceduralLayoutCodec` recebeu `IPersistentTileModification`, integrado ao `ChunkManager`. Modificações persistem no layout e são reaplicadas deterministicamente em `getOrGenerateChunk()` após eviction.
+- **Validação:** Suíte `src/core/procedural/__tests__/proceduralOverrides.test.ts` (6 testes: T12-01 a T12-06).
+
+### PATCH-13: Fábrica Centralizada de Topologias no Worker com Voronoi (P1)
+- **Problema:** O worker possuía lógica dispersa de instanciação de topologia sem suporte a Voronoi, recorrendo a fallback silencioso quadrado.
+- **Solução:** Criação de `createTopology()` em `topologyFactory.ts`, suportando `SQUARE`, `HEXAGONAL`, `TRIANGULAR` e `VORONOI_IRREGULAR`. Lança erro descritivo imediato para tipos desconhecidos sem fallback silencioso.
+- **Validação:** Suíte `src/core/workers/__tests__/voronoiWorker.test.ts` (5 testes: T13-01 a T13-05) e `worker-smoke.html` no Chromium nativo.
+
+### PATCH-14: Admissibilidade e Salvaguarda A\* em Custos Subunitários (P1)
+- **Problema:** Quando o consumidor fornece função de custo com valores subunitários (< 1.0) sem especificar `minEdgeCost`, a heurística padrão do A* superestimava a distância real ($h > h^*$), violando a admissibilidade matemática e gerando rotas subótimas.
+- **Solução:** Adicionada salvaguarda: na ausência de `minEdgeCost` válido para custos subunitários, o A* rebaixa com segurança a heurística para $h=0$ (Dijkstra), garantindo admissibilidade estrita; valida que `minEdgeCost <= getCost(u,v)` e implementa reabertura de nós fechados caso um caminho mais curto seja descoberto.
+- **Validação:** Suíte `src/core/topology/pathfinding/__tests__/astarSubunitCosts.test.ts` (3 testes: T14-01 a T14-03).
+
+### PATCH-15: Retificação de Trajetórias de Raycasting em Triângulos (P1)
+- **Problema:** `TriangleTopology.getRay()` para certas direções (ex: direção 0 a partir de UP) oscilava repetindo o nó de partida ou alternando entre células vizinhas em loop fechado.
+- **Solução:** Algoritmo retificado de alternância UP/DOWN: triângulos UP avançam pela aresta Norte (índice 0), e triângulos DOWN avançam pela aresta Sul correspondente sem retroceder, garantindo raio contínuo estritamente linear sem ciclos.
+- **Validação:** Suíte `src/core/topology/__tests__/triangleRay.test.ts` (3 testes: T15-01 a T15-03).
+
+### PATCH-16: Otimização O(1) de Streaming, Teto de Chunks e Bounding Voronoi (P1)
+- **Problema:** `updateStreaming()` iterava sobre todas as entidades do tabuleiro em $O(N)$ para verificar células de terreno existentes; `ChunkManager` não impunha limite rígido de chunks na memória heap; geração Voronoi em chunks distantes executava BFS irrestrita de distância.
+- **Solução:** Varredura $O(N)$ substituída por checagem direta $O(1)$ no dicionário `state.terrain`. Configurado `maxChunksInMemory: 50` com proteção para chunks contendo peças de xadrez ativas. Bounding em `NoiseGenerator` com verificação de raio de spawn antes de calcular BFS no Voronoi.
+- **Validação:** Suíte `src/core/procedural/__tests__/streamingPerformanceMemory.test.ts` (8 testes: T16-01 a T16-08).
+
+---
+
+## 4. Conclusão e Gates Finais Consolidados
+
+Todos os 16 patches foram completamente integrados e validados contra os gates do pipeline:
+- `npx tsc --noEmit` — 0 erros.
+- `npm run lint` — 0 erros.
+- `npm run build` — Bundle de produção gerado com sucesso.
+- `npx vitest run --coverage` — 292 testes em 41 suítes, 0 falhas, cobertura de topologia 97.41%, global 70.48%.
+- `node scripts/runChromiumSmoke.js` — Web Worker real em Chromium aprovado (`skipped: false`).
+

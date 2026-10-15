@@ -57,9 +57,13 @@ export class NoiseGenerator {
   public generateCell(coord: CoordinateKey, topology: ITopology): ITerrainCell {
     const pos = topology.toWorldPosition(coord);
     const centerCoord = topology.type === 'HEXAGONAL' ? '0,0,0' : '0,0';
+    const spawnRadius = this.config.spawnRadius ?? 3;
+    const parts = coord.split(',').map((p) => Math.abs(parseInt(p, 10)));
+    const maxCoord = Math.max(...parts);
     const isSpawnZone =
+      maxCoord <= spawnRadius + 2 &&
       topology.isValidCoordinate(centerCoord as CoordinateKey) &&
-      topology.getDistance(centerCoord as CoordinateKey, coord) <= this.config.spawnRadius;
+      topology.getDistance(centerCoord as CoordinateKey, coord) <= spawnRadius;
 
     const colorIndex = topology.getCellColorIndex(coord);
 

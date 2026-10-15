@@ -3,6 +3,13 @@ import { TopologyType } from '../topology/types';
 
 export type BiomeType = 'PLAINS' | 'MOUNTAIN' | 'WATER' | 'FOREST' | 'CHASM';
 
+export interface IPersistentTileModification {
+  readonly elevation?: number;
+  readonly biome?: BiomeType | string;
+  readonly isObstacle?: boolean;
+  readonly metadata?: Readonly<Record<string, unknown>>;
+}
+
 export interface ITerrainCell {
   readonly coord: CoordinateKey;
   readonly topology: TopologyType;

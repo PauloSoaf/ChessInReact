@@ -207,13 +207,18 @@ export class VoronoiTopology implements ITopology {
     if (a === b) return 0;
     const { u: u1, v: v1 } = this.parse(a);
     const { u: u2, v: v2 } = this.parse(b);
+    const chebyshev = Math.max(Math.abs(u1 - u2), Math.abs(v1 - v2));
 
-    // BFS on planar graph
+    // Bounded O(1)-queue BFS for exact local Voronoi graph distance
+    const maxSearchDepth = Math.max(16, chebyshev * 2);
     const queue: [CoordinateKey, number][] = [[a, 0]];
     const visited = new Set<string>([a]);
+    let head = 0;
 
-    while (queue.length > 0) {
-      const [curr, d] = queue.shift()!;
+    while (head < queue.length) {
+      const [curr, d] = queue[head++];
+      if (d >= maxSearchDepth) break;
+
       for (const n of this.getAllNeighbors(curr)) {
         if (n === b) return d + 1;
         if (!visited.has(n)) {
@@ -224,7 +229,7 @@ export class VoronoiTopology implements ITopology {
     }
 
     // Fallback: Chebyshev bound if outside search radius
-    return Math.max(Math.abs(u1 - u2), Math.abs(v1 - v2));
+    return chebyshev;
   }
 
   public getLineOfSight(start: CoordinateKey, target: CoordinateKey): CoordinateKey[] {

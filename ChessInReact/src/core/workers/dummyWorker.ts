@@ -1,7 +1,7 @@
 import { deserializeWorkerState } from '../serialization/FlatArraySerializer';
 import { IWorkerPort, IWorkerRequest, IWorkerResponse } from './types';
 import { CoordinateKey } from '../coordinates';
-import { HexTopology, SquareTopology, TriangleTopology, TopologyType, ITopology } from '../topology';
+import { createTopology, TopologyType } from '../topology';
 import { ChunkManager } from '../procedural/ChunkManager';
 import { findPathAStar } from '../topology/pathfinding/AStarPathfinder';
 
@@ -100,29 +100,14 @@ export function processWorkerRequest(req: IWorkerRequest): IWorkerResponse {
           seed: string;
           chunkCoords: { chunkX: number; chunkY: number }[];
           chunkSize?: number;
-          topologyOptions?: {
-            width?: number | null;
-            height?: number | null;
-            toroidal?: boolean;
-            cellSize?: number;
-            boundingRadius?: number;
-          };
+          topologyOptions?: Record<string, unknown>;
         };
         const topType = payload.topologyType ?? 'HEXAGONAL';
-        let topology: ITopology;
-        if (topType === 'HEXAGONAL') {
-          topology = new HexTopology(payload.topologyOptions);
-        } else if (topType === 'TRIANGULAR') {
-          topology = new TriangleTopology(payload.topologyOptions);
-        } else {
-          // SQUARE topology: default to infinite (width: null, height: null) for procedural generation
-          topology = new SquareTopology({
-            width: payload.topologyOptions?.width !== undefined ? payload.topologyOptions.width : null,
-            height: payload.topologyOptions?.height !== undefined ? payload.topologyOptions.height : null,
-            cellSize: payload.topologyOptions?.cellSize ?? 1.0,
-            toroidal: payload.topologyOptions?.toroidal ?? false,
-          });
-        }
+        // Shared typed topology factory supporting VORONOI_IRREGULAR (PATCH-13)
+        const topology = createTopology(topType, {
+          seed: payload.seed,
+          ...(payload.topologyOptions ?? {}),
+        });
 
         const chunkManager = new ChunkManager(topology, {
           seed: payload.seed,
@@ -143,28 +128,11 @@ export function processWorkerRequest(req: IWorkerRequest): IWorkerResponse {
           start: CoordinateKey;
           goal: CoordinateKey;
           obstacleCoords?: CoordinateKey[];
-          topologyOptions?: {
-            width?: number | null;
-            height?: number | null;
-            toroidal?: boolean;
-            cellSize?: number;
-            boundingRadius?: number;
-          };
+          topologyOptions?: Record<string, unknown>;
         };
         const topType = payload.topologyType ?? 'HEXAGONAL';
-        let topology: ITopology;
-        if (topType === 'HEXAGONAL') {
-          topology = new HexTopology(payload.topologyOptions);
-        } else if (topType === 'TRIANGULAR') {
-          topology = new TriangleTopology(payload.topologyOptions);
-        } else {
-          topology = new SquareTopology({
-            width: payload.topologyOptions?.width !== undefined ? payload.topologyOptions.width : null,
-            height: payload.topologyOptions?.height !== undefined ? payload.topologyOptions.height : null,
-            cellSize: payload.topologyOptions?.cellSize ?? 1.0,
-            toroidal: payload.topologyOptions?.toroidal ?? false,
-          });
-        }
+        // Shared typed topology factory supporting VORONOI_IRREGULAR (PATCH-13)
+        const topology = createTopology(topType, payload.topologyOptions);
 
         const blocked = new Set(payload.obstacleCoords || []);
         const pathResult = findPathAStar(topology, payload.start, payload.goal, {

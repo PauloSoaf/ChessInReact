@@ -137,7 +137,11 @@ export class EngineBridge {
       height?: number | null;
       toroidal?: boolean;
       cellSize?: number;
-      boundingRadius?: number;
+      boundingRadius?: number | null;
+      seed?: string;
+      jitterFactor?: number;
+      orientation?: 'POINTY_TOP' | 'FLAT_TOP';
+      [key: string]: unknown;
     };
   }): Promise<IChunkData[]> {
     return this.sendRequest<IChunkData[]>('GENERATE_CHUNKS', options);
@@ -153,7 +157,11 @@ export class EngineBridge {
       height?: number | null;
       toroidal?: boolean;
       cellSize?: number;
-      boundingRadius?: number;
+      boundingRadius?: number | null;
+      seed?: string;
+      jitterFactor?: number;
+      orientation?: 'POINTY_TOP' | 'FLAT_TOP';
+      [key: string]: unknown;
     };
   }): Promise<IPathResult> {
     return this.sendRequest<IPathResult>('COMPUTE_PATHFINDING', options);

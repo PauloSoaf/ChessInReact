@@ -69,7 +69,33 @@
           throw new Error(`COMPUTE_PATHFINDING failed to find path around obstacles`);
         }
 
-        // 6. Clean worker termination
+        // 6. Voronoi irregular chunk generation & pathfinding in worker thread (PATCH-13)
+        const voronoiChunks = await bridge.generateChunks({
+          topologyType: 'VORONOI_IRREGULAR',
+          seed: 'voronoi-worker-smoke-seed',
+          chunkCoords: [{ chunkX: 0, chunkY: 0 }],
+          chunkSize: 16,
+          topologyOptions: { boundingRadius: 32 },
+        });
+        if (!voronoiChunks || voronoiChunks.length !== 1) {
+          throw new Error(`VORONOI GENERATE_CHUNKS failed: expected 1 chunk`);
+        }
+        const voronoiCell = voronoiChunks[0].cells['0,0'];
+        if (!voronoiCell || voronoiCell.topology !== 'VORONOI_IRREGULAR') {
+          throw new Error(`VORONOI GENERATE_CHUNKS cell topology mismatch: expected VORONOI_IRREGULAR, got ${voronoiCell?.topology}`);
+        }
+
+        const voronoiPath = await bridge.computePath({
+          topologyType: 'VORONOI_IRREGULAR',
+          start: asCoordinateKey('0,0'),
+          goal: asCoordinateKey('1,1'),
+          topologyOptions: { seed: 'voronoi-worker-smoke-seed', boundingRadius: 32 },
+        });
+        if (!voronoiPath.found) {
+          throw new Error(`VORONOI COMPUTE_PATHFINDING failed to find path in Voronoi topology`);
+        }
+
+        // 7. Clean worker termination
         bridge.dispose();
 
         resultEl.textContent = 'SUCCESS: ' + JSON.stringify({
@@ -78,6 +104,7 @@
           cellCount,
           pathFound: pathResult.found,
           pathLength: pathResult.path.length,
+          voronoiVerified: true,
         });
       } catch (err) {
         resultEl.textContent = 'ERROR: ' + (err instanceof Error ? err.message : String(err));

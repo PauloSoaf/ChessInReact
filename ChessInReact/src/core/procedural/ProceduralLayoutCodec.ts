@@ -1,17 +1,12 @@
 import { CoordinateKey } from '../coordinates';
-import { HexTopology, SquareTopology, TriangleTopology, VoronoiTopology } from '../topology';
+import { createTopology } from '../topology';
 import { ITopology, TopologyType } from '../topology/types';
 import { ChunkManager } from './ChunkManager';
-import { IChunkData, IProceduralConfig } from './types';
+import { IChunkData, IPersistentTileModification, IProceduralConfig } from './types';
 
 export const CURRENT_GENERATOR_VERSION = '2.0.0';
 
-export interface IPersistentTileModification {
-  readonly elevation?: number;
-  readonly biome?: string;
-  readonly isObstacle?: boolean;
-  readonly metadata?: Readonly<Record<string, unknown>>;
-}
+export type { IPersistentTileModification };
 
 export interface IProceduralLayoutExport {
   readonly schemaVersion: 1;
@@ -165,33 +160,19 @@ export class ProceduralLayoutCodec {
   /**
    * Recreates the exact ITopology and ChunkManager instances from decoded layout.
    */
+  /**
+   * Recreates the exact ITopology and ChunkManager instances from decoded layout (PATCH-12, PATCH-13).
+   * Restores persistent tile modifications into the ChunkManager so overrides survive chunk eviction and regeneration.
+   */
   public static reconstructWorld(layout: IProceduralLayoutExport): {
     topology: ITopology;
     chunkManager: ChunkManager;
   } {
-    let topology: ITopology;
-    switch (layout.topologyType) {
-      case 'HEXAGONAL':
-        topology = new HexTopology(layout.topologyOptions);
-        break;
-      case 'TRIANGULAR':
-        topology = new TriangleTopology(layout.topologyOptions);
-        break;
-      case 'VORONOI_IRREGULAR':
-        topology = new VoronoiTopology(layout.topologyOptions);
-        break;
-      case 'SQUARE':
-      default:
-        topology = new SquareTopology({
-          width: null,
-          height: null,
-          ...(layout.topologyOptions || {}),
-        });
-        break;
-    }
+    const topology = createTopology(layout.topologyType, layout.topologyOptions);
 
     const chunkManager = new ChunkManager(topology, layout.config, {
       chunkSize: layout.chunkSize,
+      persistentModifications: layout.persistentModifications,
     });
 
     return { topology, chunkManager };

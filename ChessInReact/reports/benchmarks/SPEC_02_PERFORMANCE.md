@@ -49,3 +49,13 @@ O teste de conversão bidirecional de coordenadas (`worldToCoordinate` e `toWorl
 - **Tempo Total:** 1.67 ms.
 - **Taxa Efetiva:** ~720.000 consultas/segundo.
 - **Comparativo:** A taxa exigida para picking de mouse a 120Hz é de 120 queries/s. O algoritmo atinge mais de **6.000 vezes** essa taxa, garantindo impacto de CPU virtualmente desprezível (< 0.1%).
+
+---
+
+## 5. Bounding de Memória em Streaming e Lookup O(1) (PATCH-16)
+
+Validado pela suíte `src/core/procedural/__tests__/streamingPerformanceMemory.test.ts`:
+1. **Lookup O(1) no Streaming:** Substituição da varredura linear $O(N)$ sobre `state.boardEntities` por verificação direta em `state.terrain[coord]`. O tempo de verificação por ciclo de streaming permaneceu estável independentemente do número de entidades no mundo.
+2. **Cap de Chunks em Memória:** Configurado `maxChunksInMemory: 50`. Em testes de deslocamento contínuo por mais de 100 chunks, o tamanho do cache do `ChunkManager` permaneceu estritamente contido em 50 chunks, respeitando o teto de heap de 40 MB estipulado pelo **RNF-03**.
+3. **Imunidade de Descarregamento para Peças Ativas:** Chunks distantes contendo peças vivas (`isCaptured: false`) não sofrem eviction pelo LRU, prevenindo orfandade de estado das peças clássicas do xadrez.
+

@@ -99,34 +99,41 @@ describe('Quantitative Topology & Procedural Benchmarks (Spec 02 Verification)',
   });
 
   it('measures grid memory heap consumption with 10,000 active cells (RNF-03: < 40 MB)', () => {
-    // Force garbage collection if exposed, otherwise capture baseline
+    // 1. Stabilized initial baseline
     if (globalThis.gc) globalThis.gc();
-    const heapBefore = process.memoryUsage().heapUsed;
+    const heapInitial = process.memoryUsage().heapUsed;
 
     const chunkManager = new ChunkManager(hex, {
       seed: 'heap-benchmark-seed',
       chunkSize: 16,
+      maxChunksInMemory: 50,
     });
 
-    // Generate ~40 chunks = 40 * 256 = 10,240 cells
-    const chunks = [];
+    // 2. Generate 40 chunks = 40 * 256 = 10,240 cells (retain reference to prevent premature GC)
+    const activeChunks = [];
     for (let cx = 0; cx < 8; cx++) {
       for (let cy = 0; cy < 5; cy++) {
-        chunks.push(chunkManager.getOrGenerateChunk({ chunkX: cx, chunkY: cy }));
+        activeChunks.push(chunkManager.getOrGenerateChunk({ chunkX: cx, chunkY: cy }));
       }
     }
 
-    const totalCells = chunks.reduce((sum, c) => sum + Object.keys(c.cells).length, 0);
+    const totalCells = activeChunks.reduce((sum, c) => sum + Object.keys(c.cells).length, 0);
     expect(totalCells).toBeGreaterThanOrEqual(10000);
 
-    const heapAfter = process.memoryUsage().heapUsed;
-    const heapDeltaMb = (heapAfter - heapBefore) / (1024 * 1024);
+    const heapPeak = process.memoryUsage().heapUsed;
+    const peakUsedMb = (heapPeak - heapInitial) / (1024 * 1024);
+
+    // 3. Measure memory post-GC if exposed
+    if (globalThis.gc) globalThis.gc();
+    const heapRetained = process.memoryUsage().heapUsed;
+    const retainedMb = (heapRetained - heapInitial) / (1024 * 1024);
 
     console.log(
-      `[BENCHMARK] RNF-03 Memory Budget: ${totalCells} cells in ${chunks.length} chunks consumed ${heapDeltaMb.toFixed(2)} MB of heap`
+      `[BENCHMARK] RNF-03 Memory Budget: ${totalCells} cells in ${activeChunks.length} chunks. Heap peak delta: ${Math.max(0, peakUsedMb).toFixed(2)} MB, retained: ${Math.max(0, retainedMb).toFixed(2)} MB (Limit: < 40 MB)`
     );
-    // Spec 02 Section 17 RNF-03: < 40 Megabytes of heap
-    expect(heapDeltaMb).toBeLessThan(40);
+
+    // Spec 02 Section 17 RNF-03: strictly < 40 Megabytes of heap
+    expect(Math.max(0, peakUsedMb)).toBeLessThan(40);
   });
 
   it('verifies coordinate precision and determinism at large magnitudes up to 50,000 units (RNF-11)', () => {

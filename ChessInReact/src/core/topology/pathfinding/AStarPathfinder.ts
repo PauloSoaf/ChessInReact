@@ -109,10 +109,21 @@ export function findPathAStar(
   const isWalkable = options?.isWalkable ?? (() => true);
   const getCost = options?.getCost ?? (() => 1);
   const maxNodes = options?.maxNodes ?? 10000;
-  const minEdgeCost = options?.minEdgeCost ?? 1.0;
+  const hasCustomCost = options?.getCost !== undefined;
 
-  if (minEdgeCost <= 0 || Number.isNaN(minEdgeCost)) {
-    throw new Error(`Invalid minEdgeCost: ${minEdgeCost}. Minimum edge cost must be strictly positive.`);
+  let minEdgeCost: number;
+  if (options?.minEdgeCost !== undefined) {
+    if (Number.isNaN(options.minEdgeCost) || !Number.isFinite(options.minEdgeCost) || options.minEdgeCost < 0) {
+      throw new Error(
+        `Invalid minEdgeCost: ${options.minEdgeCost}. Minimum edge cost must be a non-negative finite number.`
+      );
+    }
+    minEdgeCost = options.minEdgeCost;
+  } else {
+    // When getCost is custom and no lower bound contract is provided,
+    // use zero heuristic (Dijkstra) to guarantee mathematical admissibility (PATCH-14).
+    // When costs are uniform unit (default), 1.0 is exact and admissible.
+    minEdgeCost = hasCustomCost ? 0 : 1.0;
   }
 
   if (!isWalkable(goal) || !isWalkable(start)) {
@@ -126,7 +137,7 @@ export function findPathAStar(
   const cameFrom = new Map<CoordinateKey, CoordinateKey>();
 
   gScore.set(start, 0);
-  const startH = topology.getDistance(start, goal) * minEdgeCost;
+  const startH = minEdgeCost > 0 ? topology.getDistance(start, goal) * minEdgeCost : 0;
   openQueue.push({ coord: start, f: startH, g: 0 });
 
   let nodesVisited = 0;
@@ -164,7 +175,6 @@ export function findPathAStar(
     const neighbors = topology.getAllNeighbors(current.coord);
 
     for (const neighbor of neighbors) {
-      if (closedSet.has(neighbor)) continue;
       if (!isWalkable(neighbor)) continue;
 
       const edgeCost = getCost(current.coord, neighbor);
@@ -177,6 +187,11 @@ export function findPathAStar(
       if (!Number.isFinite(edgeCost)) {
         continue; // Impassable edge
       }
+      if (minEdgeCost > 0 && edgeCost < minEdgeCost) {
+        throw new Error(
+          `Admissibility violation: edge cost ${edgeCost} between "${current.coord}" and "${neighbor}" is strictly less than declared minEdgeCost ${minEdgeCost}.`
+        );
+      }
 
       const tentativeG = (gScore.get(current.coord) ?? Infinity) + edgeCost;
       const currentNeighborG = gScore.get(neighbor) ?? Infinity;
@@ -185,7 +200,12 @@ export function findPathAStar(
         cameFrom.set(neighbor, current.coord);
         gScore.set(neighbor, tentativeG);
 
-        const h = topology.getDistance(neighbor, goal) * minEdgeCost;
+        // Reopen closed node if a strictly cheaper path is discovered
+        if (closedSet.has(neighbor)) {
+          closedSet.delete(neighbor);
+        }
+
+        const h = minEdgeCost > 0 ? topology.getDistance(neighbor, goal) * minEdgeCost : 0;
         const f = tentativeG + h;
 
         openQueue.push({ coord: neighbor, f, g: tentativeG });

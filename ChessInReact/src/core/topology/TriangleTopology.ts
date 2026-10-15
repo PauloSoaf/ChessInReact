@@ -195,12 +195,48 @@ export class TriangleTopology implements ITopology {
 
   public getRay(start: CoordinateKey, dir: DirectionIndex | number, maxDistance = 64): CoordinateKey[] {
     const ray: CoordinateKey[] = [];
-    let current: CoordinateKey | null = start;
+    if (maxDistance <= 0) return ray;
 
+    let current = start;
+    const visited = new Set<CoordinateKey>([start]);
+    const { q: startQ, r: startR } = this.parse(start);
+    const startIsUp = this.isPointingUp(startQ, startR);
+
+    // Geometric ray traversal for alternating triangular tessellation (PATCH-15):
+    // Preserves continuous planar trajectory without local direction index reversal.
+    // dir 1: Horizontal West (q - 1, r)
+    // dir 2: Horizontal East (q + 1, r)
+    // dir 0: Vertical / diagonal heading:
+    //   - Starting from UP (Southward heading): alternates edge 0 on UP and edge 1 on DOWN
+    //   - Starting from DOWN (Northward heading): alternates edge 0 on DOWN and edge 2 on UP
     for (let i = 0; i < maxDistance; i++) {
-      current = this.getNeighbor(current, dir);
-      if (current === null) break;
-      ray.push(current);
+      let next: CoordinateKey | null = null;
+      const { q, r } = this.parse(current);
+      const isUp = this.isPointingUp(q, r);
+
+      if (dir === 1) {
+        next = this.getNeighbor(current, 1);
+      } else if (dir === 2) {
+        next = this.getNeighbor(current, 2);
+      } else if (dir === 0) {
+        if (startIsUp) {
+          const edge = isUp ? 0 : 1;
+          next = this.getNeighbor(current, edge);
+        } else {
+          const edge = isUp ? 2 : 0;
+          next = this.getNeighbor(current, edge);
+        }
+      } else {
+        next = this.getNeighbor(current, dir);
+      }
+
+      if (next === null || visited.has(next)) {
+        break;
+      }
+
+      ray.push(next);
+      visited.add(next);
+      current = next;
     }
 
     return ray;
