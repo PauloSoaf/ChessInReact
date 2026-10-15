@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chromium Web Worker Smoke Test</title>
+</head>
+<body>
+  <div id="result">RUNNING</div>
+  <script type="module">
+    import { EngineBridge } from './src/core/workers/EngineBridge.ts';
+    import { createDefaultDomainState } from './src/core/state/initialState.ts';
+    import { asCoordinateKey, asEntityId } from './src/core/coordinates/index.ts';
+
+    async function runTest() {
+      const resultEl = document.getElementById('result');
+      try {
+        // Instantiate EngineBridge with native browser Worker (no workerPort override!)
+        const bridge = new EngineBridge({ timeoutMs: 3000 });
+
+        // 1. Protocol PING / PONG
+        const pong = await bridge.ping();
+        if (pong !== 'PONG') throw new Error(`PING failed: got ${pong}`);
+
+        // 2. Transfer state metadata
+        const domain = createDefaultDomainState('browser-worker-smoke');
+        domain.boardEntities[asEntityId('p1')] = {
+          id: asEntityId('p1'),
+          type: 'PIECE',
+          ownerId: 'P1',
+          variantId: 'PAWN',
+          position: asCoordinateKey('4,1'),
+          hasMoved: false,
+          isCaptured: false,
+        };
+        const meta = await bridge.echoStateMetadata(domain);
+        if (meta.schemaVersion !== 1 || meta.entityCount !== 1) {
+          throw new Error(`Metadata mismatch: ${JSON.stringify(meta)}`);
+        }
+
+        // 3. Transfer & deserialize entities
+        const echoed = await bridge.echoDeserializedEntities(domain);
+        if (echoed.entities.length !== 1 || echoed.entities[0].id !== 'p1') {
+          throw new Error(`Entity echo mismatch: ${JSON.stringify(echoed)}`);
+        }
+
+        // Clean disposal
+        bridge.dispose();
+
+        resultEl.textContent = 'SUCCESS: ' + JSON.stringify(echoed);
+      } catch (err) {
+        resultEl.textContent = 'ERROR: ' + (err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    runTest();
+  </script>
+</body>
+</html>

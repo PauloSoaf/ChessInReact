@@ -1,5 +1,9 @@
 import { serializeStateForWorker } from '../serialization/FlatArraySerializer';
 import { IDomainState } from '../state/gameState';
+import { CoordinateKey } from '../coordinates';
+import { TopologyType } from '../topology/types';
+import { IChunkData } from '../procedural/types';
+import { IPathResult } from '../topology/pathfinding/AStarPathfinder';
 import {
   IDeserializedEchoResponse,
   IEngineMetadataResponse,
@@ -121,6 +125,24 @@ export class EngineBridge {
       { buffer: snapshot.buffer.buffer, stringTable: snapshot.stringTable, activePlayer: state.activePlayer },
       [snapshot.buffer.buffer]
     );
+  }
+
+  public async generateChunks(options: {
+    topologyType?: TopologyType;
+    seed: string;
+    chunkCoords: { chunkX: number; chunkY: number }[];
+    chunkSize?: number;
+  }): Promise<IChunkData[]> {
+    return this.sendRequest<IChunkData[]>('GENERATE_CHUNKS', options);
+  }
+
+  public async computePath(options: {
+    topologyType?: TopologyType;
+    start: CoordinateKey;
+    goal: CoordinateKey;
+    obstacleCoords?: CoordinateKey[];
+  }): Promise<IPathResult> {
+    return this.sendRequest<IPathResult>('COMPUTE_PATHFINDING', options);
   }
 
   public getPendingCount(): number {

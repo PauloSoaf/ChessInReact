@@ -10,13 +10,17 @@ Este diretório (`reports/`) constitui a estrutura permanente e padronizada de d
 reports/
 ├── README.md                          # Este documento: governança e convenções
 ├── implementations/                   # Relatórios de entrega de cada Spec
-│   └── SPEC_01_IMPLEMENTATION.md
+│   ├── SPEC_01_IMPLEMENTATION.md
+│   └── SPEC_02_IMPLEMENTATION.md
 ├── audits/                            # Auditorias estáticas e comportamentais independentes
-│   └── SPEC_01_AUDIT.md
+│   ├── SPEC_01_AUDIT.md
+│   └── SPEC_02_AUDIT.md
 ├── testing/                           # Evidências e relatórios de execução de suítes de teste
-│   └── SPEC_01_TEST_RESULTS.md
+│   ├── SPEC_01_TEST_RESULTS.md
+│   └── SPEC_02_TEST_RESULTS.md
 ├── benchmarks/                        # Medições quantitativas de desempenho e latência
-│   └── SPEC_01_PERFORMANCE.md
+│   ├── SPEC_01_PERFORMANCE.md
+│   └── SPEC_02_PERFORMANCE.md
 └── decisions/                         # Architecture Decision Records (ADRs)
     ├── ADR-001-entity-mutation-and-index-invariants.md
     ├── ADR-002-worker-serialization-identity-mapping.md

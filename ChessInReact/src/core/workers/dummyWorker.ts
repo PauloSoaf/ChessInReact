@@ -1,5 +1,9 @@
 import { deserializeWorkerState } from '../serialization/FlatArraySerializer';
 import { IWorkerPort, IWorkerRequest, IWorkerResponse } from './types';
+import { CoordinateKey } from '../coordinates';
+import { HexTopology, SquareTopology, TriangleTopology, TopologyType } from '../topology';
+import { ChunkManager } from '../procedural/ChunkManager';
+import { findPathAStar } from '../topology/pathfinding/AStarPathfinder';
 
 /**
  * Handles incoming requests according to the Engine protocol.
@@ -87,6 +91,61 @@ export function processWorkerRequest(req: IWorkerRequest): IWorkerResponse {
               variantId: 'variantId' in e ? (e as { variantId?: string }).variantId : undefined,
             })),
           },
+        };
+      }
+
+      case 'GENERATE_CHUNKS': {
+        const payload = req.payload as {
+          topologyType?: TopologyType;
+          seed: string;
+          chunkCoords: { chunkX: number; chunkY: number }[];
+          chunkSize?: number;
+        };
+        const topType = payload.topologyType ?? 'HEXAGONAL';
+        const topology =
+          topType === 'HEXAGONAL'
+            ? new HexTopology()
+            : topType === 'TRIANGULAR'
+            ? new TriangleTopology()
+            : new SquareTopology();
+
+        const chunkManager = new ChunkManager(topology, {
+          seed: payload.seed,
+          chunkSize: payload.chunkSize ?? 16,
+        });
+
+        const chunks = payload.chunkCoords.map((c) => chunkManager.getOrGenerateChunk(c));
+        return {
+          id: req.id,
+          type: 'GENERATE_CHUNKS_RESULT',
+          result: chunks,
+        };
+      }
+
+      case 'COMPUTE_PATHFINDING': {
+        const payload = req.payload as {
+          topologyType?: TopologyType;
+          start: CoordinateKey;
+          goal: CoordinateKey;
+          obstacleCoords?: CoordinateKey[];
+        };
+        const topType = payload.topologyType ?? 'HEXAGONAL';
+        const topology =
+          topType === 'HEXAGONAL'
+            ? new HexTopology()
+            : topType === 'TRIANGULAR'
+            ? new TriangleTopology()
+            : new SquareTopology();
+
+        const blocked = new Set(payload.obstacleCoords || []);
+        const pathResult = findPathAStar(topology, payload.start, payload.goal, {
+          isWalkable: (coord) => !blocked.has(coord),
+        });
+
+        return {
+          id: req.id,
+          type: 'PATHFINDING_RESULT',
+          result: pathResult,
         };
       }
 

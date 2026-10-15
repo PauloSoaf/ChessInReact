@@ -4,11 +4,15 @@ on:
   push:
     branches:
       - feat/core-state-architecture
+      - feat/procedural-boards-topology
+      - 'feat/**'
       - main
       - develop
   pull_request:
     branches:
       - feat/core-state-architecture
+      - feat/procedural-boards-topology
+      - 'feat/**'
       - main
       - develop
 

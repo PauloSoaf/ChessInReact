@@ -8,7 +8,9 @@ export type WorkerRequestType =
   | 'ECHO_STATE_METADATA'
   | 'VALIDATE_SERIALIZATION'
   | 'ECHO_DESERIALIZED_ENTITIES'
-  | 'CALCULATE_BEST_MOVE';
+  | 'CALCULATE_BEST_MOVE'
+  | 'GENERATE_CHUNKS'
+  | 'COMPUTE_PATHFINDING';
 
 export type WorkerResponseType =
   | 'PONG'
@@ -16,6 +18,8 @@ export type WorkerResponseType =
   | 'VALIDATION_RESULT'
   | 'DESERIALIZED_ENTITIES_RESULT'
   | 'BEST_MOVE_RESULT'
+  | 'GENERATE_CHUNKS_RESULT'
+  | 'PATHFINDING_RESULT'
   | 'ERROR';
 
 export interface IWorkerRequest {
