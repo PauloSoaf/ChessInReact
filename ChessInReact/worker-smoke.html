@@ -81,6 +81,14 @@
         });
       } catch (err) {
         resultEl.textContent = 'ERROR: ' + (err instanceof Error ? err.message : String(err));
+      } finally {
+        try {
+          fetch('/__smoke_result', {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: resultEl.textContent,
+          });
+        } catch {}
       }
     }
 

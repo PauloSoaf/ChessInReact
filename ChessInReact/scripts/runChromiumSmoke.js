@@ -45,11 +45,26 @@ export async function runChromiumWorkerSmokeTest() {
   const port = 5200 + Math.floor(Math.random() * 500);
   const cdpPort = 9300 + Math.floor(Math.random() * 500);
 
+  let resultFromHttp = '';
+
   // 1. Start Vite server programmatically
   const viteServer = await createServer({
     server: { port, host: '127.0.0.1' },
     logLevel: 'error',
   });
+
+  viteServer.middlewares.use('/__smoke_result', (req, res) => {
+    let body = '';
+    req.on('data', (c) => {
+      body += c.toString();
+    });
+    req.on('end', () => {
+      resultFromHttp = body;
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end('OK');
+    });
+  });
+
   await viteServer.listen();
 
   const url = `http://127.0.0.1:${port}/worker-smoke.html`;
@@ -80,12 +95,23 @@ export async function runChromiumWorkerSmokeTest() {
   }
 
   try {
-    // 3. Poll CDP endpoint for page result
+    // 3. Poll for page result via HTTP callback (preferred) or CDP endpoint (fallback)
     const startTime = Date.now();
     let result = '';
 
     while (Date.now() - startTime < 18000) {
-      await new Promise((r) => setTimeout(r, 300));
+      if (resultFromHttp) {
+        result = resultFromHttp;
+        break;
+      }
+
+      await new Promise((r) => setTimeout(r, 200));
+
+      if (resultFromHttp) {
+        result = resultFromHttp;
+        break;
+      }
+
       try {
         const resp = await fetch(`http://127.0.0.1:${cdpPort}/json`);
         if (!resp.ok) continue;
