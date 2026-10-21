@@ -99,7 +99,44 @@ describe('PATCH-13: Voronoi Topology Integration in Worker Protocol', () => {
     }
   });
 
+  it('T13-04: COMPUTE_PATHFINDING with Voronoi topology requires consistent seed matching generation seed', async () => {
+    const mockPort = new MockWorkerPort(5);
+    const bridge = new EngineBridge({ workerPort: mockPort });
+
+    // 1. Pathfinding with explicit matching seed succeeds
+    const pathSuccess = await bridge.computePath({
+      topologyType: 'VORONOI_IRREGULAR',
+      seed,
+      start: asCoordinateKey('0,0'),
+      goal: asCoordinateKey('1,1'),
+      topologyOptions: { boundingRadius: 32 },
+    });
+    expect(pathSuccess.found).toBe(true);
+
+    // 2. Pathfinding with conflicting seed is rejected
+    await expect(
+      bridge.computePath({
+        topologyType: 'VORONOI_IRREGULAR',
+        seed: 'world-seed-alpha',
+        start: asCoordinateKey('0,0'),
+        goal: asCoordinateKey('1,1'),
+        topologyOptions: { seed: 'conflicting-seed-beta', boundingRadius: 32 },
+      })
+    ).rejects.toThrow(/seed mismatch/i);
+
+    // 3. Pathfinding with missing seed for Voronoi is rejected (no silent default-seed divergence)
+    await expect(
+      bridge.computePath({
+        topologyType: 'VORONOI_IRREGULAR',
+        start: asCoordinateKey('0,0'),
+        goal: asCoordinateKey('1,1'),
+        topologyOptions: { boundingRadius: 32 },
+      })
+    ).rejects.toThrow(/requires an explicit seed/i);
+  });
+
   it('T13-05: rejects unknown topology types with explicit error and no silent square fallback', async () => {
+
     const mockPort = new MockWorkerPort(5);
     const bridge = new EngineBridge({ workerPort: mockPort });
 

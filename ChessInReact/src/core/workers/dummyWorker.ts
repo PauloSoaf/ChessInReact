@@ -103,10 +103,11 @@ export function processWorkerRequest(req: IWorkerRequest): IWorkerResponse {
           topologyOptions?: Record<string, unknown>;
         };
         const topType = payload.topologyType ?? 'HEXAGONAL';
-        // Shared typed topology factory supporting VORONOI_IRREGULAR (PATCH-13)
-        const topology = createTopology(topType, {
+        // Shared typed topology factory supporting VORONOI_IRREGULAR (PATCH-13).
+        // The world seed is authoritative: a conflicting topologyOptions.seed is rejected.
+        const topology = createTopology(topType, payload.topologyOptions, {
           seed: payload.seed,
-          ...(payload.topologyOptions ?? {}),
+          requireSeed: true,
         });
 
         const chunkManager = new ChunkManager(topology, {
@@ -125,14 +126,19 @@ export function processWorkerRequest(req: IWorkerRequest): IWorkerResponse {
       case 'COMPUTE_PATHFINDING': {
         const payload = req.payload as {
           topologyType?: TopologyType;
+          /** World seed shared with GENERATE_CHUNKS (mandatory for seed-dependent topologies). */
+          seed?: string;
           start: CoordinateKey;
           goal: CoordinateKey;
           obstacleCoords?: CoordinateKey[];
           topologyOptions?: Record<string, unknown>;
         };
         const topType = payload.topologyType ?? 'HEXAGONAL';
-        // Shared typed topology factory supporting VORONOI_IRREGULAR (PATCH-13)
-        const topology = createTopology(topType, payload.topologyOptions);
+        // Same seed contract as generation: Voronoi pathfinding can never run on a default/other seed.
+        const topology = createTopology(topType, payload.topologyOptions, {
+          seed: payload.seed,
+          requireSeed: true,
+        });
 
         const blocked = new Set(payload.obstacleCoords || []);
         const pathResult = findPathAStar(topology, payload.start, payload.goal, {

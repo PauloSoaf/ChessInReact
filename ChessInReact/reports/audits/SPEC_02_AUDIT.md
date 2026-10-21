@@ -13,7 +13,8 @@
 - **Commit Base Spec 01:** `dd730512db65b3152d02f66bcc76c3cc3faf439f`
 - **Commit Auditado Inicial (com defeitos identificados):** `af064ed639fc9d8634f8cdd9ccbeddda80b28577`
 - **Commit Intermediário Remediado:** `c2592fb40dae8ccd12d71d8d4d0f3b210347b39d` (260 testes / 35 suítes)
-- **Commit Final Consolidado (Patches 11-16):** Branch HEAD atual (292 testes / 41 suítes)
+- **Commit Consolidado Patches 11-16:** `bf5966b46fc1e05022c350e0fe3c4892f47674a4` (292 testes / 41 suítes, 70.94% CI)
+- **Commit Final Consolidado (Patches 11-17 & Integração):** Branch HEAD atual (298 testes / 42 suítes, 71.85% global, 97.50% topologia)
 - **Especificação Auditada:** `specs/Spec_02_Procedural_Boards_Geometry_Topology.md` (673 linhas)
 - **Status Geral:** **APROVADO COM RESSALVAS DOCUMENTADAS (DEFERRED PARA SPEC 07 & RUNNER ARM64 PENDENTE)**
 
@@ -81,7 +82,8 @@ Todos os 15 requisitos funcionais da Seção 16 da Spec 02 foram auditados linha
 | **PATCH-13: Fábrica de Topologias no Worker (Voronoi)** | P1 (Alta) | O Worker Engine não possuía rota para instanciar `VoronoiTopology`, fazendo fallback inadvertido para quadrado. | Criação da fábrica unificada `createTopology` em `topologyFactory.ts` cobrindo SQUARE, HEX, TRIANGLE e VORONOI, com rejeição imediata de topologias desconhecidas. | `voronoiWorker.test.ts` (5 testes) |
 | **PATCH-14: Admissibilidade A\* em Custos Subunitários** | P1 (Alta) | Heurística Manhattan assumindo custo >= 1.0 causava inadmissibilidade quando custos de aresta eram menores que 1.0 (subunidade). | Quando `minEdgeCost` não é fornecido com custos subunitários, o A* passa a usar Dijkstra $h=0$ para admissibilidade estrita garantida, com reabertura de nós fechados. | `astarSubunitCosts.test.ts` (3 testes) |
 | **PATCH-15: Trajetória Contínua em Triângulos** | P1 (Alta) | `TriangleTopology.getRay` apresentava oscilação periódica cíclica em direções lineares. | Algoritmo retificado de alternância UP/DOWN garantindo propagação estritamente contínua sem ciclos e sem nós repetidos. | `triangleRay.test.ts` (3 testes) |
-| **PATCH-16: Eliminação de Scan O(N) e Limite de Chunks** | P1 (Alta) | `updateStreaming` realizava varredura $O(N)$ sobre todas as entidades de tabuleiro; sem teto fixo de chunks em memória. | Lookup $O(1)$ usando `state.terrain`, teto `maxChunksInMemory: 50` com proteção para chunks contendo peças ativas, e bounding de spawn Voronoi. | `streamingPerformanceMemory.test.ts` (8 testes) |
+| **PATCH-16: Eliminação de Scan O(N) e Limite de Chunks** | P1 (Alta) | `updateStreaming` realizava varredura $O(N)$ sobre todas as entidades de tabuleiro; sem teto fixo de chunks em memória. | Lookup $O(1)$ usando `state.terrain`, teto `maxChunksInMemory: 50` com proteção para chunks contendo peças ativas, e bounding de spawn Voronoi. | `streamingPerformanceMemory.test.ts` (8 testes: T16-01 a T16-08) |
+| **PATCH-17: Integridade Espacial, Atualizações de Terreno no Zustand e Validação de Biomas** | P0/P1 (Bloqueante/Alta) | Obstáculos procedurais (CHASM) podiam colidir com `occupancy` de peças vivas; modificações manuais de terreno em chunks carregados eram ignoradas por `hasExistingTerrain`; chunks desalocados do cache acumulavam entidades órfãs na store; ausência de validação rígida de `BiomeType` e metadados. | 1. CHASM em casa ocupada por peça gera `TERRAIN` intransponível sem sobrescrever `occupancy` de peça; `applyChunkStreamingDelta` rejeita sequestro de ocupação. 2. `setPersistentModification` emite deltas `updatedTerrain` atualizando entidades carregadas; `MovePieceCommand` impede entrada em terreno intransponível; `SnapshotSerializer` valida invariantes. 3. Desalocação LRU protege chunks de peças ativas e descarrega entidades órfãs no Zustand via `unloadedEntityIds`. 4. Guardião `validatePersistentTileModification` impõe união fechada `BiomeType`, elevação [0, 3.0] e metadados seguros. 5. Semente Voronoi reconciliada e obrigatória no Web Worker. | `streamingZustandIntegrity.test.ts` (4 testes), `streamingPerformanceMemory.test.ts` (T16-06 incluído), `voronoiWorker.test.ts` (T13-04 incluído) |
 
 ---
 
@@ -90,10 +92,10 @@ Todos os 15 requisitos funcionais da Seção 16 da Spec 02 foram auditados linha
 **Status: APROVADO COM RESSALVAS TÉCNICAS DOCUMENTADAS**
 
 1. Todos os 15 Requisitos Funcionais (RF-01 a RF-15) estão plenamente implementados, testados e integrados.
-2. Os defeitos P0 e P1 identificados em todos os ciclos de auditoria (Patches 01 a 16) foram completamente remediados e cobertos por testes unitários e de integração.
-3. A base de testes cresceu de 216 para 260 e agora para **292 testes aprovados em 41 suítes**, com **zero regressões** na Spec 01 e nas regras do xadrez clássico 8x8.
-4. Cobertura global atingiu **70.48%** e a camada de topologia atingiu **97.41%** (todas as 4 topologias acima de 95%, satisfazendo o RNF-10).
-5. O Web Worker nativo foi validado em **Google Chrome nativo (headless-chromium)** comprovando PING/PONG, geração de terreno e pathfinding com `skipped: false`.
+2. Os defeitos P0 e P1 identificados em todos os ciclos de auditoria (Patches 01 a 17) foram completamente remediados e cobertos por testes unitários e de integração.
+3. A base de testes cresceu de 216 para 260, 292 e agora para **298 testes aprovados em 42 suítes** (100% green, 0 falhas, 0 pendências), com **zero regressões** na Spec 01 e nas regras do xadrez clássico 8x8.
+4. Cobertura global atingiu **71.85%** (reconciliando o log do CI de 70.94% da iteração anterior) e a camada de topologia atingiu **97.50%** (todas as 4 topologias acima de 95%, satisfazendo o RNF-10).
+5. O Web Worker nativo foi validado em **Google Chrome nativo (headless-chromium)** comprovando PING/PONG, geração de terreno, rejeição de pathfinding sem semente e pathfinding com `skipped: false`.
 6. Os requisitos RNF-04 e RNF-08 continuam formalmente **adiados (DEFERRED)** para a **Spec 07** por dependerem da camada gráfica Three.js / WebGL.
 7. O requisito RNF-07 está aprovado no ambiente x86_64 e classificado como **PARTIAL** para ARM64 por ausência de runner físico ARM64 no pipeline CI.
 

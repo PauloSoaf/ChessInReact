@@ -11,7 +11,7 @@
 - **Specification:** Spec 02 — Geometria, Topologia e Tabuleiros Procedurais Infinitos
 - **Target Branch:** `feat/procedural-boards-topology` (preservando o baseline da Spec 01 `dd730512db65b3152d02f66bcc76c3cc3faf439f`)
 - **Status:** **INTEGRALMENTE REMEDIADA, IMPLEMENTADA E VALIDADA**
-- **Testes Aprovados:** **292 testes aprovados em 41 suítes** (0 falhas, 0 skips, preservando 100% dos 150 testes da Spec 01 e os 260 testes dos ciclos anteriores).
+- **Testes Aprovados:** **298 testes aprovados em 42 suítes** (0 falhas, 0 skips, preservando 100% dos 150 testes da Spec 01 e os 260 testes dos ciclos anteriores).
 - **TypeScript:** `npx tsc --noEmit` — 0 erros.
 - **ESLint:** `npm run lint` — 0 erros, 0 avisos.
 - **Production Build:** Vite production bundle aprovado (`dist/assets/index-*.js`, 1397 módulos transformados).
@@ -146,16 +146,31 @@ src/core/
 ### PATCH-16: Otimização O(1) de Streaming, Teto de Chunks e Bounding Voronoi (P1)
 - **Problema:** `updateStreaming()` iterava sobre todas as entidades do tabuleiro em $O(N)$ para verificar células de terreno existentes; `ChunkManager` não impunha limite rígido de chunks na memória heap; geração Voronoi em chunks distantes executava BFS irrestrita de distância.
 - **Solução:** Varredura $O(N)$ substituída por checagem direta $O(1)$ no dicionário `state.terrain`. Configurado `maxChunksInMemory: 50` com proteção para chunks contendo peças de xadrez ativas. Bounding em `NoiseGenerator` com verificação de raio de spawn antes de calcular BFS no Voronoi.
-- **Validação:** Suíte `src/core/procedural/__tests__/streamingPerformanceMemory.test.ts` (8 testes: T16-01 a T16-08).
+- **Validação:** Suíte `src/core/procedural/__tests__/streamingPerformanceMemory.test.ts` (8 testes: T16-01 a T16-08, incluindo T16-06 validando atomização estrita de falhas).
+
+### PATCH-17: Integridade de Ocupação Espacial, Atualização de Terreno Carregado, Biomas Estritos e Semente Voronoi (P0/P1)
+- **Problema:**
+  1. Obstáculos procedurais (CHASM) gerados em coordenadas ocupadas por peças ativas podiam sequestrar o índice `occupancy` físico no Zustand.
+  2. Modificações manuais de terreno em chunks já carregados eram ignoradas devido ao curto-circuito `hasExistingTerrain`.
+  3. Desalocação LRU de chunks fora do streaming acumulava entidades órfãs na store do Zustand.
+  4. Falta de validação em tempo de execução para valores arbitrários de `BiomeType` e metadados reservados.
+  5. Semente Voronoi podia divergir ou ser omitida entre worker e pathfinding.
+- **Solução:**
+  1. Em `ChunkManager.buildCellEntity()`, se a coordenada estiver ocupada por uma entidade viva, CHASM é instanciado como `TERRAIN` intransponível (preservando `occupancy` exclusivamente para a peça); `applyChunkStreamingDelta` rejeita sobrescrever peças.
+  2. `setPersistentModification()` marca coordenadas dirty e `updateStreaming()` emite `updatedTerrain` deltas atômicos para substituir entidades de terreno carregadas.
+  3. LRU eviction protege chunks com peças ativas (`protectedChunkIds`) e comunica chunks evicted via `pendingEvictedChunks` -> `unloadedEntityIds` no Zustand.
+  4. `validatePersistentTileModification()` impõe união fechada de `BiomeType`, elevação finita [0, 3.0] e metadados JSON-safe não reservados.
+  5. `topologyFactory.ts` introduz `ITopologyCreationContext` e `resolveSeed()`, exigindo semente explícita para Voronoi e rejeitando pathfinding sem semente.
+- **Validação:** Suíte `src/core/procedural/__tests__/streamingZustandIntegrity.test.ts` (4 testes de integração), `voronoiWorker.test.ts` (5 testes com T13-04) e `worker-smoke.html` no Chromium nativo.
 
 ---
 
 ## 4. Conclusão e Gates Finais Consolidados
 
-Todos os 16 patches foram completamente integrados e validados contra os gates do pipeline:
+Todos os 17 patches foram completamente integrados e validados contra os gates do pipeline:
 - `npx tsc --noEmit` — 0 erros.
 - `npm run lint` — 0 erros.
 - `npm run build` — Bundle de produção gerado com sucesso.
-- `npx vitest run --coverage` — 292 testes em 41 suítes, 0 falhas, cobertura de topologia 97.41%, global 70.48%.
+- `npx vitest run --coverage` — 298 testes em 42 suítes, 0 falhas, cobertura de topologia 97.50%, global 71.85%.
 - `node scripts/runChromiumSmoke.js` — Web Worker real em Chromium aprovado (`skipped: false`).
 

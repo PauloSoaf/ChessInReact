@@ -11,6 +11,59 @@ import {
   IStoreCommand,
 } from './gameState';
 import { createDefaultDomainState, createDefaultUIState } from './initialState';
+import { IEntity } from '../entities/types';
+import { IChunkStreamingDelta } from '../procedural/types';
+
+const ENTITY_TYPES: readonly string[] = ['PIECE', 'TERRAIN', 'OBSTACLE'];
+
+function validateStreamedEntity(entity: unknown, label: string, expectedId?: string): void {
+  const e = entity as Partial<IEntity> | null | undefined;
+  if (
+    !e ||
+    typeof e !== 'object' ||
+    typeof e.id !== 'string' ||
+    typeof e.position !== 'string' ||
+    typeof e.type !== 'string' ||
+    !ENTITY_TYPES.includes(e.type)
+  ) {
+    throw new Error(`Invalid streaming delta: malformed entity at ${label}.`);
+  }
+  if (expectedId !== undefined && e.id !== expectedId) {
+    throw new Error(
+      `Invalid streaming delta: entity id "${e.id}" does not match its key "${expectedId}" at ${label}.`
+    );
+  }
+}
+
+/**
+ * Structural validation executed before any mutation so that a malformed delta can never leave
+ * the domain state partially updated.
+ */
+function validateStreamingDelta(delta: IChunkStreamingDelta): void {
+  if (!delta || typeof delta !== 'object') {
+    throw new Error('Invalid streaming delta: expected an object.');
+  }
+  if (!delta.newEntities || typeof delta.newEntities !== 'object') {
+    throw new Error('Invalid streaming delta: missing newEntities record.');
+  }
+  if (!Array.isArray(delta.unloadedEntityIds)) {
+    throw new Error('Invalid streaming delta: unloadedEntityIds must be an array.');
+  }
+  for (const [key, entity] of Object.entries(delta.newEntities)) {
+    validateStreamedEntity(entity, `newEntities["${key}"]`, key);
+  }
+  if (delta.updatedTerrain !== undefined) {
+    if (!Array.isArray(delta.updatedTerrain)) {
+      throw new Error('Invalid streaming delta: updatedTerrain must be an array.');
+    }
+    delta.updatedTerrain.forEach((update, index) => {
+      if (!update || typeof update.previousId !== 'string') {
+        throw new Error(`Invalid streaming delta: malformed updatedTerrain[${index}].`);
+      }
+      validateStreamedEntity(update.entity, `updatedTerrain[${index}].entity`);
+    });
+  }
+}
 
 /**
  * Creates an isolated, headless Vanilla Zustand Game Store.
@@ -103,12 +156,12 @@ export function createGameStore(
       },
 
       applyChunkStreamingDelta: (
-        delta: {
-          readonly newEntities: Record<EntityId, import('../entities/types').IEntity>;
-          readonly unloadedEntityIds: readonly EntityId[];
-        },
+        delta: IChunkStreamingDelta,
         expectedRevision?: number
       ): boolean => {
+        // Validate BEFORE mutating anything: a malformed delta must leave the store untouched.
+        validateStreamingDelta(delta);
+
         let applied = false;
         set((state) => {
           if (expectedRevision !== undefined && state.domain.revision !== expectedRevision) {
@@ -122,32 +175,61 @@ export function createGameStore(
               }
               const terrainMap = draft.terrain;
 
-              // Apply newly streamed entities
-              for (const [id, entity] of Object.entries(delta.newEntities)) {
-                draft.boardEntities[id as EntityId] = entity;
-                if (entity.type === 'TERRAIN') {
-                  terrainMap[entity.position] = id as EntityId;
-                } else if (entity.type === 'OBSTACLE') {
-                  draft.occupancy[entity.position] = id as EntityId;
+              const removeEntity = (id: EntityId): void => {
+                const ent = draft.boardEntities[id];
+                if (!ent) return;
+                // Never remove active pieces
+                if (ent.type === 'PIECE' && !ent.isCaptured) return;
+                if (ent.type === 'TERRAIN' && terrainMap[ent.position] === id) {
+                  delete terrainMap[ent.position];
                 }
+                if (ent.type === 'OBSTACLE' && draft.occupancy[ent.position] === id) {
+                  delete draft.occupancy[ent.position];
+                }
+                delete draft.boardEntities[id];
+              };
+
+              const insertEntity = (entity: IEntity): void => {
+                if (entity.type === 'TERRAIN') {
+                  // Keep the terrain index 1:1 with TERRAIN entities (no orphans on replacement)
+                  const previousId = terrainMap[entity.position];
+                  if (previousId && previousId !== entity.id) {
+                    removeEntity(previousId);
+                  }
+                  draft.boardEntities[entity.id] = entity;
+                  terrainMap[entity.position] = entity.id;
+                } else if (entity.type === 'OBSTACLE') {
+                  const occupantId = draft.occupancy[entity.position];
+                  if (occupantId && occupantId !== entity.id) {
+                    const occupant = draft.boardEntities[occupantId];
+                    if (occupant && occupant.type !== 'OBSTACLE') {
+                      // A procedural obstacle must never hijack the occupancy of a piece (or any
+                      // other occupant): skip it so boardEntities and occupancy stay consistent.
+                      return;
+                    }
+                    removeEntity(occupantId);
+                  }
+                  draft.boardEntities[entity.id] = entity;
+                  draft.occupancy[entity.position] = entity.id;
+                } else {
+                  draft.boardEntities[entity.id] = entity;
+                }
+              };
+
+              // 1. Unload inactive non-piece entities
+              for (const id of delta.unloadedEntityIds) {
+                removeEntity(id);
               }
 
-              // Unload inactive non-piece entities
-              for (const id of delta.unloadedEntityIds) {
-                const ent = draft.boardEntities[id];
-                if (ent) {
-                  // Never unload active pieces
-                  if (ent.type === 'PIECE' && !ent.isCaptured) {
-                    continue;
-                  }
-                  if (ent.type === 'TERRAIN' && terrainMap[ent.position] === id) {
-                    delete terrainMap[ent.position];
-                  }
-                  if (ent.type === 'OBSTACLE' && draft.occupancy[ent.position] === id) {
-                    delete draft.occupancy[ent.position];
-                  }
-                  delete draft.boardEntities[id];
-                }
+              // 2. Replace already-loaded terrain (persistent modifications)
+              for (const update of delta.updatedTerrain ?? []) {
+                removeEntity(update.previousId);
+                insertEntity(update.entity);
+              }
+
+              // 3. Apply newly streamed entities
+              for (const entity of Object.values(delta.newEntities)) {
+                insertEntity(entity);
               }
 
               (draft as { revision: number }).revision += 1;
@@ -156,6 +238,7 @@ export function createGameStore(
         });
         return applied;
       },
+
 
       // Presentation UI actions - fully decoupled from domain snapshots
       selectPiece: (pieceId: EntityId | null) => {

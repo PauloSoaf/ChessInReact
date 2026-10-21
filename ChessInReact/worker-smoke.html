@@ -85,14 +85,32 @@
           throw new Error(`VORONOI GENERATE_CHUNKS cell topology mismatch: expected VORONOI_IRREGULAR, got ${voronoiCell?.topology}`);
         }
 
+        const voronoiSeed = 'voronoi-worker-smoke-seed';
         const voronoiPath = await bridge.computePath({
           topologyType: 'VORONOI_IRREGULAR',
+          seed: voronoiSeed,
           start: asCoordinateKey('0,0'),
           goal: asCoordinateKey('1,1'),
-          topologyOptions: { seed: 'voronoi-worker-smoke-seed', boundingRadius: 32 },
+          topologyOptions: { boundingRadius: 32 },
         });
         if (!voronoiPath.found) {
           throw new Error(`VORONOI COMPUTE_PATHFINDING failed to find path in Voronoi topology`);
+        }
+
+        // Seed contract: Voronoi pathfinding without an explicit seed must be rejected (no default-seed fallback)
+        let seedlessRejected = false;
+        try {
+          await bridge.computePath({
+            topologyType: 'VORONOI_IRREGULAR',
+            start: asCoordinateKey('0,0'),
+            goal: asCoordinateKey('1,1'),
+            topologyOptions: { boundingRadius: 32 },
+          });
+        } catch (e) {
+          seedlessRejected = /explicit seed/i.test(String(e && e.message));
+        }
+        if (!seedlessRejected) {
+          throw new Error('VORONOI COMPUTE_PATHFINDING without explicit seed was not rejected');
         }
 
         // 7. Clean worker termination

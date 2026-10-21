@@ -1,5 +1,6 @@
 import { CoordinateKey, EntityId, PlayerId } from '../coordinates/types';
 import { IEntity } from '../entities/types';
+import { IChunkStreamingDelta } from '../procedural/types';
 
 /**
  * Pure Domain State: represents authoritative match state.
@@ -83,13 +84,7 @@ export interface IGameActions {
   resetDomainState(initialDomain: IDomainState): void;
   setGameStatus(isGameOver: boolean, winnerId?: PlayerId | null): void;
   setActivePlayer(player: PlayerId): void;
-  applyChunkStreamingDelta(
-    delta: {
-      readonly newEntities: Record<EntityId, IEntity>;
-      readonly unloadedEntityIds: readonly EntityId[];
-    },
-    expectedRevision?: number
-  ): boolean;
+  applyChunkStreamingDelta(delta: IChunkStreamingDelta, expectedRevision?: number): boolean;
 
   // UI / Presentation actions
   selectPiece(pieceId: EntityId | null): void;

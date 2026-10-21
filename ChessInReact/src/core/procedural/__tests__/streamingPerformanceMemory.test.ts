@@ -5,6 +5,7 @@ import { createDefaultDomainState } from '../../state/initialState';
 import { SquareTopology } from '../../topology/SquareTopology';
 import { ChunkManager } from '../ChunkManager';
 import { createGameStore } from '../../state/gameStore';
+import { IChunkStreamingDelta } from '../types';
 
 describe('PATCH-16: Chunk Streaming Performance and Memory Budget Enforcement', () => {
   it('T16-01: streaming update with 10,000 entities uses O(1) index and avoids linear scan', () => {
@@ -159,6 +160,46 @@ describe('PATCH-16: Chunk Streaming Performance and Memory Budget Enforcement', 
 
     const applied = store.getState().applyChunkStreamingDelta(fakeDelta, staleRevision);
     expect(applied).toBe(false);
+  });
+
+  it('T16-06: streaming failure causes zero partial corruption in Zustand store', () => {
+    const store = createGameStore();
+    const stateBefore = store.getState();
+    const revisionBefore = stateBefore.domain.revision;
+    const entitiesCountBefore = Object.keys(stateBefore.domain.boardEntities).length;
+
+    const validCoord = asCoordinateKey('42,42');
+    const validId = asEntityId('terr_atomic_test');
+    const validTerrain: ITerrainEntity = {
+      id: validId,
+      type: 'TERRAIN',
+      variantId: 'PLAINS',
+      position: validCoord,
+      elevation: 1.0,
+    };
+
+    // Construct a malformed delta with one valid entity and one invalid entity
+    const malformedDelta = {
+      newEntities: {
+        [validId]: validTerrain,
+        corrupted_id: {
+          id: 'corrupted_id',
+          // Missing type and position -> invalid entity
+        } as unknown as ITerrainEntity,
+      },
+      unloadedEntityIds: [],
+    };
+
+    expect(() => {
+      store.getState().applyChunkStreamingDelta(malformedDelta as unknown as IChunkStreamingDelta);
+    }).toThrow(/Invalid streaming delta/);
+
+    // Verify zero partial mutation occurred in the store
+    const stateAfter = store.getState();
+    expect(stateAfter.domain.revision).toBe(revisionBefore);
+    expect(Object.keys(stateAfter.domain.boardEntities).length).toBe(entitiesCountBefore);
+    expect(stateAfter.domain.boardEntities[validId]).toBeUndefined();
+    expect(stateAfter.domain.terrain?.[validCoord]).toBeUndefined();
   });
 
   it('T16-07: reproducible memory measurements under repeated load and unload cycles', () => {

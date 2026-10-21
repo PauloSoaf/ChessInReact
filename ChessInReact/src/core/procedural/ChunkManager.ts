@@ -3,7 +3,19 @@ import { IEntity, IObstacleEntity, ITerrainEntity } from '../entities/types';
 import { IDomainState } from '../state/gameState';
 import { ITopology } from '../topology/types';
 import { NoiseGenerator } from './NoiseGenerator';
-import { BiomeType, IChunkCoordinate, IChunkData, IPersistentTileModification, IProceduralConfig, ITerrainCell } from './types';
+import { validatePersistentTileModification } from './persistentModification';
+import {
+  BiomeType,
+  IChunkCoordinate,
+  IChunkData,
+  IChunkStreamingDelta,
+  IChunkTerrainUpdate,
+  IPersistentTileModification,
+  IProceduralConfig,
+  ITerrainCell,
+} from './types';
+
+export type { IChunkStreamingDelta, IChunkTerrainUpdate };
 
 export interface IChunkManagerOptions {
   readonly chunkSize?: number; // Macro-chunk size (default 16x16)
@@ -13,11 +25,6 @@ export interface IChunkManagerOptions {
   readonly unloadTimeoutMs?: number; // Default 30,000 ms (30s)
   readonly maxLoadedEntities?: number; // Default 15,000 (well below 20,000 cap)
   readonly persistentModifications?: Record<CoordinateKey, IPersistentTileModification>;
-}
-
-export interface IChunkStreamingDelta {
-  readonly newEntities: Record<EntityId, IEntity>;
-  readonly unloadedEntityIds: EntityId[];
 }
 
 export class ChunkManager {
@@ -32,6 +39,26 @@ export class ChunkManager {
   private noiseGen: NoiseGenerator;
   private loadedChunks = new Map<string, IChunkData>();
   private persistentModifications = new Map<CoordinateKey, IPersistentTileModification>();
+
+  /**
+   * Chunks that must survive LRU eviction: those hosting active pieces plus the chunks required
+   * by the streaming pass in progress. Refreshed on every updateStreaming() call.
+   * The memory budget may therefore be exceeded only when this protected set is itself larger.
+   */
+  private protectedChunkIds = new Set<string>();
+
+  /**
+   * Chunks removed from the cache by LRU outside of updateStreaming(). Their already-streamed
+   * entities must still be reported to the store as unloaded on the next streaming pass,
+   * otherwise terrain entities accumulate in the domain while the cache stays within budget.
+   */
+  private pendingEvictedChunks = new Map<string, IChunkCoordinate>();
+
+  /**
+   * Coordinates whose persistent modification may not yet be reflected by the entities in the
+   * store. Entries are dropped only once the store state is verified to match the cell.
+   */
+  private dirtyTerrainCoords = new Set<CoordinateKey>();
 
   constructor(
     topology: ITopology,
@@ -71,11 +98,7 @@ export class ChunkManager {
   }
 
   public setPersistentModification(coord: CoordinateKey, mod: IPersistentTileModification): void {
-    if (mod.elevation !== undefined) {
-      if (!Number.isFinite(mod.elevation) || mod.elevation < 0 || mod.elevation > 3.0) {
-        throw new Error(`Invalid elevation override: "${mod.elevation}". Must be a finite number between 0.0 and 3.0.`);
-      }
-    }
+    validatePersistentTileModification(coord, mod);
     const clonedMod: IPersistentTileModification = {
       ...(mod.biome !== undefined ? { biome: mod.biome } : {}),
       ...(mod.elevation !== undefined ? { elevation: mod.elevation } : {}),
@@ -83,12 +106,16 @@ export class ChunkManager {
       ...(mod.metadata !== undefined ? { metadata: { ...mod.metadata } } : {}),
     };
     this.persistentModifications.set(coord, clonedMod);
+    // Entities already streamed into the store must be refreshed on the next streaming pass.
+    this.dirtyTerrainCoords.add(coord);
 
     const chunkCoords = this.getChunkCoordinate(coord);
     const chunkId = this.getChunkId(chunkCoords.chunkX, chunkCoords.chunkY);
     const loaded = this.loadedChunks.get(chunkId);
     if (loaded && loaded.cells[coord]) {
-      loaded.cells[coord] = this.applyModification(loaded.cells[coord], clonedMod);
+      // Re-derive from the pure seed cell so successive modifications replace (not stack on) each other.
+      const base = this.noiseGen.generateCell(coord, this.topology);
+      loaded.cells[coord] = this.applyModification(base, clonedMod);
       loaded.isDirty = true;
     }
   }
@@ -136,12 +163,16 @@ export class ChunkManager {
       }
     }
 
+    const metadata =
+      mod.metadata !== undefined ? { ...(baseCell.metadata ?? {}), ...mod.metadata } : baseCell.metadata;
+
     return {
       ...baseCell,
       biome,
       elevation,
       isObstacle,
       costMultiplier,
+      ...(metadata !== undefined ? { metadata } : {}),
     };
   }
 
@@ -163,6 +194,58 @@ export class ChunkManager {
   }
 
   /**
+   * Enumerates every valid coordinate key belonging to a macro-chunk.
+   */
+  private getChunkCellKeys(chunkCoords: IChunkCoordinate): CoordinateKey[] {
+    const keys: CoordinateKey[] = [];
+    const startU = chunkCoords.chunkX * this.chunkSize;
+    const startV = chunkCoords.chunkY * this.chunkSize;
+
+    for (let du = 0; du < this.chunkSize; du++) {
+      for (let dv = 0; dv < this.chunkSize; dv++) {
+        const u = startU + du;
+        const v = startV + dv;
+
+        const key =
+          this.topology.type === 'HEXAGONAL'
+            ? asCoordinateKey(`${u},${v},${-u - v}`)
+            : asCoordinateKey(`${u},${v}`);
+
+        if (this.topology.isValidCoordinate(key)) {
+          keys.push(key);
+        }
+      }
+    }
+    return keys;
+  }
+
+  /**
+   * Removes the least-recently-used chunk that is NOT protected (no active piece, not part of the
+   * streaming pass in progress). The eviction is recorded so the next streaming delta can unload
+   * the corresponding entities from the store.
+   * Returns false when every loaded chunk is protected (budget is then allowed to overflow).
+   */
+  private evictOldestUnprotectedChunk(): boolean {
+    let oldestKey: string | null = null;
+    let oldestTime = Infinity;
+
+    for (const [k, v] of this.loadedChunks.entries()) {
+      if (this.protectedChunkIds.has(k)) continue;
+      if (v.lastAccessedTimestamp < oldestTime) {
+        oldestTime = v.lastAccessedTimestamp;
+        oldestKey = k;
+      }
+    }
+
+    if (oldestKey === null) return false;
+
+    const evicted = this.loadedChunks.get(oldestKey)!;
+    this.loadedChunks.delete(oldestKey);
+    this.pendingEvictedChunks.set(oldestKey, evicted.coords);
+    return true;
+  }
+
+  /**
    * Generates or retrieves a single chunk's cells deterministically.
    * Overlays persistent procedural overrides (PATCH-12) over seed-generated base cells.
    */
@@ -175,46 +258,18 @@ export class ChunkManager {
     }
 
     const cells: Record<CoordinateKey, ITerrainCell> = {};
-    const startU = chunkCoords.chunkX * this.chunkSize;
-    const startV = chunkCoords.chunkY * this.chunkSize;
-
-    for (let du = 0; du < this.chunkSize; du++) {
-      for (let dv = 0; dv < this.chunkSize; dv++) {
-        const u = startU + du;
-        const v = startV + dv;
-
-        let key: CoordinateKey;
-        if (this.topology.type === 'HEXAGONAL') {
-          key = asCoordinateKey(`${u},${v},${-u - v}`);
-        } else {
-          key = asCoordinateKey(`${u},${v}`);
-        }
-
-        if (this.topology.isValidCoordinate(key)) {
-          let cell = this.noiseGen.generateCell(key, this.topology);
-          const mod = this.persistentModifications.get(key);
-          if (mod) {
-            cell = this.applyModification(cell, mod);
-          }
-          cells[key] = cell;
-        }
+    for (const key of this.getChunkCellKeys(chunkCoords)) {
+      let cell = this.noiseGen.generateCell(key, this.topology);
+      const mod = this.persistentModifications.get(key);
+      if (mod) {
+        cell = this.applyModification(cell, mod);
       }
+      cells[key] = cell;
     }
 
-    // LRU eviction when memory budget is exceeded
+    // LRU eviction when memory budget is exceeded (never evicts protected chunks)
     if (this.maxChunksInMemory !== null && this.loadedChunks.size >= this.maxChunksInMemory) {
-      let oldestKey: string | null = null;
-      let oldestTime = Infinity;
-
-      for (const [k, v] of this.loadedChunks.entries()) {
-        if (v.lastAccessedTimestamp < oldestTime) {
-          oldestTime = v.lastAccessedTimestamp;
-          oldestKey = k;
-        }
-      }
-      if (oldestKey) {
-        this.loadedChunks.delete(oldestKey);
-      }
+      this.evictOldestUnprotectedChunk();
     }
 
     const chunkData: IChunkData = {
@@ -226,8 +281,11 @@ export class ChunkManager {
     };
 
     this.loadedChunks.set(chunkId, chunkData);
+    // A chunk that is back in the cache no longer needs to be reported as evicted.
+    this.pendingEvictedChunks.delete(chunkId);
     return chunkData;
   }
+
 
   public getChunkCoord(coord: CoordinateKey): IChunkCoordinate {
     return this.getChunkCoordinate(coord);
@@ -313,8 +371,95 @@ export class ChunkManager {
   }
 
   /**
+   * Looks up the procedural terrain/obstacle entity currently representing a cell in the domain state.
+   * O(1): terrain index first, then an obstacle (procedural CHASM) registered in occupancy.
+   */
+  private findExistingTerrainEntity(state: IDomainState, cKey: CoordinateKey): IEntity | undefined {
+    const terrainId = state.terrain?.[cKey];
+    if (terrainId) {
+      const ent = state.boardEntities[terrainId];
+      if (ent) return ent;
+    }
+    const occupantId = state.occupancy[cKey];
+    if (occupantId) {
+      const ent = state.boardEntities[occupantId];
+      // Only procedurally generated obstacles carry a biome marker; gameplay obstacles are never touched.
+      if (ent && ent.type === 'OBSTACLE' && ent.metadata?.biome !== undefined) return ent;
+    }
+    return undefined;
+  }
+
+  /**
+   * Builds the domain entity that represents a generated cell.
+   * A CHASM becomes an OBSTACLE (registered in occupancy) only when the coordinate is free.
+   * When something already stands there (e.g. an active piece) it is represented as impassable
+   * TERRAIN instead, so the occupancy index can never be hijacked by a procedural obstacle.
+   */
+  private buildCellEntity(cKey: CoordinateKey, cell: ITerrainCell, occupied: boolean): IEntity {
+    const eid = asEntityId(`terr_${cell.biome.toLowerCase()}_${cKey.replace(/,/g, '_')}`);
+    const custom = cell.metadata ?? {};
+
+    if (cell.biome === 'CHASM' && !occupied) {
+      const obs: IObstacleEntity = {
+        id: eid,
+        type: 'OBSTACLE',
+        destructible: false,
+        position: cKey,
+        metadata: {
+          ...custom,
+          biome: 'CHASM',
+          elevation: cell.elevation,
+          isObstacle: true,
+          costMultiplier: 999.0,
+        },
+      };
+      return obs;
+    }
+
+    const terr: ITerrainEntity = {
+      id: eid,
+      type: 'TERRAIN',
+      variantId: cell.biome,
+      position: cKey,
+      elevation: cell.elevation,
+      metadata: {
+        ...custom,
+        biome: cell.biome,
+        colorIndex: cell.colorIndex,
+        costMultiplier: cell.costMultiplier,
+        isObstacle: cell.isObstacle,
+        isWalkable: !cell.isObstacle,
+      },
+    };
+    return terr;
+  }
+
+  private static metadataEquals(
+    a: Readonly<Record<string, unknown>> | undefined,
+    b: Readonly<Record<string, unknown>> | undefined
+  ): boolean {
+    const ka = a ? Object.keys(a) : [];
+    const kb = b ? Object.keys(b) : [];
+    if (ka.length !== kb.length) return false;
+    for (const k of ka) {
+      if (!b || !(k in b)) return false;
+      if (JSON.stringify(a![k]) !== JSON.stringify(b[k])) return false;
+    }
+    return true;
+  }
+
+  private static entitiesEquivalent(a: IEntity, b: IEntity): boolean {
+    if (a.type !== b.type || a.id !== b.id || a.position !== b.position) return false;
+    if (a.type === 'TERRAIN' && b.type === 'TERRAIN') {
+      if (a.variantId !== b.variantId || a.elevation !== b.elevation) return false;
+    }
+    return ChunkManager.metadataEquals(a.metadata, b.metadata);
+  }
+
+  /**
    * Evaluates the current state, dynamically generates missing chunks around pieces,
-   * unloads distant stale chunks, and returns an atomic delta for the state.
+   * unloads distant stale chunks, refreshes terrain affected by persistent modifications,
+   * and returns an atomic delta for the state.
    */
   public updateStreaming(state: IDomainState): IChunkStreamingDelta {
     const activePieceCoords: CoordinateKey[] = [];
@@ -331,8 +476,17 @@ export class ChunkManager {
     }
 
     const requiredChunkIds = this.getRequiredChunksForPieces(activePieceCoords);
+    const originChunkId = this.getChunkId(0, 0);
     const newEntities: Record<EntityId, IEntity> = {};
     const now = Date.now();
+
+    // Chunks hosting active pieces and chunks needed by this very pass can never be LRU-evicted,
+    // not even by getOrGenerateChunk() calls triggered below (PATCH-17).
+    this.protectedChunkIds = new Set<string>([
+      ...activePieceChunkIds,
+      ...requiredChunkIds,
+      originChunkId,
+    ]);
 
     // Fast O(1) spatial presence lookup (PATCH-16 Defeito A)
     // Avoids repeated Object.values(state.boardEntities).some(...) inside cell loops
@@ -356,53 +510,23 @@ export class ChunkManager {
       for (const [coord, cell] of Object.entries(chunk.cells)) {
         const cKey = coord as CoordinateKey;
         const hasExistingTerrain = state.terrain
-          ? Boolean(state.terrain[cKey])
+          ? this.findExistingTerrainEntity(state, cKey) !== undefined
           : legacyTerrainSet!.has(cKey);
+        if (hasExistingTerrain) continue;
 
-        const eid = asEntityId(`terr_${cell.biome.toLowerCase()}_${cKey.replace(/,/g, '_')}`);
-        if (!hasExistingTerrain && !state.boardEntities[eid]) {
-          if (cell.biome === 'CHASM') {
-            const obs: IObstacleEntity = {
-              id: eid,
-              type: 'OBSTACLE',
-              destructible: false,
-              position: cKey,
-              metadata: {
-                biome: 'CHASM',
-                elevation: cell.elevation,
-                isObstacle: true,
-                costMultiplier: 999.0,
-              },
-            };
-            newEntities[eid] = obs;
-          } else {
-            const terr: ITerrainEntity = {
-              id: eid,
-              type: 'TERRAIN',
-              variantId: cell.biome,
-              position: cKey,
-              elevation: cell.elevation,
-              metadata: {
-                biome: cell.biome,
-                colorIndex: cell.colorIndex,
-                costMultiplier: cell.costMultiplier,
-                isObstacle: cell.isObstacle,
-                isWalkable: !cell.isObstacle,
-              },
-            };
-            newEntities[eid] = terr;
-          }
+        const entity = this.buildCellEntity(cKey, cell, state.occupancy[cKey] !== undefined);
+        if (!state.boardEntities[entity.id]) {
+          newEntities[entity.id] = entity;
         }
       }
     }
 
-    // 2. Garbage Collection: identify chunks eligible for unloading (PATCH-16 Defeito B)
-    const unloadedEntityIds: EntityId[] = [];
+    // 2. Garbage Collection: evict chunks eligible for unloading (PATCH-16 Defeito B).
+    //    Evicted chunks are queued; their entities are unloaded in step 3.
     const totalEntitiesCount =
       Object.keys(state.boardEntities).length + Object.keys(newEntities).length;
-    const originChunkId = this.getChunkId(0, 0);
 
-    for (const [cid, chunk] of this.loadedChunks.entries()) {
+    for (const [cid, chunk] of Array.from(this.loadedChunks.entries())) {
       if (!requiredChunkIds.has(cid)) {
         const isStale = now - chunk.lastAccessedTimestamp > this.unloadTimeoutMs;
         const isOverEntityLimit = totalEntitiesCount > this.maxLoadedEntities;
@@ -414,32 +538,81 @@ export class ChunkManager {
           const hasActivePiece = activePieceChunkIds.has(cid) || cid === originChunkId;
 
           if (!hasActivePiece) {
-            // Unload non-piece entities belonging to this chunk
-            for (const cellCoord of Object.keys(chunk.cells)) {
-              const cKey = cellCoord as CoordinateKey;
-              const terrainId = state.terrain?.[cKey];
-              if (terrainId) {
-                unloadedEntityIds.push(terrainId);
-              }
-              const occupantId = state.occupancy[cKey];
-              if (occupantId) {
-                const ent = state.boardEntities[occupantId];
-                if (ent && ent.type !== 'PIECE') {
-                  unloadedEntityIds.push(occupantId);
-                }
-              }
-            }
             this.loadedChunks.delete(cid);
+            this.pendingEvictedChunks.set(cid, chunk.coords);
           }
         }
       }
     }
 
+    // 3. Unload entities of every chunk that left the cache (GC above or LRU eviction elsewhere).
+    //    Self-healing: an entry stays queued until the store no longer holds any of its entities,
+    //    so a rejected (stale) delta is simply re-emitted on the next pass.
+    const unloadIds = new Set<EntityId>();
+    for (const [cid, coords] of Array.from(this.pendingEvictedChunks.entries())) {
+      if (this.loadedChunks.has(cid) || activePieceChunkIds.has(cid) || cid === originChunkId) {
+        this.pendingEvictedChunks.delete(cid);
+        continue;
+      }
+
+      let remaining = false;
+      for (const cKey of this.getChunkCellKeys(coords)) {
+        const terrainId = state.terrain?.[cKey];
+        if (terrainId && state.boardEntities[terrainId]) {
+          unloadIds.add(terrainId);
+          remaining = true;
+        }
+        const occupantId = state.occupancy[cKey];
+        if (occupantId) {
+          const ent = state.boardEntities[occupantId];
+          if (ent && ent.type !== 'PIECE') {
+            unloadIds.add(occupantId);
+            remaining = true;
+          }
+        }
+      }
+      if (!remaining) {
+        this.pendingEvictedChunks.delete(cid);
+      }
+    }
+
+    // 4. Persistent modifications on cells whose entities are already loaded in the store.
+    //    Compared against the real store state, so the check is idempotent and survives rejected deltas.
+    const updatedTerrain: IChunkTerrainUpdate[] = [];
+    for (const cKey of Array.from(this.dirtyTerrainCoords)) {
+      const existing = this.findExistingTerrainEntity(state, cKey);
+      if (!existing || unloadIds.has(existing.id)) {
+        // Nothing loaded to refresh: fresh entities are always built from the current cell.
+        this.dirtyTerrainCoords.delete(cKey);
+        continue;
+      }
+
+      const cell = this.getCell(cKey);
+      if (!cell) {
+        this.dirtyTerrainCoords.delete(cKey);
+        continue;
+      }
+
+      const occupantId = state.occupancy[cKey];
+      const desired = this.buildCellEntity(
+        cKey,
+        cell,
+        occupantId !== undefined && occupantId !== existing.id
+      );
+      if (ChunkManager.entitiesEquivalent(existing, desired)) {
+        this.dirtyTerrainCoords.delete(cKey);
+        continue;
+      }
+      updatedTerrain.push({ previousId: existing.id, entity: desired });
+    }
+
     return {
       newEntities,
-      unloadedEntityIds,
+      unloadedEntityIds: Array.from(unloadIds),
+      updatedTerrain,
     };
   }
+
 
   public getLoadedChunksCount(): number {
     return this.loadedChunks.size;
@@ -463,6 +636,14 @@ export class ChunkManager {
   }
 
   public clear(): void {
+    // Cached chunks are queued so their already-streamed entities get unloaded from the store
+    // on the next pass (chunks that are still required are simply regenerated).
+    for (const [cid, chunk] of this.loadedChunks.entries()) {
+      this.pendingEvictedChunks.set(cid, chunk.coords);
+    }
     this.loadedChunks.clear();
+    this.protectedChunkIds.clear();
   }
+
+
 }

@@ -59,3 +59,12 @@ Validado pela suíte `src/core/procedural/__tests__/streamingPerformanceMemory.t
 2. **Cap de Chunks em Memória:** Configurado `maxChunksInMemory: 50`. Em testes de deslocamento contínuo por mais de 100 chunks, o tamanho do cache do `ChunkManager` permaneceu estritamente contido em 50 chunks, respeitando o teto de heap de 40 MB estipulado pelo **RNF-03**.
 3. **Imunidade de Descarregamento para Peças Ativas:** Chunks distantes contendo peças vivas (`isCaptured: false`) não sofrem eviction pelo LRU, prevenindo orfandade de estado das peças clássicas do xadrez.
 
+---
+
+## 6. Prevenção de Leaks de Domínio e Integridade Atômica de Estado (PATCH-17)
+
+Validado pela suíte `src/core/procedural/__tests__/streamingZustandIntegrity.test.ts`:
+1. **Zero Domain Leaks pós-Eviction:** Quando chunks são desalocados da memória pelo LRU fora de `updateStreaming()`, suas chaves são mantidas em `pendingEvictedChunks` e despachadas como `unloadedEntityIds` no próximo ciclo. Isso impede que o store do Zustand acumule milhares de entidades órfãs ao longo de sessões prolongadas.
+2. **Atomização Estrita de Deltas:** `applyChunkStreamingDelta` valida estruturalmente todo o payload antes de executar qualquer mutação via Immer. Deltas malformados ou corrompidos por falhas de worker são rejeitados de forma 100% atômica sem mutação parcial e sem incremento espúrio do contador de revisão.
+3. **Imunidade de Ocupação:** A detecção de coexistência entre peças e obstáculos procedurais opera em $O(1)$ protegendo `state.occupancy` e preservando a responsividade imediata dos comandos de movimentação (`MovePieceCommand`).
+

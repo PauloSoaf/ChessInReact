@@ -2,6 +2,7 @@ import { CoordinateKey } from '../coordinates';
 import { createTopology } from '../topology';
 import { ITopology, TopologyType } from '../topology/types';
 import { ChunkManager } from './ChunkManager';
+import { validatePersistentTileModification } from './persistentModification';
 import { IChunkData, IPersistentTileModification, IProceduralConfig } from './types';
 
 export const CURRENT_GENERATOR_VERSION = '2.0.0';
@@ -68,6 +69,9 @@ export class ProceduralLayoutCodec {
     persistentModifications?: Record<CoordinateKey, IPersistentTileModification>;
     generatorVersion?: string;
   }): string {
+    for (const [coord, mod] of Object.entries(input.persistentModifications ?? {})) {
+      validatePersistentTileModification(coord, mod);
+    }
     const genVersion = input.generatorVersion ?? CURRENT_GENERATOR_VERSION;
     const chunkSize = input.chunkSize ?? 16;
     const fullConfig: IProceduralConfig = {
@@ -154,6 +158,11 @@ export class ProceduralLayoutCodec {
       );
     }
 
+    // Validate persisted modifications (closed biome set, finite elevation, JSON-safe metadata)
+    for (const [coord, mod] of Object.entries(layout.persistentModifications ?? {})) {
+      validatePersistentTileModification(coord, mod);
+    }
+
     return layout;
   }
 
@@ -168,7 +177,11 @@ export class ProceduralLayoutCodec {
     topology: ITopology;
     chunkManager: ChunkManager;
   } {
-    const topology = createTopology(layout.topologyType, layout.topologyOptions);
+    // The layout seed is the single world seed: it also drives seed-dependent topologies (Voronoi),
+    // and a conflicting topologyOptions.seed is rejected instead of silently diverging.
+    const topology = createTopology(layout.topologyType, layout.topologyOptions, {
+      seed: layout.seed,
+    });
 
     const chunkManager = new ChunkManager(topology, layout.config, {
       chunkSize: layout.chunkSize,

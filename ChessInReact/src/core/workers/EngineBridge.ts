@@ -149,6 +149,8 @@ export class EngineBridge {
 
   public async computePath(options: {
     topologyType?: TopologyType;
+    /** World seed shared with generateChunks; mandatory for VORONOI_IRREGULAR. */
+    seed?: string;
     start: CoordinateKey;
     goal: CoordinateKey;
     obstacleCoords?: CoordinateKey[];
