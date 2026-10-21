@@ -3,7 +3,7 @@ import { IEntity, IObstacleEntity, ITerrainEntity } from '../entities/types';
 import { IDomainState } from '../state/gameState';
 import { ITopology } from '../topology/types';
 import { NoiseGenerator } from './NoiseGenerator';
-import { validatePersistentTileModification } from './persistentModification';
+import { clonePersistentMetadata, validatePersistentTileModification } from './persistentModification';
 import {
   BiomeType,
   IChunkCoordinate,
@@ -103,7 +103,9 @@ export class ChunkManager {
       ...(mod.biome !== undefined ? { biome: mod.biome } : {}),
       ...(mod.elevation !== undefined ? { elevation: mod.elevation } : {}),
       ...(mod.isObstacle !== undefined ? { isObstacle: Boolean(mod.isObstacle) } : {}),
-      ...(mod.metadata !== undefined ? { metadata: { ...mod.metadata } } : {}),
+      ...(mod.metadata !== undefined
+        ? { metadata: clonePersistentMetadata(mod.metadata, `persistentModification["${coord}"].metadata`) }
+        : {}),
     };
     this.persistentModifications.set(coord, clonedMod);
     // Entities already streamed into the store must be refreshed on the next streaming pass.
@@ -123,7 +125,10 @@ export class ChunkManager {
   public getPersistentModifications(): Record<CoordinateKey, IPersistentTileModification> {
     const result: Record<CoordinateKey, IPersistentTileModification> = {};
     for (const [k, v] of this.persistentModifications.entries()) {
-      result[k] = { ...v, metadata: v.metadata ? { ...v.metadata } : undefined };
+      result[k] = {
+        ...v,
+        metadata: clonePersistentMetadata(v.metadata, `getPersistentModifications["${k}"].metadata`),
+      };
     }
     return result;
   }
@@ -163,8 +168,12 @@ export class ChunkManager {
       }
     }
 
+    const baseMeta = clonePersistentMetadata(baseCell.metadata);
+    const modMeta = clonePersistentMetadata(mod.metadata);
     const metadata =
-      mod.metadata !== undefined ? { ...(baseCell.metadata ?? {}), ...mod.metadata } : baseCell.metadata;
+      modMeta !== undefined
+        ? { ...(baseMeta ?? {}), ...modMeta }
+        : baseMeta;
 
     return {
       ...baseCell,
@@ -298,7 +307,13 @@ export class ChunkManager {
   public getCell(coord: CoordinateKey): ITerrainCell | null {
     const c = this.getChunkCoordinate(coord);
     const chunk = this.getOrGenerateChunk(c);
-    return chunk.cells[coord] ?? null;
+    const cell = chunk.cells[coord];
+    if (!cell) return null;
+    if (!cell.metadata) return cell;
+    return {
+      ...cell,
+      metadata: clonePersistentMetadata(cell.metadata, `getCell["${coord}"].metadata`),
+    };
   }
 
   public getLoadedChunkCount(): number {
@@ -397,7 +412,7 @@ export class ChunkManager {
    */
   private buildCellEntity(cKey: CoordinateKey, cell: ITerrainCell, occupied: boolean): IEntity {
     const eid = asEntityId(`terr_${cell.biome.toLowerCase()}_${cKey.replace(/,/g, '_')}`);
-    const custom = cell.metadata ?? {};
+    const custom = clonePersistentMetadata(cell.metadata) ?? {};
 
     if (cell.biome === 'CHASM' && !occupied) {
       const obs: IObstacleEntity = {

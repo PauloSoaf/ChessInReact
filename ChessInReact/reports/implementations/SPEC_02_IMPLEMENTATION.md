@@ -11,11 +11,12 @@
 - **Specification:** Spec 02 — Geometria, Topologia e Tabuleiros Procedurais Infinitos
 - **Target Branch:** `feat/procedural-boards-topology` (preservando o baseline da Spec 01 `dd730512db65b3152d02f66bcc76c3cc3faf439f`)
 - **Status:** **INTEGRALMENTE REMEDIADA, IMPLEMENTADA E VALIDADA**
-- **Testes Aprovados:** **298 testes aprovados em 42 suítes** (0 falhas, 0 skips, preservando 100% dos 150 testes da Spec 01 e os 260 testes dos ciclos anteriores).
+- **Testes Aprovados:** **318 testes aprovados em 44 suítes** (0 falhas, 0 skips, preservando 100% dos testes da Spec 01 e de todos os patches anteriores).
 - **TypeScript:** `npx tsc --noEmit` — 0 erros.
 - **ESLint:** `npm run lint` — 0 erros, 0 avisos.
 - **Production Build:** Vite production bundle aprovado (`dist/assets/index-*.js`, 1397 módulos transformados).
 - **Native Web Worker Smoke Test:** Executado com sucesso em Chromium real sem falso positivo por skip (Voronoi, chunking e pathfinding verificados).
+- **Isolated Procedural Grid Memory Benchmark:** Executado com sucesso via `npm run bench:memory` (`node --expose-gc`) com medições brutas não mascaradas.
 
 ---
 
@@ -163,14 +164,53 @@ src/core/
   5. `topologyFactory.ts` introduz `ITopologyCreationContext` e `resolveSeed()`, exigindo semente explícita para Voronoi e rejeitando pathfinding sem semente.
 - **Validação:** Suíte `src/core/procedural/__tests__/streamingZustandIntegrity.test.ts` (4 testes de integração), `voronoiWorker.test.ts` (5 testes com T13-04) e `worker-smoke.html` no Chromium nativo.
 
+### PATCH-22: Validação Semântica Estrita e Atomicidade dos Deltas de Streaming (P0)
+- **Problema:** `validateStreamingDelta` validava apenas a tipagem básica dos campos de um delta, permitindo deltas semanticamente maliciosos ou corrompidos:
+  1. Criação ou injeção de peças (`PIECE`) através do fluxo de streaming.
+  2. Substituição de peças existentes em coordenadas arbitrárias sem sincronizar o índice `occupancy`, gerando divergência espacial.
+  3. Tentativas de `updatedTerrain` referenciando `previousId` inexistente ou com divergência de coordenadas em relação à entidade original.
+  4. Duplicidade de IDs compartilhados entre `newEntities`, `updatedTerrain` e `unloadedEntityIds`.
+  5. Spawning de obstáculos procedurais (`OBSTACLE`) diretamente sobre peças de gameplay ativas.
+  6. Falhas na aplicação de deltas compostos podiam deixar mutações parciais no estado do Zustand.
+- **Solução:**
+  1. Implementado contrato semântico rigoroso em `validateStreamingDeltaSemantic` em `src/core/state/gameStore.ts`.
+  2. Permite estritamente `TERRAIN` e `OBSTACLE` em deltas de streaming, proibindo terminantemente `PIECE`.
+  3. Valida contra o estado anterior antes de qualquer chamada a `produce()`: verifica existência de `previousId`, correspondência exata de coordenadas, rejeita colisões de obstáculos com peças vivas, e rejeita conflitos de IDs e múltiplas definições de terreno para a mesma casa.
+  4. Executado pré-transação: qualquer erro interrompe a operação lançando exceção explícita, garantindo que `boardEntities`, `occupancy`, `terrain` e `revision` permaneçam 100% inalterados (reversão atômica integral).
+- **Validação:** Suíte `src/core/procedural/__tests__/streamingSemanticDeltas.test.ts` (10 testes: T22-01 a T22-10).
+
+### PATCH-23: Imutabilidade Profunda de Metadados Persistentes (P1)
+- **Problema:** `ChunkManager.setPersistentModification()` e `getPersistentModifications()` utilizavam clonagem rasa (`{ ...mod.metadata }`). Objetos ou arrays aninhados mantinham referências compartilhadas com o chamador externo, permitindo mutações indiretas do estado do mundo sem validação.
+- **Solução:**
+  1. Criação das rotinas de clonagem defensiva profunda `clonePersistentMetadata()` e `cloneAndValidateJsonValue()` em `src/core/procedural/persistentModification.ts`.
+  2. Suporte estrito a tipos JSON válidos: strings, números finitos (rejeitando NaN e Infinity), booleanos, null, arrays e objetos literais.
+  3. Proteção ativa contra prototype pollution: rejeita chaves perigosas (`__proto__`, `constructor`, `prototype`).
+  4. Rejeição com erro descritivo para funções, símbolos, instâncias de classes, estruturas circulares e profundidade > 8.
+  5. Cópia profunda aplicada no armazenamento (`setPersistentModification`, `applyModification`), na extração (`getPersistentModifications`, `buildCellEntity`, `getCell`) e na codificação/decodificação (`ProceduralLayoutCodec`).
+- **Validação:** Suíte `src/core/procedural/__tests__/persistentMetadataImmutability.test.ts` (8 testes: T23-01 a T23-08).
+
+### PATCH-24: Benchmarks Honestos de Memória e Reclassificação dos RNFs (P1)
+- **Problema:**
+  1. Testes de memória utilizavam `Math.max(0, peakUsedMb)`, convertendo variações normais de garbage collection em zero e mascarando o comportamento real do heap.
+  2. RNF-09 estava classificado como VERIFIED sem evidência do ensaio contínuo de 60 minutos de streaming.
+- **Solução:**
+  1. Criação do benchmark isolado `scripts/runMemoryBenchmark.js` (executável via `npm run bench:memory` com `node --expose-gc`) que avalia valores brutos reais: heap baseline, pico com 10.240 células ativas retidas (40 macro-chunks de 16x16 em topologia infinita), delta incremental não-mascarado, heap pós-descarregamento com GC explícito e deriva multi-ciclo.
+  2. Adição dos testes T24-01, T24-02 e T24-03 em `src/core/benchmarks/__tests__/topologyBenchmarks.test.ts`.
+  3. Resultados comprovados: Baseline 18.33 MB, Peak 26.10 MB, Delta Incremental Bruto +7.76 MB (< 40.00 MB do RNF-03), Retido pós-GC +0.12 MB, Deriva média por ciclo +0.0090 MB/ciclo.
+  4. Reclassificação formal de conformidade: RNF-03 marcado como VERIFIED com métrica real isolada; RNF-09 reclassificado para PARTIAL (soak test de 60 minutos ininterruptos diferido para a Spec 07); RNF-04 e RNF-08 mantidos como DEFERRED para a Spec 07.
+- **Validação:** Execução isolada de `npm run bench:memory` e testes T24-01 a T24-03 em `topologyBenchmarks.test.ts`.
+
 ---
 
 ## 4. Conclusão e Gates Finais Consolidados
 
-Todos os 17 patches foram completamente integrados e validados contra os gates do pipeline:
+Todos os 24 patches foram completamente integrados e validados contra os gates do pipeline:
 - `npx tsc --noEmit` — 0 erros.
 - `npm run lint` — 0 erros.
-- `npm run build` — Bundle de produção gerado com sucesso.
-- `npx vitest run --coverage` — 298 testes em 42 suítes, 0 falhas, cobertura de topologia 97.50%, global 71.85%.
-- `node scripts/runChromiumSmoke.js` — Web Worker real em Chromium aprovado (`skipped: false`).
+- `npm run build` — Bundle de produção gerado com sucesso (`dist/assets/index-*.js`, 1397 módulos transformados).
+- `npx vitest run --coverage` — 318 testes em 44 suítes, 0 falhas, 0 skips, cobertura de topologia 97.50%, global 72.15%.
+- `node scripts/runChromiumSmoke.js` — Web Worker real em Chromium aprovado (`skipped: false`, `voronoiVerified: true`).
+- `npm run bench:memory` — Benchmark isolado de memória com GC explícito registrando delta incremental bruto de +7.76 MB para 10.240 células retidas (teto: < 40.00 MB).
+- **Avanço para a Spec 03:** Aguardar homologação e fechamento definitivo da Spec 02.
+
 

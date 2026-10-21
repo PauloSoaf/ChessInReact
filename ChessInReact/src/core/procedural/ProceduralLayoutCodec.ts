@@ -2,7 +2,7 @@ import { CoordinateKey } from '../coordinates';
 import { createTopology } from '../topology';
 import { ITopology, TopologyType } from '../topology/types';
 import { ChunkManager } from './ChunkManager';
-import { validatePersistentTileModification } from './persistentModification';
+import { clonePersistentMetadata, validatePersistentTileModification } from './persistentModification';
 import { IChunkData, IPersistentTileModification, IProceduralConfig } from './types';
 
 export const CURRENT_GENERATOR_VERSION = '2.0.0';
@@ -85,6 +85,19 @@ export class ProceduralLayoutCodec {
       chunkSize,
     };
 
+    const clonedMods: Record<CoordinateKey, IPersistentTileModification> | undefined =
+      input.persistentModifications
+        ? Object.fromEntries(
+            Object.entries(input.persistentModifications).map(([coord, mod]) => [
+              coord as CoordinateKey,
+              {
+                ...mod,
+                metadata: clonePersistentMetadata(mod.metadata, `persistentModifications["${coord}"].metadata`),
+              },
+            ])
+          )
+        : undefined;
+
     const hash = this.computeHash({
       seed: input.seed,
       generatorVersion: genVersion,
@@ -92,7 +105,7 @@ export class ProceduralLayoutCodec {
       chunkSize,
       config: fullConfig,
       topologyOptions: input.topologyOptions,
-      persistentModifications: input.persistentModifications,
+      persistentModifications: clonedMods,
     });
 
     const exportData: IProceduralLayoutExport = {
@@ -103,7 +116,7 @@ export class ProceduralLayoutCodec {
       topologyOptions: input.topologyOptions,
       chunkSize,
       config: fullConfig,
-      persistentModifications: input.persistentModifications,
+      persistentModifications: clonedMods,
       layoutHash: hash,
     };
 
@@ -163,7 +176,23 @@ export class ProceduralLayoutCodec {
       validatePersistentTileModification(coord, mod);
     }
 
-    return layout;
+    const decodedMods: Record<CoordinateKey, IPersistentTileModification> | undefined =
+      layout.persistentModifications
+        ? Object.fromEntries(
+            Object.entries(layout.persistentModifications).map(([coord, mod]) => [
+              coord as CoordinateKey,
+              {
+                ...mod,
+                metadata: clonePersistentMetadata(mod.metadata, `decodedLayout["${coord}"].metadata`),
+              },
+            ])
+          )
+        : undefined;
+
+    return {
+      ...layout,
+      persistentModifications: decodedMods,
+    };
   }
 
   /**

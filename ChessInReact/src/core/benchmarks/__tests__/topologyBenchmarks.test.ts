@@ -98,18 +98,18 @@ describe('Quantitative Topology & Procedural Benchmarks (Spec 02 Verification)',
     expect(dt100).toBeLessThan(50); // Under 50ms under load/coverage instrumentation
   });
 
-  it('measures grid memory heap consumption with 10,000 active cells (RNF-03: < 40 MB)', () => {
+  it('T24-01: measures grid memory heap consumption with 10,240 active cells retained (RNF-03: < 40 MB)', () => {
     // 1. Stabilized initial baseline
     if (globalThis.gc) globalThis.gc();
     const heapInitial = process.memoryUsage().heapUsed;
 
-    const chunkManager = new ChunkManager(hex, {
+    const chunkManager = new ChunkManager(square, {
       seed: 'heap-benchmark-seed',
       chunkSize: 16,
       maxChunksInMemory: 50,
     });
 
-    // 2. Generate 40 chunks = 40 * 256 = 10,240 cells (retain reference to prevent premature GC)
+    // 2. Generate 40 chunks = 40 * 256 = 10,240 cells (retain references to prevent premature GC)
     const activeChunks = [];
     for (let cx = 0; cx < 8; cx++) {
       for (let cy = 0; cy < 5; cy++) {
@@ -118,22 +118,85 @@ describe('Quantitative Topology & Procedural Benchmarks (Spec 02 Verification)',
     }
 
     const totalCells = activeChunks.reduce((sum, c) => sum + Object.keys(c.cells).length, 0);
-    expect(totalCells).toBeGreaterThanOrEqual(10000);
+    expect(totalCells).toBe(10240);
 
     const heapPeak = process.memoryUsage().heapUsed;
     const peakUsedMb = (heapPeak - heapInitial) / (1024 * 1024);
 
-    // 3. Measure memory post-GC if exposed
-    if (globalThis.gc) globalThis.gc();
-    const heapRetained = process.memoryUsage().heapUsed;
-    const retainedMb = (heapRetained - heapInitial) / (1024 * 1024);
-
     console.log(
-      `[BENCHMARK] RNF-03 Memory Budget: ${totalCells} cells in ${activeChunks.length} chunks. Heap peak delta: ${Math.max(0, peakUsedMb).toFixed(2)} MB, retained: ${Math.max(0, retainedMb).toFixed(2)} MB (Limit: < 40 MB)`
+      `[BENCHMARK] RNF-03 Memory Budget: ${totalCells} cells in ${activeChunks.length} chunks. Baseline: ${(heapInitial / 1048576).toFixed(2)} MB, Peak: ${(heapPeak / 1048576).toFixed(2)} MB, Raw incremental delta: ${peakUsedMb >= 0 ? '+' : ''}${peakUsedMb.toFixed(2)} MB (Limit: < 40 MB)`
     );
 
     // Spec 02 Section 17 RNF-03: strictly < 40 Megabytes of heap
-    expect(Math.max(0, peakUsedMb)).toBeLessThan(40);
+    expect(peakUsedMb).toBeLessThan(40);
+  });
+
+  it('T24-02: measures post-unload memory with documented GC and unmasked retained delta', () => {
+    if (globalThis.gc) globalThis.gc();
+    const heapInitial = process.memoryUsage().heapUsed;
+
+    const chunkManager = new ChunkManager(square, {
+      seed: 'unload-gc-benchmark-seed',
+      chunkSize: 16,
+      maxChunksInMemory: 50,
+    });
+
+    const activeChunks = [];
+    for (let cx = 0; cx < 8; cx++) {
+      for (let cy = 0; cy < 5; cy++) {
+        activeChunks.push(chunkManager.getOrGenerateChunk({ chunkX: cx, chunkY: cy }));
+      }
+    }
+    expect(activeChunks.length).toBe(40);
+
+    // Unload all chunks and release references
+    activeChunks.length = 0;
+    chunkManager.clear();
+
+    if (globalThis.gc) globalThis.gc();
+    const heapPostUnload = process.memoryUsage().heapUsed;
+    const retainedDeltaMb = (heapPostUnload - heapInitial) / (1024 * 1024);
+
+    console.log(
+      `[BENCHMARK] Post-Unload Memory: Baseline: ${(heapInitial / 1048576).toFixed(2)} MB, Post-Unload: ${(heapPostUnload / 1048576).toFixed(2)} MB, Raw retained delta: ${retainedDeltaMb >= 0 ? '+' : ''}${retainedDeltaMb.toFixed(2)} MB`
+    );
+
+    // Retained delta post-unload should be well within safe operating margin (< 10 MB)
+    expect(retainedDeltaMb).toBeLessThan(10);
+  });
+
+  it('T24-03: records repeated streaming load and unload cycles without masking raw delta trend', () => {
+    const chunkManager = new ChunkManager(square, {
+      seed: 'multi-cycle-mem-seed',
+      chunkSize: 16,
+      maxChunksInMemory: 25,
+    });
+
+    const cycleDeltasMb: number[] = [];
+    let prevHeap = process.memoryUsage().heapUsed;
+
+    for (let cycle = 0; cycle < 10; cycle++) {
+      const cycleChunks = [];
+      for (let i = 0; i < 20; i++) {
+        cycleChunks.push(chunkManager.getOrGenerateChunk({ chunkX: (cycle * 20 + i) % 80, chunkY: cycle }));
+      }
+      cycleChunks.length = 0;
+      chunkManager.clear();
+      if (globalThis.gc) globalThis.gc();
+
+      const currentHeap = process.memoryUsage().heapUsed;
+      const cycleDelta = (currentHeap - prevHeap) / (1024 * 1024);
+      cycleDeltasMb.push(cycleDelta);
+      prevHeap = currentHeap;
+    }
+
+    const avgDrift = cycleDeltasMb.reduce((a, b) => a + b, 0) / cycleDeltasMb.length;
+    console.log(
+      `[BENCHMARK] Multi-Cycle Memory Trend (10 cycles): Raw deltas [${cycleDeltasMb.map((d) => (d >= 0 ? '+' : '') + d.toFixed(2)).join(', ')}] MB. Avg drift/cycle: ${avgDrift >= 0 ? '+' : ''}${avgDrift.toFixed(3)} MB`
+    );
+
+    // Uncontrolled leak would show large positive drift; average drift should remain small (< 2 MB / cycle)
+    expect(avgDrift).toBeLessThan(2);
   });
 
   it('verifies coordinate precision and determinism at large magnitudes up to 50,000 units (RNF-11)', () => {

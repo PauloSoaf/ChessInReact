@@ -13,28 +13,99 @@ export const RESERVED_TERRAIN_METADATA_KEYS: readonly string[] = [
   'elevation',
 ];
 
+/**
+ * Dangerous object prototype keys rejected to prevent prototype pollution attacks.
+ */
+export const FORBIDDEN_METADATA_KEYS: readonly string[] = [
+  '__proto__',
+  'constructor',
+  'prototype',
+];
+
 const MAX_METADATA_DEPTH = 8;
 
-function isJsonValue(value: unknown, depth: number): boolean {
-  if (depth > MAX_METADATA_DEPTH) return false;
-  if (value === null) return true;
+/**
+ * Deep-clones and strictly validates JSON-serializable values.
+ * Rejects non-finite numbers, circular references, prototype-pollution keys,
+ * functions, symbols, BigInt, and class instances.
+ */
+export function cloneAndValidateJsonValue<T>(
+  value: T,
+  path = 'metadata',
+  depth = 0,
+  seen: WeakSet<object> = new WeakSet()
+): T {
+  if (depth > MAX_METADATA_DEPTH) {
+    throw new Error(`Invalid metadata at "${path}": nesting depth exceeds limit of ${MAX_METADATA_DEPTH}.`);
+  }
+
+  if (value === null) {
+    return null as unknown as T;
+  }
+
   switch (typeof value) {
     case 'string':
     case 'boolean':
-      return true;
+      return value;
     case 'number':
-      return Number.isFinite(value);
-    case 'object': {
-      if (Array.isArray(value)) {
-        return value.every((v) => isJsonValue(v, depth + 1));
+      if (!Number.isFinite(value)) {
+        throw new Error(`Invalid metadata at "${path}": numeric value "${String(value)}" is not a finite number.`);
       }
+      return value;
+    case 'object': {
+      if (seen.has(value as object)) {
+        throw new Error(`Invalid metadata at "${path}": circular reference detected.`);
+      }
+      seen.add(value as object);
+
+      if (Array.isArray(value)) {
+        const clonedArr = value.map((item, index) =>
+          cloneAndValidateJsonValue(item, `${path}[${index}]`, depth + 1, seen)
+        );
+        return clonedArr as unknown as T;
+      }
+
       const proto = Object.getPrototypeOf(value);
-      if (proto !== Object.prototype && proto !== null) return false;
-      return Object.values(value as Record<string, unknown>).every((v) => isJsonValue(v, depth + 1));
+      if (proto !== Object.prototype && proto !== null) {
+        throw new Error(`Invalid metadata at "${path}": complex class instances are not JSON-serializable.`);
+      }
+
+      const clonedObj: Record<string, unknown> = {};
+      for (const key of Object.keys(value as Record<string, unknown>)) {
+        if (FORBIDDEN_METADATA_KEYS.includes(key)) {
+          throw new Error(`Invalid metadata key "${key}" at "${path}": forbidden object prototype key.`);
+        }
+        if (depth === 0 && RESERVED_TERRAIN_METADATA_KEYS.includes(key)) {
+          throw new Error(
+            `Invalid metadata key "${key}" in persistent modification at "${path}": reserved by the terrain pipeline.`
+          );
+        }
+        clonedObj[key] = cloneAndValidateJsonValue(
+          (value as Record<string, unknown>)[key],
+          `${path}.${key}`,
+          depth + 1,
+          seen
+        );
+      }
+      return clonedObj as unknown as T;
     }
     default:
-      return false;
+      throw new Error(`Invalid metadata at "${path}": values of type "${typeof value}" are not JSON-serializable.`);
   }
+}
+
+/**
+ * Creates an independent, deep-cloned copy of validated metadata.
+ */
+export function clonePersistentMetadata(
+  metadata: Readonly<Record<string, unknown>> | undefined,
+  label = 'metadata'
+): Readonly<Record<string, unknown>> | undefined {
+  if (metadata === undefined) return undefined;
+  if (metadata === null || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    throw new Error(`Invalid metadata at "${label}": expected a plain object.`);
+  }
+  return cloneAndValidateJsonValue(metadata, label);
 }
 
 /**
@@ -76,17 +147,6 @@ export function validatePersistentTileModification(
     if (mod.metadata === null || typeof mod.metadata !== 'object' || Array.isArray(mod.metadata)) {
       throw new Error(`Invalid metadata in persistent modification at "${coord}": expected a plain object.`);
     }
-    for (const key of Object.keys(mod.metadata)) {
-      if (RESERVED_TERRAIN_METADATA_KEYS.includes(key)) {
-        throw new Error(
-          `Invalid metadata key "${key}" in persistent modification at "${coord}": reserved by the terrain pipeline.`
-        );
-      }
-    }
-    if (!isJsonValue(mod.metadata, 0)) {
-      throw new Error(
-        `Invalid metadata in persistent modification at "${coord}": values must be JSON-serializable.`
-      );
-    }
+    cloneAndValidateJsonValue(mod.metadata, coord);
   }
 }

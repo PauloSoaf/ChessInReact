@@ -50,3 +50,7 @@ jobs:
 
       - name: Run Native Chromium Worker Smoke Test
         run: node scripts/runChromiumSmoke.js
+
+      - name: Run Isolated Procedural Grid Memory Benchmark
+        run: npm run bench:memory
+

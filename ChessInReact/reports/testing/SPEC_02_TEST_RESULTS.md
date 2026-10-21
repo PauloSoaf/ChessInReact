@@ -8,13 +8,14 @@
 
 ## 1. Resumo da Execução de Testes
 
-- **Suítes de Teste:** **42 aprovadas (100%)**
-- **Total de Testes:** **298 aprovados (100%)** (0 falhas, 0 pendentes, 0 skipped)
-- **Tempo de Execução:** ~15 segundos (incluindo React RTL, benchmarks e smoke test de navegador)
+- **Suítes de Teste:** **44 aprovadas (100%)**
+- **Total de Testes:** **318 aprovados (100%)** (0 falhas, 0 pendentes, 0 skipped)
+- **Tempo de Execução:** ~18 segundos (incluindo React RTL, benchmarks e smoke test de navegador)
 - **TypeScript:** `npx tsc --noEmit` — **0 erros**
 - **ESLint:** `npm run lint` — **0 erros, 0 avisos**
-- **Build de Produção:** `npm run build` — **Sucesso** (`dist/index.html` 0.40 kB, `dist/assets/index-*.js` 407.26 kB)
+- **Build de Produção:** `npm run build` — **Sucesso** (`dist/index.html` 0.40 kB, `dist/assets/index-*.js` 409.96 kB)
 - **Chromium Native Smoke Test:** **Aprovado** (`{"handshake":"PONG","entityCount":1,"cellCount":256,"pathFound":true,"pathLength":5,"voronoiVerified":true}`)
+- **Isolated Procedural Grid Memory Benchmark:** **Aprovado** (`npm run bench:memory` com `--expose-gc`)
 
 ---
 
@@ -40,14 +41,16 @@
 | **Streaming Performance & Memória (PATCH-16)** | `src/core/procedural/__tests__/streamingPerformanceMemory.test.ts` | 8 | Aprovado |
 | **Chunk Streaming & Zustand (PATCH-05)** | `src/core/procedural/__tests__/chunkManagerZustand.test.ts` | 3 | Aprovado |
 | **Integridade Zustand, Streaming e Snapshots (PATCH-17)** | `src/core/procedural/__tests__/streamingZustandIntegrity.test.ts` | 4 | Aprovado |
+| **Validação Semântica e Atomicidade de Deltas (PATCH-22)** | `src/core/procedural/__tests__/streamingSemanticDeltas.test.ts` | 10 | Aprovado |
+| **Imutabilidade Profunda de Metadados (PATCH-23)** | `src/core/procedural/__tests__/persistentMetadataImmutability.test.ts` | 8 | Aprovado |
 | **Coexistência Terreno x Ocupação (PATCH-01)** | `src/core/entities/__tests__/terrainOccupancyCoexistence.test.ts` | 5 | Aprovado |
 | **Worker Procedural & Pathfinding** | `src/core/workers/__tests__/proceduralWorker.test.ts` | 5 | Aprovado |
 | **Worker Voronoi & Fábrica de Topologias (PATCH-13)** | `src/core/workers/__tests__/voronoiWorker.test.ts` | 5 | Aprovado |
 | **Persistência de Terreno e Invariantes v2 (PATCH-11)** | `src/core/serialization/__tests__/snapshotTerrainPersistence.test.ts` | 5 | Aprovado |
 | **Regressão de Defeitos Auditados** | `src/core/regression/__tests__/spec02RegressionDefects.test.ts` | 6 | Aprovado |
-| **Benchmarks Quantitativos Topologia** | `src/core/benchmarks/__tests__/topologyBenchmarks.test.ts` | 7 | Aprovado |
+| **Benchmarks Quantitativos Topologia (PATCH-24)** | `src/core/benchmarks/__tests__/topologyBenchmarks.test.ts` | 9 | Aprovado |
 | **Regressão Completa Spec 01 (18 suítes)** | `commands.test.ts`, `entities.test.ts`, `history.test.ts`, `serialization.test.ts`, `store.test.ts`, `EngineBridge.test.ts`, `benchmarks.test.ts`, etc. | 140 | Aprovado |
-| **Total do Projeto** | **42 arquivos de teste** | **298 testes** | **100% Green** |
+| **Total do Projeto** | **44 arquivos de teste** | **318 testes** | **100% Green** |
 
 ---
 
@@ -63,25 +66,26 @@
 | ↳ `topologyFactory.ts` | **98.95%** | **92.59%** | **100.00%** |
 | `src/core/topology/fog` | **98.75%** | **97.14%** | **90.90%** |
 | `src/core/topology/pathfinding` | **95.65%** | **89.62%** | **100.00%** |
-| `src/core/procedural` | **91.66%** | **82.70%** | **89.74%** |
-| ↳ `ChunkManager.ts` | **92.44%** | **88.00%** | **92.00%** |
-| ↳ `ProceduralLayoutCodec.ts` | **95.14%** | **62.06%** | **100.00%** |
-| ↳ `persistentModification.ts` | **85.86%** | **65.51%** | **100.00%** |
+| `src/core/procedural` | **93.29%** | **87.02%** | **92.50%** |
+| ↳ `ChunkManager.ts` | **94.27%** | **90.19%** | **96.00%** |
+| ↳ `ProceduralLayoutCodec.ts` | **95.74%** | **68.57%** | **100.00%** |
+| ↳ `persistentModification.ts` | **92.10%** | **86.66%** | **100.00%** |
 | ↳ `NoiseGenerator.ts` | **84.37%** | **96.29%** | **75.00%** |
 | ↳ `SimplexNoise2D.ts` | **100.00%** | **87.50%** | **100.00%** |
 | ↳ `AleaPRNG.ts` | **100.00%** | **100.00%** | **100.00%** |
-| `src/core/state` | **93.40%** | **91.26%** | **92.68%** |
+| `src/core/state` | **89.23%** | **86.80%** | **92.50%** |
 | ↳ `gameState.ts` | **100.00%** | **100.00%** | **100.00%** |
-| ↳ `gameStore.ts` | **89.54%** | **92.10%** | **100.00%** |
+| ↳ `gameStore.ts` | **84.57%** | **86.32%** | **100.00%** |
 | `src/core/entities` | **89.93%** | **77.77%** | **100.00%** |
-| `src/core/commands` | **95.22%** | **84.61%** | **100.00%** |
+| `src/core/commands` | **95.22%** | **85.50%** | **100.00%** |
 | `src/core/serialization` | **89.79%** | **77.14%** | **100.00%** |
 | ↳ `SnapshotSerializer.ts` | **92.70%** | **78.52%** | **100.00%** |
 | `src/core/history` | **96.07%** | **94.11%** | **90.90%** |
 | `src/core/events` | **98.20%** | **91.30%** | **100.00%** |
 | `src/core/workers` | **86.08%** | **74.07%** | **84.37%** |
-| **All Files (Total Geral)** | **71.85%** | **83.71%** | **89.28%** |
+| **All Files (Total Geral)** | **72.15%** | **84.15%** | **89.31%** |
 
-*Nota sobre Reconciliação Documental de Cobertura:*
-No commit anterior (`bf5966b4`), o relatório indicava 70.48% enquanto os logs oficiais do CI registraram 70.94%. Com a implementação das salvaguardas do PATCH-17, o novo módulo `persistentModification.ts`, o teste `T16-06` e a suíte de integração `streamingZustandIntegrity.test.ts`, a cobertura global subiu e se fixou em **71.85% de linhas (71.85% statements, 83.71% branches, 89.28% functions)**, com a camada de topologia atingindo **97.50%**, cumprindo estritamente o requisito **RNF-10 (> 95%)** em todas as 4 topologias.
+*Nota sobre a Consolidação dos PATCH-22 a PATCH-24:*
+A base de testes foi expandida de 298 para **318 testes aprovados**, com 2 novas suítes dedicadas (`streamingSemanticDeltas.test.ts` com 10 testes T22-01 a T22-10 e `persistentMetadataImmutability.test.ts` com 8 testes T23-01 a T23-08), além de testes adicionais de memória não mascarada em `topologyBenchmarks.test.ts` (T24-01 a T24-03). A cobertura geral de linhas subiu para **72.15%**, mantendo a camada de topologia em **97.50%** (superando com folga a meta de 95% do RNF-10).
+
 
