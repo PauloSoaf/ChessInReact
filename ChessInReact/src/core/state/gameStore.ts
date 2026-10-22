@@ -12,7 +12,7 @@ import {
 } from './gameState';
 import { createDefaultDomainState, createDefaultUIState } from './initialState';
 import { IEntity } from '../entities/types';
-import { IChunkStreamingDelta } from '../procedural/types';
+import { IChunkStreamingDelta, IChunkTerrainUpdate } from '../procedural/types';
 
 const ALLOWED_STREAMING_ENTITY_TYPES: readonly string[] = ['TERRAIN', 'OBSTACLE'];
 
@@ -84,19 +84,19 @@ function validateStreamingDeltaSemantic(
       throw new Error('Invalid streaming delta: updatedTerrain must be an array.');
     }
     for (let i = 0; i < delta.updatedTerrain.length; i++) {
-      const update = delta.updatedTerrain[i];
+      const update: IChunkTerrainUpdate | undefined = delta.updatedTerrain[i];
       if (!update || typeof update.previousId !== 'string') {
         throw new Error(`Invalid streaming delta: malformed updatedTerrain[${i}].`);
       }
       const updateEntity = validateStreamedEntity(update.entity, `updatedTerrain[${i}].entity`);
-      if (updateEntity.type !== 'TERRAIN') {
+      if (updateEntity.type !== 'TERRAIN' && updateEntity.type !== 'OBSTACLE') {
         throw new Error(
-          `Invalid streaming delta: updatedTerrain replacement "${updateEntity.id}" must be of type TERRAIN.`
+          `Invalid streaming delta: updatedTerrain replacement "${updateEntity.id}" must be of type TERRAIN or OBSTACLE.`
         );
       }
 
       // previousId must exist in the domain
-      const prev = currentDomain.boardEntities[update.previousId as EntityId];
+      const prev: IEntity | undefined = currentDomain.boardEntities[update.previousId as EntityId];
       if (!prev) {
         throw new Error(
           `Invalid streaming delta: updatedTerrain references non-existent previousId "${update.previousId}".`
@@ -112,6 +112,19 @@ function validateStreamingDeltaSemantic(
         throw new Error(
           `Invalid streaming delta: updatedTerrain coordinate mismatch. Previous entity "${update.previousId}" is at "${prev.position}", but replacement "${updateEntity.id}" is at "${updateEntity.position}".`
         );
+      }
+
+      // Collision check: OBSTACLE cannot be updated onto a tile occupied by a PIECE
+      if (updateEntity.type === 'OBSTACLE') {
+        const occupantId = currentDomain.occupancy[updateEntity.position];
+        if (occupantId && occupantId !== update.previousId) {
+          const occupant = currentDomain.boardEntities[occupantId];
+          if (occupant && occupant.type === 'PIECE') {
+            throw new Error(
+              `Invalid streaming delta: updatedTerrain OBSTACLE "${updateEntity.id}" collides with active PIECE "${occupantId}" at "${updateEntity.position}".`
+            );
+          }
+        }
       }
 
       // Check duplicate ID conflicts
@@ -147,11 +160,21 @@ function validateStreamingDeltaSemantic(
   for (const [key, rawEntity] of Object.entries(delta.newEntities)) {
     const entity = validateStreamedEntity(rawEntity, `newEntities["${key}"]`, key);
 
-    // Cannot replace an existing gameplay PIECE
+    // Cannot replace or alias any existing entity in domain state
     const existing = currentDomain.boardEntities[entity.id as EntityId];
-    if (existing && existing.type === 'PIECE') {
+    if (existing) {
+      if (existing.type === 'PIECE') {
+        throw new Error(
+          `Invalid streaming delta: entity "${entity.id}" attempts to replace an existing gameplay PIECE entity.`
+        );
+      }
+      if (existing.position !== entity.position) {
+        throw new Error(
+          `Invalid streaming delta: entity "${entity.id}" reuses ID of existing entity at coordinate "${existing.position}" for coordinate "${entity.position}".`
+        );
+      }
       throw new Error(
-        `Invalid streaming delta: entity "${entity.id}" attempts to replace an existing gameplay PIECE entity.`
+        `Invalid streaming delta: entity "${entity.id}" already exists in domain state at "${existing.position}". Use updatedTerrain for modifications.`
       );
     }
 
@@ -333,12 +356,28 @@ export function createGameStore(
               // 2. Replace already-loaded terrain (persistent modifications)
               for (const update of delta.updatedTerrain ?? []) {
                 removeEntity(update.previousId);
-                const prevId = terrainMap[update.entity.position];
-                if (prevId && prevId !== update.entity.id) {
-                  removeEntity(prevId);
+                const prevTerrainId = terrainMap[update.entity.position];
+                if (prevTerrainId && prevTerrainId !== update.entity.id) {
+                  removeEntity(prevTerrainId);
+                }
+                const prevOccupantId = draft.occupancy[update.entity.position];
+                if (
+                  prevOccupantId &&
+                  prevOccupantId !== update.entity.id &&
+                  prevOccupantId === update.previousId
+                ) {
+                  removeEntity(prevOccupantId);
                 }
                 draft.boardEntities[update.entity.id] = update.entity;
-                terrainMap[update.entity.position] = update.entity.id;
+                if (update.entity.type === 'TERRAIN') {
+                  terrainMap[update.entity.position] = update.entity.id;
+                  if (draft.occupancy[update.entity.position] === update.previousId) {
+                    delete draft.occupancy[update.entity.position];
+                  }
+                } else if (update.entity.type === 'OBSTACLE') {
+                  draft.occupancy[update.entity.position] = update.entity.id;
+                  delete terrainMap[update.entity.position];
+                }
               }
 
               // 3. Apply newly streamed entities

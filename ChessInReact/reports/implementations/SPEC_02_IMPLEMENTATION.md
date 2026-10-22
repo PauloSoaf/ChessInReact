@@ -200,17 +200,29 @@ src/core/
   4. Reclassificação formal de conformidade: RNF-03 marcado como VERIFIED com métrica real isolada; RNF-09 reclassificado para PARTIAL (soak test de 60 minutos ininterruptos diferido para a Spec 07); RNF-04 e RNF-08 mantidos como DEFERRED para a Spec 07.
 - **Validação:** Execução isolada de `npm run bench:memory` e testes T24-01 a T24-03 em `topologyBenchmarks.test.ts`.
 
+### PATCH-25: Suporte a Transição de Terreno para OBSTACLE e Integridade de Identidade Espacial (P0)
+- **Problema:**
+  1. No fluxo procedural de transição de bioma em célula desocupada (`PLAINS` -> `CHASM`), `ChunkManager.buildCellEntity()` emite uma entidade do tipo `OBSTACLE` para impedir trânsito de peças de xadrez terrestres sem colidir com peças. Porém, `validateStreamingDeltaSemantic()` restringia `updatedTerrain` exclusivamente a entidades de tipo `TERRAIN`, causando rejeição de deltas procedurais legítimos.
+  2. `validateStreamingDeltaSemantic()` permitia que `newEntities` reutilizasse o ID de uma entidade existente em outra coordenada espacial, o que sobrepunha a entidade no dicionário `boardEntities` e deixava a coordenada anterior no mapa espacial `terrain` referenciando uma entidade localizada em posição diferente.
+- **Solução:**
+  1. Em `validateStreamingDeltaSemantic()`, `updatedTerrain` agora valida entidades de tipo `TERRAIN` ou `OBSTACLE`. Caso a substituição seja um `OBSTACLE`, verifica se a coordenada não possui uma `PIECE` viva ativa. Em `applyChunkStreamingDelta()`, a aplicação sincroniza bidirecionalmente: se o novo elemento for `OBSTACLE`, remove de `draft.terrain` e aloca em `draft.occupancy`; se for `TERRAIN`, remove de `draft.occupancy` e aloca em `draft.terrain`.
+  2. Em `validateStreamingDeltaSemantic()`, qualquer entidade em `newEntities` cujo ID já exista no domínio tem sua inserção terminantemente rejeitada (especialmente se em coordenada divergente). Atualizações de terreno carregado devem transitar exclusivamente via `updatedTerrain`.
+  3. Prevenção de duplicidade de coordenadas em `updatedTerrain` e rejeição de concorrência com IDs em `newEntities`.
+- **Validação:** Suíte `src/core/procedural/__tests__/terrainIdentityAndChasmTransitionRegression.test.ts` (5 testes de regressão: REPRO-01 a REPRO-05).
+
 ---
 
 ## 4. Conclusão e Gates Finais Consolidados
 
-Todos os 24 patches foram completamente integrados e validados contra os gates do pipeline:
+Todos os 25 patches foram completamente integrados e validados contra os gates do pipeline:
 - `npx tsc --noEmit` — 0 erros.
-- `npm run lint` — 0 erros.
+- `npm run lint` — 0 erros, 0 avisos.
 - `npm run build` — Bundle de produção gerado com sucesso (`dist/assets/index-*.js`, 1397 módulos transformados).
-- `npx vitest run --coverage` — 318 testes em 44 suítes, 0 falhas, 0 skips, cobertura de topologia 97.50%, global 72.15%.
-- `node scripts/runChromiumSmoke.js` — Web Worker real em Chromium aprovado (`skipped: false`, `voronoiVerified: true`).
-- `npm run bench:memory` — Benchmark isolado de memória com GC explícito registrando delta incremental bruto de +7.76 MB para 10.240 células retidas (teto: < 40.00 MB).
-- **Avanço para a Spec 03:** Aguardar homologação e fechamento definitivo da Spec 02.
+- `npx vitest run --coverage` — 323 testes em 45 suítes, 0 falhas, 0 skips, cobertura Statements de 72.22% e agregado de Topologia & Procedural de 95.88%.
+- `node scripts/runChromiumSmoke.js` — Web Worker real em Chromium headless aprovado (`skipped: false`, `voronoiVerified: true`).
+- `npm run bench:memory` — Benchmark isolado de memória com GC explícito registrando delta incremental bruto de +2.40 MB para 10.240 células retidas (teto: < 40.00 MB), retido pós-GC +0.12 MB e deriva média de +0.0090 MB/ciclo.
+- **Governança Arquitetural:** Regras vinculantes permanentes consolidadas em `GEMINI.md` na raiz do repositório.
+- **Avanço para a Spec 03:** Aguardar homologação e autorização expressa do usuário; Spec 03 não iniciada.
+
 
 
