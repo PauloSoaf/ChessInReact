@@ -418,6 +418,7 @@ export class ChunkManager {
       const obs: IObstacleEntity = {
         id: eid,
         type: 'OBSTACLE',
+        provenance: 'PROCEDURAL',
         destructible: false,
         position: cKey,
         metadata: {
@@ -434,6 +435,7 @@ export class ChunkManager {
     const terr: ITerrainEntity = {
       id: eid,
       type: 'TERRAIN',
+      provenance: 'PROCEDURAL',
       variantId: cell.biome,
       position: cKey,
       elevation: cell.elevation,
@@ -479,9 +481,10 @@ export class ChunkManager {
   public updateStreaming(state: IDomainState): IChunkStreamingDelta {
     const activePieceCoords: CoordinateKey[] = [];
     const activePieceChunkIds = new Set<string>();
-    const entityKeys = Object.keys(state.boardEntities) as EntityId[];
+    const occupantIds = state.occupancy ? Object.values(state.occupancy) : [];
+    const candidateIds = occupantIds.length > 0 ? occupantIds : (Object.keys(state.boardEntities) as EntityId[]);
 
-    for (const eid of entityKeys) {
+    for (const eid of candidateIds) {
       const ent = state.boardEntities[eid];
       if (ent && ent.type === 'PIECE' && !ent.isCaptured) {
         activePieceCoords.push(ent.position);

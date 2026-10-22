@@ -11,7 +11,7 @@ import {
   IStoreCommand,
 } from './gameState';
 import { createDefaultDomainState, createDefaultUIState } from './initialState';
-import { IEntity } from '../entities/types';
+import { IEntity, isProceduralEntity } from '../entities/types';
 import { IChunkStreamingDelta, IChunkTerrainUpdate } from '../procedural/types';
 
 const ALLOWED_STREAMING_ENTITY_TYPES: readonly string[] = ['TERRAIN', 'OBSTACLE'];
@@ -59,21 +59,28 @@ function validateStreamingDeltaSemantic(
   }
 
   const newEntityIds = new Set<string>();
-  const terrainCoordsInDelta = new Set<string>();
+  const allDeltaTargetCoords = new Set<string>();
   const unloadedIds = new Set<string>();
   const updatedEntityIds = new Set<string>();
   const updatedPreviousIds = new Set<string>();
 
-  // 1. Validate unloadedEntityIds: must not target any gameplay piece
+  // 1. Validate unloadedEntityIds: must not target any gameplay piece or gameplay obstacle
   for (const uid of delta.unloadedEntityIds) {
     if (typeof uid !== 'string') {
       throw new Error('Invalid streaming delta: unloadedEntityIds must contain string IDs.');
     }
     const existing = currentDomain.boardEntities[uid as EntityId];
-    if (existing && existing.type === 'PIECE') {
-      throw new Error(
-        `Invalid streaming delta: cannot unload gameplay entity "${uid}" of type "${existing.type}".`
-      );
+    if (existing) {
+      if (existing.type === 'PIECE') {
+        throw new Error(
+          `Invalid streaming delta: cannot unload gameplay entity "${uid}" of type "${existing.type}".`
+        );
+      }
+      if (existing.type === 'OBSTACLE' && !isProceduralEntity(existing)) {
+        throw new Error(
+          `Invalid streaming delta: cannot unload gameplay OBSTACLE "${uid}".`
+        );
+      }
     }
     unloadedIds.add(uid);
   }
@@ -107,6 +114,19 @@ function validateStreamingDeltaSemantic(
           `Invalid streaming delta: updatedTerrain cannot replace gameplay PIECE "${update.previousId}".`
         );
       }
+      if (prev.type === 'OBSTACLE' && !isProceduralEntity(prev)) {
+        throw new Error(
+          `Invalid streaming delta: updatedTerrain cannot replace gameplay OBSTACLE "${update.previousId}".`
+        );
+      }
+
+      // previousId cannot be simultaneously scheduled for unloading in the same delta
+      if (unloadedIds.has(update.previousId)) {
+        throw new Error(
+          `Invalid streaming delta: entity "${update.previousId}" cannot be in both updatedTerrain.previousId and unloadedEntityIds.`
+        );
+      }
+
       // Coordinate consistency
       if (prev.position !== updateEntity.position) {
         throw new Error(
@@ -114,7 +134,28 @@ function validateStreamingDeltaSemantic(
         );
       }
 
-      // Collision check: OBSTACLE cannot be updated onto a tile occupied by a PIECE
+      // ID Identity Validation (PATCH-26A):
+      // An updatedTerrain replacement entity cannot reuse an ID belonging to a different existing entity
+      const existingWithSameId = currentDomain.boardEntities[updateEntity.id as EntityId];
+      if (existingWithSameId) {
+        if (existingWithSameId.type === 'PIECE') {
+          throw new Error(
+            `Invalid streaming delta: updatedTerrain replacement "${updateEntity.id}" attempts to reuse ID of an existing gameplay PIECE.`
+          );
+        }
+        if (existingWithSameId.type === 'OBSTACLE' && !isProceduralEntity(existingWithSameId)) {
+          throw new Error(
+            `Invalid streaming delta: updatedTerrain replacement "${updateEntity.id}" attempts to reuse ID of an existing gameplay OBSTACLE.`
+          );
+        }
+        if (existingWithSameId.id !== update.previousId) {
+          throw new Error(
+            `Invalid streaming delta: updatedTerrain replacement "${updateEntity.id}" reuses ID of existing entity "${existingWithSameId.id}" at coordinate "${existingWithSameId.position}" for coordinate "${updateEntity.position}".`
+          );
+        }
+      }
+
+      // Collision check: OBSTACLE cannot be updated onto a tile occupied by a PIECE or gameplay OBSTACLE
       if (updateEntity.type === 'OBSTACLE') {
         const occupantId = currentDomain.occupancy[updateEntity.position];
         if (occupantId && occupantId !== update.previousId) {
@@ -122,6 +163,11 @@ function validateStreamingDeltaSemantic(
           if (occupant && occupant.type === 'PIECE') {
             throw new Error(
               `Invalid streaming delta: updatedTerrain OBSTACLE "${updateEntity.id}" collides with active PIECE "${occupantId}" at "${updateEntity.position}".`
+            );
+          }
+          if (occupant && occupant.type === 'OBSTACLE' && !isProceduralEntity(occupant)) {
+            throw new Error(
+              `Invalid streaming delta: updatedTerrain OBSTACLE "${updateEntity.id}" collides with gameplay OBSTACLE "${occupantId}" at "${updateEntity.position}".`
             );
           }
         }
@@ -146,13 +192,13 @@ function validateStreamingDeltaSemantic(
       updatedEntityIds.add(updateEntity.id);
       updatedPreviousIds.add(update.previousId);
 
-      // Check terrain coordinate uniqueness
-      if (terrainCoordsInDelta.has(updateEntity.position)) {
+      // Check coordinate uniqueness in the batch
+      if (allDeltaTargetCoords.has(updateEntity.position)) {
         throw new Error(
-          `Invalid streaming delta: multiple terrain entities targeting the same coordinate "${updateEntity.position}".`
+          `Invalid streaming delta: multiple entities targeting the same coordinate "${updateEntity.position}".`
         );
       }
-      terrainCoordsInDelta.add(updateEntity.position);
+      allDeltaTargetCoords.add(updateEntity.position);
     }
   }
 
@@ -166,6 +212,11 @@ function validateStreamingDeltaSemantic(
       if (existing.type === 'PIECE') {
         throw new Error(
           `Invalid streaming delta: entity "${entity.id}" attempts to replace an existing gameplay PIECE entity.`
+        );
+      }
+      if (existing.type === 'OBSTACLE' && !isProceduralEntity(existing)) {
+        throw new Error(
+          `Invalid streaming delta: entity "${entity.id}" attempts to replace an existing gameplay OBSTACLE.`
         );
       }
       if (existing.position !== entity.position) {
@@ -189,19 +240,22 @@ function validateStreamingDeltaSemantic(
         `Invalid streaming delta: duplicate ID "${entity.id}" present in both newEntities and updatedTerrain.`
       );
     }
+    if (newEntityIds.has(entity.id)) {
+      throw new Error(
+        `Invalid streaming delta: duplicate ID "${entity.id}" in newEntities.`
+      );
+    }
     newEntityIds.add(entity.id);
 
-    // Terrain coordinate uniqueness
-    if (entity.type === 'TERRAIN') {
-      if (terrainCoordsInDelta.has(entity.position)) {
-        throw new Error(
-          `Invalid streaming delta: multiple terrain entities targeting the same coordinate "${entity.position}".`
-        );
-      }
-      terrainCoordsInDelta.add(entity.position);
+    // Coordinate uniqueness in the batch
+    if (allDeltaTargetCoords.has(entity.position)) {
+      throw new Error(
+        `Invalid streaming delta: multiple entities targeting the same coordinate "${entity.position}".`
+      );
     }
+    allDeltaTargetCoords.add(entity.position);
 
-    // Collision check: OBSTACLE cannot be spawned onto a tile occupied by a PIECE
+    // Collision check: procedural OBSTACLE cannot be placed over an active PIECE or gameplay OBSTACLE
     if (entity.type === 'OBSTACLE') {
       const occupantId = currentDomain.occupancy[entity.position];
       if (occupantId) {
@@ -209,6 +263,11 @@ function validateStreamingDeltaSemantic(
         if (occupant && occupant.type === 'PIECE') {
           throw new Error(
             `Invalid streaming delta: procedural OBSTACLE "${entity.id}" collides with active PIECE "${occupantId}" at "${entity.position}".`
+          );
+        }
+        if (occupant && occupant.type === 'OBSTACLE' && !isProceduralEntity(occupant)) {
+          throw new Error(
+            `Invalid streaming delta: procedural OBSTACLE "${entity.id}" collides with gameplay OBSTACLE "${occupantId}" at "${entity.position}".`
           );
         }
       }

@@ -11,8 +11,8 @@
 - **Repositório:** `PauloSoaf/ChessInReact`
 - **Branch de Trabalho:** `feat/procedural-boards-topology`
 - **Commit Base Spec 01:** `dd730512db65b3152d02f66bcc76c3cc3faf439f`
-- **Commit Auditado Anterior:** `c7af00f149a85debd89e86401db9f6ca65b17d96` (298 testes / 42 suítes)
-- **Commit Consolidado Atual (PATCH-22 a PATCH-24):** Branch HEAD atual (318 testes / 44 suítes, 72.15% global, 97.50% topologia)
+- **Commit Auditado Anterior (PATCH-25):** `eb07d3458737f8f4cc3845079ae8d707d82c2955` (323 testes / 45 suítes)
+- **Commit Consolidado Atual (PATCH-26):** Branch HEAD atual (336 testes / 46 suítes, 72.30% global, 97.50% topologia)
 - **Especificação Auditada:** `specs/Spec_02_Procedural_Boards_Geometry_Topology.md` (673 linhas)
 - **Status Geral:** **APROVADO COM RESSALVAS DOCUMENTADAS (DEFERRED PARA SPEC 07: RNF-04, RNF-08; PARTIAL: RNF-07, RNF-09)**
 
@@ -86,6 +86,7 @@ Todos os 15 requisitos funcionais da Seção 16 da Spec 02 foram auditados linha
 | **PATCH-23: Imutabilidade Profunda de Metadados Persistentes** | P1 (Alta) | `setPersistentModification` e `getPersistentModifications` realizavam cópia rasa (`{ ...metadata }`), permitindo mutação externa indireta de objetos aninhados sem validação. | Implementada clonagem defensiva profunda `clonePersistentMetadata` com validação de tipos JSON puros (string, number, boolean, null, arrays, objetos). Rejeita `__proto__`, `constructor`, funções, NaN, Infinity, referências circulares e profundidade > 8. | `persistentMetadataImmutability.test.ts` (8 testes: T23-01 a T23-08) |
 | **PATCH-24: Benchmarks Honestos de Memória e Reclassificação de RNFs** | P1 (Governança) | Clamping com `Math.max(0, ...)` mascarava dados de GC; RNF-09 declarado VERIFIED sem execução do soak test de 60 minutos. | Removido clamping; criado benchmark isolado `scripts/runMemoryBenchmark.js` com `--expose-gc` e métricas brutas (+7.76 MB incremental para 10.240 células, +0.12 MB pós-GC, +0.009 MB/ciclo deriva); RNF-09 reclassificado para PARTIAL (soak diferido para Spec 07). | `topologyBenchmarks.test.ts` (T24-01 a T24-03) e `scripts/runMemoryBenchmark.js` |
 | **PATCH-25: Transição CHASM/Obstáculo em updatedTerrain e Proteção de Identidade de Terreno** | P0 (Bloqueante) | 1. Célula desocupada transitando de PLAINS para CHASM gera entidade OBSTACLE em `ChunkManager.buildCellEntity()`, mas `validateStreamingDeltaSemantic` rejeitava qualquer entidade que não fosse TERRAIN em `updatedTerrain`.<br>2. `newEntities` não proibia reutilizar ID de entidade existente em outra coordenada espacial, corrompendo o índice espacial `boardEntities` e `terrain`. | 1. `validateStreamingDeltaSemantic` passou a aceitar `TERRAIN` ou `OBSTACLE` em `updatedTerrain`, verificando que `OBSTACLE` não colide com `PIECE` viva. `applyChunkStreamingDelta` realiza a transição bidirecional nos índices `occupancy` e `terrain`.<br>2. Validação estrita em `validateStreamingDeltaSemantic`: rejeita entidade em `newEntities` com ID já existente no domínio (especialmente em outra coordenada); atualizações de células carregadas devem transitar exclusivamente por `updatedTerrain`. | `terrainIdentityAndChasmTransitionRegression.test.ts` (5 testes: REPRO-01 a REPRO-05) |
+| **PATCH-26: Integridade Referencial de updatedTerrain, Proteção de Obstáculos de Gameplay e Governança de Specs** | P0 (Bloqueante) | 1. `updatedTerrain` permitia substituição reutilizando ID de outra entidade existente em coordenada diferente ou de peças ativas, corrompendo integridade referencial cruzada.<br>2. Ausência de diferenciação de proveniência entre obstáculos procedurais (`CHASM`) e obstáculos de gameplay (regras, variantes ou comandos de partida), permitindo substituição indevida.<br>3. Governança arquitetural (`GEMINI.md`): exigência de leitura integral comprovada de `Spec_01` e `Spec_02`. | 1. Validação estrita em `validateStreamingDeltaSemantic`: proíbe que `entity.id` em `updatedTerrain` reutilize ID de entidade existente distinta; bloqueia reutilização de ID de peça ativa ou obstáculo de gameplay; valida unicidade intra-lote entre `updatedTerrain`, `newEntities` e `unloadedEntityIds` com reversão 100% atômica.<br>2. Adicionado campo `provenance?: 'PROCEDURAL' | 'GAMEPLAY'` em `IBaseEntity` e predicado `isProceduralEntity`. Obstáculos e terrenos procedurais recebem `PROCEDURAL`; deltas de streaming são terminantemente proibidos de descarregar, substituir ou sobrescrever entidades de gameplay (`GAMEPLAY`).<br>3. Leitura integral comprovada de `Spec_01` (1054 linhas) e `Spec_02` (673 linhas), fronteiras de `Spec_03` e `Spec_04` respeitadas e quality gates atendidos. | `updatedTerrainIdentityAndObstacleProtectionRegression.test.ts` (13 testes: T26-01 a T26-13) |
 
 ---
 
@@ -94,14 +95,14 @@ Todos os 15 requisitos funcionais da Seção 16 da Spec 02 foram auditados linha
 **Status: APROVADO COM RESSALVAS TÉCNICAS DOCUMENTADAS**
 
 1. Todos os 15 Requisitos Funcionais (RF-01 a RF-15) estão plenamente implementados, testados e integrados.
-2. Os defeitos P0 e P1 identificados em todos os ciclos de auditoria (Patches 01 a 25) foram completamente remediados e cobertos por testes unitários e de integração.
-3. A base de testes cresceu para **323 testes aprovados em 45 suítes** (100% green, 0 falhas, 0 pendências, 0 skips), com **zero regressões** na Spec 01 e nas regras do xadrez clássico 8x8.
-4. Cobertura global atingiu **72.22%** e a camada de topologia atingiu **95.88%** (satisfazendo a meta > 95% do RNF-10).
+2. Os defeitos P0 e P1 identificados em todos os ciclos de auditoria (Patches 01 a 26) foram completamente remediados e cobertos por testes unitários e de integração.
+3. A base de testes cresceu para **336 testes aprovados em 46 suítes** (100% green, 0 falhas, 0 pendências, 0 skips), com **zero regressões** na Spec 01 e nas regras do xadrez clássico 8x8.
+4. Cobertura global atingiu **72.30%** e a camada de topologia atingiu **97.50%** (satisfazendo a meta > 95% do RNF-10).
 5. O Web Worker nativo foi validado em **Google Chrome nativo (headless-chromium)** comprovando PING/PONG, geração de terreno, rejeição de pathfinding sem semente e pathfinding com `skipped: false` e `voronoiVerified: true`.
 6. Os requisitos RNF-04 e RNF-08 continuam formalmente **adiados (DEFERRED)** para a **Spec 07** por dependerem da camada gráfica Three.js / WebGL.
 7. O requisito RNF-07 está aprovado no ambiente x86_64 e classificado como **PARTIAL** para ARM64 por ausência de runner físico ARM64 no pipeline CI.
 8. O requisito RNF-09 está formalmente classificado como **PARTIAL**, com o ensaio contínuo de 60 minutos diferido para a Spec 07.
-9. Governança arquitetural consolidada no arquivo versionado `GEMINI.md` na raiz do repositório, impondo a leitura compulsória prévia das especificações e ADRs.
+9. Governança arquitetural consolidada no arquivo versionado `GEMINI.md` na raiz do repositório, com leitura integral comprovada de `Spec_01` e `Spec_02`.
 
 **Parecer para a Spec 03:** **AGUARDAR HOMOLOGAÇÃO FORMAL DO CLIENTE / FECHAMENTO DEFINITIVO DA SPEC 02.** A implementação está concluída e protegida; não iniciar a Spec 03 até instrução explícita do usuário.
 

@@ -48,6 +48,9 @@ describe('Quantitative Topology & Procedural Benchmarks (Spec 02 Verification)',
       chunkSize: 16,
     });
 
+    // Warm-up iteration to stabilize JIT optimization
+    chunkManager.getOrGenerateChunk({ chunkX: -1, chunkY: -1 });
+
     const chunkCount = 10;
     const t0 = performance.now();
     for (let i = 0; i < chunkCount; i++) {

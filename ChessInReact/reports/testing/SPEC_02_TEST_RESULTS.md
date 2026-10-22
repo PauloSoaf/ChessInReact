@@ -8,12 +8,12 @@
 
 ## 1. Resumo da Execução de Testes
 
-- **Suítes de Teste:** **44 aprovadas (100%)**
-- **Total de Testes:** **318 aprovados (100%)** (0 falhas, 0 pendentes, 0 skipped)
-- **Tempo de Execução:** ~18 segundos (incluindo React RTL, benchmarks e smoke test de navegador)
+- **Suítes de Teste:** **46 aprovadas (100%)**
+- **Total de Testes:** **336 aprovados (100%)** (0 falhas, 0 pendentes, 0 skipped)
+- **Tempo de Execução:** ~19 segundos (incluindo React RTL, benchmarks e smoke test de navegador)
 - **TypeScript:** `npx tsc --noEmit` — **0 erros**
 - **ESLint:** `npm run lint` — **0 erros, 0 avisos**
-- **Build de Produção:** `npm run build` — **Sucesso** (`dist/index.html` 0.40 kB, `dist/assets/index-*.js` 409.96 kB)
+- **Build de Produção:** `npm run build` — **Sucesso** (`dist/index.html` 0.40 kB, `dist/assets/index-*.js` 412.60 kB)
 - **Chromium Native Smoke Test:** **Aprovado** (`{"handshake":"PONG","entityCount":1,"cellCount":256,"pathFound":true,"pathLength":5,"voronoiVerified":true}`)
 - **Isolated Procedural Grid Memory Benchmark:** **Aprovado** (`npm run bench:memory` com `--expose-gc`)
 
@@ -50,8 +50,9 @@
 | **Regressão de Defeitos Auditados** | `src/core/regression/__tests__/spec02RegressionDefects.test.ts` | 6 | Aprovado |
 | **Benchmarks Quantitativos Topologia (PATCH-24)** | `src/core/benchmarks/__tests__/topologyBenchmarks.test.ts` | 9 | Aprovado |
 | **Regressão de Identidade e Transição CHASM (PATCH-25)** | `src/core/procedural/__tests__/terrainIdentityAndChasmTransitionRegression.test.ts` | 5 | Aprovado |
+| **Identidade de updatedTerrain e Proteção de Obstáculos (PATCH-26)** | `src/core/procedural/__tests__/updatedTerrainIdentityAndObstacleProtectionRegression.test.ts` | 13 | Aprovado |
 | **Regressão Completa Spec 01 (18 suítes)** | `commands.test.ts`, `entities.test.ts`, `history.test.ts`, `serialization.test.ts`, `store.test.ts`, `EngineBridge.test.ts`, `benchmarks.test.ts`, etc. | 140 | Aprovado |
-| **Total do Projeto** | **45 arquivos de teste** | **323 testes** | **100% Green** |
+| **Total do Projeto** | **46 arquivos de teste** | **336 testes** | **100% Green** |
 
 ---
 
@@ -59,7 +60,7 @@
 
 | Pacote / Diretório | Linhas (% Cobertura) | Ramos (% Cobertura) | Funções (% Cobertura) |
 |---|---|---|---|
-| `src/core/topology` & `procedural` (agregado) | **95.88%** | **89.50%** | **96.80%** |
+| `src/core/topology` | **97.50%** | **90.22%** | **98.55%** |
 | ↳ `HexTopology.ts` | **97.26%** | **86.76%** | **100.00%** |
 | ↳ `SquareTopology.ts` | **98.75%** | **96.19%** | **100.00%** |
 | ↳ `TriangleTopology.ts` | **96.29%** | **88.75%** | **100.00%** |
@@ -67,27 +68,27 @@
 | ↳ `topologyFactory.ts` | **98.95%** | **92.59%** | **100.00%** |
 | `src/core/topology/fog` | **98.75%** | **97.14%** | **90.90%** |
 | `src/core/topology/pathfinding` | **95.65%** | **89.62%** | **100.00%** |
-| `src/core/procedural` | **94.15%** | **88.20%** | **93.50%** |
-| ↳ `ChunkManager.ts` | **94.27%** | **90.19%** | **96.00%** |
+| `src/core/procedural` | **93.46%** | **87.86%** | **92.50%** |
+| ↳ `ChunkManager.ts` | **94.60%** | **91.41%** | **96.00%** |
 | ↳ `ProceduralLayoutCodec.ts` | **95.74%** | **68.57%** | **100.00%** |
 | ↳ `persistentModification.ts` | **92.10%** | **86.66%** | **100.00%** |
 | ↳ `NoiseGenerator.ts` | **84.37%** | **96.29%** | **75.00%** |
 | ↳ `SimplexNoise2D.ts` | **100.00%** | **87.50%** | **100.00%** |
 | ↳ `AleaPRNG.ts` | **100.00%** | **100.00%** | **100.00%** |
-| `src/core/state` | **90.10%** | **87.50%** | **92.50%** |
+| `src/core/state` | **87.90%** | **85.32%** | **92.50%** |
 | ↳ `gameState.ts` | **100.00%** | **100.00%** | **100.00%** |
-| ↳ `gameStore.ts` | **86.85%** | **87.90%** | **100.00%** |
-| `src/core/entities` | **89.93%** | **77.77%** | **100.00%** |
+| ↳ `gameStore.ts` | **83.62%** | **84.71%** | **100.00%** |
+| `src/core/entities` | **89.93%** | **77.83%** | **100.00%** |
 | `src/core/commands` | **95.22%** | **85.50%** | **100.00%** |
 | `src/core/serialization` | **89.79%** | **77.14%** | **100.00%** |
 | ↳ `SnapshotSerializer.ts` | **92.70%** | **78.52%** | **100.00%** |
 | `src/core/history` | **96.07%** | **94.11%** | **90.90%** |
 | `src/core/events` | **98.20%** | **91.30%** | **100.00%** |
 | `src/core/workers` | **86.08%** | **74.07%** | **84.37%** |
-| **All Files (Total Geral)** | **72.22%** | **84.45%** | **89.60%** |
+| **All Files (Total Geral)** | **72.30%** | **84.24%** | **89.34%** |
 
-*Nota sobre a Consolidação do PATCH-25:*
-A base de testes foi expandida de 318 para **323 testes aprovados em 45 suítes**, com a adição de `terrainIdentityAndChasmTransitionRegression.test.ts` (5 testes: REPRO-01 a REPRO-05). A cobertura de Statements atingiu **72.22%** e o agregado de Topologia & Procedural atingiu **95.88%** (> 95% do RNF-10).
+*Nota sobre a Consolidação do PATCH-26:*
+A base de testes foi expandida de 323 para **336 testes aprovados em 46 suítes**, com a adição de `updatedTerrainIdentityAndObstacleProtectionRegression.test.ts` (13 testes: T26-01 a T26-13). A cobertura de Statements atingiu **72.30%** e a camada de Topologia atingiu **97.50%** (> 95% do RNF-10). Todos os quality gates foram 100% satisfeitos.
 
 
 

@@ -210,18 +210,40 @@ src/core/
   3. Prevenção de duplicidade de coordenadas em `updatedTerrain` e rejeição de concorrência com IDs em `newEntities`.
 - **Validação:** Suíte `src/core/procedural/__tests__/terrainIdentityAndChasmTransitionRegression.test.ts` (5 testes de regressão: REPRO-01 a REPRO-05).
 
+### PATCH-26: Integridade Referencial de updatedTerrain, Proteção de Obstáculos de Gameplay e Governança de Specs (P0/P1)
+- **Problema:**
+  1. O PATCH-25 protegia `newEntities` contra reutilização de IDs de entidades existentes, mas `updatedTerrain` ainda permitia que a nova entidade substituta reutilizasse o ID de uma entidade existente distinta (ex: atualizar terreno em `1,1` usando o ID de um terreno existente em `2,2` ou de uma peça), sobrepondo `boardEntities` e corrompendo o índice referencial da outra coordenada.
+  2. Não havia diferenciação explícita entre obstáculos procedurais (gerados por biomas como `CHASM`) e obstáculos de gameplay (gerados por regras, variantes ou comandos de partida). Como consequência, uma atualização ou inserção procedural podia acidentalmente substituir ou remover um obstáculo de gameplay legítimo.
+  3. Governança arquitetural exigia comprovação formal de leitura integral das especificações `Spec_01` e `Spec_02`, consulta das fronteiras de `Spec_03` e `Spec_04`, e cumprimento rigoroso das diretivas de `GEMINI.md`.
+- **Solução:**
+  1. **PATCH-26A (Identidade em updatedTerrain):** Implementada validação em `validateStreamingDeltaSemantic` garantindo que:
+     - Nenhum `entity.id` em `updatedTerrain` pertença a uma entidade existente diferente (`existingWithSameId.id !== update.previousId` e `existingWithSameId.position !== update.entity.position`).
+     - Rejeita estritamente substituição utilizando ID de qualquer peça ativa ou obstáculo de gameplay.
+     - Validação atômica de colisões intra-lote entre `updatedTerrain`, `newEntities` e `unloadedEntityIds`, rejeitando duplicidade de IDs substitutos no mesmo lote.
+     - Se qualquer operação violar a integridade, o lote inteiro é rejeitado atomicamente sem modificar o `revision` do Zustand.
+  2. **PATCH-26B (Proteção de Obstáculos de Gameplay e Proveniência):**
+     - Adicionado campo formal `provenance?: 'PROCEDURAL' | 'GAMEPLAY'` em `IBaseEntity` (`src/core/entities/types.ts`) e predicado `isProceduralEntity()`.
+     - `ChunkManager.buildCellEntity()` estampa explicitamente `provenance: 'PROCEDURAL'` em terrenos e obstáculos procedurais (`CHASM`).
+     - Entidades de gameplay (peças e obstáculos manuais/variantes) possuem proveniência `GAMEPLAY` (ou padrão não-procedural).
+     - `validateStreamingDeltaSemantic` proíbe terminantemente que `updatedTerrain`, `newEntities` ou `unloadedEntityIds` removam, substituam ou colidam com entidades cuja proveniência não seja estritamente procedural.
+     - Compatibilidade retroativa garantida com snapshots legacy em `SnapshotSerializer.ts` e `isProceduralEntity`.
+  3. **PATCH-26C (Auditoria de Invariantes em Integração):**
+     - Criação da suíte de integração e regressão `updatedTerrainIdentityAndObstacleProtectionRegression.test.ts` (13 testes cobrindo T26-01 a T26-13).
+     - Validação contínua de invariantes via `EntityManager.validateInvariants()` através de ciclos completos de geração procedural, streaming, deltas legítimos/inválidos, reversão atômica, serialização/restauração e comandos com Undo/Redo.
+- **Validação:** Suíte `src/core/procedural/__tests__/updatedTerrainIdentityAndObstacleProtectionRegression.test.ts` (13 testes: T26-01 a T26-13).
+
 ---
 
 ## 4. Conclusão e Gates Finais Consolidados
 
-Todos os 25 patches foram completamente integrados e validados contra os gates do pipeline:
+Todos os 26 patches foram completamente integrados e validados contra os gates do pipeline:
 - `npx tsc --noEmit` — 0 erros.
 - `npm run lint` — 0 erros, 0 avisos.
-- `npm run build` — Bundle de produção gerado com sucesso (`dist/assets/index-*.js`, 1397 módulos transformados).
-- `npx vitest run --coverage` — 323 testes em 45 suítes, 0 falhas, 0 skips, cobertura Statements de 72.22% e agregado de Topologia & Procedural de 95.88%.
+- `npm run build` — Bundle de produção gerado com sucesso (`dist/assets/index-*.js`, 1398 módulos transformados).
+- `npx vitest run --coverage` — 336 testes em 46 suítes, 0 falhas, 0 skips, cobertura Statements de 72.30% e agregado de Topologia & Procedural de 97.50%.
 - `node scripts/runChromiumSmoke.js` — Web Worker real em Chromium headless aprovado (`skipped: false`, `voronoiVerified: true`).
-- `npm run bench:memory` — Benchmark isolado de memória com GC explícito registrando delta incremental bruto de +2.40 MB para 10.240 células retidas (teto: < 40.00 MB), retido pós-GC +0.12 MB e deriva média de +0.0090 MB/ciclo.
-- **Governança Arquitetural:** Regras vinculantes permanentes consolidadas em `GEMINI.md` na raiz do repositório.
+- `npm run bench:memory` — Benchmark isolado de memória com GC explícito registrando delta incremental bruto de +8.18 MB para 10.240 células retidas (teto: < 40.00 MB), retido pós-GC +0.12 MB e deriva média de +0.0090 MB/ciclo.
+- **Governança Arquitetural:** Regras vinculantes permanentes consolidadas em `GEMINI.md` na raiz do repositório, com leitura integral comprovada de `Spec_01` e `Spec_02`.
 - **Avanço para a Spec 03:** Aguardar homologação e autorização expressa do usuário; Spec 03 não iniciada.
 
 
