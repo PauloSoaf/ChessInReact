@@ -37,6 +37,35 @@ function validateStreamedEntity(entity: unknown, label: string, expectedId?: str
       `Invalid streaming delta: entity id "${e.id}" does not match its key "${expectedId}" at ${label}.`
     );
   }
+
+  // Provenance validation (PATCH-27C):
+  if (e.provenance !== undefined) {
+    if (e.provenance !== 'PROCEDURAL' && e.provenance !== 'GAMEPLAY') {
+      throw new Error(
+        `Invalid streaming delta: entity "${e.id}" at ${label} has invalid provenance "${e.provenance}". Expected 'PROCEDURAL' or 'GAMEPLAY'.`
+      );
+    }
+    if (e.provenance === 'GAMEPLAY') {
+      throw new Error(
+        `Invalid streaming delta: entity "${e.id}" at ${label} has GAMEPLAY provenance. Streaming deltas are reserved for procedural entities.`
+      );
+    }
+  }
+
+  // Type and provenance contradiction validation:
+  if (e.type === 'TERRAIN' && e.provenance !== undefined && e.provenance !== 'PROCEDURAL') {
+    throw new Error(
+      `Invalid streaming delta: TERRAIN entity "${e.id}" at ${label} has contradictory provenance "${e.provenance}".`
+    );
+  }
+
+  // Authoritative procedural validation via unified isProceduralEntity predicate
+  if (!isProceduralEntity(e as IEntity)) {
+    throw new Error(
+      `Invalid streaming delta: entity "${e.id}" at ${label} is not a valid procedural entity.`
+    );
+  }
+
   return e as IEntity;
 }
 
@@ -398,6 +427,8 @@ export function createGameStore(
                 if (!ent) return;
                 // Never remove active pieces
                 if (ent.type === 'PIECE' && !ent.isCaptured) return;
+                // Never remove gameplay obstacles
+                if (ent.type === 'OBSTACLE' && !isProceduralEntity(ent)) return;
                 if (ent.type === 'TERRAIN' && terrainMap[ent.position] === id) {
                   delete terrainMap[ent.position];
                 }

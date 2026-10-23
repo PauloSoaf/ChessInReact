@@ -189,9 +189,18 @@ export async function runChromiumWorkerSmokeTest() {
     };
   } finally {
     try {
-      chromeProc.kill();
+      if (chromeProc) {
+        if (chromeProc.stderr) {
+          chromeProc.stderr.destroy();
+        }
+        if (!chromeProc.killed) {
+          chromeProc.kill();
+        }
+      }
     } catch {}
-    await viteServer.close();
+    try {
+      await viteServer.close();
+    } catch {}
   }
 }
 
@@ -200,7 +209,7 @@ if (process.argv[1] && process.argv[1].endsWith('runChromiumSmoke.js')) {
   runChromiumWorkerSmokeTest()
     .then((res) => {
       console.log('CHROMIUM WEB WORKER SMOKE TEST PASSED:', res);
-      process.exit(0);
+      process.exitCode = 0;
     })
     .catch((err) => {
       console.error('CHROMIUM WEB WORKER SMOKE TEST FAILED:', err);

@@ -1,5 +1,5 @@
 import { asCoordinateKey, asEntityId, CoordinateKey, EntityId } from '../coordinates';
-import { IEntity, IObstacleEntity, ITerrainEntity } from '../entities/types';
+import { IEntity, IObstacleEntity, ITerrainEntity, isProceduralEntity } from '../entities/types';
 import { IDomainState } from '../state/gameState';
 import { ITopology } from '../topology/types';
 import { NoiseGenerator } from './NoiseGenerator';
@@ -77,7 +77,7 @@ export class ChunkManager {
     };
     this.topology = topology;
     this.chunkSize = options?.chunkSize ?? fullConfig.chunkSize ?? 16;
-    this.renderDistance = options?.renderDistance ?? 8;
+    this.renderDistance = options?.renderDistance ?? (config as { renderDistance?: number })?.renderDistance ?? 8;
     this.viewRadiusChunks = options?.viewRadiusChunks ?? (config as { viewRadiusChunks?: number })?.viewRadiusChunks ?? 1;
     // Enforce default memory budget of 50 chunks (PATCH-16 Defeito B)
     this.maxChunksInMemory =
@@ -86,8 +86,8 @@ export class ChunkManager {
         : (config as { maxChunksInMemory?: number })?.maxChunksInMemory !== undefined
         ? (config as { maxChunksInMemory?: number }).maxChunksInMemory!
         : 50;
-    this.unloadTimeoutMs = options?.unloadTimeoutMs ?? 30000;
-    this.maxLoadedEntities = options?.maxLoadedEntities ?? 15000;
+    this.unloadTimeoutMs = options?.unloadTimeoutMs ?? (config as { unloadTimeoutMs?: number })?.unloadTimeoutMs ?? 30000;
+    this.maxLoadedEntities = options?.maxLoadedEntities ?? (config as { maxLoadedEntities?: number })?.maxLoadedEntities ?? 15000;
     this.noiseGen = new NoiseGenerator(fullConfig);
 
     if (options?.persistentModifications) {
@@ -393,13 +393,13 @@ export class ChunkManager {
     const terrainId = state.terrain?.[cKey];
     if (terrainId) {
       const ent = state.boardEntities[terrainId];
-      if (ent) return ent;
+      if (ent && isProceduralEntity(ent)) return ent;
     }
     const occupantId = state.occupancy[cKey];
     if (occupantId) {
       const ent = state.boardEntities[occupantId];
-      // Only procedurally generated obstacles carry a biome marker; gameplay obstacles are never touched.
-      if (ent && ent.type === 'OBSTACLE' && ent.metadata?.biome !== undefined) return ent;
+      // Only procedurally generated obstacles (e.g. natural CHASM) are matched; gameplay obstacles are never touched.
+      if (ent && isProceduralEntity(ent)) return ent;
     }
     return undefined;
   }
@@ -478,7 +478,7 @@ export class ChunkManager {
    * unloads distant stale chunks, refreshes terrain affected by persistent modifications,
    * and returns an atomic delta for the state.
    */
-  public updateStreaming(state: IDomainState): IChunkStreamingDelta {
+  public updateStreaming(state: IDomainState, currentTime?: number): IChunkStreamingDelta {
     const activePieceCoords: CoordinateKey[] = [];
     const activePieceChunkIds = new Set<string>();
     const occupantIds = state.occupancy ? Object.values(state.occupancy) : [];
@@ -496,7 +496,7 @@ export class ChunkManager {
     const requiredChunkIds = this.getRequiredChunksForPieces(activePieceCoords);
     const originChunkId = this.getChunkId(0, 0);
     const newEntities: Record<EntityId, IEntity> = {};
-    const now = Date.now();
+    const now = typeof currentTime === 'number' ? currentTime : Date.now();
 
     // Chunks hosting active pieces and chunks needed by this very pass can never be LRU-evicted,
     // not even by getOrGenerateChunk() calls triggered below (PATCH-17).
@@ -512,7 +512,7 @@ export class ChunkManager {
       ? null
       : new Set(
           Object.values(state.boardEntities)
-            .filter((e) => e && (e.type === 'TERRAIN' || e.type === 'OBSTACLE'))
+            .filter((e) => e && isProceduralEntity(e))
             .map((e) => e.position)
         );
 
@@ -576,14 +576,17 @@ export class ChunkManager {
       let remaining = false;
       for (const cKey of this.getChunkCellKeys(coords)) {
         const terrainId = state.terrain?.[cKey];
-        if (terrainId && state.boardEntities[terrainId]) {
-          unloadIds.add(terrainId);
-          remaining = true;
+        if (terrainId) {
+          const tEnt = state.boardEntities[terrainId];
+          if (tEnt && isProceduralEntity(tEnt)) {
+            unloadIds.add(terrainId);
+            remaining = true;
+          }
         }
         const occupantId = state.occupancy[cKey];
         if (occupantId) {
           const ent = state.boardEntities[occupantId];
-          if (ent && ent.type !== 'PIECE') {
+          if (ent && isProceduralEntity(ent)) {
             unloadIds.add(occupantId);
             remaining = true;
           }
@@ -640,15 +643,18 @@ export class ChunkManager {
    * Synchronizes streaming chunk state transactionally with a gameStore instance.
    * Protects against stale asynchronous overwrites using the domain revision counter.
    */
-  public syncWithStore(store: {
-    getState: () => {
-      domain: IDomainState;
-      applyChunkStreamingDelta: (delta: IChunkStreamingDelta, revision?: number) => boolean;
-    };
-  }): { applied: boolean; delta: IChunkStreamingDelta } {
+  public syncWithStore(
+    store: {
+      getState: () => {
+        domain: IDomainState;
+        applyChunkStreamingDelta: (delta: IChunkStreamingDelta, revision?: number) => boolean;
+      };
+    },
+    currentTime?: number
+  ): { applied: boolean; delta: IChunkStreamingDelta } {
     const state = store.getState().domain;
     const revision = state.revision;
-    const delta = this.updateStreaming(state);
+    const delta = this.updateStreaming(state, currentTime);
     const applied = store.getState().applyChunkStreamingDelta(delta, revision);
     return { applied, delta };
   }

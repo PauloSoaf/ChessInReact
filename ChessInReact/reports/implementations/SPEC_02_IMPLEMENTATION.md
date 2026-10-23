@@ -11,12 +11,12 @@
 - **Specification:** Spec 02 — Geometria, Topologia e Tabuleiros Procedurais Infinitos
 - **Target Branch:** `feat/procedural-boards-topology` (preservando o baseline da Spec 01 `dd730512db65b3152d02f66bcc76c3cc3faf439f`)
 - **Status:** **INTEGRALMENTE REMEDIADA, IMPLEMENTADA E VALIDADA**
-- **Testes Aprovados:** **318 testes aprovados em 44 suítes** (0 falhas, 0 skips, preservando 100% dos testes da Spec 01 e de todos os patches anteriores).
+- **Testes Aprovados:** **352 testes aprovados em 47 suítes** (0 falhas, 0 skips, preservando 100% dos testes da Spec 01 e de todos os 27 patches anteriores).
 - **TypeScript:** `npx tsc --noEmit` — 0 erros.
 - **ESLint:** `npm run lint` — 0 erros, 0 avisos.
-- **Production Build:** Vite production bundle aprovado (`dist/assets/index-*.js`, 1397 módulos transformados).
-- **Native Web Worker Smoke Test:** Executado com sucesso em Chromium real sem falso positivo por skip (Voronoi, chunking e pathfinding verificados).
-- **Isolated Procedural Grid Memory Benchmark:** Executado com sucesso via `npm run bench:memory` (`node --expose-gc`) com medições brutas não mascaradas.
+- **Production Build:** Vite production bundle aprovado (`dist/assets/index-*.js`, 1398 módulos transformados).
+- **Native Web Worker Smoke Test:** Executado com sucesso em Chromium real sem falso positivo por skip e sem deadlock do esbuild (Voronoi, chunking e pathfinding verificados).
+- **Isolated Procedural Grid Memory Benchmark:** Executado com sucesso via `npm run bench:memory` (`node --expose-gc`) com medições brutas não mascaradas (+8.04 MB incremental < 40 MB, +0.12 MB pós-GC, +0.009 MB/ciclo deriva).
 
 ---
 
@@ -232,17 +232,36 @@ src/core/
      - Validação contínua de invariantes via `EntityManager.validateInvariants()` através de ciclos completos de geração procedural, streaming, deltas legítimos/inválidos, reversão atômica, serialização/restauração e comandos com Undo/Redo.
 - **Validação:** Suíte `src/core/procedural/__tests__/updatedTerrainIdentityAndObstacleProtectionRegression.test.ts` (13 testes: T26-01 a T26-13).
 
+### PATCH-27: Proteção de Obstáculos de Gameplay no GC de Streaming, Unificação de Proveniência e Diagnóstico do Chromium (P0/P1/P2)
+- **Problema:**
+  1. **(P0)** `ChunkManager.updateStreaming()` percorria os chunks descarregados pelo LRU e adicionava qualquer entidade não-peça a `unloadIds`. Isso incluía obstáculos colocados por regras ou ações do jogador (`provenance: 'GAMEPLAY'`). Como `validateStreamingDeltaSemantic()` rejeita descarregar entidades não-procedurais, o delta gerado pelo `ChunkManager` era rejeitado integralmente pelo Zustand, travando o ciclo de streaming e corrompendo a sincronização espacial.
+  2. **(P1)** `findExistingTerrainEntity()` utilizava a verificação frágil `ent.type === 'OBSTACLE' && ent.metadata?.biome !== undefined`. Isso ignorava a proveniência explícita (`provenance: 'GAMEPLAY'`) e falhava em reconhecer obstáculos procedurais sem bioma no metadata.
+  3. **(P1)** `validateStreamedEntity()` aceitava entidades com `provenance: 'GAMEPLAY'` em `newEntities` e `updatedTerrain`, violando o contrato de que operações de streaming são estritamente reservadas à camada procedural.
+  4. **(P2)** O encerramento imediato via `process.exit(0)` em `scripts/runChromiumSmoke.js` após a conclusão bem-sucedida do teste provocava o corte abrupto de pipes IPC de stdio do processo filho esbuild (Go), disparando `fatal error: all goroutines are asleep - deadlock!`.
+- **Solução:**
+  1. **PATCH-27A (Eviction GC Exclusivamente Procedural):** O garbage collector em `ChunkManager.updateStreaming()` agora avalia `isProceduralEntity(ent)` tanto para terreno quanto para ocupantes. Apenas entidades procedurais têm remoção agendada em `unloadIds`. Obstáculos de gameplay permanecem intactos e ativos no estado do domínio (`boardEntities` e `occupancy`), mesmo quando o macro-chunk procedural sai do cache em memória.
+  2. **PATCH-27B (Centralização da Identificação de Proveniência):** O predicado `isProceduralEntity(entity)` em `src/core/entities/types.ts` foi consolidado com precedência estrita:
+     - `entity.type === 'PIECE'` -> sempre `false` (gameplay soberano, neutralizando marcadores espúrios).
+     - `entity.provenance === 'GAMEPLAY'` -> sempre `false`.
+     - `entity.provenance === 'PROCEDURAL'` -> `true`.
+     - `entity.type === 'TERRAIN'` -> `true`.
+     - Entidades legadas (`OBSTACLE` sem `provenance`): `destructible === false` mapeado como procedural (indestrutível de relevo) e `true` como gameplay.
+     - `ChunkManager.findExistingTerrainEntity()` passou a utilizar `isProceduralEntity(ent)`.
+  3. **PATCH-27C (Validação Estrita de Proveniência em Streaming):** `validateStreamedEntity()` e `validateStreamingDeltaSemantic()` rejeitam de forma atômica entidades com `provenance === 'GAMEPLAY'` ou cujo predicado `isProceduralEntity` seja falso, preservando a atomicidade integral de reversão em caso de tentativa de injeção.
+  4. **PATCH-27D (Encerramento Gracioso de Processo):** `scripts/runChromiumSmoke.js` fecha adequadamente o `viteServer` e substitui o `process.exit(0)` abrupto por `process.exitCode = 0`, permitindo drenagem assíncrona limpa dos pipes IPC do daemon Go do esbuild sem interrupção abrupta de streams.
+- **Validação:** Suíte `src/core/procedural/__tests__/streamingGCAndProvenanceRegression.test.ts` (16 testes: T27-01 a T27-15 e teste integrado E2E completo).
+
 ---
 
 ## 4. Conclusão e Gates Finais Consolidados
 
-Todos os 26 patches foram completamente integrados e validados contra os gates do pipeline:
+Todos os 27 patches foram completamente integrados e validados contra os gates do pipeline:
 - `npx tsc --noEmit` — 0 erros.
 - `npm run lint` — 0 erros, 0 avisos.
 - `npm run build` — Bundle de produção gerado com sucesso (`dist/assets/index-*.js`, 1398 módulos transformados).
-- `npx vitest run --coverage` — 336 testes em 46 suítes, 0 falhas, 0 skips, cobertura Statements de 72.30% e agregado de Topologia & Procedural de 97.50%.
-- `node scripts/runChromiumSmoke.js` — Web Worker real em Chromium headless aprovado (`skipped: false`, `voronoiVerified: true`).
-- `npm run bench:memory` — Benchmark isolado de memória com GC explícito registrando delta incremental bruto de +8.18 MB para 10.240 células retidas (teto: < 40.00 MB), retido pós-GC +0.12 MB e deriva média de +0.0090 MB/ciclo.
+- `npx vitest run --coverage` — 352 testes em 47 suítes, 0 falhas, 0 skips, cobertura Statements de 72.36% (CI #39815663573 anterior registrado oficialmente com 72.28%) e agregado de Topologia & Procedural de 97.50%.
+- `node scripts/runChromiumSmoke.js` — Web Worker real em Chromium headless aprovado (`skipped: false`, `voronoiVerified: true`, encerramento gracioso sem deadlock).
+- `npm run bench:memory` — Benchmark isolado de memória com GC explícito registrando delta incremental bruto de +8.04 MB para 10.240 células retidas (teto: < 40.00 MB), retido pós-GC +0.12 MB e deriva média de +0.0090 MB/ciclo.
 - **Governança Arquitetural:** Regras vinculantes permanentes consolidadas em `GEMINI.md` na raiz do repositório, com leitura integral comprovada de `Spec_01` e `Spec_02`.
 - **Avanço para a Spec 03:** Aguardar homologação e autorização expressa do usuário; Spec 03 não iniciada.
 

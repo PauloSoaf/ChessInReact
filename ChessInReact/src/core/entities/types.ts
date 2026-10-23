@@ -58,18 +58,20 @@ export interface IEntityStorage {
 
 /**
  * Distinguishes procedural generation/streaming entities from gameplay entities.
- * - PIECE is always GAMEPLAY.
- * - TERRAIN is always PROCEDURAL.
- * - OBSTACLE evaluates explicit provenance, falling back to PROCEDURAL only for
- *   CHASM indestructible obstacles with biome metadata, otherwise GAMEPLAY.
+ * - PIECE is always GAMEPLAY (takes absolute precedence over invalid/contradictory provenance markers).
+ * - Explicit GAMEPLAY provenance takes precedence over metadata heuristics.
+ * - Explicit PROCEDURAL provenance is respected for compatible entity types (TERRAIN, OBSTACLE).
+ * - TERRAIN without explicit provenance is always PROCEDURAL.
+ * - OBSTACLE without explicit provenance evaluates legacy migration fallback:
+ *   CHASM indestructible obstacles with biome metadata are PROCEDURAL, otherwise GAMEPLAY.
  */
 export function isProceduralEntity(entity: IEntity): boolean {
-  if (entity.provenance === 'PROCEDURAL') return true;
-  if (entity.provenance === 'GAMEPLAY') return false;
-  if (entity.type === 'TERRAIN') return true;
   if (entity.type === 'PIECE') return false;
+  if (entity.provenance === 'GAMEPLAY') return false;
+  if (entity.provenance === 'PROCEDURAL') return true;
+  if (entity.type === 'TERRAIN') return true;
   if (entity.type === 'OBSTACLE') {
-    return entity.metadata?.biome === 'CHASM' && entity.destructible === false;
+    return entity.destructible === false;
   }
   return false;
 }
