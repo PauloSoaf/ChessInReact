@@ -65,6 +65,7 @@ describe('PATCH-22: Semantic Validation and Strict Atomicity for Streaming Delta
         [pieceId]: {
           id: pieceId,
           type: 'OBSTACLE',
+          provenance: 'PROCEDURAL',
           destructible: false,
           position: asCoordinateKey('5,5'),
         } as IObstacleEntity,
@@ -203,6 +204,7 @@ describe('PATCH-22: Semantic Validation and Strict Atomicity for Streaming Delta
         [asEntityId('rock_0_0')]: {
           id: asEntityId('rock_0_0'),
           type: 'OBSTACLE',
+          provenance: 'PROCEDURAL',
           destructible: false,
           position: piecePos,
         } as IObstacleEntity,
@@ -250,7 +252,7 @@ describe('PATCH-22: Semantic Validation and Strict Atomicity for Streaming Delta
         [valid1]: { id: valid1, type: 'TERRAIN', variantId: 'PLAINS', position: asCoordinateKey('10,10') } as ITerrainEntity,
         [valid2]: { id: valid2, type: 'TERRAIN', variantId: 'FOREST', position: asCoordinateKey('10,11') } as ITerrainEntity,
         [valid3]: { id: valid3, type: 'TERRAIN', variantId: 'WATER', position: asCoordinateKey('10,12') } as ITerrainEntity,
-        [asEntityId('invalid_obstacle')]: { id: asEntityId('invalid_obstacle'), type: 'OBSTACLE', destructible: false, position: piecePos } as IObstacleEntity,
+        [asEntityId('invalid_obstacle')]: { id: asEntityId('invalid_obstacle'), type: 'OBSTACLE', provenance: 'PROCEDURAL', destructible: false, position: piecePos } as IObstacleEntity,
       },
       unloadedEntityIds: [],
     };
@@ -302,7 +304,7 @@ describe('PATCH-22: Semantic Validation and Strict Atomicity for Streaming Delta
     const legitDelta: IChunkStreamingDelta = {
       newEntities: {
         [newTerrainId]: { id: newTerrainId, type: 'TERRAIN', variantId: 'FOREST', position: asCoordinateKey('0,1') } as ITerrainEntity,
-        [newObstacleId]: { id: newObstacleId, type: 'OBSTACLE', destructible: false, position: asCoordinateKey('0,2') } as IObstacleEntity,
+        [newObstacleId]: { id: newObstacleId, type: 'OBSTACLE', provenance: 'PROCEDURAL', destructible: false, position: asCoordinateKey('0,2') } as IObstacleEntity,
       },
       unloadedEntityIds: [staleId],
       updatedTerrain: [
@@ -357,7 +359,7 @@ describe('PATCH-22: Semantic Validation and Strict Atomicity for Streaming Delta
     const delta: IChunkStreamingDelta = {
       newEntities: {
         [terrainId]: { id: terrainId, type: 'TERRAIN', variantId: 'PLAINS', position: asCoordinateKey('3,4') } as ITerrainEntity,
-        [obstacleId]: { id: obstacleId, type: 'OBSTACLE', destructible: false, position: asCoordinateKey('3,5') } as IObstacleEntity,
+        [obstacleId]: { id: obstacleId, type: 'OBSTACLE', provenance: 'PROCEDURAL', destructible: false, position: asCoordinateKey('3,5') } as IObstacleEntity,
       },
       unloadedEntityIds: [],
     };

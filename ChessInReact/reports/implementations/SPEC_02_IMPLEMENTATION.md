@@ -273,19 +273,46 @@ src/core/
      - Validação completa de serialização e desserialização via `SnapshotSerializer`: preserva integridade exata de todas as entidades (muralha indestrutível legada, CHASM procedural, barricada destrutível de gameplay, peça ativa e terrenos procedurais).
 - **Validação:** Suíte `src/core/procedural/__tests__/legacyObstacleProvenanceRegression.test.ts` (11 testes: T28-01 a T28-11 cobrindo isolamento de regras, integração E2E com streaming, LRU eviction, regeneração de chunks, rejeição atômica e roundtrip de snapshot).
 
+### PATCH-29: Consistência Final do Contrato de Proveniência Procedural em Streaming (P1)
+- **Problema:**
+  1. O PATCH-28 alinhou o predicado `isProceduralEntity()` em `src/core/entities/types.ts` com um critério estritamente conservador (exigindo `destructible: false && metadata?.biome === 'CHASM'` para obstáculos legados sem proveniência explícita). No entanto, em `src/core/state/gameStore.ts`, a função de validação de admissão `validateStreamedEntity()` ainda continha uma ramificação mais permissiva: aceitava qualquer obstáculo sem proveniência com `destructible === false`, mesmo sem qualquer assinatura de `CHASM` (ex: `{ id: 'legacy_fortress', type: 'OBSTACLE', destructible: false, position: '5,5' }`).
+  2. Como consequência, tal obstáculo seria aceito em um delta de streaming e, ao ingressar no estado via `applyChunkStreamingDelta()`, recebia automaticamente a estampa `provenance: 'PROCEDURAL'`. Essa mutação colateral convertia indevidamente um obstáculo legado de gameplay em entidade procedural gerenciada pelo LRU, expondo-o a futuro descarregamento (eviction) pelo GC de streaming.
+- **Solução:**
+  1. **PATCH-29A (Centralização de Validação Procedural em isProceduralEntity):**
+     - Em `src/core/state/gameStore.ts`, `validateStreamedEntity()` agora delega a avaliação de proveniência diretamente a `isProceduralEntity(e as IEntity)`.
+     - Obstáculos de streaming com `provenance: 'PROCEDURAL'` são aceitos quando estruturalmente válidos.
+     - Obstáculos com `provenance: 'GAMEPLAY'` continuam sendo terminantemente rejeitados.
+     - Obstáculos legados sem proveniência só são aceitos se cumprirem os requisitos conservadores históricos (`destructible === false && metadata?.biome === 'CHASM'`). Obstáculos legados indestrutíveis sem bioma CHASM são rejeitados de imediato na entrada, impedindo que a atribuição automática de `provenance: 'PROCEDURAL'` converta um objeto de gameplay em procedural.
+     - A integridade atômica do Zustand é preservada: qualquer operação inválida rejeita integralmente o lote sem incrementar o `revision` do estado.
+     - A validação se aplica uniformemente tanto a `newEntities` quanto a `updatedTerrain`.
+  2. **PATCH-29B (Atualização de Fixtures de Testes Anteriores):**
+     - Em testes antigos cujo objetivo semântico era exercitar streaming de obstáculos procedurais (ex: `streamingSemanticDeltas.test.ts` T22-02, T22-06, T22-07, T22-08, T22-09 e `terrainIdentityAndChasmTransitionRegression.test.ts` REPRO-04), os fixtures de obstáculo foram atualizados para declarar explicitamente `provenance: 'PROCEDURAL'`, preservando integralmente suas asserções semânticas originais.
+  3. **PATCH-29C (Suíte de Regressão Obrigatória T29-01 a T29-08):**
+     - Criada a suíte `src/core/procedural/__tests__/streamingProvenanceConsistencyRegression.test.ts` cobrindo os 8 testes obrigatórios:
+       - T29-01: Rejeição de `OBSTACLE` indestrutível sem proveniência e sem CHASM em `newEntities`.
+       - T29-02: Rejeição de `OBSTACLE` indestrutível sem proveniência e sem CHASM em `updatedTerrain`.
+       - T29-03: Aceitação de `OBSTACLE` com `provenance: 'PROCEDURAL'` explícito quando estruturalmente válido.
+       - T29-04: Aceitação de `OBSTACLE` legado histórico com assinatura CHASM (`destructible: false && metadata.biome === 'CHASM'`).
+       - T29-05: Rejeição de `OBSTACLE` com `provenance: 'GAMEPLAY'` explícito.
+       - T29-06: Atomicidade total em delta misto: rejeição integral sem alteração de entidades ou incremento de `revision`.
+       - T29-07: Consistência do ciclo de vida: obstáculo aceito permanece procedural após snapshot, regeneração e eviction.
+       - T29-08: Proteção permanente: muralha legada indestrutível já armazenada no domínio permanece protegida contra descarregamento procedural.
+- **Validação:** Suíte `src/core/procedural/__tests__/streamingProvenanceConsistencyRegression.test.ts` (8 testes aprovados, totalizando 371 testes em 49 suítes com 100% de aprovação e cobertura de topologias de 97,50%).
+
 ---
 
 ## 4. Conclusão e Gates Finais Consolidados
 
-Todos os 28 patches foram completamente integrados e validados contra os gates do pipeline:
+Todos os 29 patches foram completamente integrados e validados contra os gates do pipeline:
 - `npx tsc --noEmit` — 0 erros.
 - `npm run lint` — 0 erros, 0 avisos.
 - `npm run build` — Bundle de produção gerado com sucesso (`dist/assets/index-*.js`, 1398 módulos transformados).
-- `npx vitest run --coverage` — 363 testes em 48 suítes, 0 falhas, 0 skips, cobertura Statements local de 72.43% (CI #39949189609 oficial registrado com 72.32%) e agregado de Topologia & Procedural de 97.50%.
+- `npx vitest run --coverage` — 371 testes em 49 suítes, 0 falhas, 0 skips, cobertura Statements local de 72.48% (CI #40352665837 oficial do PATCH-28 registrado com 72.43%) e agregado de Topologia & Procedural de 97.50%.
 - `node scripts/runChromiumSmoke.js` — Web Worker real em Chromium headless aprovado (`skipped: false`, `voronoiVerified: true`, encerramento gracioso sem deadlock).
-- `npm run bench:memory` — Benchmark isolado de memória com GC explícito registrando delta incremental bruto de +2.30 MB para 10.240 células retidas (teto: < 40.00 MB), retido pós-GC +0.12 MB e deriva média de +0.0090 MB/ciclo.
+- `npm run bench:memory` — Benchmark isolado de memória com GC explícito registrando delta incremental bruto de +2.28 MB para 10.240 células retidas (teto: < 40.00 MB), retido pós-GC +0.12 MB e deriva média de +0.0090 MB/ciclo.
 - **Governança Arquitetural:** Regras vinculantes permanentes consolidadas em `GEMINI.md` na raiz do repositório, com leitura integral comprovada de `Spec_01` e `Spec_02`.
 - **Avanço para a Spec 03:** Aguardar homologação e autorização expressa do usuário; Spec 03 não iniciada.
+
 
 
 

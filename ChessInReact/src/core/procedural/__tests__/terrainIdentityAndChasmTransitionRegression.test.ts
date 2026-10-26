@@ -223,6 +223,7 @@ describe('Regression & Reproduction: Terrain Identity and CHASM Transition (Spec
           entity: {
             id: asEntityId('obs_boulder_2_2'),
             type: 'OBSTACLE',
+            provenance: 'PROCEDURAL',
             destructible: false,
             position: piecePos,
           } as IObstacleEntity,

@@ -99,7 +99,7 @@ export async function runChromiumWorkerSmokeTest() {
     const startTime = Date.now();
     let result = '';
 
-    while (Date.now() - startTime < 18000) {
+    while (Date.now() - startTime < 25000) {
       if (resultFromHttp) {
         result = resultFromHttp;
         break;

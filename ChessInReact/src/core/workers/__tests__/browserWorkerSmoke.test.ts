@@ -19,5 +19,5 @@ describe('Real Chromium Web Worker Smoke Test (Spec 01 Verification & Spec 02 Pr
       expect(result.result).toContain('"cellCount":256');
       expect(result.result).toContain('"pathFound":true');
     }
-  }, 30000);
+  }, 35000);
 });

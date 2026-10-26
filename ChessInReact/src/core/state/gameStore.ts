@@ -11,7 +11,7 @@ import {
   IStoreCommand,
 } from './gameState';
 import { createDefaultDomainState, createDefaultUIState } from './initialState';
-import { IEntity, IObstacleEntity, isProceduralEntity } from '../entities/types';
+import { IEntity, isProceduralEntity } from '../entities/types';
 import { IChunkStreamingDelta, IChunkTerrainUpdate } from '../procedural/types';
 
 const ALLOWED_STREAMING_ENTITY_TYPES: readonly string[] = ['TERRAIN', 'OBSTACLE'];
@@ -59,19 +59,13 @@ function validateStreamedEntity(entity: unknown, label: string, expectedId?: str
     );
   }
 
-  // Obstacle provenance validation for streaming deltas:
-  // Explicit PROCEDURAL is allowed. Explicit GAMEPLAY was rejected above.
-  // Unannotated destructible obstacles are gameplay obstacles and must be rejected.
-  // Unannotated indestructible obstacles (destructible === false) are accepted as legacy procedural obstacles.
-  if (e.type === 'OBSTACLE') {
-    const obs = e as Partial<IObstacleEntity>;
-    if (e.provenance === undefined) {
-      if (obs.destructible !== false) {
-        throw new Error(
-          `Invalid streaming delta: entity "${e.id}" at ${label} is not a valid procedural entity.`
-        );
-      }
-    }
+  // Authoritative procedural validation via unified isProceduralEntity predicate (PATCH-29):
+  // Eliminates divergence between memory management / GC and streaming delta admission.
+  // Rejects unannotated obstacles lacking the historical procedural CHASM signature.
+  if (!isProceduralEntity(e as IEntity)) {
+    throw new Error(
+      `Invalid streaming delta: entity "${e.id}" at ${label} is not a valid procedural entity.`
+    );
   }
 
   return e as IEntity;
