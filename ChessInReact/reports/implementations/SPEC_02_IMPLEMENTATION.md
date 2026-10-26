@@ -251,17 +251,39 @@ src/core/
   4. **PATCH-27D (Encerramento Gracioso de Processo):** `scripts/runChromiumSmoke.js` fecha adequadamente o `viteServer` e substitui o `process.exit(0)` abrupto por `process.exitCode = 0`, permitindo drenagem assíncrona limpa dos pipes IPC do daemon Go do esbuild sem interrupção abrupta de streams.
 - **Validação:** Suíte `src/core/procedural/__tests__/streamingGCAndProvenanceRegression.test.ts` (16 testes: T27-01 a T27-15 e teste integrado E2E completo).
 
+### PATCH-28: Proveniência Conservadora de Obstáculos Legados, Proteção contra Eviction Indevida e Integridade de Snapshots (P0/P1)
+- **Problema:**
+  1. **(P0)** No PATCH-27, a heurística de fallback para obstáculos legados sem `provenance` em `isProceduralEntity()` avaliava `if (entity.type === 'OBSTACLE') return entity.destructible === false;`. Essa premissa assumia que qualquer obstáculo indestrutível era natural/procedural. Obstáculos indestrutíveis criados por regras de gameplay ou variantes anteriores (como muralhas, fortificações e barreiras permanentes) passavam a ser classificados como procedurais, sendo incluídos em `unloadedEntityIds` pelo LRU eviction do `ChunkManager.updateStreaming()`, ocasionando perda de estado de gameplay ou rejeição semântica de deltas pelo Zustand.
+  2. **(P0)** Consistência transversal em todo o ciclo de streaming: `findExistingTerrainEntity()`, `updateStreaming()`, `validateStreamingDeltaSemantic()` e `applyChunkStreamingDelta()` precisavam operar com a mesma garantia estrita de não descarregar, não substituir e não colidir com obstáculos legados indestrutíveis de gameplay.
+  3. **(P1)** Integridade de snapshots em partidas salvas: a serialização e restauração via `SnapshotSerializer` precisava garantir que a proveniência explícita continuasse fielmente preservada em JSON sem mutações indevidas, e que snapshots legados sem o campo fossem deserializados de maneira conservadora.
+- **Solução:**
+  1. **PATCH-28A (Contrato Conservador de Proveniência em isProceduralEntity):**
+     O predicado `isProceduralEntity(entity)` em `src/core/entities/types.ts` foi atualizado com precedência estrita e conservadora:
+     - `entity.type === 'PIECE'` -> sempre `false` (gameplay soberano).
+     - `entity.provenance === 'GAMEPLAY'` -> sempre `false`.
+     - `entity.provenance === 'PROCEDURAL'` -> `true` (apenas para `TERRAIN` ou `OBSTACLE`).
+     - Qualquer outro valor de `provenance` desconhecido ou malformado -> `false`.
+     - `entity.type === 'TERRAIN'` sem `provenance` -> `true` (preserva compatibilidade retroativa de terreno puro).
+     - `entity.type === 'OBSTACLE'` sem `provenance` -> exige **evidência positiva inequívoca** de origem procedural: a assinatura histórica do gerador `destructible === false && entity.metadata?.biome === 'CHASM'`. Na ausência de bioma CHASM, é preservado estritamente como GAMEPLAY (`false`). Prefixos de ID nunca são usados como evidência.
+  2. **PATCH-28B (Proteção de Obstáculos Indestrutíveis de Gameplay em Eviction e Zustand):**
+     - Em `ChunkManager.updateStreaming()`, obstáculos indestrutíveis sem bioma CHASM são avaliados como gameplay e nunca incluídos em `unloadIds`.
+     - Em `validateStreamedEntity()`, rejeita entidades com `provenance === 'GAMEPLAY'` ou obstáculos destrutíveis sem proveniência. Entidades aceitas em deltas recebem estampa de proveniência procedural ao serem persistidas no domínio em `applyChunkStreamingDelta()`.
+     - Em `applyChunkStreamingDelta()`, deltas adversariais tentando descarregar ou substituir obstáculos de gameplay legados são rejeitados de forma atômica com erro, mantendo o `revision` e os dados do store 100% intactos.
+  3. **PATCH-28C (Roundtrip e Integridade de Snapshots):**
+     - Validação completa de serialização e desserialização via `SnapshotSerializer`: preserva integridade exata de todas as entidades (muralha indestrutível legada, CHASM procedural, barricada destrutível de gameplay, peça ativa e terrenos procedurais).
+- **Validação:** Suíte `src/core/procedural/__tests__/legacyObstacleProvenanceRegression.test.ts` (11 testes: T28-01 a T28-11 cobrindo isolamento de regras, integração E2E com streaming, LRU eviction, regeneração de chunks, rejeição atômica e roundtrip de snapshot).
+
 ---
 
 ## 4. Conclusão e Gates Finais Consolidados
 
-Todos os 27 patches foram completamente integrados e validados contra os gates do pipeline:
+Todos os 28 patches foram completamente integrados e validados contra os gates do pipeline:
 - `npx tsc --noEmit` — 0 erros.
 - `npm run lint` — 0 erros, 0 avisos.
 - `npm run build` — Bundle de produção gerado com sucesso (`dist/assets/index-*.js`, 1398 módulos transformados).
-- `npx vitest run --coverage` — 352 testes em 47 suítes, 0 falhas, 0 skips, cobertura Statements de 72.36% (CI #39815663573 anterior registrado oficialmente com 72.28%) e agregado de Topologia & Procedural de 97.50%.
+- `npx vitest run --coverage` — 363 testes em 48 suítes, 0 falhas, 0 skips, cobertura Statements local de 72.43% (CI #39949189609 oficial registrado com 72.32%) e agregado de Topologia & Procedural de 97.50%.
 - `node scripts/runChromiumSmoke.js` — Web Worker real em Chromium headless aprovado (`skipped: false`, `voronoiVerified: true`, encerramento gracioso sem deadlock).
-- `npm run bench:memory` — Benchmark isolado de memória com GC explícito registrando delta incremental bruto de +8.04 MB para 10.240 células retidas (teto: < 40.00 MB), retido pós-GC +0.12 MB e deriva média de +0.0090 MB/ciclo.
+- `npm run bench:memory` — Benchmark isolado de memória com GC explícito registrando delta incremental bruto de +2.30 MB para 10.240 células retidas (teto: < 40.00 MB), retido pós-GC +0.12 MB e deriva média de +0.0090 MB/ciclo.
 - **Governança Arquitetural:** Regras vinculantes permanentes consolidadas em `GEMINI.md` na raiz do repositório, com leitura integral comprovada de `Spec_01` e `Spec_02`.
 - **Avanço para a Spec 03:** Aguardar homologação e autorização expressa do usuário; Spec 03 não iniciada.
 

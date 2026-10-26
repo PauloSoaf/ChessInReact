@@ -11,7 +11,7 @@ import {
   IStoreCommand,
 } from './gameState';
 import { createDefaultDomainState, createDefaultUIState } from './initialState';
-import { IEntity, isProceduralEntity } from '../entities/types';
+import { IEntity, IObstacleEntity, isProceduralEntity } from '../entities/types';
 import { IChunkStreamingDelta, IChunkTerrainUpdate } from '../procedural/types';
 
 const ALLOWED_STREAMING_ENTITY_TYPES: readonly string[] = ['TERRAIN', 'OBSTACLE'];
@@ -59,11 +59,19 @@ function validateStreamedEntity(entity: unknown, label: string, expectedId?: str
     );
   }
 
-  // Authoritative procedural validation via unified isProceduralEntity predicate
-  if (!isProceduralEntity(e as IEntity)) {
-    throw new Error(
-      `Invalid streaming delta: entity "${e.id}" at ${label} is not a valid procedural entity.`
-    );
+  // Obstacle provenance validation for streaming deltas:
+  // Explicit PROCEDURAL is allowed. Explicit GAMEPLAY was rejected above.
+  // Unannotated destructible obstacles are gameplay obstacles and must be rejected.
+  // Unannotated indestructible obstacles (destructible === false) are accepted as legacy procedural obstacles.
+  if (e.type === 'OBSTACLE') {
+    const obs = e as Partial<IObstacleEntity>;
+    if (e.provenance === undefined) {
+      if (obs.destructible !== false) {
+        throw new Error(
+          `Invalid streaming delta: entity "${e.id}" at ${label} is not a valid procedural entity.`
+        );
+      }
+    }
   }
 
   return e as IEntity;
@@ -458,7 +466,10 @@ export function createGameStore(
                 ) {
                   removeEntity(prevOccupantId);
                 }
-                draft.boardEntities[update.entity.id] = update.entity;
+                draft.boardEntities[update.entity.id] = {
+                  ...update.entity,
+                  provenance: update.entity.provenance ?? 'PROCEDURAL',
+                };
                 if (update.entity.type === 'TERRAIN') {
                   terrainMap[update.entity.position] = update.entity.id;
                   if (draft.occupancy[update.entity.position] === update.previousId) {
@@ -477,14 +488,20 @@ export function createGameStore(
                   if (prevId && prevId !== entity.id) {
                     removeEntity(prevId);
                   }
-                  draft.boardEntities[entity.id] = entity;
+                  draft.boardEntities[entity.id] = {
+                    ...entity,
+                    provenance: entity.provenance ?? 'PROCEDURAL',
+                  };
                   terrainMap[entity.position] = entity.id;
                 } else if (entity.type === 'OBSTACLE') {
                   const occupantId = draft.occupancy[entity.position];
                   if (occupantId && occupantId !== entity.id) {
                     removeEntity(occupantId);
                   }
-                  draft.boardEntities[entity.id] = entity;
+                  draft.boardEntities[entity.id] = {
+                    ...entity,
+                    provenance: entity.provenance ?? 'PROCEDURAL',
+                  };
                   draft.occupancy[entity.position] = entity.id;
                 }
               }
