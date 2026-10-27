@@ -307,11 +307,11 @@ Todos os 29 patches foram completamente integrados e validados contra os gates d
 - `npx tsc --noEmit` — 0 erros.
 - `npm run lint` — 0 erros, 0 avisos.
 - `npm run build` — Bundle de produção gerado com sucesso (`dist/assets/index-*.js`, 1398 módulos transformados).
-- `npx vitest run --coverage` — 371 testes em 49 suítes, 0 falhas, 0 skips, cobertura Statements local de 72.48% (CI #40352665837 oficial do PATCH-28 registrado com 72.43%) e agregado de Topologia & Procedural de 97.50%.
+- `npx vitest run --coverage` — 371 testes em 49 suítes, 0 falhas, 0 skips, cobertura Statements de 72.48% confirmada oficialmente no CI #40389859248 (PATCH-29) e agregado de Topologia & Procedural de 97.50%.
 - `node scripts/runChromiumSmoke.js` — Web Worker real em Chromium headless aprovado (`skipped: false`, `voronoiVerified: true`, encerramento gracioso sem deadlock).
-- `npm run bench:memory` — Benchmark isolado de memória com GC explícito registrando delta incremental bruto de +2.28 MB para 10.240 células retidas (teto: < 40.00 MB), retido pós-GC +0.12 MB e deriva média de +0.0090 MB/ciclo.
+- `npm run bench:memory` — Benchmark isolado de memória com GC explícito registrando delta incremental bruto de +7.76 MB no CI (#40389859248) e +7.72 MB localmente para 10.240 células retidas (teto: < 40.00 MB), retido pós-GC +0.13 MB e deriva média de +0.0090 MB/ciclo.
 - **Governança Arquitetural:** Regras vinculantes permanentes consolidadas em `GEMINI.md` na raiz do repositório, com leitura integral comprovada de `Spec_01` e `Spec_02`.
-- **Avanço para a Spec 03:** Aguardar homologação e autorização expressa do usuário; Spec 03 não iniciada.
+- **Avanço para a Spec 03:** Aguardar homologação formal do usuário e autorização expressa; Spec 03 estritamente não iniciada.
 
 
 

@@ -11,8 +11,7 @@
 - **Repositório:** `PauloSoaf/ChessInReact`
 - **Branch de Trabalho:** `feat/procedural-boards-topology`
 - **Commit Base Spec 01:** `dd730512db65b3152d02f66bcc76c3cc3faf439f`
-- **Commit Auditado Anterior (PATCH-26):** `19b41b6ca942cf3f63131fe15b7797ae6cce0f67` (336 testes / 46 suítes, CI #39815663573 registrado com 72.28% global, 97.50% topologia)
-- **Commit Consolidado Atual (PATCH-27):** Branch HEAD atual (352 testes / 47 suítes, 72.36% global, 97.50% topologia)
+- **Commit Consolidado Atual (PATCH-29):** `9d99dffce6bb7fdd1c24184b9b3771183dc6857e` (371 testes / 49 suítes, CI Oficial #40389859248 aprovado com 72.48% global, 97.50% topologia)
 - **Especificação Auditada:** `specs/Spec_02_Procedural_Boards_Geometry_Topology.md` (673 linhas)
 - **Status Geral:** **APROVADO COM RESSALVAS DOCUMENTADAS (DEFERRED PARA SPEC 07: RNF-04, RNF-08; PARTIAL: RNF-07, RNF-09)**
 
@@ -100,13 +99,13 @@ Todos os 15 requisitos funcionais da Seção 16 da Spec 02 foram auditados linha
 1. Todos os 15 Requisitos Funcionais (RF-01 a RF-15) estão plenamente implementados, testados e integrados.
 2. Os defeitos P0, P1 e P2 identificados em todos os ciclos de auditoria (Patches 01 a 29) foram completamente remediados e cobertos por testes unitários e de integração.
 3. A base de testes cresceu para **371 testes aprovados em 49 suítes** (100% green, 0 falhas, 0 pendências, 0 skips), com **zero regressões** na Spec 01 e nas regras do xadrez clássico 8x8.
-4. Cobertura global registrada oficialmente no CI #40352665837 (PATCH-28) foi de **72.43%**, atingindo **72.48%** na suíte local do PATCH-29 e a camada de topologia foi mantida em **97.50%** (satisfazendo a meta > 95% do RNF-10).
+4. Cobertura global registrada oficialmente no CI #40389859248 (PATCH-29) foi de **72.48%** (371 testes em 49 suítes, 0 falhas, 0 skips) e a camada de topologia foi mantida em **97.50%** (satisfazendo a meta > 95% do RNF-10).
 5. O Web Worker nativo foi validado em **Google Chrome nativo (headless-chromium)** comprovando PING/PONG, geração de terreno, rejeição de pathfinding sem semente e pathfinding com `skipped: false` e `voronoiVerified: true`, com encerramento gracioso e sem deadlocks de esbuild.
 6. Os requisitos RNF-04 e RNF-08 continuam formalmente **adiados (DEFERRED)** para a **Spec 07** por dependerem da camada gráfica Three.js / WebGL.
 7. O requisito RNF-07 está aprovado no ambiente x86_64 e classificado como **PARTIAL** para ARM64 por ausência de runner físico ARM64 no pipeline CI.
-8. O requisito RNF-09 está formalmente classificado como **PARTIAL**, com o ensaio contínuo de 60 minutos diferido para a Spec 07 (benchmark isolado aprovado com +2.28 MB incremental < 40 MB, +0.12 MB pós-GC, +0.0090 MB/ciclo deriva).
+8. O requisito RNF-09 está formalmente classificado como **PARTIAL**, com o ensaio contínuo de 60 minutos diferido para a Spec 07 (benchmark isolado aprovado com +7.76 MB incremental < 40 MB, +0.13 MB pós-GC, +0.0090 MB/ciclo deriva no CI oficial).
 9. Governança arquitetural consolidada no arquivo versionado `GEMINI.md` na raiz do repositório, com leitura integral comprovada de `Spec_01` e `Spec_02`.
 
-**Parecer para a Spec 03:** **AGUARDAR HOMOLOGAÇÃO FORMAL DO CLIENTE / FECHAMENTO DEFINITIVO DA SPEC 02.** A implementação está concluída e protegida; não iniciar a Spec 03 até instrução explícita do usuário.
+**Parecer de Homologação da Spec 02:** **PRONTA PARA HOMOLOGAÇÃO COM RESSALVAS.** A implementação dos PATCH-01 a PATCH-29 foi concluída, verificada pelo CI oficial #40389859248 e protegida por 371 testes automatizados. Aguardar homologação e autorização expressa do usuário antes de iniciar a Spec 03.
 
 

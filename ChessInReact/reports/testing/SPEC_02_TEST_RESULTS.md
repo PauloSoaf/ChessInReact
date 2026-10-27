@@ -90,8 +90,8 @@
 | `src/core/workers` | **86.08%** | **74.07%** | **84.37%** |
 | **All Files (Total Geral)** | **72.48%** | **84.61%** | **89.34%** |
 
-*Nota sobre a Consolidação do PATCH-29 e Reconciliação do CI:*
-No GitHub Actions #40352665837 (PATCH-28), a cobertura geral registrada oficialmente foi de **72.43%**. Com a consolidação do PATCH-29, a base de testes foi expandida para **371 testes aprovados em 49 suítes** (+8 testes na suíte `streamingProvenanceConsistencyRegression.test.ts` cobrindo T29-01 a T29-08, eliminando qualquer divergência entre validação de entrada de streaming e classificação de proveniência no gerenciador de memória), elevando a cobertura de Statements local para **72.48%**, preservando a camada de Topologia em **97.50%** (> 95% do RNF-10) e mantendo todos os quality gates 100% satisfeitos.
+*Nota sobre a Consolidação do PATCH-29 e Homologação da Spec 02:*
+No GitHub Actions oficial #40389859248 (PATCH-29), a cobertura geral oficial foi confirmada em **72.48%** em **371 testes aprovados em 49 suítes** (0 falhas, 0 pendências, 0 skips), eliminando qualquer divergência entre validação de entrada de streaming e classificação de proveniência no gerenciador de memória, preservando a camada de Topologia em **97.50%** (> 95% do RNF-10), Web Worker em Chromium headless (`skipped: false`, `voronoiVerified: true`) e benchmark isolado de memória aprovado (+7.76 MB incremental bruto, +0.13 MB pós-GC, +0.0090 MB/ciclo deriva).
 
 
 
