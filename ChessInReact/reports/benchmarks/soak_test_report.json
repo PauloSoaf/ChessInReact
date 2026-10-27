@@ -1,0 +1,60 @@
+{
+  "spec": "Spec 02 (RNF-09)",
+  "mode": "smoke",
+  "durationSeconds": 10,
+  "totalCycles": 525,
+  "baselineHeapMb": 20.454,
+  "finalHeapMb": 20.838,
+  "peakHeapMb": 23.197,
+  "netRetainedGrowthMb": 0.384,
+  "averageGrowthPerMinuteMb": 0.3836,
+  "specLimitMb": 2,
+  "verdict": "PASS",
+  "samples": [
+    {
+      "elapsedSec": 0,
+      "heapUsedMb": 21.775,
+      "rssMb": 89.785,
+      "heapDeltaFromBaselineMb": 1.321,
+      "loadedChunks": 25,
+      "domainEntitiesCount": 2306,
+      "cycleCount": 1
+    },
+    {
+      "elapsedSec": 2,
+      "heapUsedMb": 23.197,
+      "rssMb": 109.402,
+      "heapDeltaFromBaselineMb": 2.743,
+      "loadedChunks": 34,
+      "domainEntitiesCount": 2306,
+      "cycleCount": 39
+    },
+    {
+      "elapsedSec": 4,
+      "heapUsedMb": 22.352,
+      "rssMb": 118.773,
+      "heapDeltaFromBaselineMb": 1.898,
+      "loadedChunks": 34,
+      "domainEntitiesCount": 2306,
+      "cycleCount": 166
+    },
+    {
+      "elapsedSec": 6,
+      "heapUsedMb": 22.319,
+      "rssMb": 119.078,
+      "heapDeltaFromBaselineMb": 1.865,
+      "loadedChunks": 34,
+      "domainEntitiesCount": 2306,
+      "cycleCount": 288
+    },
+    {
+      "elapsedSec": 8,
+      "heapUsedMb": 22.229,
+      "rssMb": 119.141,
+      "heapDeltaFromBaselineMb": 1.775,
+      "loadedChunks": 34,
+      "domainEntitiesCount": 2306,
+      "cycleCount": 410
+    }
+  ]
+}

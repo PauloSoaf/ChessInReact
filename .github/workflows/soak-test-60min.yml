@@ -1,0 +1,50 @@
+name: Continuous Streaming Memory Soak Test (60 Minutes) - RNF-09
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration_seconds:
+        description: 'Duration of the soak test in seconds (default 3600 = 60 minutes)'
+        required: true
+        default: '3600'
+      sample_interval_seconds:
+        description: 'Interval in seconds between memory samples (default 60)'
+        required: false
+        default: '60'
+
+jobs:
+  streaming-soak-test:
+    name: 60-Minute Soak Benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    defaults:
+      run:
+        working-directory: ChessInReact
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: ChessInReact/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run 60-Minute Memory Soak Benchmark
+        run: node --expose-gc scripts/runSoakTest60Min.js --duration=${{ github.event.inputs.duration_seconds }}
+        env:
+          SOAK_DURATION_SEC: ${{ github.event.inputs.duration_seconds }}
+
+      - name: Upload Soak Test Report & Telemetry Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: soak-test-report-60min
+          path: ChessInReact/reports/benchmarks/soak_test_report.json
+          retention-days: 30

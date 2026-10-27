@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "prngHashes": {
+    "numeric-seed-12345": {
+      "floatHash": "980599ac4789375181748f2974c301adf09dbb8e64985847b2e27b2cd8788785",
+      "intHash": "037b434ceff3aeac15ba5ecafbb59f13f6b8d4c46a08449a623bbf2cf5531055"
+    },
+    "alpha-seed-chess-42": {
+      "floatHash": "c5db6ed663aa5c2aebf9ee07a9cca19a854578fa3623f0dc15c1df528fb00a98",
+      "intHash": "d5da58ae3fc3437945c5e374817d7eb5f6ccb8af6493a6a7f1b379d92d7125d6"
+    },
+    "special-seed-!@#$%^&*()_+~çáéíóú": {
+      "floatHash": "204fdc87dd7bb99256cb7fda9dd01c4e0318bdcd539cc8fd5cf2d5a4901bb375",
+      "intHash": "ce08e558d24a50bd024323aba43fba58bd676f6f8c2f57d94972ac805c9669c3"
+    },
+    "large-magnitude-2147483647": {
+      "floatHash": "8c61cbdb4f55bb53fd8c58033d633e270d6b93bfc3c51fabdbc674631595370e",
+      "intHash": "3f1a286e73befb5842206599d33924c94a386ab3d18c33595726fd22b289f899"
+    },
+    "empty-seed-": {
+      "floatHash": "42dfab72ac1d069064b427701d5352aec44e8d7b409d40db9dea9c086a8e8f12",
+      "intHash": "892e6d3f28a4ac7d094c562a6fb8892f78da4684621c7bd85060cc5e6912ac79"
+    }
+  },
+  "simplexHash": "d0bb2ef635992ca69c073260f78f71ca4ba69cb3d1572b196b76010bc68f300b",
+  "noiseGenHashes": {
+    "square": "e47131ae5613d5045ef2a92025772a0d0e1f50f00326a09fa38ada79840e9cfd",
+    "hex": "0bf9c943e7ab1abb5cbe7dcc4721b4d01fbb3cd34fbb0ef014986b932bb5c432",
+    "triangle": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "voronoi": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "chunkHashes": {
+    "chunk_0_0": "590abd2cda6fee2384e7ec3814253ac7842f7666fc55bc11b695dab7decb4486",
+    "chunk_1_neg1": "54ea2dddb8e7b12dd5676b0129ab1ee471c66d85a4d80479db8fdd71e877928f"
+  },
+  "compositeHash": "3120b55b585c10b840e12599dd78c673a5554aa9159dcba23cd766f6987f16dd"
+}

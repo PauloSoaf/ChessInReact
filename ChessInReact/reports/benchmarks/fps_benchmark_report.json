@@ -1,0 +1,12 @@
+{
+  "spec": "Spec 02 (RNF-04)",
+  "totalFrames": 120,
+  "avgFrameTimeMs": 1.182,
+  "effectiveFps": 846.2,
+  "p95FrameTimeMs": 10.464,
+  "p99FrameTimeMs": 36.692,
+  "maxFrameTimeMs": 42.982,
+  "longTasksCount": 0,
+  "frameBudgetMs": 16.67,
+  "passed": true
+}

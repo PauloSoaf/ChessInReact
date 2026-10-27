@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "bench": "node --loader ts-node/esm or vitest",
-    "bench:memory": "node --expose-gc scripts/runMemoryBenchmark.js"
+    "bench:memory": "node --expose-gc scripts/runMemoryBenchmark.js",
+    "bench:soak": "node --expose-gc scripts/runSoakTest60Min.js"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",
