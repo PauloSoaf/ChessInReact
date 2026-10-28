@@ -194,7 +194,7 @@ export class RulesEngine {
       const occ: Record<string, EntityId | undefined> = isFrozen
         ? { ...state.occupancy }
         : (state.occupancy as Record<string, EntityId | undefined>);
-      const evalState = isFrozen ? { ...state, occupancy: occ } : state;
+      const evalState = (isFrozen ? { ...state, occupancy: occ } : state) as unknown as IDomainState;
 
       const prevFrom = piece.position;
       const prevDestOccupant = occ[intent.to];
@@ -476,7 +476,7 @@ export class RulesEngine {
         const occ: Record<string, EntityId | undefined> = isFrozen
           ? { ...state.occupancy }
           : (state.occupancy as Record<string, EntityId | undefined>);
-        const evalState = isFrozen ? { ...state, occupancy: occ } : state;
+        const evalState = (isFrozen ? { ...state, occupancy: occ } : state) as unknown as IDomainState;
 
         const prevFrom = piece.position;
         const prevDestOccupant = occ[dest];

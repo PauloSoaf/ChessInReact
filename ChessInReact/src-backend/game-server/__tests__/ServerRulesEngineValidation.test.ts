@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ChessRoomStateSchema, NetworkEntitySchema } from '../schemas/RoomStateSchema';
+import { ChessRoomStateSchema, NetworkEntitySchema, PlayerSchema } from '../schemas/RoomStateSchema';
 import { TurnResolver, IQueuedMove } from '../rooms/TurnResolver';
 
 describe('Authoritative Server RulesEngine Validation', () => {
@@ -13,24 +13,30 @@ describe('Authoritative Server RulesEngine Validation', () => {
     state.activePlayerId = 'p1';
 
     // White player
-    state.players.set('s1', {
-      sessionId: 's1',
-      playerId: 'p1',
-      username: 'White',
-      role: 'WHITE',
-      connected: true,
-      ping: 10,
-    } as any);
+    state.players.set(
+      's1',
+      new PlayerSchema({
+        sessionId: 's1',
+        playerId: 'p1',
+        username: 'White',
+        role: 'WHITE',
+        connected: true,
+        ping: 10,
+      })
+    );
 
     // Black player
-    state.players.set('s2', {
-      sessionId: 's2',
-      playerId: 'p2',
-      username: 'Black',
-      role: 'BLACK',
-      connected: true,
-      ping: 10,
-    } as any);
+    state.players.set(
+      's2',
+      new PlayerSchema({
+        sessionId: 's2',
+        playerId: 'p2',
+        username: 'Black',
+        role: 'BLACK',
+        connected: true,
+        ping: 10,
+      })
+    );
 
     // Setup basic board entities
     // White King at e1 (4,0), White Rook at a1 (0,0) and h1 (7,0), White Pawn at e2 (4,1)

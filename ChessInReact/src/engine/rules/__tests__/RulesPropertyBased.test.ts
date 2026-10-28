@@ -5,6 +5,7 @@ import { SquareTopology } from '../../../core/topology/SquareTopology';
 import { MovePieceCommand } from '../../../core/commands/MovePieceCommand';
 import { produce } from 'immer';
 import { CheckValidator } from '../CheckValidator';
+import { IPieceEntity } from '../../../core/entities/types';
 import { parseCoord } from '../utils/CoordinateHelper';
 
 describe('Spec 04 — Property-Based & Invariant Testing', () => {
@@ -98,6 +99,7 @@ describe('Spec 04 — Property-Based & Invariant Testing', () => {
         state,
         {
           pieceId: move.pieceId,
+          actingPlayer: state.activePlayer,
           from: move.from,
           to: move.to,
         },
@@ -141,8 +143,8 @@ describe('Spec 04 — Property-Based & Invariant Testing', () => {
       expect(undoneState.occupancy[move.from]).toBe(move.pieceId);
       expect(undoneState.occupancy[move.to]).toBeUndefined();
       expect(undoneState.boardEntities[move.pieceId]?.position).toBe(move.from);
-      expect(undoneState.boardEntities[move.pieceId]?.hasMoved).toBe(
-        state.boardEntities[move.pieceId]?.hasMoved
+      expect((undoneState.boardEntities[move.pieceId] as IPieceEntity | undefined)?.hasMoved).toBe(
+        (state.boardEntities[move.pieceId] as IPieceEntity | undefined)?.hasMoved
       );
       expect(undoneState.activePlayer).toBe(state.activePlayer);
     }

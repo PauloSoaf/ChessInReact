@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import React from 'react';
 import { render, fireEvent, act } from '@testing-library/react';
 import ChessBoard from '../../../components/ChessBoard/ChessBoard';
 import { gameStore } from '../../../core/state/gameStore';
 import { bootstrapGame } from '../../../core/bootstrap/GameInitializer';
+import { asCoordinateKey } from '../../../core/coordinates';
 
 describe('ChessBoard & Local Rules Engine Integration', () => {
   beforeEach(() => {
@@ -44,8 +44,8 @@ describe('ChessBoard & Local Rules Engine Integration', () => {
     // Verification:
     // 1. Pawn is still at (4, 1)
     const stateAfterIllegal = gameStore.getState();
-    expect(stateAfterIllegal.domain.occupancy['4,1']).toBe(selectedId);
-    expect(stateAfterIllegal.domain.occupancy['4,4']).toBeUndefined();
+    expect(stateAfterIllegal.domain.occupancy[asCoordinateKey('4,1')]).toBe(selectedId);
+    expect(stateAfterIllegal.domain.occupancy[asCoordinateKey('4,4')]).toBeUndefined();
     // 2. Active player is STILL P1 (White)
     expect(stateAfterIllegal.domain.activePlayer).toBe('P1');
   });
@@ -66,8 +66,8 @@ describe('ChessBoard & Local Rules Engine Integration', () => {
     });
 
     const stateAfterMove = gameStore.getState();
-    expect(stateAfterMove.domain.occupancy['4,1']).toBeUndefined();
-    expect(stateAfterMove.domain.occupancy['4,3']).toBeDefined();
+    expect(stateAfterMove.domain.occupancy[asCoordinateKey('4,1')]).toBeUndefined();
+    expect(stateAfterMove.domain.occupancy[asCoordinateKey('4,3')]).toBeDefined();
     // Turn switches to P2 (Black)
     expect(stateAfterMove.domain.activePlayer).toBe('P2');
 
@@ -78,8 +78,8 @@ describe('ChessBoard & Local Rules Engine Integration', () => {
     });
 
     const stateAfterUndo = gameStore.getState();
-    expect(stateAfterUndo.domain.occupancy['4,1']).toBeDefined();
-    expect(stateAfterUndo.domain.occupancy['4,3']).toBeUndefined();
+    expect(stateAfterUndo.domain.occupancy[asCoordinateKey('4,1')]).toBeDefined();
+    expect(stateAfterUndo.domain.occupancy[asCoordinateKey('4,3')]).toBeUndefined();
     expect(stateAfterUndo.domain.activePlayer).toBe('P1');
   });
 });

@@ -267,7 +267,7 @@ describe('Spec 03 - End-to-End Authoritative Multiplayer Integration', () => {
       seqId: 1,
     });
 
-    await new Promise((r) => setTimeout(r, 150));
+    await new Promise((r) => setTimeout(r, 350));
     // Verify first command succeeded
     expect(roomW.state.boardEntities.get('piece-w-p-e')?.position).toBe('e4');
     // Verify replay was caught

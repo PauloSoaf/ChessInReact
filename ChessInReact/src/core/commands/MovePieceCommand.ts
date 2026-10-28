@@ -1,4 +1,4 @@
-import { CoordinateKey, EntityId, PlayerId, asCoordinateKey } from '../coordinates/types';
+import { CoordinateKey, EntityId, PlayerId } from '../coordinates/types';
 import { IEntity, IPieceEntity } from '../entities/types';
 import { IDomainState } from '../state/gameState';
 import { ICommand } from './types';
@@ -20,7 +20,7 @@ export class MovePieceCommand implements ICommand {
   private capturedEntitySnapshot: IEntity | null = null;
   private castledRookSnapshot: { readonly id: EntityId; readonly from: CoordinateKey; readonly to: CoordinateKey; readonly previousHasMoved: boolean } | null = null;
   private previousVariantId: string | null = null;
-  private previousEnPassantTarget: CoordinateKey | null = null;
+  private previousEnPassantTarget: CoordinateKey | null | undefined = undefined;
   private previousFiftyMoveCounter: number | null = null;
   private previousIsGameOver: boolean | null = null;
   private previousWinnerId: PlayerId | null = null;
@@ -196,8 +196,8 @@ export class MovePieceCommand implements ICommand {
       }
     }
 
-    // Castling execution: Move corresponding Rook
-    if (isKing && parsedFrom && parsedTo && Math.abs(parsedTo.x - parsedFrom.x) === 2) {
+    // Castling execution: Move corresponding Rook (only when enforceRules is active)
+    if (this.enforceRules && isKing && parsedFrom && parsedTo && Math.abs(parsedTo.x - parsedFrom.x) === 2) {
       const rank = parsedFrom.y;
       if (parsedTo.x === 6) {
         // Kingside castling
@@ -353,7 +353,7 @@ export class MovePieceCommand implements ICommand {
 
     // Revert turnState metadata
     if (draft.turnState) {
-      if (this.previousEnPassantTarget !== null) {
+      if (this.previousEnPassantTarget !== undefined) {
         (draft.turnState as { enPassantTarget: CoordinateKey | null }).enPassantTarget = this.previousEnPassantTarget;
       }
       if (this.previousFiftyMoveCounter !== null) {

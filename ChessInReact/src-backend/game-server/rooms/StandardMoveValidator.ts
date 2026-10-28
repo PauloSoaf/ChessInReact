@@ -99,6 +99,8 @@ export function buildDomainStateFromNetworkEntities(
   const activePlayer: PlayerId = isWhite ? 'P1' : 'P2';
 
   return {
+    matchId: 'server-match',
+    variantId: 'STANDARD',
     boardEntities,
     occupancy,
     activePlayer,
@@ -108,6 +110,17 @@ export function buildDomainStateFromNetworkEntities(
       lastActionTimestamp: Date.now(),
       enPassantTarget: null,
       fiftyMoveCounter: 0,
+    },
+    capturedInventory: {
+      P1: [],
+      P2: [],
+      P3: [],
+      P4: [],
+      P5: [],
+      P6: [],
+      P7: [],
+      P8: [],
+      NONE: [],
     },
     revision: 1,
     isGameOver: false,
@@ -162,9 +175,30 @@ export function validateStandardMove(
   );
 
   if (!validation.valid) {
+    let reason = validation.reason || `Move rejected: ${validation.code}`;
+    const vUpper = (piece.variantId || 'P').toUpperCase();
+    const destOccupant = domainState.occupancy[toKey];
+
+    if (validation.code === 'DESTINATION_FRIENDLY_OCCUPIED') {
+      reason = `Cannot capture friendly piece "${destOccupant}" at "${toCoord}". ${reason}`;
+    } else if (vUpper === 'P' || vUpper === 'PAWN') {
+      const dx = toPos.x - fromPos.x;
+      if (dx === 0 && destOccupant) {
+        reason = `Pawn cannot advance forward into an occupied square at "${toCoord}". ${reason}`;
+      } else {
+        reason = `Illegal pawn advance distance: ${reason}`;
+      }
+    } else if (vUpper === 'R' || vUpper === 'ROOK') {
+      reason = `Illegal rook move from "${fromCoord}" to "${toCoord}": straight lines only. ${reason}`;
+    } else if (vUpper === 'N' || vUpper === 'KNIGHT') {
+      reason = `Illegal knight move from "${fromCoord}" to "${toCoord}": must be L-shaped jump. ${reason}`;
+    } else if (vUpper === 'B' || vUpper === 'BISHOP' || vUpper === 'Q' || vUpper === 'QUEEN') {
+      reason = `Move from "${fromCoord}" to "${toCoord}" is obstructed or invalid. ${reason}`;
+    }
+
     return {
       valid: false,
-      reason: validation.reason || `Move rejected: ${validation.code}`,
+      reason,
     };
   }
 
