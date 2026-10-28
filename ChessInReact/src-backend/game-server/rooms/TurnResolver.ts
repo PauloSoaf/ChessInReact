@@ -1,5 +1,7 @@
 import { ChessRoomStateSchema, PlayerSchema } from '../schemas/RoomStateSchema';
-import { validateStandardMove, parseBoardPosition, toAlgebraic } from './StandardMoveValidator';
+import { validateStandardMove, parseBoardPosition, toAlgebraic, buildDomainStateFromNetworkEntities } from './StandardMoveValidator';
+import { RulesEngine } from '../../../src/engine/rules/RulesEngine';
+import { SquareTopology } from '../../../src/core/topology/SquareTopology';
 
 export interface IQueuedMove {
   readonly playerId: string;
@@ -18,6 +20,8 @@ export interface IMoveResolutionResult {
   readonly from?: string;
   readonly to?: string;
   readonly seqId?: number;
+  readonly gameOver?: boolean;
+  readonly gameOverReason?: string;
 }
 
 export interface ICollisionResult {
@@ -106,7 +110,8 @@ export class TurnResolver {
       move.from,
       move.to,
       isWhite,
-      state.boardEntities.values()
+      state.boardEntities.values(),
+      state.enPassantTarget || undefined
     );
 
     if (!validation.valid) {
@@ -122,10 +127,45 @@ export class TurnResolver {
       validation.capturedPiece.isCaptured = true;
       validation.capturedPiece.position = '';
       capturedPieceId = validation.capturedPiece.id;
+    } else if (validation.isEnPassant) {
+      // En Passant capture: remove victim pawn at (destX, originY)
+      const fromPos = parseBoardPosition(move.from);
+      const toPos = parseBoardPosition(move.to);
+      if (fromPos && toPos) {
+        for (const [id, entity] of state.boardEntities.entries()) {
+          if (!entity.isCaptured && entity.position) {
+            const ePos = parseBoardPosition(entity.position);
+            if (ePos && ePos.x === toPos.x && ePos.y === fromPos.y) {
+              entity.isCaptured = true;
+              entity.position = '';
+              capturedPieceId = id;
+              break;
+            }
+          }
+        }
+      }
     }
 
     piece.position = move.to;
     piece.hasMoved = true;
+
+    // Handle En Passant Target tracking (FIDE Article 3.7d & RF-07)
+    const vUpper = (piece.variantId || 'P').toUpperCase();
+    const parsedFromPos = parseBoardPosition(move.from);
+    const parsedToPos = parseBoardPosition(move.to);
+    if (
+      (vUpper === 'P' || vUpper === 'PAWN') &&
+      parsedFromPos &&
+      parsedToPos &&
+      Math.abs(parsedToPos.y - parsedFromPos.y) === 2
+    ) {
+      const midY = (parsedFromPos.y + parsedToPos.y) / 2;
+      state.enPassantTarget = move.to.includes(',')
+        ? `${parsedToPos.x},${midY}`
+        : toAlgebraic(parsedToPos.x, midY);
+    } else {
+      state.enPassantTarget = '';
+    }
 
     // Handle Castling Rook repositioning (Spec 04 FIDE Article 3.8)
     if (validation.isCastling) {
@@ -177,6 +217,35 @@ export class TurnResolver {
     // Reset turn timer to 30s
     state.turnTimeRemainingMs = 30000;
 
+    // 7. Authoritative Game Over evaluation (Spec 04 RF-05, RF-11, RF-15)
+    let gameOver = false;
+    let gameOverReason: string | undefined;
+
+    const nextPlayerObj = activePlayers.find((p) => p.playerId === state.activePlayerId);
+    const isNextWhite = nextPlayerObj?.role === 'WHITE';
+    const nextDomainState = buildDomainStateFromNetworkEntities(
+      state.boardEntities.values(),
+      state.activePlayerId,
+      Boolean(isNextWhite),
+      state.enPassantTarget || undefined
+    );
+    const topology = new SquareTopology({ width: 8, height: 8 });
+    const gameResult = RulesEngine.getGameResult(nextDomainState, topology);
+
+    if (gameResult.isGameOver) {
+      gameOver = true;
+      gameOverReason = gameResult.reason;
+      state.phase = 'GAME_OVER';
+
+      if (gameResult.winnerId) {
+        const winnerRole = gameResult.winnerId === 'P1' ? 'WHITE' : 'BLACK';
+        const winner = activePlayers.find((p) => p.role === winnerRole);
+        state.winnerId = winner ? winner.playerId : '';
+      } else {
+        state.winnerId = ''; // Stalemate or Draw
+      }
+    }
+
     return {
       success: true,
       pieceId: move.pieceId,
@@ -184,6 +253,8 @@ export class TurnResolver {
       to: move.to,
       seqId: move.seqId,
       capturedPieceId,
+      gameOver,
+      gameOverReason,
     };
   }
 

@@ -11,6 +11,7 @@
     "test": "vitest run",
     "bench": "node --loader ts-node/esm or vitest",
     "bench:memory": "node --expose-gc scripts/runMemoryBenchmark.js",
+    "bench:perft": "node --expose-gc scripts/runPerftBenchmark.js",
     "bench:soak": "node --expose-gc scripts/runSoakTest60Min.js"
   },
   "dependencies": {

@@ -62,7 +62,8 @@ export function toAlgebraic(x: number, y: number): string {
 export function buildDomainStateFromNetworkEntities(
   entities: Iterable<NetworkEntitySchema>,
   movingPieceOwnerId: string,
-  isWhite: boolean
+  isWhite: boolean,
+  enPassantTarget?: string
 ): IDomainState {
   const boardEntities: Record<EntityId, IPieceEntity> = {};
   const occupancy: Record<CoordinateKey, EntityId> = {};
@@ -96,6 +97,14 @@ export function buildDomainStateFromNetworkEntities(
     }
   }
 
+  let epTargetKey: CoordinateKey | null = null;
+  if (enPassantTarget) {
+    const epPos = parseBoardPosition(enPassantTarget);
+    if (epPos) {
+      epTargetKey = asCoordinateKey(`${epPos.x},${epPos.y}`);
+    }
+  }
+
   const activePlayer: PlayerId = isWhite ? 'P1' : 'P2';
 
   return {
@@ -108,7 +117,7 @@ export function buildDomainStateFromNetworkEntities(
     turnState: {
       phase: 'WAITING',
       lastActionTimestamp: Date.now(),
-      enPassantTarget: null,
+      enPassantTarget: epTargetKey,
       fiftyMoveCounter: 0,
     },
     capturedInventory: {
@@ -139,7 +148,8 @@ export function validateStandardMove(
   fromCoord: string,
   toCoord: string,
   isWhite: boolean,
-  entities: Iterable<NetworkEntitySchema>
+  entities: Iterable<NetworkEntitySchema>,
+  enPassantTarget?: string
 ): IMoveValidationResult {
   const fromPos = parseBoardPosition(fromCoord);
   if (!fromPos) {
@@ -156,7 +166,7 @@ export function validateStandardMove(
   }
 
   const entityList = Array.from(entities);
-  const domainState = buildDomainStateFromNetworkEntities(entityList, piece.ownerId, isWhite);
+  const domainState = buildDomainStateFromNetworkEntities(entityList, piece.ownerId, isWhite, enPassantTarget);
   const topology = new SquareTopology({ width: 8, height: 8 });
 
   const fromKey = asCoordinateKey(`${fromPos.x},${fromPos.y}`);

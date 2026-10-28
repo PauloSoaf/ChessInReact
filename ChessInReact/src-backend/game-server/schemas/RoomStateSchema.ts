@@ -62,6 +62,7 @@ export class ChessRoomStateSchema extends Schema {
   @type('number') public turnTimeRemainingMs: number = 30000; // 30s per turn by default
   @type('number') public lastProcessedSequenceId: number = 0;
   @type('string') public winnerId: string = '';
+  @type('string') public enPassantTarget: string = '';
 
   @type({ map: NetworkEntitySchema })
   public boardEntities = new MapSchema<NetworkEntitySchema>();
@@ -82,6 +83,7 @@ export class ChessRoomStateSchema extends Schema {
       if (init.turnTimeRemainingMs !== undefined) this.turnTimeRemainingMs = init.turnTimeRemainingMs;
       if (init.lastProcessedSequenceId !== undefined) this.lastProcessedSequenceId = init.lastProcessedSequenceId;
       if (init.winnerId !== undefined) this.winnerId = init.winnerId;
+      if (init.enPassantTarget !== undefined) this.enPassantTarget = init.enPassantTarget;
     }
   }
 }

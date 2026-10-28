@@ -1,5 +1,5 @@
 import { CoordinateKey, EntityId, PlayerId } from '../../core/coordinates/types';
-import { DirectionIndex, ITopology } from '../../core/topology/types';
+import { ITopology } from '../../core/topology/types';
 import { IDomainState } from '../../core/state/gameState';
 import { IPieceEntity } from '../../core/entities/types';
 import { parseCoord, toCoordKey } from './utils/CoordinateHelper';
@@ -15,19 +15,6 @@ const KNIGHT_OFFSETS: ReadonlyArray<readonly [number, number]> = [
   [-2, -1],
 ];
 
-const ORTHOGONAL_DIRECTIONS: readonly number[] = [
-  DirectionIndex.NORTH,
-  DirectionIndex.EAST,
-  DirectionIndex.SOUTH,
-  DirectionIndex.WEST,
-];
-
-const DIAGONAL_DIRECTIONS: readonly number[] = [
-  DirectionIndex.NORTHEAST,
-  DirectionIndex.SOUTHEAST,
-  DirectionIndex.SOUTHWEST,
-  DirectionIndex.NORTHWEST,
-];
 
 export class CheckValidator {
   /**
@@ -41,10 +28,10 @@ export class CheckValidator {
     topology: ITopology
   ): boolean {
     const targetParsed = parseCoord(targetCoord);
-    if (!targetParsed) return false;
 
     // 1. Reverse Raycasting (Orthogonal & Diagonal)
     if (topology.type === 'SQUARE') {
+      if (!targetParsed) return false;
       const tx = targetParsed.x;
       const ty = targetParsed.y;
 
@@ -169,8 +156,9 @@ export class CheckValidator {
         }
       }
     } else {
-      // Non-square generic raycasting
-      for (const dir of ORTHOGONAL_DIRECTIONS) {
+      // Non-square generic raycasting (supports HexTopology edge dirs 0-5 and vertex dirs 6-11)
+      const edgeDirs = [0, 1, 2, 3, 4, 5];
+      for (const dir of edgeDirs) {
         let current = targetCoord;
         let dist = 0;
         while (dist < 8) {
@@ -192,7 +180,8 @@ export class CheckValidator {
           dist++;
         }
       }
-      for (const dir of DIAGONAL_DIRECTIONS) {
+      const diagDirs = [6, 7, 8, 9, 10, 11];
+      for (const dir of diagDirs) {
         let current = targetCoord;
         let dist = 0;
         while (dist < 8) {
@@ -214,7 +203,10 @@ export class CheckValidator {
           dist++;
         }
       }
+      return false;
     }
+
+    if (!targetParsed) return false;
 
     // 3. Knight jumps (checking for enemy KNIGHT, AMAZON, CHANCELLOR, ARCHBISHOP)
     for (const [dx, dy] of KNIGHT_OFFSETS) {

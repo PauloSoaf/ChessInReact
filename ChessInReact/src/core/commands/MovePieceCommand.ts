@@ -6,6 +6,8 @@ import { ITopology } from '../topology/types';
 import { SquareTopology } from '../topology/SquareTopology';
 import { RulesEngine } from '../../engine/rules/RulesEngine';
 import { parseCoord, toCoordKey } from '../../engine/rules/utils/CoordinateHelper';
+import { VariantRegistry } from '../../engine/rules/VariantRegistry';
+import { IVariantConfiguration } from '../../engine/rules/interfaces/IRulesContracts';
 
 /**
  * MovePieceCommand executes a piece movement from one coordinate to another,
@@ -19,11 +21,13 @@ export class MovePieceCommand implements ICommand {
 
   private capturedEntitySnapshot: IEntity | null = null;
   private castledRookSnapshot: { readonly id: EntityId; readonly from: CoordinateKey; readonly to: CoordinateKey; readonly previousHasMoved: boolean } | null = null;
+  private atomicDestroyedEntitiesSnapshot: IEntity[] = [];
+  private droppedPieceSnapshot: { readonly pieceId: EntityId; readonly variant: string } | null = null;
   private previousVariantId: string | null = null;
   private previousEnPassantTarget: CoordinateKey | null | undefined = undefined;
   private previousFiftyMoveCounter: number | null = null;
-  private previousIsGameOver: boolean | null = null;
-  private previousWinnerId: PlayerId | null = null;
+  private previousIsGameOver: boolean | null | undefined = undefined;
+  private previousWinnerId: PlayerId | null | undefined = undefined;
   private previousHasMovedState = false;
   private previousActivePlayer: PlayerId | null = null;
   private previousTurnNumber: number | null = null;
@@ -38,14 +42,93 @@ export class MovePieceCommand implements ICommand {
     public advanceTurn: boolean = true,
     public readonly enforceRules: boolean = false,
     public readonly promotionVariant?: string,
-    topology?: ITopology
+    topology?: ITopology,
+    public readonly variantConfig?: IVariantConfiguration,
+    public readonly isDropMove: boolean = false,
+    public readonly dropPieceVariant?: string
   ) {
     this.id = id ?? `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    this.description = `Move ${pieceId} from ${from} to ${to}`;
+    this.description = this.isDropMove
+      ? `Drop ${this.dropPieceVariant ?? pieceId} at ${to}`
+      : `Move ${pieceId} from ${from} to ${to}`;
     this.defaultTopology = topology ?? new SquareTopology({ width: 8, height: 8 });
   }
 
   public execute(draft: IDomainState): void {
+    this.previousIsGameOver = draft.isGameOver;
+    this.previousWinnerId = draft.winnerId;
+
+    const activeConfig: IVariantConfiguration | undefined =
+      this.variantConfig ?? (draft.variantId ? VariantRegistry.getVariant(draft.variantId)?.config : undefined);
+
+    // Crazyhouse drop move execution
+    if (this.isDropMove) {
+      const dropVariant = (this.dropPieceVariant ?? 'PAWN').toUpperCase();
+      const pocket = draft.capturedInventory?.[this.actingPlayer];
+      const pocketIdx = pocket ? pocket.indexOf(dropVariant) : -1;
+      if (pocketIdx === -1) {
+        throw new Error(
+          `Invalid drop move: Piece variant "${dropVariant}" is not available in player "${this.actingPlayer}" inventory.`
+        );
+      }
+      if (draft.occupancy[this.to]) {
+        throw new Error(
+          `Invalid drop move: Destination coordinate "${this.to}" is already occupied.`
+        );
+      }
+      if (!this.defaultTopology.isValidCoordinate(this.to)) {
+        throw new Error(
+          `Invalid drop move: Destination coordinate "${this.to}" is out of bounds.`
+        );
+      }
+
+      // Remove from pocket inventory
+      pocket.splice(pocketIdx, 1);
+      this.droppedPieceSnapshot = {
+        pieceId: this.pieceId,
+        variant: dropVariant,
+      };
+
+      // Place newly dropped piece on board
+      const droppedEntity: IPieceEntity = {
+        id: this.pieceId,
+        type: 'PIECE',
+        ownerId: this.actingPlayer,
+        variantId: dropVariant,
+        position: this.to,
+        hasMoved: true,
+        isCaptured: false,
+      };
+      draft.boardEntities[this.pieceId] = droppedEntity;
+      draft.occupancy[this.to] = this.pieceId;
+
+      // Turn state progression
+      if (draft.turnState) {
+        this.previousEnPassantTarget = draft.turnState.enPassantTarget;
+        this.previousFiftyMoveCounter = draft.turnState.fiftyMoveCounter;
+        (draft.turnState as { enPassantTarget: CoordinateKey | null }).enPassantTarget = null;
+        (draft.turnState as { fiftyMoveCounter: number }).fiftyMoveCounter = 0;
+      }
+
+      if (this.advanceTurn) {
+        this.previousActivePlayer = draft.activePlayer;
+        this.previousTurnNumber = draft.turnNumber;
+        (draft as { activePlayer: PlayerId }).activePlayer = draft.activePlayer === 'P1' ? 'P2' : 'P1';
+        (draft as { turnNumber: number }).turnNumber += 1;
+      }
+
+      if (this.enforceRules || activeConfig) {
+        this.previousIsGameOver = draft.isGameOver;
+        this.previousWinnerId = draft.winnerId;
+        const result = RulesEngine.getGameResult(draft, this.defaultTopology, activeConfig);
+        if (result.isGameOver) {
+          (draft as { isGameOver: boolean }).isGameOver = true;
+          (draft as { winnerId: PlayerId | null }).winnerId = result.winnerId;
+        }
+      }
+      return;
+    }
+
     const piece = draft.boardEntities[this.pieceId] as IPieceEntity | undefined;
     if (!piece) {
       throw new Error(`Invalid move: Entity with ID "${this.pieceId}" does not exist.`);
@@ -98,7 +181,8 @@ export class MovePieceCommand implements ICommand {
           actingPlayer: this.actingPlayer,
           promotionVariant: this.promotionVariant,
         },
-        this.defaultTopology
+        this.defaultTopology,
+        activeConfig
       );
       if (!validation.valid) {
         throw new Error(`Invalid move (${validation.code}): ${validation.reason}`);
@@ -257,6 +341,60 @@ export class MovePieceCommand implements ICommand {
     (piece as { position: CoordinateKey }).position = this.to;
     draft.occupancy[this.to] = this.pieceId;
 
+    // Atomic variant explosion handling (RF-08)
+    const isAtomic = Boolean(
+      activeConfig?.captureExplosion ||
+      activeConfig?.variantId === 'ATOMIC' ||
+      draft.variantId === 'ATOMIC'
+    );
+    if (isCapture && isAtomic) {
+      // 1. Epicenter: Capturing piece itself is destroyed in the explosion
+      (piece as { isCaptured: boolean }).isCaptured = true;
+      delete draft.occupancy[this.to];
+
+      // 2. Blast radius 1: All adjacent non-pawn pieces destroyed
+      const neighbors = this.defaultTopology.getAllNeighbors(this.to);
+      for (const neighborCoord of neighbors) {
+        const occId = draft.occupancy[neighborCoord];
+        if (occId && occId !== this.pieceId) {
+          const adjPiece = draft.boardEntities[occId] as IPieceEntity | undefined;
+          if (adjPiece && adjPiece.type === 'PIECE' && !adjPiece.isCaptured) {
+            const vUpper = adjPiece.variantId.toUpperCase();
+            const isPawnNeighbor = vUpper === 'PAWN' || vUpper === 'P';
+            if (!isPawnNeighbor) {
+              this.atomicDestroyedEntitiesSnapshot.push(JSON.parse(JSON.stringify(adjPiece)));
+              (adjPiece as { isCaptured: boolean }).isCaptured = true;
+              delete draft.occupancy[neighborCoord];
+            }
+          }
+        }
+      }
+
+      // Check king survival in Atomic detonation
+      let whiteKingAlive = false;
+      let blackKingAlive = false;
+      for (const e of Object.values(draft.boardEntities)) {
+        if (e.type === 'PIECE' && !(e as IPieceEntity).isCaptured) {
+          const v = (e as IPieceEntity).variantId.toUpperCase();
+          if (v === 'KING' || v === 'K') {
+            if ((e as IPieceEntity).ownerId === 'P1') whiteKingAlive = true;
+            if ((e as IPieceEntity).ownerId === 'P2') blackKingAlive = true;
+          }
+        }
+      }
+
+      if (!whiteKingAlive && !blackKingAlive) {
+        (draft as { isGameOver: boolean }).isGameOver = true;
+        (draft as { winnerId: PlayerId | null }).winnerId = null;
+      } else if (!whiteKingAlive) {
+        (draft as { isGameOver: boolean }).isGameOver = true;
+        (draft as { winnerId: PlayerId | null }).winnerId = 'P2';
+      } else if (!blackKingAlive) {
+        (draft as { isGameOver: boolean }).isGameOver = true;
+        (draft as { winnerId: PlayerId | null }).winnerId = 'P1';
+      }
+    }
+
     // Turn state progression & FIDE counters
     if (draft.turnState) {
       this.previousEnPassantTarget = draft.turnState.enPassantTarget;
@@ -289,11 +427,8 @@ export class MovePieceCommand implements ICommand {
     }
 
     // Game over evaluation
-    if (this.enforceRules) {
-      this.previousIsGameOver = draft.isGameOver;
-      this.previousWinnerId = draft.winnerId;
-
-      const result = RulesEngine.getGameResult(draft, this.defaultTopology);
+    if ((this.enforceRules || activeConfig) && !draft.isGameOver) {
+      const result = RulesEngine.getGameResult(draft, this.defaultTopology, activeConfig);
       if (result.isGameOver) {
         (draft as { isGameOver: boolean }).isGameOver = true;
         (draft as { winnerId: PlayerId | null }).winnerId = result.winnerId;
@@ -302,6 +437,41 @@ export class MovePieceCommand implements ICommand {
   }
 
   public undo(draft: IDomainState): void {
+    // 1. Revert Drop Move
+    if (this.droppedPieceSnapshot) {
+      delete draft.occupancy[this.to];
+      delete draft.boardEntities[this.droppedPieceSnapshot.pieceId];
+      if (draft.capturedInventory?.[this.actingPlayer]) {
+        draft.capturedInventory[this.actingPlayer].push(this.droppedPieceSnapshot.variant);
+      }
+
+      if (draft.turnState) {
+        if (this.previousEnPassantTarget !== undefined) {
+          (draft.turnState as { enPassantTarget: CoordinateKey | null }).enPassantTarget = this.previousEnPassantTarget;
+        }
+        if (this.previousFiftyMoveCounter !== null) {
+          (draft.turnState as { fiftyMoveCounter: number }).fiftyMoveCounter = this.previousFiftyMoveCounter;
+        }
+      }
+
+      if (this.previousIsGameOver !== undefined) {
+        (draft as { isGameOver: boolean }).isGameOver = Boolean(this.previousIsGameOver);
+      }
+      if (this.previousWinnerId !== undefined) {
+        (draft as { winnerId: PlayerId | null }).winnerId = this.previousWinnerId;
+      }
+
+      if (this.advanceTurn) {
+        if (this.previousActivePlayer !== null) {
+          (draft as { activePlayer: PlayerId }).activePlayer = this.previousActivePlayer;
+        }
+        if (this.previousTurnNumber !== null) {
+          (draft as { turnNumber: number }).turnNumber = this.previousTurnNumber;
+        }
+      }
+      return;
+    }
+
     const piece = draft.boardEntities[this.pieceId] as IPieceEntity | undefined;
     if (!piece) {
       throw new Error(`Cannot undo: Piece "${this.pieceId}" not found in domain entities.`);
@@ -317,7 +487,8 @@ export class MovePieceCommand implements ICommand {
 
     // Revert spatial occupancy
     delete draft.occupancy[this.to];
-    (piece as { position: CoordinateKey }).position = this.from;
+    (piece as { position: CoordinateKey; isCaptured: boolean }).position = this.from;
+    (piece as { position: CoordinateKey; isCaptured: boolean }).isCaptured = false;
     draft.occupancy[this.from] = this.pieceId;
 
     // Revert castled rook
@@ -328,6 +499,15 @@ export class MovePieceCommand implements ICommand {
         draft.occupancy[this.castledRookSnapshot.from] = this.castledRookSnapshot.id;
         (rook as { position: CoordinateKey; hasMoved: boolean }).position = this.castledRookSnapshot.from;
         (rook as { position: CoordinateKey; hasMoved: boolean }).hasMoved = this.castledRookSnapshot.previousHasMoved;
+      }
+    }
+
+    // Revert atomic explosion casualties
+    if (this.atomicDestroyedEntitiesSnapshot.length > 0) {
+      for (const destroyed of this.atomicDestroyedEntitiesSnapshot) {
+        const restored = JSON.parse(JSON.stringify(destroyed));
+        draft.boardEntities[restored.id] = restored;
+        draft.occupancy[restored.position] = restored.id;
       }
     }
 
@@ -344,7 +524,7 @@ export class MovePieceCommand implements ICommand {
         restored.type === 'PIECE'
       ) {
         const inv = draft.capturedInventory[this.actingPlayer];
-        const lastIdx = inv.lastIndexOf(restored.variantId);
+        const lastIdx = inv.lastIndexOf(restored.variantId.toUpperCase());
         if (lastIdx !== -1) {
           inv.splice(lastIdx, 1);
         }
@@ -362,10 +542,10 @@ export class MovePieceCommand implements ICommand {
     }
 
     // Revert game over status
-    if (this.previousIsGameOver !== null) {
-      (draft as { isGameOver: boolean }).isGameOver = this.previousIsGameOver;
+    if (this.previousIsGameOver !== undefined) {
+      (draft as { isGameOver: boolean }).isGameOver = Boolean(this.previousIsGameOver);
     }
-    if (this.previousWinnerId !== null) {
+    if (this.previousWinnerId !== undefined) {
       (draft as { winnerId: PlayerId | null }).winnerId = this.previousWinnerId;
     }
 

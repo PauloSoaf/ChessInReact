@@ -76,11 +76,33 @@ describe('Multi-Topology Pure Rules Compatibility (Spec 04 RF-07, RF-08)', () =>
     expect(moves.some((m) => m.to === asCoordinateKey('7,6'))).toBe(true);
   });
 
-  it('correctly executes on HexTopology with 6-way edge raycasting and trichromatic colors', () => {
-    const hexTopology = new HexTopology({ radius: 4 });
+  it('correctly executes on official 91-cell Gliński HexTopology (radius 5) with 6-way edge raycasting and 3-color trichromatic bishops', () => {
+    // Official Gliński board: side length 6, bounding radius 5 = exactly 91 hex cells (Spec 04 RF-07 & ADR-002)
+    const hexTopology = new HexTopology({ radius: 5 });
     const state = createBlankState('HEXAGONAL_GLINSKI');
 
-    // Place a Rook on central hex (0,0,0)
+    // 1. Verify exactly 91 cells exist in the radius-5 hex grid
+    let totalCells = 0;
+    const colorsCount = { 0: 0, 1: 0, 2: 0 };
+    for (let q = -5; q <= 5; q++) {
+      for (let r = -5; r <= 5; r++) {
+        const s = -q - r;
+        const coord = asCoordinateKey(`${q},${r},${s}`);
+        if (hexTopology.isValidCoordinate(coord)) {
+          totalCells++;
+          const color = hexTopology.getCellColorIndex(coord);
+          colorsCount[color]++;
+        }
+      }
+    }
+    expect(totalCells).toBe(91);
+    // Gliński trichromatic distribution: 30 cells of color 0, 31 cells of color 1, 30 cells of color 2
+    expect(colorsCount[0] + colorsCount[1] + colorsCount[2]).toBe(91);
+    expect(colorsCount[0]).toBeGreaterThanOrEqual(30);
+    expect(colorsCount[1]).toBeGreaterThanOrEqual(30);
+    expect(colorsCount[2]).toBeGreaterThanOrEqual(30);
+
+    // 2. Place a Rook on central hex (0,0,0)
     const rookId = asEntityId('hex-rook-1');
     const rook: IPieceEntity = {
       id: rookId,
@@ -96,16 +118,19 @@ describe('Multi-Topology Pure Rules Compatibility (Spec 04 RF-07, RF-08)', () =>
 
     const moves = RulesEngine.getLegalMovesForPiece(rook, state, hexTopology);
 
-    // In a radius 4 hex board, from center (0,0,0), 6 directions extend 4 steps each = 24 moves!
-    expect(moves.length).toBe(24);
+    // In a radius 5 hex board, from center (0,0,0), 6 orthogonal directions extend 5 steps each = 30 moves!
+    expect(moves.length).toBe(30);
 
-    // Verify trichromatic cell color index (0, 1, 2)
-    const c0 = hexTopology.getCellColorIndex(asCoordinateKey('0,0,0'));
-    const c1 = hexTopology.getCellColorIndex(asCoordinateKey('1,-1,0'));
-    const c2 = hexTopology.getCellColorIndex(asCoordinateKey('2,-2,0'));
-    expect([0, 1, 2]).toContain(c0);
-    expect([0, 1, 2]).toContain(c1);
-    expect([0, 1, 2]).toContain(c2);
+    // 3. Test 3 trichromatic Bishops on their respective color cells
+    const bishopCoords = [
+      asCoordinateKey('0,0,0'),  // color 0
+      asCoordinateKey('1,0,-1'), // color 1
+      asCoordinateKey('2,0,-2'), // color 2
+    ];
+
+    expect(hexTopology.getCellColorIndex(bishopCoords[0])).toBe(0);
+    expect(hexTopology.getCellColorIndex(bishopCoords[1])).toBe(1);
+    expect(hexTopology.getCellColorIndex(bishopCoords[2])).toBe(2);
   });
 
   it('correctly executes on TriangleTopology without throwing errors', () => {

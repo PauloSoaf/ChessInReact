@@ -234,6 +234,15 @@ export class ChessRoom extends Room<ChessRoomStateSchema> {
       return;
     }
 
+    // 0. Game Phase Check
+    if (this.state.phase !== 'PLAYING') {
+      client.send('REJECT_MOVE', {
+        seqId: message?.seqId ?? 0,
+        reason: `Command rejected: Game is in "${this.state.phase}" phase.`,
+      });
+      return;
+    }
+
     // 1. Spectator protection (RF-10, US03-P05)
     if (player.role === 'SPECTATOR') {
       client.send('REJECT_MOVE', {
@@ -339,6 +348,14 @@ export class ChessRoom extends Room<ChessRoomStateSchema> {
           capturedPieceId: resolution.capturedPieceId,
           atCoord: resolution.to,
           capturedBy: cmd.playerId,
+        });
+      }
+
+      // Broadcast GAME_OVER if checkmate, stalemate, or game end triggered
+      if (resolution.gameOver || this.state.phase === 'GAME_OVER') {
+        this.broadcast('GAME_OVER', {
+          reason: resolution.gameOverReason || 'CHECKMATE',
+          winnerId: this.state.winnerId,
         });
       }
     } else {

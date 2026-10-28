@@ -45,6 +45,12 @@ describe('Perft Official Conformance Suite (Spec 04 RF-06, RNF-01, RNF-06)', () 
     expect(count).toBe(197281);
   });
 
+  it('verifies standard starting position Perft Depth 5 = 4,865,609 nodes (Spec 04 RF-06)', { timeout: 60000 }, () => {
+    const state = ClassicBoardFactory.createStandardInitialState();
+    const count = Perft.countNodes(state, topology, 5);
+    expect(count).toBe(4865609);
+  });
+
   it('verifies KiwiPete position (Position 2) Perft Depth 1 = 48, Depth 2 = 2,039', () => {
     // KiwiPete: tests heavy castling, pins, and complex pawn interactions
     const fen = 'r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1';
