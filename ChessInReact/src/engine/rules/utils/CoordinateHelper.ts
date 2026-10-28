@@ -11,6 +11,16 @@ export interface ICoord2D {
  */
 export function parseCoord(coord: string | CoordinateKey): ICoord2D | null {
   if (!coord || typeof coord !== 'string') return null;
+
+  // Ultra-fast ASCII path for single digit "x,y" (e.g. "0,0" to "7,7")
+  if (coord.length === 3 && coord.charCodeAt(1) === 44) {
+    const c0 = coord.charCodeAt(0);
+    const c2 = coord.charCodeAt(2);
+    if (c0 >= 48 && c0 <= 57 && c2 >= 48 && c2 <= 57) {
+      return { x: c0 - 48, y: c2 - 48 };
+    }
+  }
+
   const trimmed = coord.trim();
 
   // 1. Cartesian "x,y" format
@@ -36,10 +46,32 @@ export function parseCoord(coord: string | CoordinateKey): ICoord2D | null {
   return null;
 }
 
+// Pre-computed 8x8 coordinate table to eliminate string concatenation in raycasting (RNF-01, RNF-07)
+const COORD_KEYS_8X8: CoordinateKey[][] = [];
+for (let x = 0; x < 8; x++) {
+  COORD_KEYS_8X8[x] = [];
+  for (let y = 0; y < 8; y++) {
+    COORD_KEYS_8X8[x][y] = asCoordinateKey(`${x},${y}`);
+  }
+}
+
+/**
+ * Returns pre-computed CoordinateKey for 8x8 boards in 1 CPU cycle with zero string allocations.
+ */
+export function getFastCoordKey(x: number, y: number): CoordinateKey {
+  if (x >= 0 && x < 8 && y >= 0 && y < 8) {
+    return COORD_KEYS_8X8[x][y];
+  }
+  return asCoordinateKey(`${Math.trunc(x)},${Math.trunc(y)}`);
+}
+
 /**
  * Converts { x, y } to standard Cartesian CoordinateKey ("x,y").
  */
 export function toCoordKey(x: number, y: number): CoordinateKey {
+  if (x >= 0 && x < 8 && y >= 0 && y < 8) {
+    return COORD_KEYS_8X8[x][y];
+  }
   return asCoordinateKey(`${Math.trunc(x)},${Math.trunc(y)}`);
 }
 
