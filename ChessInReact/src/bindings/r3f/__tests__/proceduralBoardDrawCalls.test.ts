@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import * as THREE from 'three';
 import { ProceduralBoardInstancedHarness } from '../ProceduralBoardInstancedHarness';
 import { SquareTopology, HexTopology } from '../../../core/topology';
 import { ChunkManager } from '../../../core/procedural/ChunkManager';
@@ -111,4 +112,94 @@ describe('RNF-08: WebGL Draw Calls Budget Validation (Spec 02 Verification)', ()
 
     harness.dispose();
   });
+
+  it('restores instance scale to (1, 1, 1) when loading chunks after unload and across 100 load/unload cycles (S02-03)', () => {
+    const hex = new HexTopology();
+    const chunkManager = new ChunkManager(hex, { seed: 'scale-test', chunkSize: 16 });
+    const harness = new ProceduralBoardInstancedHarness(hex, { maxCapacity: 2000 });
+
+    const chunk1 = chunkManager.getOrGenerateChunk({ chunkX: 0, chunkY: 0 });
+    const chunk2 = chunkManager.getOrGenerateChunk({ chunkX: 1, chunkY: 0 });
+
+    // Step 1: Load chunk 1
+    harness.loadChunk(chunk1);
+
+    // Step 2: Unload chunk 1 (tempScale is set to 0,0,0 internally to hide instances)
+    harness.unloadChunk(chunk1.chunkId);
+
+    // Step 3: Load chunk 2
+    harness.loadChunk(chunk2);
+
+    // Check scale of newly loaded instances
+    const mat = new THREE.Matrix4();
+    const scale = new THREE.Vector3();
+
+    // Verify all active instances have scale (1, 1, 1), not (0, 0, 0)
+    for (let i = 0; i < 256; i++) {
+      harness.instancedMesh.getMatrixAt(i, mat);
+      scale.setFromMatrixScale(mat);
+      expect(scale.x).toBeCloseTo(1, 4);
+      expect(scale.y).toBeCloseTo(1, 4);
+      expect(scale.z).toBeCloseTo(1, 4);
+      expect(mat.elements[0]).toBeGreaterThan(0);
+      expect(mat.elements[5]).toBeGreaterThan(0);
+      expect(mat.elements[10]).toBeGreaterThan(0);
+    }
+
+    // Step 4: Run 100 load/unload cycles
+    for (let cycle = 0; cycle < 100; cycle++) {
+      harness.unloadChunk(chunk2.chunkId);
+      harness.loadChunk(chunk1);
+      harness.unloadChunk(chunk1.chunkId);
+      harness.loadChunk(chunk2);
+    }
+
+    for (let i = 0; i < 256; i++) {
+      harness.instancedMesh.getMatrixAt(i, mat);
+      scale.setFromMatrixScale(mat);
+      expect(scale.x).toBeCloseTo(1, 4);
+      expect(scale.y).toBeCloseTo(1, 4);
+      expect(scale.z).toBeCloseTo(1, 4);
+      expect(mat.elements[0]).toBeGreaterThan(0);
+      expect(mat.elements[5]).toBeGreaterThan(0);
+      expect(mat.elements[10]).toBeGreaterThan(0);
+    }
+
+    harness.dispose();
+  });
+
+  it('distinguishes architectural batch estimation from renderer call metrics (S02-02)', () => {
+    const hex = new HexTopology();
+    const chunkManager = new ChunkManager(hex, { seed: 'metrics-mode', chunkSize: 16 });
+    const harness = new ProceduralBoardInstancedHarness(hex, { maxCapacity: 500, materialName: 'BatchMaterial' });
+    const chunk = chunkManager.getOrGenerateChunk({ chunkX: 0, chunkY: 0 });
+    harness.loadChunk(chunk);
+
+    // Architectural estimation
+    const estimated = harness.computeDrawCallMetrics();
+    expect(estimated.isHardwareMeasured).toBe(false);
+    expect(estimated.measurementMode).toBe('ESTIMATED_BATCH_STRUCTURE');
+    expect(estimated.totalDrawCalls).toBe(1);
+
+    // Hardware measurement path via WebGLRenderer interface contract
+    const mockRenderer = {
+      info: {
+        reset: () => {},
+        render: { calls: 1, triangles: 512, points: 0, lines: 0, frame: 1 },
+      },
+      render: () => {},
+    } as unknown as THREE.WebGLRenderer;
+
+    const dummyScene = new THREE.Scene();
+    const dummyCamera = new THREE.PerspectiveCamera();
+    const measured = harness.measureWebGLRendererCalls(mockRenderer, dummyScene, dummyCamera);
+
+    expect(measured.isHardwareMeasured).toBe(true);
+    expect(measured.measurementMode).toBe('MEASURED_WEBGL_RENDERER');
+    expect(measured.totalDrawCalls).toBe(1);
+    expect(measured.drawCallsPerMaterial['BatchMaterial']).toBe(1);
+
+    harness.dispose();
+  });
 });
+
