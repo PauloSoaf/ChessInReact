@@ -1,4 +1,5 @@
 import { ChessRoomStateSchema, PlayerSchema } from '../schemas/RoomStateSchema';
+import { validateStandardMove } from './StandardMoveValidator';
 
 export interface IQueuedMove {
   readonly playerId: string;
@@ -90,28 +91,45 @@ export class TurnResolver {
       return { success: false, reason: 'Move rejected: Destination equals origin.' };
     }
 
-    // 4. Target occupancy & legality check
-    let capturedPieceId: string | undefined;
-    for (const [id, entity] of state.boardEntities.entries()) {
-      if (entity.position === move.to && !entity.isCaptured && id !== move.pieceId) {
-        if (entity.ownerId === move.playerId) {
-          return {
-            success: false,
-            reason: `Move rejected: Cannot capture friendly piece "${id}" at "${move.to}".`,
-          };
-        }
-        // Enemy piece - capture!
-        entity.isCaptured = true;
-        entity.position = '';
-        capturedPieceId = id;
+    // 4. Determine player color for directional movement (Pawns)
+    let isWhite = true;
+    for (const player of state.players.values()) {
+      if (player.playerId === move.playerId) {
+        isWhite = player.role === 'WHITE';
         break;
       }
     }
 
-    // 5. Apply state mutation
+    // 5. Authoritative Geometric and Obstacle Validation
+    const validation = validateStandardMove(
+      piece,
+      move.from,
+      move.to,
+      isWhite,
+      state.boardEntities.values()
+    );
+
+    if (!validation.valid) {
+      return {
+        success: false,
+        reason: validation.reason || 'Move rejected: Geometric or path validation failed.',
+      };
+    }
+
+    // 6. Apply state mutation atomically only after all checks pass
+    let capturedPieceId: string | undefined;
+    if (validation.capturedPiece) {
+      validation.capturedPiece.isCaptured = true;
+      validation.capturedPiece.position = '';
+      capturedPieceId = validation.capturedPiece.id;
+    }
+
     piece.position = move.to;
     piece.hasMoved = true;
     state.lastProcessedSequenceId = move.seqId;
+    if (state.playerSequenceAcks) {
+      state.playerSequenceAcks.set(move.playerId, move.seqId);
+    }
     state.turnNumber += 1;
 
     // Toggle active player among connected active players

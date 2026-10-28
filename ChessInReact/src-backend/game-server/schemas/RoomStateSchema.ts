@@ -69,6 +69,9 @@ export class ChessRoomStateSchema extends Schema {
   @type({ map: PlayerSchema })
   public players = new MapSchema<PlayerSchema>();
 
+  @type({ map: 'number' })
+  public playerSequenceAcks = new MapSchema<number>();
+
   constructor(init?: Partial<ChessRoomStateSchema>) {
     super();
     if (init) {

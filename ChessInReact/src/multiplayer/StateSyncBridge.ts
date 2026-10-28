@@ -31,6 +31,11 @@ export class StateSyncBridge {
     private myPlayerId: PlayerId
   ) {
     this.setupNetworkHandlers();
+
+    // Initial state sync if state is already populated (avoids missing initial snapshot)
+    if (this.room.state && this.room.state.boardEntities && this.room.state.boardEntities.size > 0) {
+      this.handleServerStateChange(this.room.state);
+    }
   }
 
   public getMyPlayerId(): PlayerId {
@@ -45,6 +50,24 @@ export class StateSyncBridge {
     return this.pendingCommands.size;
   }
 
+  public toCanonicalPlayerId(id: PlayerId | string): PlayerId {
+    let whitePlayerId = '';
+    let blackPlayerId = '';
+    this.room.state?.players?.forEach((p) => {
+      if (p.role === 'WHITE') whitePlayerId = p.playerId;
+      if (p.role === 'BLACK') blackPlayerId = p.playerId;
+    });
+
+    const str = String(id).toLowerCase();
+    if (id === 'P1' || id === 'WHITE' || (whitePlayerId && id === whitePlayerId) || str.includes('white')) {
+      return 'P1';
+    }
+    if (id === 'P2' || id === 'BLACK' || (blackPlayerId && id === blackPlayerId) || str.includes('black')) {
+      return 'P2';
+    }
+    return id as PlayerId;
+  }
+
   /**
    * Dispatches optimistic move immediately (<2ms, RNF-06) and sends network command.
    */
@@ -54,7 +77,8 @@ export class StateSyncBridge {
     to: CoordinateKey
   ): number {
     const seqId = ++this.sequenceCounter;
-    const command = new MovePieceCommand(pieceId, from, to, this.myPlayerId);
+    const actingPlayer = this.toCanonicalPlayerId(this.myPlayerId);
+    const command = new MovePieceCommand(pieceId, from, to, actingPlayer);
 
     // 1. Optimistic local prediction execution
     this.store.getState().executeCommand(command);
@@ -86,15 +110,31 @@ export class StateSyncBridge {
     const boardEntities: Record<EntityId, IEntity> = {};
     const occupancy: Record<CoordinateKey, EntityId> = {};
 
+    let whitePlayerId = '';
+    let blackPlayerId = '';
+    schema.players.forEach((p) => {
+      if (p.role === 'WHITE') whitePlayerId = p.playerId;
+      if (p.role === 'BLACK') blackPlayerId = p.playerId;
+    });
+
     schema.boardEntities.forEach((netEnt, key) => {
       const eId = asEntityId(netEnt.id || key);
       const pos = asCoordinateKey(netEnt.position);
+
+      let canonicalOwner: PlayerId = 'NONE';
+      if (netEnt.ownerId === whitePlayerId || netEnt.ownerId === 'P1' || netEnt.ownerId.includes('white')) {
+        canonicalOwner = 'P1';
+      } else if (netEnt.ownerId === blackPlayerId || netEnt.ownerId === 'P2' || netEnt.ownerId.includes('black')) {
+        canonicalOwner = 'P2';
+      } else {
+        canonicalOwner = (netEnt.ownerId as PlayerId) || 'NONE';
+      }
 
       const piece: IPieceEntity = {
         id: eId,
         type: 'PIECE',
         position: pos,
-        ownerId: (netEnt.ownerId as PlayerId) || 'NONE',
+        ownerId: canonicalOwner,
         variantId: netEnt.variantId || 'P',
         hasMoved: Boolean(netEnt.hasMoved),
         isCaptured: Boolean(netEnt.isCaptured),
@@ -108,7 +148,15 @@ export class StateSyncBridge {
       }
     });
 
-    const activePlayer = (schema.activePlayerId as PlayerId) || 'P1';
+    let activePlayer: PlayerId = 'P1';
+    if (schema.activePlayerId === whitePlayerId || schema.activePlayerId === 'P1' || schema.activePlayerId.includes('white')) {
+      activePlayer = 'P1';
+    } else if (schema.activePlayerId === blackPlayerId || schema.activePlayerId === 'P2' || schema.activePlayerId.includes('black')) {
+      activePlayer = 'P2';
+    } else {
+      activePlayer = (schema.activePlayerId as PlayerId) || 'P1';
+    }
+
     const winnerId = schema.winnerId ? (schema.winnerId as PlayerId) : null;
 
     return {
@@ -144,7 +192,10 @@ export class StateSyncBridge {
 
   private setupNetworkHandlers(): void {
     // 1. Listen for Server Acknowledgment
-    this.room.onMessage('MOVE_ACK', (ack: IServerMoveAckPayload) => {
+    this.room.onMessage('MOVE_ACK', (ack: IServerMoveAckPayload & { playerId?: string }) => {
+      if (ack.playerId && ack.playerId !== String(this.myPlayerId)) {
+        return;
+      }
       const pending = this.pendingCommands.get(ack.seqId);
       if (pending) {
         this.optimisticManager.acknowledge(pending.optimisticId);
@@ -192,11 +243,14 @@ export class StateSyncBridge {
     const authoritativeDomain = this.schemaToDomainState(state);
     this.lastAuthoritativeState = authoritativeDomain;
 
-    // Prune acknowledged commands whose sequence is <= state.lastProcessedSequenceId
-    for (const [seqId, record] of Array.from(this.pendingCommands.entries())) {
-      if (seqId <= state.lastProcessedSequenceId) {
-        this.optimisticManager.acknowledge(record.optimisticId);
-        this.pendingCommands.delete(seqId);
+    // Prune acknowledged commands for THIS player based on per-player ACK (S03-04)
+    const myAck = state.playerSequenceAcks ? state.playerSequenceAcks.get(String(this.myPlayerId)) : undefined;
+    if (typeof myAck === 'number') {
+      for (const [seqId, record] of Array.from(this.pendingCommands.entries())) {
+        if (seqId <= myAck) {
+          this.optimisticManager.acknowledge(record.optimisticId);
+          this.pendingCommands.delete(seqId);
+        }
       }
     }
 

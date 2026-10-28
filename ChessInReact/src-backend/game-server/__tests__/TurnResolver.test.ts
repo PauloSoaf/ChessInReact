@@ -185,16 +185,16 @@ describe('Spec 03 - TurnResolver (RF-01, RF-06, RF-07)', () => {
       expect(state.activePlayerId).toBe('player-black'); // Turn toggled!
     });
 
-    it('captures opponent piece atomically and reports capturedPieceId', () => {
-      // Place black pawn at e4
-      state.boardEntities.get('p-b-e7')!.position = 'e4';
+    it('captures opponent piece atomically on legal diagonal pawn move', () => {
+      // Place black pawn at d3 (diagonal to e2)
+      state.boardEntities.get('p-b-e7')!.position = 'd3';
 
       const result = resolver.executeSequentialMove(
         {
           playerId: 'player-white',
           pieceId: 'p-w-e2',
           from: 'e2',
-          to: 'e4',
+          to: 'd3',
           seqId: 43,
           timestamp: Date.now(),
         },
@@ -207,6 +207,168 @@ describe('Spec 03 - TurnResolver (RF-01, RF-06, RF-07)', () => {
       const capturedPiece = state.boardEntities.get('p-b-e7')!;
       expect(capturedPiece.isCaptured).toBe(true);
       expect(capturedPiece.position).toBe('');
+    });
+  });
+
+  describe('Geometric & Path Validation (S03-01 Authoritative Anti-Cheat)', () => {
+    beforeEach(() => {
+      // Set up standard back-rank pieces for White
+      state.boardEntities.set(
+        'r-w-a1',
+        new NetworkEntitySchema({
+          id: 'r-w-a1',
+          entityType: 'PIECE',
+          position: 'a1',
+          ownerId: 'player-white',
+          variantId: 'R',
+        })
+      );
+      state.boardEntities.set(
+        'b-w-c1',
+        new NetworkEntitySchema({
+          id: 'b-w-c1',
+          entityType: 'PIECE',
+          position: 'c1',
+          ownerId: 'player-white',
+          variantId: 'B',
+        })
+      );
+      state.boardEntities.set(
+        'n-w-b1',
+        new NetworkEntitySchema({
+          id: 'n-w-b1',
+          entityType: 'PIECE',
+          position: 'b1',
+          ownerId: 'player-white',
+          variantId: 'N',
+        })
+      );
+      state.boardEntities.set(
+        'q-w-d1',
+        new NetworkEntitySchema({
+          id: 'q-w-d1',
+          entityType: 'PIECE',
+          position: 'd1',
+          ownerId: 'player-white',
+          variantId: 'Q',
+        })
+      );
+      state.boardEntities.set(
+        'k-w-e1',
+        new NetworkEntitySchema({
+          id: 'k-w-e1',
+          entityType: 'PIECE',
+          position: 'e1',
+          ownerId: 'player-white',
+          variantId: 'K',
+        })
+      );
+    });
+
+    it('rejects pawn teleport (e2 -> e8) and preserves state', () => {
+      const stateBefore = JSON.stringify(state);
+      const res = resolver.executeSequentialMove(
+        { playerId: 'player-white', pieceId: 'p-w-e2', from: 'e2', to: 'e8', seqId: 10, timestamp: Date.now() },
+        state
+      );
+      expect(res.success).toBe(false);
+      expect(res.reason).toContain('Illegal pawn advance distance');
+      expect(JSON.stringify(state)).toBe(stateBefore);
+    });
+
+    it('rejects diagonal rook move (a1 -> h8) and preserves state', () => {
+      const stateBefore = JSON.stringify(state);
+      const res = resolver.executeSequentialMove(
+        { playerId: 'player-white', pieceId: 'r-w-a1', from: 'a1', to: 'h8', seqId: 11, timestamp: Date.now() },
+        state
+      );
+      expect(res.success).toBe(false);
+      expect(res.reason).toContain('Illegal rook move');
+      expect(JSON.stringify(state)).toBe(stateBefore);
+    });
+
+    it('rejects bishop jumping through pieces (c1 -> a3 with b2 or friendly pieces) and preserves state', () => {
+      // Place piece at d2 obstructing c1 -> e3
+      state.boardEntities.set(
+        'obstacle-d2',
+        new NetworkEntitySchema({ id: 'obstacle-d2', position: 'd2', ownerId: 'player-white', variantId: 'P' })
+      );
+      const stateBefore = JSON.stringify(state);
+      const res = resolver.executeSequentialMove(
+        { playerId: 'player-white', pieceId: 'b-w-c1', from: 'c1', to: 'e3', seqId: 12, timestamp: Date.now() },
+        state
+      );
+      expect(res.success).toBe(false);
+      expect(res.reason).toContain('obstructed');
+      expect(JSON.stringify(state)).toBe(stateBefore);
+    });
+
+    it('rejects pawn moving forward into an occupied square without diagonal capture and preserves state', () => {
+      // Put opponent at e3 blocking e2 pawn
+      state.boardEntities.set(
+        'blocker-e3',
+        new NetworkEntitySchema({ id: 'blocker-e3', position: 'e3', ownerId: 'player-black', variantId: 'P' })
+      );
+      const stateBefore = JSON.stringify(state);
+      const res = resolver.executeSequentialMove(
+        { playerId: 'player-white', pieceId: 'p-w-e2', from: 'e2', to: 'e3', seqId: 13, timestamp: Date.now() },
+        state
+      );
+      expect(res.success).toBe(false);
+      expect(res.reason).toContain('cannot advance forward into an occupied square');
+      expect(JSON.stringify(state)).toBe(stateBefore);
+    });
+
+    it('rejects knight with invalid non-L displacement and preserves state', () => {
+      const stateBefore = JSON.stringify(state);
+      const res = resolver.executeSequentialMove(
+        { playerId: 'player-white', pieceId: 'n-w-b1', from: 'b1', to: 'b3', seqId: 14, timestamp: Date.now() },
+        state
+      );
+      expect(res.success).toBe(false);
+      expect(res.reason).toContain('Illegal knight move');
+      expect(JSON.stringify(state)).toBe(stateBefore);
+    });
+
+    it('rejects moves with malformed coordinates and preserves state', () => {
+      const stateBefore = JSON.stringify(state);
+      const res = resolver.executeSequentialMove(
+        { playerId: 'player-white', pieceId: 'p-w-e2', from: 'e2', to: 'malformed_coord', seqId: 15, timestamp: Date.now() },
+        state
+      );
+      expect(res.success).toBe(false);
+      expect(res.reason).toContain('Malformed');
+      expect(JSON.stringify(state)).toBe(stateBefore);
+    });
+
+    it('rejects moves outside the board boundary (e.g. e9, i4) and preserves state', () => {
+      const stateBefore = JSON.stringify(state);
+      const res = resolver.executeSequentialMove(
+        { playerId: 'player-white', pieceId: 'p-w-e2', from: 'e2', to: 'e9', seqId: 16, timestamp: Date.now() },
+        state
+      );
+      expect(res.success).toBe(false);
+      expect(res.reason).toContain('out-of-bounds');
+      expect(JSON.stringify(state)).toBe(stateBefore);
+    });
+
+    it('accepts valid knight jump over pieces (b1 -> c3)', () => {
+      const res = resolver.executeSequentialMove(
+        { playerId: 'player-white', pieceId: 'n-w-b1', from: 'b1', to: 'c3', seqId: 17, timestamp: Date.now() },
+        state
+      );
+      expect(res.success).toBe(true);
+      expect(state.boardEntities.get('n-w-b1')!.position).toBe('c3');
+    });
+
+    it('accepts valid pawn move e2 -> e4 on starting rank', () => {
+      const res = resolver.executeSequentialMove(
+        { playerId: 'player-white', pieceId: 'p-w-e2', from: 'e2', to: 'e4', seqId: 18, timestamp: Date.now() },
+        state
+      );
+      expect(res.success).toBe(true);
+      expect(state.boardEntities.get('p-w-e2')!.position).toBe('e4');
+      expect(state.turnNumber).toBe(2);
     });
   });
 

@@ -2,6 +2,7 @@ import http from 'http';
 import { Server } from 'colyseus';
 import { WebSocketTransport } from '@colyseus/ws-transport';
 import { ChessRoom } from './rooms/ChessRoom';
+import { validateJwtBootstrap } from './auth/jwtAuth';
 
 export interface IServerInstance {
   httpServer: http.Server;
@@ -15,6 +16,7 @@ export interface IServerInstance {
  * Conforms to Spec 03 Section 18 (Render.com free tier, /health endpoint, graceful shutdown).
  */
 export function createGameServer(requestedPort?: number): IServerInstance {
+  validateJwtBootstrap();
   const port = requestedPort ?? Number(process.env.PORT || 2567);
 
   const httpServer = http.createServer((req, res) => {

@@ -24,6 +24,13 @@ export interface IPingMessage {
   clientSendTime?: number;
 }
 
+export interface IBufferedMoveCommand {
+  readonly client: Client;
+  readonly message: IClientMoveMessage;
+  readonly playerId: string;
+  readonly enqueuedTickTimestamp: number;
+}
+
 /**
  * Authoritative ChessRoom managing game lifecycle, anti-cheat, 20 ticks/sec simulation,
  * reconnection with 60s lease, and spectator channel separation.
@@ -32,6 +39,7 @@ export interface IPingMessage {
 export class ChessRoom extends Room<ChessRoomStateSchema> {
   private turnResolver: TurnResolver = new TurnResolver();
   private rateLimiter: RateLimiter = new RateLimiter(10, 1000); // 10 msgs/s (RF-11)
+  private moveCommandBuffer: IBufferedMoveCommand[] = [];
 
   /**
    * Room initialization
@@ -93,8 +101,13 @@ export class ChessRoom extends Room<ChessRoomStateSchema> {
     const hasWhite = existingPlayers.some((p) => p.role === 'WHITE');
     const hasBlack = existingPlayers.some((p) => p.role === 'BLACK');
 
+    // S03-03: Ensure the same authenticated playerId cannot occupy both sides
+    const alreadyPlaying = existingPlayers.some(
+      (p) => p.playerId === playerId && (p.role === 'WHITE' || p.role === 'BLACK')
+    );
+
     let role: string = 'SPECTATOR';
-    if (!options?.spectatorMode && auth?.role !== 'SPECTATOR') {
+    if (!alreadyPlaying && !options?.spectatorMode && auth?.role !== 'SPECTATOR') {
       if (!hasWhite) {
         role = 'WHITE';
       } else if (!hasBlack) {
@@ -170,10 +183,20 @@ export class ChessRoom extends Room<ChessRoomStateSchema> {
 
   /**
    * Fixed 20-tick update simulation (RNF-15).
+   * Processes buffered client commands deterministically on each tick.
    */
   public update(deltaTime: number): void {
     if (this.state.phase !== 'PLAYING') return;
 
+    // 1. Process queued commands accumulated during this tick window (S03-05, RNF-15)
+    if (this.moveCommandBuffer.length > 0) {
+      const commands = this.moveCommandBuffer.splice(0, this.moveCommandBuffer.length);
+      for (const cmd of commands) {
+        this.executeBufferedMove(cmd);
+      }
+    }
+
+    // 2. Decrement turn timer and evaluate timeout
     this.state.turnTimeRemainingMs = Math.max(0, this.state.turnTimeRemainingMs - deltaTime);
 
     if (this.state.turnTimeRemainingMs <= 0) {
@@ -194,14 +217,15 @@ export class ChessRoom extends Room<ChessRoomStateSchema> {
   }
 
   /**
-   * Safe disposal of all timers and memory buffers (RNF-08).
+   * Safe disposal of all timers, queues, and memory buffers (RNF-08).
    */
   public onDispose(): void {
     this.rateLimiter.clear();
+    this.moveCommandBuffer = [];
   }
 
   /**
-   * Processes player move with authoritative checks (Anti-Cheat & Validation).
+   * Validates command envelope, checks anti-replay, and enqueues to the tick buffer (Anti-Cheat & Command Buffering).
    */
   private handlePlayerMove(client: Client, message: IClientMoveMessage): void {
     const player = this.state.players.get(client.sessionId);
@@ -237,26 +261,76 @@ export class ChessRoom extends Room<ChessRoomStateSchema> {
       return;
     }
 
-    // 4. Authoritative execution via TurnResolver
+    // 4. Sequence replay & out-of-order check per player (S03-04, S03-05)
+    const incomingSeq = Number(message.seqId) || 0;
+    const lastAck = this.state.playerSequenceAcks ? this.state.playerSequenceAcks.get(player.playerId) : undefined;
+    if (incomingSeq > 0 && lastAck !== undefined && incomingSeq <= lastAck) {
+      client.send('REJECT_MOVE', {
+        seqId: incomingSeq,
+        reason: `Command rejected: sequence replay or out-of-order packet (seqId ${incomingSeq} <= lastAck ${lastAck}).`,
+      });
+      return;
+    }
+
+    // Check if duplicate seqId already in buffer for this player
+    const alreadyBuffered = this.moveCommandBuffer.some(
+      (b) => b.playerId === player.playerId && Number(b.message.seqId) === incomingSeq
+    );
+    if (incomingSeq > 0 && alreadyBuffered) {
+      client.send('REJECT_MOVE', {
+        seqId: incomingSeq,
+        reason: `Command rejected: sequence replay or duplicate sequence already buffered (seqId ${incomingSeq}).`,
+      });
+      return;
+    }
+
+    // 5. Buffer command for deterministic resolution on next tick (S03-05)
+    this.moveCommandBuffer.push({
+      client,
+      message,
+      playerId: player.playerId,
+      enqueuedTickTimestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Deterministically executes a buffered move command during the simulation tick.
+   */
+  private executeBufferedMove(cmd: IBufferedMoveCommand): void {
+    const incomingSeq = Number(cmd.message.seqId) || 0;
+    const lastAck = this.state.playerSequenceAcks ? this.state.playerSequenceAcks.get(cmd.playerId) : undefined;
+    if (incomingSeq > 0 && lastAck !== undefined && incomingSeq <= lastAck) {
+      cmd.client.send('REJECT_MOVE', {
+        seqId: incomingSeq,
+        reason: `Command rejected: sequence replay already executed (seqId ${incomingSeq} <= lastAck ${lastAck}).`,
+      });
+      return;
+    }
+
     const resolution = this.turnResolver.executeSequentialMove(
       {
-        playerId: player.playerId,
-        pieceId: message.pieceId,
-        from: message.from,
-        to: message.to,
-        seqId: Number(message.seqId) || 0,
-        timestamp: Date.now(),
+        playerId: cmd.playerId,
+        pieceId: cmd.message.pieceId,
+        from: cmd.message.from,
+        to: cmd.message.to,
+        seqId: Number(cmd.message.seqId) || 0,
+        timestamp: cmd.enqueuedTickTimestamp,
       },
       this.state
     );
 
     if (resolution.success) {
-      // Send ACK to player
-      client.send('MOVE_ACK', {
+      if (this.state.playerSequenceAcks) {
+        this.state.playerSequenceAcks.set(cmd.playerId, resolution.seqId || 0);
+      }
+
+      // Send ACK directly to client with individual sequence and player identifier (S03-04)
+      cmd.client.send('MOVE_ACK', {
         seqId: resolution.seqId,
         pieceId: resolution.pieceId,
         from: resolution.from,
         to: resolution.to,
+        playerId: cmd.playerId,
       });
 
       // Ephemeral sound / capture events (RF-14)
@@ -264,17 +338,17 @@ export class ChessRoom extends Room<ChessRoomStateSchema> {
         this.broadcast('PIECE_CAPTURED_EVENT', {
           capturedPieceId: resolution.capturedPieceId,
           atCoord: resolution.to,
-          capturedBy: player.playerId,
+          capturedBy: cmd.playerId,
         });
       }
     } else {
       // Server Authority Victory: Rollback instruction sent to client (RF-03)
-      client.send('REJECT_MOVE', {
-        seqId: message.seqId,
+      cmd.client.send('REJECT_MOVE', {
+        seqId: cmd.message.seqId,
         reason: resolution.reason || 'Illegal move.',
       });
-      client.send('FORCE_ROLLBACK', {
-        seqId: message.seqId,
+      cmd.client.send('FORCE_ROLLBACK', {
+        seqId: cmd.message.seqId,
         reason: resolution.reason || 'Illegal move.',
       });
     }
