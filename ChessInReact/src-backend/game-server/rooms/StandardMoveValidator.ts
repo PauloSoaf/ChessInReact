@@ -1,4 +1,9 @@
 import { NetworkEntitySchema } from '../schemas/RoomStateSchema';
+import { asCoordinateKey, asEntityId, CoordinateKey, EntityId, PlayerId } from '../../../src/core/coordinates';
+import { IDomainState } from '../../../src/core/state/gameState';
+import { IPieceEntity } from '../../../src/core/entities/types';
+import { SquareTopology } from '../../../src/core/topology/SquareTopology';
+import { RulesEngine } from '../../../src/engine/rules/RulesEngine';
 
 export interface IPosition2D {
   readonly x: number; // 0..7 (a..h)
@@ -9,6 +14,9 @@ export interface IMoveValidationResult {
   readonly valid: boolean;
   readonly reason?: string;
   readonly capturedPiece?: NetworkEntitySchema;
+  readonly isCastling?: 'KINGSIDE' | 'QUEENSIDE';
+  readonly isEnPassant?: boolean;
+  readonly isPromotion?: boolean;
 }
 
 /**
@@ -48,26 +56,70 @@ export function toAlgebraic(x: number, y: number): string {
   return `${String.fromCharCode(97 + x)}${y + 1}`;
 }
 
-function isSquareOccupied(
-  x: number,
-  y: number,
-  entities: Iterable<NetworkEntitySchema>
-): NetworkEntitySchema | null {
+/**
+ * Maps Colyseus room entity schemas to the pure ECS domain state for the Rules Engine.
+ */
+export function buildDomainStateFromNetworkEntities(
+  entities: Iterable<NetworkEntitySchema>,
+  movingPieceOwnerId: string,
+  isWhite: boolean
+): IDomainState {
+  const boardEntities: Record<EntityId, IPieceEntity> = {};
+  const occupancy: Record<CoordinateKey, EntityId> = {};
+
   for (const entity of entities) {
     if (!entity.isCaptured && entity.position) {
       const pos = parseBoardPosition(entity.position);
-      if (pos && pos.x === x && pos.y === y) {
-        return entity;
+      if (pos) {
+        const coordKey = asCoordinateKey(`${pos.x},${pos.y}`);
+        const entityId = asEntityId(entity.id);
+        occupancy[coordKey] = entityId;
+
+        // In RulesEngine:
+        // P1 is always White (rank 1 -> rank 7)
+        // P2 is always Black (rank 6 -> rank 0)
+        const isEntityOwnerMoving = entity.ownerId === movingPieceOwnerId;
+        const owner: PlayerId = isWhite
+          ? (isEntityOwnerMoving ? 'P1' : 'P2')
+          : (isEntityOwnerMoving ? 'P2' : 'P1');
+
+        boardEntities[entityId] = {
+          id: entityId,
+          type: 'PIECE',
+          variantId: entity.variantId || 'PAWN',
+          position: coordKey,
+          ownerId: owner,
+          hasMoved: entity.hasMoved ?? false,
+          isCaptured: false,
+        };
       }
     }
   }
-  return null;
+
+  const activePlayer: PlayerId = isWhite ? 'P1' : 'P2';
+
+  return {
+    boardEntities,
+    occupancy,
+    activePlayer,
+    turnNumber: 1,
+    turnState: {
+      phase: 'WAITING',
+      lastActionTimestamp: Date.now(),
+      enPassantTarget: null,
+      fiftyMoveCounter: 0,
+    },
+    revision: 1,
+    isGameOver: false,
+    winnerId: null,
+  };
 }
 
 /**
- * Validates chess moves for standard 1v1 pieces (Pawn, Knight, Bishop, Rook, Queen, King).
- * Pure function: performs ZERO mutations.
- * Conforms to Spec 03 Section 3.2 (Anti-Cheat & Authority) and respects Spec 04 boundaries.
+ * Validates chess moves using the pure isomorphic Rules Engine.
+ * Supports standard FIDE moves, check/checkmate verification, castling, en passant,
+ * pawn promotion, and fairy pieces.
+ * Conforms to Spec 03 Section 3.2 and Spec 04 RF-01 to RF-15.
  */
 export function validateStandardMove(
   piece: NetworkEntitySchema,
@@ -91,146 +143,41 @@ export function validateStandardMove(
   }
 
   const entityList = Array.from(entities);
-  const occupant = isSquareOccupied(toPos.x, toPos.y, entityList);
-  if (occupant) {
-    if (occupant.ownerId === piece.ownerId) {
-      return {
-        valid: false,
-        reason: `Cannot capture friendly piece "${occupant.id}" at "${toCoord}".`,
-      };
-    }
+  const domainState = buildDomainStateFromNetworkEntities(entityList, piece.ownerId, isWhite);
+  const topology = new SquareTopology({ width: 8, height: 8 });
+
+  const fromKey = asCoordinateKey(`${fromPos.x},${fromPos.y}`);
+  const toKey = asCoordinateKey(`${toPos.x},${toPos.y}`);
+  const actingPlayer: PlayerId = isWhite ? 'P1' : 'P2';
+
+  const validation = RulesEngine.validateMove(
+    domainState,
+    {
+      pieceId: asEntityId(piece.id),
+      actingPlayer,
+      from: fromKey,
+      to: toKey,
+    },
+    topology
+  );
+
+  if (!validation.valid) {
+    return {
+      valid: false,
+      reason: validation.reason || `Move rejected: ${validation.code}`,
+    };
   }
 
-  const dx = toPos.x - fromPos.x;
-  const dy = toPos.y - fromPos.y;
-  const adx = Math.abs(dx);
-  const ady = Math.abs(dy);
-
-  const variant = (piece.variantId || 'P').toUpperCase();
-
-  switch (variant) {
-    case 'P': {
-      // Pawn movement
-      const forwardDir = isWhite ? 1 : -1;
-      const startRankY = isWhite ? 1 : 6;
-
-      if (dx === 0) {
-        // Straight advance: target must be unoccupied
-        if (occupant) {
-          return { valid: false, reason: `Pawn cannot advance forward into an occupied square at "${toCoord}".` };
-        }
-
-        if (dy === forwardDir) {
-          return { valid: true };
-        }
-
-        if (dy === 2 * forwardDir) {
-          if (fromPos.y !== startRankY || piece.hasMoved) {
-            return { valid: false, reason: 'Pawn can only advance 2 squares from its starting rank on its initial move.' };
-          }
-          const intermediateY = fromPos.y + forwardDir;
-          if (isSquareOccupied(fromPos.x, intermediateY, entityList)) {
-            return { valid: false, reason: `Pawn path is blocked at intermediate square (${fromPos.x}, ${intermediateY}).` };
-          }
-          return { valid: true };
-        }
-
-        return { valid: false, reason: `Illegal pawn advance distance: ${dy}.` };
-      }
-
-      if (adx === 1) {
-        // Diagonal capture: MUST capture an opponent piece
-        if (dy !== forwardDir) {
-          return { valid: false, reason: 'Pawn can only capture diagonally moving forward.' };
-        }
-        if (!occupant) {
-          return { valid: false, reason: `Pawn cannot move diagonally to "${toCoord}" without capturing an opponent piece.` };
-        }
-        return { valid: true, capturedPiece: occupant };
-      }
-
-      return { valid: false, reason: `Illegal pawn move from "${fromCoord}" to "${toCoord}".` };
-    }
-
-    case 'N': {
-      // Knight: L-shaped jump (1x2 or 2x1)
-      const isLJump = (adx === 1 && ady === 2) || (adx === 2 && ady === 1);
-      if (!isLJump) {
-        return { valid: false, reason: `Illegal knight move from "${fromCoord}" to "${toCoord}": must be L-shaped jump.` };
-      }
-      return { valid: true, capturedPiece: occupant || undefined };
-    }
-
-    case 'B': {
-      // Bishop: strictly diagonal
-      if (adx !== ady || adx === 0) {
-        return { valid: false, reason: `Illegal bishop move from "${fromCoord}" to "${toCoord}": must move diagonally.` };
-      }
-      const stepX = dx > 0 ? 1 : -1;
-      const stepY = dy > 0 ? 1 : -1;
-      for (let i = 1; i < adx; i++) {
-        const checkX = fromPos.x + i * stepX;
-        const checkY = fromPos.y + i * stepY;
-        if (isSquareOccupied(checkX, checkY, entityList)) {
-          return { valid: false, reason: `Bishop path is obstructed at square (${checkX}, ${checkY}).` };
-        }
-      }
-      return { valid: true, capturedPiece: occupant || undefined };
-    }
-
-    case 'R': {
-      // Rook: strictly orthogonal
-      const isOrthogonal = (dx === 0 && dy !== 0) || (dx !== 0 && dy === 0);
-      if (!isOrthogonal) {
-        return { valid: false, reason: `Illegal rook move from "${fromCoord}" to "${toCoord}": must move in straight lines.` };
-      }
-      const stepX = dx === 0 ? 0 : dx > 0 ? 1 : -1;
-      const stepY = dy === 0 ? 0 : dy > 0 ? 1 : -1;
-      const steps = Math.max(adx, ady);
-      for (let i = 1; i < steps; i++) {
-        const checkX = fromPos.x + i * stepX;
-        const checkY = fromPos.y + i * stepY;
-        if (isSquareOccupied(checkX, checkY, entityList)) {
-          return { valid: false, reason: `Rook path is obstructed at square (${checkX}, ${checkY}).` };
-        }
-      }
-      return { valid: true, capturedPiece: occupant || undefined };
-    }
-
-    case 'Q': {
-      // Queen: diagonal or orthogonal
-      const isDiagonal = adx === ady && adx > 0;
-      const isOrthogonal = (dx === 0 && dy !== 0) || (dx !== 0 && dy === 0);
-      if (!isDiagonal && !isOrthogonal) {
-        return { valid: false, reason: `Illegal queen move from "${fromCoord}" to "${toCoord}": must move diagonally or orthogonally.` };
-      }
-      const stepX = dx === 0 ? 0 : dx > 0 ? 1 : -1;
-      const stepY = dy === 0 ? 0 : dy > 0 ? 1 : -1;
-      const steps = Math.max(adx, ady);
-      for (let i = 1; i < steps; i++) {
-        const checkX = fromPos.x + i * stepX;
-        const checkY = fromPos.y + i * stepY;
-        if (isSquareOccupied(checkX, checkY, entityList)) {
-          return { valid: false, reason: `Queen path is obstructed at square (${checkX}, ${checkY}).` };
-        }
-      }
-      return { valid: true, capturedPiece: occupant || undefined };
-    }
-
-    case 'K': {
-      // King: 1 square in any direction
-      if (adx > 1 || ady > 1 || (adx === 0 && ady === 0)) {
-        return { valid: false, reason: `Illegal king move from "${fromCoord}" to "${toCoord}": king cannot move more than 1 square.` };
-      }
-      return { valid: true, capturedPiece: occupant || undefined };
-    }
-
-    default: {
-      // Registered deferred interface for future Spec 04 fairy piece behaviors
-      return {
-        valid: false,
-        reason: `Unsupported piece variant "${variant}". Fairy pieces require Spec 04 Betza resolver.`,
-      };
-    }
+  let capturedPiece: NetworkEntitySchema | undefined;
+  if (validation.capturedPieceId) {
+    capturedPiece = entityList.find((e) => e.id === validation.capturedPieceId);
   }
+
+  return {
+    valid: true,
+    capturedPiece,
+    isCastling: validation.isCastling,
+    isEnPassant: validation.isEnPassant,
+    isPromotion: validation.isPromotion,
+  };
 }

@@ -6,6 +6,8 @@ import { useGameActions, useGameStore } from '../../bindings/react/useGameStore'
 import { asCoordinateKey } from '../../core/coordinates';
 import { MovePieceCommand } from '../../core/commands/MovePieceCommand';
 import { IPieceEntity } from '../../core/entities/types';
+import { SquareTopology } from '../../core/topology/SquareTopology';
+import { RulesEngine } from '../../engine/rules/RulesEngine';
 
 export interface IChessBoardProps {
   boardSize?: number;
@@ -31,6 +33,11 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({ boardSize = 8 }) => {
   const domain = useGameStore((state) => state.domain);
   const ui = useGameStore((state) => state.ui);
   const { executeCommand, selectPiece } = useGameActions();
+
+  const topology = useMemo(
+    () => new SquareTopology({ width: boardSize, height: boardSize }),
+    [boardSize]
+  );
 
   // Derive board display matrix reactively from Core domain state (Single Source of Truth - AUDIT-04)
   const derivedBoard = useMemo(() => {
@@ -114,17 +121,35 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({ boardSize = 8 }) => {
       return;
     }
 
-    // Dispatch MovePieceCommand through Core State Store (atomically handles move + turn transition - PATCH-04)
+    // Rules Engine Validation: Query legal moves for this piece before dispatching (RF-14)
+    const legalMoves = RulesEngine.getLegalMovesForPiece(selectedEntity, domain, topology);
+    const matchedMove = legalMoves.find((m) => m.to === clickedCoord);
+
+    if (!matchedMove) {
+      console.warn(
+        `[RulesEngine] Move rejected: ${selectedEntity.variantId} at ${selectedEntity.position} cannot legally move to ${clickedCoord}.`
+      );
+      selectPiece(null);
+      return;
+    }
+
+    // Dispatch MovePieceCommand through Core State Store with full rules validation
     try {
+      const promotionVariant = matchedMove.isPromotion ? 'QUEEN' : undefined;
       const moveCmd = new MovePieceCommand(
         selectedEntity.id,
         selectedEntity.position,
         clickedCoord,
-        domain.activePlayer
+        domain.activePlayer,
+        undefined,
+        true,
+        true,
+        promotionVariant,
+        topology
       );
       executeCommand(moveCmd);
     } catch (err) {
-      console.warn('Move rejected by Core invariants:', err);
+      console.warn('[RulesEngine] Move rejected by Core invariants / Rules Engine:', err);
     } finally {
       selectPiece(null);
     }

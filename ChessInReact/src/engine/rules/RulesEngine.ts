@@ -40,18 +40,19 @@ export class RulesEngine {
     }
 
     // 2. Ownership & Turn
-    if (piece.ownerId !== intent.actingPlayer) {
+    const actingPlayer = intent.actingPlayer ?? piece.ownerId;
+    if (piece.ownerId !== actingPlayer) {
       return {
         valid: false,
         code: 'NOT_PLAYER_PIECE',
-        reason: `Piece belongs to ${piece.ownerId}, not acting player ${intent.actingPlayer}.`,
+        reason: `Piece belongs to ${piece.ownerId}, not acting player ${actingPlayer}.`,
       };
     }
-    if (state.activePlayer !== intent.actingPlayer) {
+    if (state.activePlayer !== actingPlayer) {
       return {
         valid: false,
         code: 'NOT_PLAYER_TURN',
-        reason: `Active player is ${state.activePlayer}, not ${intent.actingPlayer}.`,
+        reason: `Active player is ${state.activePlayer}, not ${actingPlayer}.`,
       };
     }
 
@@ -189,38 +190,46 @@ export class RulesEngine {
     // 6. King safety check on in-place simulated move (RF-04, RNF-02 < 0.05ms)
     const enforceCheck = variantConfig?.enforceCheck ?? (variantConfig?.variantId !== 'ANTICHESS');
     if (enforceCheck) {
+      const isFrozen = Object.isFrozen(state.occupancy);
+      const occ: Record<string, EntityId | undefined> = isFrozen
+        ? { ...state.occupancy }
+        : (state.occupancy as Record<string, EntityId | undefined>);
+      const evalState = isFrozen ? { ...state, occupancy: occ } : state;
+
       const prevFrom = piece.position;
-      const prevDestOccupant = (state.occupancy as Record<string, EntityId | undefined>)[intent.to];
+      const prevDestOccupant = occ[intent.to];
       let epVictimCoord: CoordinateKey | null = null;
       let epVictimId: EntityId | undefined;
 
       if (isEnPassant && parsedTo && parsedFrom) {
         epVictimCoord = toCoordKey(parsedTo.x, parsedFrom.y);
-        epVictimId = (state.occupancy as Record<string, EntityId | undefined>)[epVictimCoord];
-        delete (state.occupancy as Record<string, EntityId | undefined>)[epVictimCoord];
+        epVictimId = occ[epVictimCoord];
+        delete occ[epVictimCoord];
       }
 
-      delete (state.occupancy as Record<string, EntityId | undefined>)[prevFrom];
-      (state.occupancy as Record<string, EntityId | undefined>)[intent.to] = piece.id;
+      delete occ[prevFrom];
+      occ[intent.to] = piece.id;
 
       const isMovingKing = vUpper === 'KING' || vUpper === 'K';
-      const royalPiece = isMovingKing ? piece : CheckValidator.findRoyalPiece(piece.ownerId, state);
+      const royalPiece = isMovingKing ? piece : CheckValidator.findRoyalPiece(piece.ownerId, evalState);
       const kingCoord = isMovingKing ? intent.to : royalPiece?.position;
       const opponentId: PlayerId = piece.ownerId === 'P1' ? 'P2' : 'P1';
 
       const leavesInCheck = kingCoord
-        ? CheckValidator.isSquareAttacked(kingCoord, opponentId, state, topology)
+        ? CheckValidator.isSquareAttacked(kingCoord, opponentId, evalState, topology)
         : false;
 
-      // Restore occupancy
-      (state.occupancy as Record<string, EntityId | undefined>)[prevFrom] = piece.id;
-      if (prevDestOccupant !== undefined) {
-        (state.occupancy as Record<string, EntityId | undefined>)[intent.to] = prevDestOccupant;
-      } else {
-        delete (state.occupancy as Record<string, EntityId | undefined>)[intent.to];
-      }
-      if (epVictimCoord && epVictimId) {
-        (state.occupancy as Record<string, EntityId | undefined>)[epVictimCoord] = epVictimId;
+      // Restore occupancy if not frozen
+      if (!isFrozen) {
+        occ[prevFrom] = piece.id;
+        if (prevDestOccupant !== undefined) {
+          occ[intent.to] = prevDestOccupant;
+        } else {
+          delete occ[intent.to];
+        }
+        if (epVictimCoord && epVictimId) {
+          occ[epVictimCoord] = epVictimId;
+        }
       }
 
       if (leavesInCheck) {
@@ -463,38 +472,46 @@ export class RulesEngine {
 
       // King safety validation via zero-allocation in-place occupancy delta (RNF-01, RNF-07)
       if (enforceCheck) {
+        const isFrozen = Object.isFrozen(state.occupancy);
+        const occ: Record<string, EntityId | undefined> = isFrozen
+          ? { ...state.occupancy }
+          : (state.occupancy as Record<string, EntityId | undefined>);
+        const evalState = isFrozen ? { ...state, occupancy: occ } : state;
+
         const prevFrom = piece.position;
-        const prevDestOccupant = (state.occupancy as Record<string, EntityId | undefined>)[dest];
+        const prevDestOccupant = occ[dest];
         let epVictimCoord: CoordinateKey | null = null;
         let epVictimId: EntityId | undefined;
 
         if (isEnPassant && destParsed && parsedFrom) {
           epVictimCoord = toCoordKey(destParsed.x, parsedFrom.y);
-          epVictimId = (state.occupancy as Record<string, EntityId | undefined>)[epVictimCoord];
-          delete (state.occupancy as Record<string, EntityId | undefined>)[epVictimCoord];
+          epVictimId = occ[epVictimCoord];
+          delete occ[epVictimCoord];
         }
 
-        delete (state.occupancy as Record<string, EntityId | undefined>)[prevFrom];
-        (state.occupancy as Record<string, EntityId | undefined>)[dest] = piece.id;
+        delete occ[prevFrom];
+        occ[dest] = piece.id;
 
         const isMovingKing = vUpper === 'KING' || vUpper === 'K';
-        const royalPiece = isMovingKing ? piece : (precomputedKing ?? CheckValidator.findRoyalPiece(piece.ownerId, state));
+        const royalPiece = isMovingKing ? piece : (precomputedKing ?? CheckValidator.findRoyalPiece(piece.ownerId, evalState));
         const kingCoord = isMovingKing ? dest : royalPiece?.position;
         const opponentId: PlayerId = precomputedOpponentId ?? (piece.ownerId === 'P1' ? 'P2' : 'P1');
 
         const leavesInCheck = kingCoord
-          ? CheckValidator.isSquareAttacked(kingCoord, opponentId, state, topology)
+          ? CheckValidator.isSquareAttacked(kingCoord, opponentId, evalState, topology)
           : false;
 
-        // Restore occupancy
-        (state.occupancy as Record<string, EntityId | undefined>)[prevFrom] = piece.id;
-        if (prevDestOccupant !== undefined) {
-          (state.occupancy as Record<string, EntityId | undefined>)[dest] = prevDestOccupant;
-        } else {
-          delete (state.occupancy as Record<string, EntityId | undefined>)[dest];
-        }
-        if (epVictimCoord && epVictimId) {
-          (state.occupancy as Record<string, EntityId | undefined>)[epVictimCoord] = epVictimId;
+        // Restore occupancy if not frozen
+        if (!isFrozen) {
+          occ[prevFrom] = piece.id;
+          if (prevDestOccupant !== undefined) {
+            occ[dest] = prevDestOccupant;
+          } else {
+            delete occ[dest];
+          }
+          if (epVictimCoord && epVictimId) {
+            occ[epVictimCoord] = epVictimId;
+          }
         }
 
         if (leavesInCheck) {

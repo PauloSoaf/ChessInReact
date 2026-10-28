@@ -1,12 +1,16 @@
-import { CoordinateKey, EntityId, PlayerId } from '../coordinates/types';
+import { CoordinateKey, EntityId, PlayerId, asCoordinateKey } from '../coordinates/types';
 import { IEntity, IPieceEntity } from '../entities/types';
 import { IDomainState } from '../state/gameState';
 import { ICommand } from './types';
+import { ITopology } from '../topology/types';
+import { SquareTopology } from '../topology/SquareTopology';
+import { RulesEngine } from '../../engine/rules/RulesEngine';
+import { parseCoord, toCoordKey } from '../../engine/rules/utils/CoordinateHelper';
 
 /**
  * MovePieceCommand executes a piece movement from one coordinate to another,
- * handling captures, crazyhouse inventory, turn progression, and full atomic reversibility.
- * (AUDIT-02, PATCH-04, PATCH-05)
+ * handling captures, crazyhouse inventory, turn progression, FIDE rules, and full atomic reversibility.
+ * (AUDIT-02, PATCH-04, PATCH-05, Spec 04 RF-02 to RF-14)
  */
 export class MovePieceCommand implements ICommand {
   public readonly id: string;
@@ -14,9 +18,16 @@ export class MovePieceCommand implements ICommand {
   public readonly description: string;
 
   private capturedEntitySnapshot: IEntity | null = null;
+  private castledRookSnapshot: { readonly id: EntityId; readonly from: CoordinateKey; readonly to: CoordinateKey; readonly previousHasMoved: boolean } | null = null;
+  private previousVariantId: string | null = null;
+  private previousEnPassantTarget: CoordinateKey | null = null;
+  private previousFiftyMoveCounter: number | null = null;
+  private previousIsGameOver: boolean | null = null;
+  private previousWinnerId: PlayerId | null = null;
   private previousHasMovedState = false;
   private previousActivePlayer: PlayerId | null = null;
   private previousTurnNumber: number | null = null;
+  private readonly defaultTopology: ITopology;
 
   constructor(
     public readonly pieceId: EntityId,
@@ -24,10 +35,14 @@ export class MovePieceCommand implements ICommand {
     public readonly to: CoordinateKey,
     public readonly actingPlayer: PlayerId,
     id?: string,
-    public advanceTurn: boolean = true
+    public advanceTurn: boolean = true,
+    public readonly enforceRules: boolean = false,
+    public readonly promotionVariant?: string,
+    topology?: ITopology
   ) {
     this.id = id ?? `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     this.description = `Move ${pieceId} from ${from} to ${to}`;
+    this.defaultTopology = topology ?? new SquareTopology({ width: 8, height: 8 });
   }
 
   public execute(draft: IDomainState): void {
@@ -72,6 +87,24 @@ export class MovePieceCommand implements ICommand {
       );
     }
 
+    // Rules Engine Validation gate if enforceRules is active (Spec 04 RF-14)
+    if (this.enforceRules) {
+      const validation = RulesEngine.validateMove(
+        draft,
+        {
+          pieceId: this.pieceId,
+          from: this.from,
+          to: this.to,
+          actingPlayer: this.actingPlayer,
+          promotionVariant: this.promotionVariant,
+        },
+        this.defaultTopology
+      );
+      if (!validation.valid) {
+        throw new Error(`Invalid move (${validation.code}): ${validation.reason}`);
+      }
+    }
+
     // Handle destination terrain: check if background terrain is impassable
     const terrainEntityId =
       draft.terrain?.[this.to] ??
@@ -97,8 +130,16 @@ export class MovePieceCommand implements ICommand {
       }
     }
 
+    const parsedFrom = parseCoord(this.from);
+    const parsedTo = parseCoord(this.to);
+    const vUpper = piece.variantId.toUpperCase();
+    const isPawn = vUpper === 'PAWN' || vUpper === 'P';
+    const isKing = vUpper === 'KING' || vUpper === 'K';
+
     // Handle destination target (PATCH-05)
     const targetEntityId = draft.occupancy[this.to];
+    let isCapture = false;
+
     if (targetEntityId) {
       if (targetEntityId === this.pieceId) {
         return; // No-op move to identical square
@@ -128,9 +169,8 @@ export class MovePieceCommand implements ICommand {
 
         // Deep clone snapshot of captured entity for lossless undo
         this.capturedEntitySnapshot = JSON.parse(JSON.stringify(targetEntity));
-
-        // Mark captured in domain entity storage (RF-09: keep entity record, set isCaptured)
         (targetEntity as { isCaptured: boolean }).isCaptured = true;
+        isCapture = true;
 
         // Crazyhouse variant support
         if (draft.capturedInventory && draft.capturedInventory[this.actingPlayer]) {
@@ -141,6 +181,71 @@ export class MovePieceCommand implements ICommand {
           `Invalid move: Destination coordinate "${this.to}" is occupied by unsupported entity type "${(targetEntity as { type: string }).type}".`
         );
       }
+    } else if (isPawn && this.to === draft.turnState?.enPassantTarget && parsedFrom && parsedTo) {
+      // En Passant capture execution
+      const victimCoord = toCoordKey(parsedTo.x, parsedFrom.y);
+      const victimId = draft.occupancy[victimCoord];
+      if (victimId) {
+        const victimEntity = draft.boardEntities[victimId];
+        if (victimEntity && victimEntity.type === 'PIECE') {
+          this.capturedEntitySnapshot = JSON.parse(JSON.stringify(victimEntity));
+          (victimEntity as { isCaptured: boolean }).isCaptured = true;
+          delete draft.occupancy[victimCoord];
+          isCapture = true;
+        }
+      }
+    }
+
+    // Castling execution: Move corresponding Rook
+    if (isKing && parsedFrom && parsedTo && Math.abs(parsedTo.x - parsedFrom.x) === 2) {
+      const rank = parsedFrom.y;
+      if (parsedTo.x === 6) {
+        // Kingside castling
+        const rookCoord = toCoordKey(7, rank);
+        const rookTarget = toCoordKey(5, rank);
+        const rookId = draft.occupancy[rookCoord];
+        if (rookId) {
+          const rook = draft.boardEntities[rookId] as IPieceEntity | undefined;
+          if (rook) {
+            this.castledRookSnapshot = {
+              id: rookId,
+              from: rookCoord,
+              to: rookTarget,
+              previousHasMoved: rook.hasMoved,
+            };
+            delete draft.occupancy[rookCoord];
+            draft.occupancy[rookTarget] = rookId;
+            (rook as { position: CoordinateKey; hasMoved: boolean }).position = rookTarget;
+            (rook as { position: CoordinateKey; hasMoved: boolean }).hasMoved = true;
+          }
+        }
+      } else if (parsedTo.x === 2) {
+        // Queenside castling
+        const rookCoord = toCoordKey(0, rank);
+        const rookTarget = toCoordKey(3, rank);
+        const rookId = draft.occupancy[rookCoord];
+        if (rookId) {
+          const rook = draft.boardEntities[rookId] as IPieceEntity | undefined;
+          if (rook) {
+            this.castledRookSnapshot = {
+              id: rookId,
+              from: rookCoord,
+              to: rookTarget,
+              previousHasMoved: rook.hasMoved,
+            };
+            delete draft.occupancy[rookCoord];
+            draft.occupancy[rookTarget] = rookId;
+            (rook as { position: CoordinateKey; hasMoved: boolean }).position = rookTarget;
+            (rook as { position: CoordinateKey; hasMoved: boolean }).hasMoved = true;
+          }
+        }
+      }
+    }
+
+    // Pawn Promotion execution
+    if (isPawn && parsedTo && (parsedTo.y === 7 || parsedTo.y === 0)) {
+      this.previousVariantId = piece.variantId;
+      (piece as { variantId: string }).variantId = this.promotionVariant ?? 'QUEEN';
     }
 
     // Record and set hasMoved
@@ -152,12 +257,47 @@ export class MovePieceCommand implements ICommand {
     (piece as { position: CoordinateKey }).position = this.to;
     draft.occupancy[this.to] = this.pieceId;
 
-    // PATCH-04: Turn state progression
+    // Turn state progression & FIDE counters
+    if (draft.turnState) {
+      this.previousEnPassantTarget = draft.turnState.enPassantTarget;
+      this.previousFiftyMoveCounter = draft.turnState.fiftyMoveCounter;
+
+      // Update En Passant Target
+      if (isPawn && parsedFrom && parsedTo && Math.abs(parsedTo.y - parsedFrom.y) === 2) {
+        (draft.turnState as { enPassantTarget: CoordinateKey | null }).enPassantTarget = toCoordKey(
+          parsedFrom.x,
+          (parsedFrom.y + parsedTo.y) / 2
+        );
+      } else {
+        (draft.turnState as { enPassantTarget: CoordinateKey | null }).enPassantTarget = null;
+      }
+
+      // Update 50-move counter
+      if (isPawn || isCapture) {
+        (draft.turnState as { fiftyMoveCounter: number }).fiftyMoveCounter = 0;
+      } else {
+        (draft.turnState as { fiftyMoveCounter: number }).fiftyMoveCounter += 1;
+      }
+    }
+
+    // PATCH-04: Turn progression
     if (this.advanceTurn) {
       this.previousActivePlayer = draft.activePlayer;
       this.previousTurnNumber = draft.turnNumber;
       (draft as { activePlayer: PlayerId }).activePlayer = draft.activePlayer === 'P1' ? 'P2' : 'P1';
       (draft as { turnNumber: number }).turnNumber += 1;
+    }
+
+    // Game over evaluation
+    if (this.enforceRules) {
+      this.previousIsGameOver = draft.isGameOver;
+      this.previousWinnerId = draft.winnerId;
+
+      const result = RulesEngine.getGameResult(draft, this.defaultTopology);
+      if (result.isGameOver) {
+        (draft as { isGameOver: boolean }).isGameOver = true;
+        (draft as { winnerId: PlayerId | null }).winnerId = result.winnerId;
+      }
     }
   }
 
@@ -165,6 +305,11 @@ export class MovePieceCommand implements ICommand {
     const piece = draft.boardEntities[this.pieceId] as IPieceEntity | undefined;
     if (!piece) {
       throw new Error(`Cannot undo: Piece "${this.pieceId}" not found in domain entities.`);
+    }
+
+    // Revert promotion
+    if (this.previousVariantId !== null) {
+      (piece as { variantId: string }).variantId = this.previousVariantId;
     }
 
     // Restore previous hasMoved flag
@@ -175,11 +320,22 @@ export class MovePieceCommand implements ICommand {
     (piece as { position: CoordinateKey }).position = this.from;
     draft.occupancy[this.from] = this.pieceId;
 
-    // If an entity was captured, restore it completely
+    // Revert castled rook
+    if (this.castledRookSnapshot) {
+      const rook = draft.boardEntities[this.castledRookSnapshot.id] as IPieceEntity | undefined;
+      if (rook) {
+        delete draft.occupancy[this.castledRookSnapshot.to];
+        draft.occupancy[this.castledRookSnapshot.from] = this.castledRookSnapshot.id;
+        (rook as { position: CoordinateKey; hasMoved: boolean }).position = this.castledRookSnapshot.from;
+        (rook as { position: CoordinateKey; hasMoved: boolean }).hasMoved = this.castledRookSnapshot.previousHasMoved;
+      }
+    }
+
+    // If an entity was captured (regular or en passant), restore it completely
     if (this.capturedEntitySnapshot) {
       const restored = JSON.parse(JSON.stringify(this.capturedEntitySnapshot));
       draft.boardEntities[restored.id] = restored;
-      draft.occupancy[this.to] = restored.id;
+      draft.occupancy[restored.position] = restored.id;
 
       // Revert crazyhouse inventory
       if (
@@ -193,6 +349,24 @@ export class MovePieceCommand implements ICommand {
           inv.splice(lastIdx, 1);
         }
       }
+    }
+
+    // Revert turnState metadata
+    if (draft.turnState) {
+      if (this.previousEnPassantTarget !== null) {
+        (draft.turnState as { enPassantTarget: CoordinateKey | null }).enPassantTarget = this.previousEnPassantTarget;
+      }
+      if (this.previousFiftyMoveCounter !== null) {
+        (draft.turnState as { fiftyMoveCounter: number }).fiftyMoveCounter = this.previousFiftyMoveCounter;
+      }
+    }
+
+    // Revert game over status
+    if (this.previousIsGameOver !== null) {
+      (draft as { isGameOver: boolean }).isGameOver = this.previousIsGameOver;
+    }
+    if (this.previousWinnerId !== null) {
+      (draft as { winnerId: PlayerId | null }).winnerId = this.previousWinnerId;
     }
 
     // PATCH-04: Revert turn state

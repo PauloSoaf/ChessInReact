@@ -1,5 +1,5 @@
 import { ChessRoomStateSchema, PlayerSchema } from '../schemas/RoomStateSchema';
-import { validateStandardMove } from './StandardMoveValidator';
+import { validateStandardMove, parseBoardPosition, toAlgebraic } from './StandardMoveValidator';
 
 export interface IQueuedMove {
   readonly playerId: string;
@@ -126,6 +126,34 @@ export class TurnResolver {
 
     piece.position = move.to;
     piece.hasMoved = true;
+
+    // Handle Castling Rook repositioning (Spec 04 FIDE Article 3.8)
+    if (validation.isCastling) {
+      const isKingside = validation.isCastling === 'KINGSIDE';
+      for (const entity of state.boardEntities.values()) {
+        if (
+          entity.ownerId === move.playerId &&
+          !entity.isCaptured &&
+          (entity.variantId.toUpperCase() === 'R' || entity.variantId.toUpperCase() === 'ROOK')
+        ) {
+          const rPos = parseBoardPosition(entity.position);
+          if (rPos && ((isKingside && rPos.x === 7) || (!isKingside && rPos.x === 0))) {
+            const targetX = isKingside ? 5 : 3;
+            entity.position = entity.position.includes(',')
+              ? `${targetX},${rPos.y}`
+              : toAlgebraic(targetX, rPos.y);
+            entity.hasMoved = true;
+            break;
+          }
+        }
+      }
+    }
+
+    // Handle Pawn Promotion (defaults to Queen if not specified)
+    if (validation.isPromotion) {
+      piece.variantId = 'Q';
+    }
+
     state.lastProcessedSequenceId = move.seqId;
     if (state.playerSequenceAcks) {
       state.playerSequenceAcks.set(move.playerId, move.seqId);

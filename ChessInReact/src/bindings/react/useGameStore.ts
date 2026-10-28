@@ -2,6 +2,9 @@ import { type StoreApi, useStore } from 'zustand';
 import { CoordinateKey, EntityId } from '../../core/coordinates';
 import { gameStore } from '../../core/state/gameStore';
 import { IGameStore } from '../../core/state/gameState';
+import { IPieceEntity } from '../../core/entities/types';
+import { SquareTopology } from '../../core/topology/SquareTopology';
+import { RulesEngine } from '../../engine/rules/RulesEngine';
 import * as selectors from '../../core/state/selectors';
 
 /**
@@ -58,4 +61,21 @@ export function useGameActions() {
     setHighlights: state.setHighlights,
     setHoveredCoord: state.setHoveredCoord,
   }));
+}
+
+const defaultTopologyForHook = new SquareTopology({ width: 8, height: 8 });
+
+/**
+ * Typed selector hook providing legal move targets for the currently selected piece (Spec 04 & Spec 06).
+ */
+export function useLegalMovesForSelectedPiece(): readonly CoordinateKey[] {
+  const selectedPieceId = useSelectedPieceId();
+  const domain = useGameStore((state) => state.domain);
+
+  if (!selectedPieceId) return [];
+  const piece = domain.boardEntities[selectedPieceId] as IPieceEntity | undefined;
+  if (!piece || piece.type !== 'PIECE') return [];
+
+  const legalMoves = RulesEngine.getLegalMovesForPiece(piece, domain, defaultTopologyForHook);
+  return legalMoves.map((m) => m.to);
 }
