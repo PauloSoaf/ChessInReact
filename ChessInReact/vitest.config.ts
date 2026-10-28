@@ -6,6 +6,7 @@ export default defineConfig({
     environment: 'node',
     include: [
       'src/core/**/__tests__/**/*.test.{ts,tsx}',
+      'src/engine/**/__tests__/**/*.test.{ts,tsx}',
       'src/bindings/**/__tests__/**/*.test.{ts,tsx}',
       'src/multiplayer/**/__tests__/**/*.test.{ts,tsx}',
       'src-backend/**/__tests__/**/*.test.{ts,tsx}',
