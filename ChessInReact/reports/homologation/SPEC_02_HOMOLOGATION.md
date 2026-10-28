@@ -84,13 +84,13 @@ A Spec 02 expandiu o motor headless do `ChessInReact` para além do tabuleiro cl
 | **RNF-01** | Tempo de Vizinhança | < 0.01 ms (10 µs) | **1.12 µs** (local) / **6.98 µs** (CI) | **VERIFIED** | Aferido com 10.000 chamadas contínuas sem alocação heap. |
 | **RNF-02** | Latência de Geração de Chunk | < 15 ms por chunk | **1.25 ms** (local) / **5.22 ms** (CI) | **VERIFIED** | Execução assíncrona em Web Worker bem abaixo do teto de 15 ms. |
 | **RNF-03** | Orçamento de Memória do Grid | < 40 MB para 10.000 células | **+7.76 MB** incremental bruto | **VERIFIED** | Medição isolada com `--expose-gc` para 10.240 células (Baseline: 18.33 MB, Peak: 26.10 MB). |
-| **RNF-04** | Taxa de Quadros GPU | >= 60 FPS estáveis | N/A (GPU) | **DEFERRED** | Pertence formalmente à **Spec 07** (Renderização 3D WebGL / Three.js). Sem contexto GPU no Core. |
+| **RNF-04** | Taxa de Quadros GPU | >= 60 FPS estáveis | 1.18 ms CPU | **PARTIAL** | Orçamento de CPU e buffer updates verificado (< 16.67 ms). Apresentação real em GPU física diferida para a **Spec 07**. |
 | **RNF-05** | Tamanho do Payload de Semente | < 1 KB comprimido | **~340 bytes** JSON bruto | **VERIFIED** | Medido em `ProceduralLayoutCodec.test.ts` (< 180 bytes gzipped). |
 | **RNF-06** | Conformidade com Free Tier | 100% Client-Side / Node leve | 100% Headless | **VERIFIED** | Zero dependências nativas; roda estavelmente em ambientes com 512 MB de RAM. |
-| **RNF-07** | Consistência Multiplataforma | x86_64 e ARM64 idênticos | x86_64 VERIFIED; ARM64 pendente | **PARTIAL** | Algoritmos com aritmética inteira de 32 bits. Runners de CI são Linux x86_64; ausência de runner físico ARM64. |
-| **RNF-08** | Draw Calls WebGL | <= 3 Draw Calls | N/A (GPU) | **DEFERRED** | Pertence à **Spec 07** (InstancedBufferGeometry). Core State não emite chamadas WebGL. |
-| **RNF-09** | Prevenção de Leaks em Streaming | < 2 MB em 60 min | Deriva +0.009 MB/ciclo; soak diferido | **PARTIAL** | Eviction LRU comprovado pós-GC (+0.13 MB retido). Ensaio contínuo ininterrupto de 60 min diferido para Spec 07. |
-| **RNF-10** | Cobertura de Topologias | > 95% em topologias | **97.50%** agregado | **VERIFIED** | Square: 98.75%, Hex: 97.26%, Triangle: 96.29%, Voronoi: 96.47% (todas > 95%). |
+| **RNF-07** | Consistência Multiplataforma | x86_64 e ARM64 idênticos | SHA-256 idêntico | **VERIFIED** | Comprovado no CI nativo com jobs aprovados em ubuntu-24.04 (x86_64) e ubuntu-24.04-arm (ARM64 nativo). |
+| **RNF-08** | Draw Calls WebGL | <= 3 Draw Calls | 1 call (estrutural) | **PARTIAL** | Lote único InstancedMesh verificado estruturalmente; medição de GPU física via WebGLRenderer diferida para a **Spec 07**. |
+| **RNF-09** | Prevenção de Leaks em Streaming | < 2 MB em 60 min | +0.384 MB (smoke) | **PARTIAL** | Script e workflow criados com eviction LRU comprovado pós-GC. Execução contínua ininterrupta de 3.600s pendente de disparo dedicado. |
+| **RNF-10** | Cobertura de Topologias | > 95% em topologias | **97.66%** agregado | **VERIFIED** | Square: 98.75%, Hex: 97.26%, Triangle: 96.29%, Voronoi: 96.47% (todas > 95%). |
 | **RNF-11** | Coordenadas de Grande Magnitude | Precisão até 50.000 unidades | 50.000 testado | **VERIFIED** | Testado com $q=30.000, r=-10.000, s=-20.000$ e chunk (1000, -1000). |
 | **RNF-12** | Tempo de Arena Hex 4P | < 30 ms (91 hexágonos) | **0.046 ms** (P95: 0.23 ms) | **VERIFIED** | Mais de 200 vezes mais rápido que a exigência da especificação. |
 | **RNF-13** | Isolamento de DOM e Three.js | Zero dependências no Core | Zero dependências | **VERIFIED** | Compilação headless pura em Node e Web Workers, validada por smoke tests. |
@@ -99,18 +99,22 @@ A Spec 02 expandiu o motor headless do `ChessInReact` para além do tabuleiro cl
 
 ---
 
-## 4. Histórico Consolidado de Remediações (PATCH-01 a PATCH-29)
+## 4. Histórico Consolidado de Remediações (PATCH-01 a PATCH-30)
 
-A estabilização da Spec 02 ocorreu por meio de 29 ciclos incrementais de correção orientados por evidências de testes e governança arquitetural estrita:
+A estabilização da Spec 02 ocorreu por meio de 30 ciclos incrementais de correção orientados por evidências de testes e governança arquitetural estrita:
 
 - **Fase Inicial (PATCH-01 a PATCH-10):** Separação entre a camada de terreno (`state.terrain`) e ocupação física (`state.occupancy`), expansão binária do `FlatArraySerializer` para biomas procedurais, custos finitos padronizados (`999.0`), oráculo A* vs Dijkstra com min-heap determinístico e correção de métricas triangulares.
 - **Fase de Topologia e Chunks (PATCH-11 a PATCH-21):** Persistência de terreno no snapshot v2 com validação estrutural de invariantes, sobrescritas manuais persistentes por chunk, fábrica unificada de topologias no Worker (Voronoi), A* com admissibilidade para custos subunitários, raycasting triangular contínuo sem oscilação cíclica, eliminação de varreduras $O(N)$ no streaming via lookup $O(1)$ e teto rígido de 50 chunks LRU.
 - **Fase de Integridade Semântica e Imutabilidade (PATCH-22 a PATCH-25):** Validador prévio semântico atômico (`validateStreamingDeltaSemantic`) impedindo injeção de peças e colisões com peças vivas, clonagem defensiva profunda de metadados persistentes (`clonePersistentMetadata`), benchmark isolado de memória sem clamping com `--expose-gc` e suporte a transição de terreno para obstáculo procedural (`PLAINS` $\to$ `CHASM`).
-- **Fase Final de Proveniência e Proteção de Gameplay (PATCH-26 a PATCH-29):**
+- **Fase de Proveniência e Proteção de Gameplay (PATCH-26 a PATCH-29):**
   - **PATCH-26:** Campo formal `provenance` (`PROCEDURAL` vs `GAMEPLAY`) em `IBaseEntity` e proteção estrita contra remoção ou substituição de obstáculos de gameplay por streaming.
   - **PATCH-27:** Eviction do GC do `ChunkManager` restrito a entidades procedurais, preservando obstáculos manuais colocados por regras ou ações do jogador; encerramento gracioso dos pipes IPC do Chromium/esbuild.
   - **PATCH-28:** Contrato conservador em `isProceduralEntity()`: obstáculos legados indestrutíveis sem assinatura explícita de `CHASM` são mantidos como gameplay soberano, evitando eviction inadvertida de muralhas ou fortificações.
   - **PATCH-29:** Alinhamento definitivo entre `validateStreamedEntity()` e `isProceduralEntity()`, centralizando a validação de entrada e impedindo a admissão de novos obstáculos ambíguos de gameplay que poderiam receber proveniência procedural automática.
+- **PATCH-30 (Auditoria e Correção de Harness):**
+  - Restauração explícita de `tempScale.set(1, 1, 1)` no `ProceduralBoardInstancedHarness.loadChunk()`, eliminando o risco de células recém-carregadas permanecerem com escala zero após evicção de chunks (S02-03).
+  - Separação entre métricas estimadas estruturais e medições efetivas via `measureWebGLRendererCalls` (S02-02).
+  - Reclassificação honesta das RNFs 04, 08 e 09 para `PARTIAL` e conciliação da cobertura oficial do CI da Spec 02 para 68.54%.
 
 ---
 
@@ -125,8 +129,8 @@ Todas as métricas foram comprovadas localmente e auditadas na execução oficia
 1. TypeScript Check (npx tsc --noEmit):           0 erros
 2. ESLint Check (npm run lint):                   0 erros, 0 avisos
 3. Production Bundle Build (npm run build):        SUCESSO (413.51 kB dist bundle)
-4. Vitest Full Suite (npx vitest run --coverage): 380 aprovados / 52 suítes (100%)
-   - Cobertura Statements Geral:                   72.93% (CI #40389859248 / #40575227450)
+4. Vitest Full Suite (npx vitest run --coverage): 382 aprovados / 52 suítes (100%)
+   - Cobertura Statements Geral:                   68.54% (CI oficial Spec 02)
    - Cobertura Camada Topologias:                  97.66% (Meta > 95% do RNF-10)
 5. Chromium Headless Worker Smoke Test:           SUCESSO (skipped: false, voronoiVerified: true)
 6. Isolated Memory Benchmark (npm run bench:memory com --expose-gc):
@@ -135,10 +139,10 @@ Todas as métricas foram comprovadas localmente e auditadas na execução oficia
    - Retido pós-GC:                               +0.12 MB
    - Deriva por ciclo (10 voltas):                +0.0090 MB / ciclo
    - Veredito:                                    PASS
-7. Multiplatform Determinism Matrix (RNF-07):     PASS (SHA-256 idêntico x86_64 e ARM64)
-8. WebGL Draw Call Budget (RNF-08):               PASS (1 draw call por material <= 3)
-9. 60 FPS Expansion Profile (RNF-04):             PASS (CPU frame time 1.18 ms < 16.67 ms)
-10. Continuous Soak Benchmark Harness (RNF-09):   PASS (Delta < 2.0 MB em soak com LRU)
+7. Multiplatform Determinism Matrix (RNF-07):     VERIFIED (SHA-256 idêntico em x86_64 e ARM64 nativo)
+8. WebGL Draw Call Budget (RNF-08):               PARTIAL (1 call estrutural batch; GPU física na Spec 07)
+9. 60 FPS Expansion Profile (RNF-04):             PARTIAL (CPU frame time 1.18 ms < 16.67 ms; GPU na Spec 07)
+10. Continuous Soak Benchmark Harness (RNF-09):   PARTIAL (Workflow/script 60 min OK; execução contínua pendente)
 ================================================================================
 ```
 
@@ -148,12 +152,12 @@ Todas as métricas foram comprovadas localmente e auditadas na execução oficia
 
 Conforme diretiva mandatória do `GEMINI.md`, a validação automatizada das 4 ressalvas foi implementada com harnesses executáveis, benchmarks mensurados e workflows dedicados de CI:
 
-| Requisito | Status anterior | Status novo | Evidência Técnica Aferida | Ambiente / Infraestrutura |
+| Requisito | Status anterior | Status homologação | Evidência Técnica Aferida | Ambiente / Infraestrutura |
 |---|---|---|---|---|
-| **RNF-04** (60 FPS durante expansão) | `DEFERRED` | **VERIFIED** *(CPU Streaming & Buffer Update Budget)* | `src/bindings/r3f/__tests__/proceduralBoardFps.test.ts` e `scripts/runGpuFpsBenchmark.js`: Tempo médio de frame CPU de **1.182 ms** (orçamento: < 16.67 ms para 60 FPS), P95 de 10.46 ms, 0 long tasks (> 50 ms) para grade de 6.400 células ativas | Node.js v22 + V8 Profiler (Rasterização física em GPU real na Spec 07) |
+| **RNF-04** (60 FPS durante expansão) | `DEFERRED` | **PARTIAL** | `src/bindings/r3f/__tests__/proceduralBoardFps.test.ts` e `scripts/runGpuFpsBenchmark.js`: Tempo médio de frame CPU de **1.182 ms** (orçamento: < 16.67 ms para 60 FPS), P95 de 10.46 ms, 0 long tasks (> 50 ms) para grade de 6.400 células ativas | Node.js v22 + V8 Profiler (Rasterização física em GPU real na Spec 07) |
 | **RNF-07** (Consistência x86_64 / ARM64) | `PARTIAL` | **VERIFIED** | `multiplatformDeterminism.test.ts`, `scripts/verifyDeterminism.js` (Hash SHA-256 composto: `3120b55b585c10b840e12599dd78c673a5554aa9159dcba23cd766f6987f16dd` idêntico em todas as topologias e PRNGs) e workflow matrix `.github/workflows/multiplatform-determinism.yml` executando em `ubuntu-24.04` e `ubuntu-24.04-arm` | CI Nativo GitHub Actions (x86_64 e ARM64 nativo) |
-| **RNF-08** (Draw Calls WebGL <= 3) | `DEFERRED` | **VERIFIED** | `src/bindings/r3f/__tests__/proceduralBoardDrawCalls.test.ts`: **exatamente 1 draw call** por material para 64, 256 e 6.400 células ativas via `ProceduralBoardInstancedHarness` (`THREE.InstancedMesh`), satisfazendo o teto de <= 3 draw calls por material | Three.js WebGL Instanced Harness |
-| **RNF-09** (Soak 60 min < 2 MB leak) | `PARTIAL` | **VERIFIED** *(Harness e Metodologia 60 min)* | `scripts/runSoakTest60Min.js` com `--expose-gc` e workflow sob demanda `.github/workflows/soak-test-60min.yml` (`workflow_dispatch` com 90 min de timeout). Smoke qualification de 525 ciclos registrando **+0.384 MB** de crescimento retido pós-GC (< 2.000 MB limite da spec) com 34 chunks limitados pelo LRU | Node 22 com `--expose-gc` + workflow manual de 60 min no GitHub Actions |
+| **RNF-08** (Draw Calls WebGL <= 3) | `DEFERRED` | **PARTIAL** | `src/bindings/r3f/__tests__/proceduralBoardDrawCalls.test.ts`: **exatamente 1 draw call** estrutural por material via `ProceduralBoardInstancedHarness` (`THREE.InstancedMesh`). Medição de driver WebGL real diferida para a Spec 07 | Three.js WebGL Instanced Harness |
+| **RNF-09** (Soak 60 min < 2 MB leak) | `PARTIAL` | **PARTIAL** | `scripts/runSoakTest60Min.js` com `--expose-gc` e workflow sob demanda `.github/workflows/soak-test-60min.yml` (`workflow_dispatch` com 90 min de timeout). Smoke qualification de 525 ciclos registrando **+0.384 MB** de crescimento retido pós-GC (< 2.000 MB limite da spec). Execução contínua ininterrupta de 3.600s aguarda disparo manual | Node 22 com `--expose-gc` + workflow manual de 60 min no GitHub Actions |
 
 ---
 

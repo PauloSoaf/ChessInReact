@@ -8,6 +8,8 @@ export interface IDrawCallMetrics {
   readonly drawCallsPerMaterial: Record<string, number>;
   readonly activeInstancesCount: number;
   readonly capacity: number;
+  readonly isHardwareMeasured: boolean;
+  readonly measurementMode: 'ESTIMATED_BATCH_STRUCTURE' | 'MEASURED_WEBGL_RENDERER';
 }
 
 export interface IFrameTimingMetrics {
@@ -92,6 +94,7 @@ export class ProceduralBoardInstancedHarness {
       // Compute world position via topology
       const worldPos = this.topology.toWorldPosition(coordKey as CoordinateKey);
       this.tempPosition.set(worldPos.x, (cell.elevation ?? 1.0) * 0.2, worldPos.z);
+      this.tempScale.set(1, 1, 1);
       this.tempMatrix.compose(this.tempPosition, this.tempQuaternion, this.tempScale);
       this.instancedMesh.setMatrixAt(instanceIdx, this.tempMatrix);
 
@@ -193,9 +196,9 @@ export class ProceduralBoardInstancedHarness {
   }
 
   /**
-   * Evaluates draw call metrics against WebGL / Three.js scene architecture.
-   * Because all instances share a single geometry and material via InstancedMesh,
-   * exactly 1 draw call is dispatched for this material batch regardless of cell count.
+   * Evaluates draw call metrics based on InstancedMesh structural design (estimated).
+   * Note: This is an architectural inference (1 call per material batch).
+   * For measured GPU/driver draw calls, use measureWebGLRendererCalls with an active WebGLRenderer.
    */
   public computeDrawCallMetrics(): IDrawCallMetrics {
     const matName = this.material.name || 'TerrainMaterial';
@@ -208,6 +211,30 @@ export class ProceduralBoardInstancedHarness {
       },
       activeInstancesCount: this.activeInstanceCount,
       capacity: this.maxCapacity,
+      isHardwareMeasured: false,
+      measurementMode: 'ESTIMATED_BATCH_STRUCTURE',
+    };
+  }
+
+  /**
+   * Renders the instanced mesh with an active WebGLRenderer and collects actual
+   * draw calls from renderer.info.render.calls.
+   */
+  public measureWebGLRendererCalls(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera): IDrawCallMetrics {
+    renderer.info.reset();
+    renderer.render(scene, camera);
+    const calls = renderer.info.render.calls;
+    const matName = this.material.name || 'TerrainMaterial';
+
+    return {
+      totalDrawCalls: calls,
+      drawCallsPerMaterial: {
+        [matName]: calls,
+      },
+      activeInstancesCount: this.activeInstanceCount,
+      capacity: this.maxCapacity,
+      isHardwareMeasured: true,
+      measurementMode: 'MEASURED_WEBGL_RENDERER',
     };
   }
 
