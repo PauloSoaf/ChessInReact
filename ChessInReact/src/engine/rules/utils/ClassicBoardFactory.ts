@@ -60,7 +60,7 @@ export class ClassicBoardFactory {
             const id = asEntityId(`piece_${entityCounter++}_${pieceInfo.variantId}_${coord}`);
 
             // Determine if piece has moved based on castling string
-            let hasMoved = true;
+            let hasMoved = false;
             if (pieceInfo.variantId === 'PAWN') {
               hasMoved = pieceInfo.ownerId === 'P1' ? y !== 1 : y !== 6;
             } else if (pieceInfo.variantId === 'KING') {
