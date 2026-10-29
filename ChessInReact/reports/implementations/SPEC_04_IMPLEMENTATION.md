@@ -1,10 +1,10 @@
 # Spec 04 Implementation Report: Rules Engine, Fairy Chess, Validação Legal e Variantes
 
 > **Document Type:** Architectural & Implementation Summary  
-> **Status:** COMPLETED & VERIFIED (SPEC04-PATCH-01 RESOLVED)  
+> **Status:** COMPLETED & HOMOLOGATED (SPEC04-PATCH-02 RESOLVED)  
 > **Repository:** `PauloSoaf/ChessInReact`  
 > **Branch:** `feat/spec04-rules-engine-fairy-variants`  
-> **Base Commit:** `c28c669ad812ed304ca1b79c27b059ca90d1118d`  
+> **Base Commit Audited:** `3b84181f795735fea433bec3de65fbaefe416a68`  
 > **Execution Date:** 2026-10-28  
 
 ---
@@ -47,9 +47,10 @@ Spec 04 delivers a high-performance, isomorphic, deterministic Rules Engine capa
 
 ### 2.1 Core Contracts (`src/engine/rules/interfaces/IRulesContracts.ts`)
 - `IMoveIntent`: Encapsulates move intent (`fromCoord`, `toCoord`, `pieceId`, `playerId`, `promotionChoice`, `isDropMove`, `dropPieceVariant`).
-- `IValidationResult`: Typed response contract (`valid`, `code`, `reason`, `isCapture`, `capturedPieceId`, `isCastling`, `isEnPassant`, `isPromotion`).
+- `IValidationResult`: Typed response contract (`valid`, `code`, `reason`, `isCapture`, `capturedPieceId`, `isCastling`, `isEnPassant`, `isPromotion`, `isDrop`).
 - `ILegalMove`: Fully specified legal move descriptor with promotion options.
 - `IGameResult`: Termination descriptor (`isGameOver`, `winnerId`, `reason`: `CHECKMATE`, `STALEMATE`, `INSUFFICIENT_MATERIAL`, `FIFTY_MOVE_RULE`, `REPETITION`, `HILL_OCCUPIED`, `ALL_PIECES_LOST`).
+- Added `'GAME_OVER'` rejection code to `MoveRejectionCode`.
 
 ### 2.2 Betza Notation Compiler & Primitive Behaviors (`src/engine/rules/behaviors/`)
 - `BetzaParser.ts`: Parses standard Betza atoms (`W`, `F`, `D`, `N`, `A`, `C`, `Z`), range limits, compound atoms, and modifiers:
@@ -85,9 +86,9 @@ Spec 04 delivers a high-performance, isomorphic, deterministic Rules Engine capa
 
 ---
 
-## 3. SPEC04-PATCH-01 Remediation Details
+## 3. Remediation Details (PATCH-01 & PATCH-02)
 
-### 3.1 Colyseus Authoritative Multiplayer Synchronization
+### 3.1 Colyseus Authoritative Multiplayer Synchronization (PATCH-01)
 - **Schema Extension (`RoomStateSchema.ts`):** Added `@type('string') public enPassantTarget: string = '';` to track active en passant targets across client connections.
 - **Validation Bridge (`StandardMoveValidator.ts`):** Ingests `enPassantTarget` from room state and populates `turnState.enPassantTarget` in the domain state passed to `RulesEngine.validateMove`.
 - **Authoritative Resolution (`TurnResolver.ts`):**
@@ -96,13 +97,34 @@ Spec 04 delivers a high-performance, isomorphic, deterministic Rules Engine capa
   - Evaluates `RulesEngine.getGameResult` for the active player, transitioning `state.phase = 'GAME_OVER'` and setting `state.winnerId`.
 - **Room Lifecycle (`ChessRoom.ts`):** Move attempts are rejected when `phase !== 'PLAYING'`, and a `'GAME_OVER'` notification is broadcast to all participants.
 
-### 3.2 Core Command Integration & Reversibility (`MovePieceCommand.ts`)
-- Full bidirectional integration of variant effects:
-  - **Crazyhouse:** Executes drop moves (`isDropMove: true`), decrements pocket inventory, and restores piece to pocket on `undo()`.
-  - **Atomic Chess:** Detonates surrounding non-pawns, restores all exploded pieces on `undo()`, and reverts game-over states accurately.
-  - **King of the Hill:** Triggers immediate victory upon center occupation and cleans up on `undo()`.
-  - **Antichess:** Rejects quiet moves when captures exist and awards victory on stalemate or total piece loss.
-  - **Undo Integrity:** Fixed sentinel checks (`!== undefined`) so that `draft.winnerId` and `draft.isGameOver` revert from game-over back to `null` and `false`.
+### 3.2 SPEC04-PATCH-02 Integrity Remediations
+1. **P0 — Crazyhouse Drop Integrity & Entity Collision Prevention:**
+   - In `MovePieceCommand.ts`, drops must satisfy 9 strict pre-mutation checks:
+     1. Crazyhouse variant enabled.
+     2. Player turn and identity check (`draft.activePlayer === this.actingPlayer`).
+     3. Game not terminated (`!draft.isGameOver && draft.winnerId === null`).
+     4. Piece available in pocket inventory (`capturedInventory[player]`).
+     5. Target coordinate within board bounds.
+     6. Target coordinate currently unoccupied.
+     7. Terrain obstacle check (elevation <= 0.5).
+     8. Rank 1 and Rank 8 pawn placement restriction.
+     9. ID uniqueness check: rejects attempts to assign an ID already present on the board.
+     10. Moving player king safety check.
+   - Any rejection leaves the domain state bit-for-bit unchanged.
+2. **P1 — Rules Engine Query Purity:**
+   - In `CrazyhouseModifier.getLegalDropMoves()`, eliminated in-place mutation of `state.occupancy` and `state.boardEntities`.
+   - Implemented an immutable simulated overlay (`overlayState`), tested and verified on deeply frozen objects (`Object.freeze()`).
+3. **P1 — Move-Locking on Game Over:**
+   - `RulesEngine.validateMove()` returns `{ valid: false, code: 'GAME_OVER' }` if the match is already over.
+   - `MovePieceCommand.execute()` throws an explicit error (`"Cannot execute move: Game is already over."`).
+   - `ChessBoard.tsx` rejects user clicks when `domain.isGameOver || domain.winnerId !== null`.
+4. **P1 — Canonical FIDE Repetition Key & Reversible History:**
+   - `PositionHasher.ts` canonicalizes positions per FIDE Art. 9.2: functional pieces (ignoring generic `hasMoved`), active player, explicit initial castling rights `KQkq`, and effective en passant.
+   - Position keys are appended to `turnState.positionHistory` on every ply in `MovePieceCommand.ts` and restored bit-for-bit on `undo()`.
+5. **P1 — Dual Zustand Store Synchronization:**
+   - In `multiplayerRulesE2E.test.ts`, verified that `store1` and `store2` reflect server authoritative state across all operations.
+   - Mapped `enPassantTarget` and `winnerId` accurately in `StateSyncBridge.ts`.
+   - Verified optimistic prediction rollback on illegal moves and mid-match reconnection state hydration.
 
 ---
 
@@ -112,9 +134,10 @@ Spec 04 delivers a high-performance, isomorphic, deterministic Rules Engine capa
 | :--- | :--- | :---: | :---: |
 | **Typecheck** | `npx tsc --noEmit` | 0 errors | **0 errors** |
 | **Lint** | `npm run lint` | 0 errors, 0 warnings | **0 errors, 0 warnings** |
-| **Production Build** | `npm run build` | Success | **Built in 6.8s (443.68 kB, gzip 141.21 kB)** |
-| **Test Suite** | `npx vitest run --coverage` | 100% pass, topologies > 95%, rules > 95% | **70 suites, 502 tests passed, 0 skipped** |
-| **Rules Coverage** | `src/engine/rules/**` | > 95.00% | **97.19% Statements / 91.37% Branches / 100% Functions** |
+| **Production Build** | `npm run build` | Success | **Built in 13.27s (454.08 kB, gzip 143.51 kB)** |
+| **Test Suite** | `npx vitest run --coverage` | 100% pass, topologies > 95%, rules > 95% | **72 suites, 520 tests passed, 0 skipped** |
+| **Rules Coverage** | `src/engine/rules/**` | > 95.00% | **97.18% Lines / 91.56% Branches / 100% Functions** |
+| **Topologies Coverage** | `src/core/topology/**` | > 95.00% | **98.21% Lines / 91.53% Branches / 98.46% Functions** |
 | **Smoke Test** | `node scripts/runChromiumSmoke.js` | Native headless smoke | **PASS (skipped: false)** |
-| **Memory Benchmark** | `npm run bench:memory` | Peak < 40MB, drift < 0.05MB/cycle | **PASS (8.27MB peak, +0.0090 MB/cycle drift)** |
-| **Perft Benchmark** | `npm run bench:perft` | D1 < 0.20ms, D5 = 4,865,609 nodes | **PASS (0.0774ms D1, 4,865,609 nodes D5)** |
+| **Memory Benchmark** | `npm run bench:memory` | Peak < 40MB, drift < 0.05MB/cycle | **PASS (+2.44 MB incremental delta, +0.12 MB retained delta)** |
+| **Perft Benchmark** | `npm run bench:perft` | D1 < 0.20ms, D5 = 4,865,609 nodes | **PASS (0.0741ms D1, 4,865,609 nodes D5)** |

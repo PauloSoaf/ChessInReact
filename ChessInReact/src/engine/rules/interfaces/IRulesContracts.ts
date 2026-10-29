@@ -55,6 +55,7 @@ export type MoveRejectionCode =
   | 'INVALID_PROMOTION'
   | 'FORCED_CAPTURE_AVAILABLE'
   | 'ILLEGAL_DROP'
+  | 'GAME_OVER'
   | 'UNKNOWN_REJECTION';
 
 /**

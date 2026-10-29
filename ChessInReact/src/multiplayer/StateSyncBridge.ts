@@ -157,7 +157,7 @@ export class StateSyncBridge {
       activePlayer = (schema.activePlayerId as PlayerId) || 'P1';
     }
 
-    const winnerId = schema.winnerId ? (schema.winnerId as PlayerId) : null;
+    const winnerId = schema.winnerId ? this.toCanonicalPlayerId(schema.winnerId) : null;
 
     return {
       matchId: schema.matchId || this.room.id,
@@ -184,8 +184,9 @@ export class StateSyncBridge {
       turnState: {
         phase: schema.phase === 'RESOLVING' ? 'RESOLUTION' : 'COMMIT',
         lastActionTimestamp: Date.now(),
-        enPassantTarget: null,
+        enPassantTarget: schema.enPassantTarget ? asCoordinateKey(schema.enPassantTarget) : null,
         fiftyMoveCounter: 0,
+        positionHistory: [],
       },
     };
   }
@@ -244,7 +245,15 @@ export class StateSyncBridge {
     this.lastAuthoritativeState = authoritativeDomain;
 
     // Prune acknowledged commands for THIS player based on per-player ACK (S03-04)
-    const myAck = state.playerSequenceAcks ? state.playerSequenceAcks.get(String(this.myPlayerId)) : undefined;
+    let serverPlayerId = String(this.myPlayerId);
+    state.players?.forEach((p) => {
+      if (this.myPlayerId === 'P1' && p.role === 'WHITE') serverPlayerId = p.playerId;
+      if (this.myPlayerId === 'P2' && p.role === 'BLACK') serverPlayerId = p.playerId;
+    });
+
+    const myAck = state.playerSequenceAcks
+      ? (state.playerSequenceAcks.get(serverPlayerId) ?? state.playerSequenceAcks.get(String(this.myPlayerId)))
+      : undefined;
     if (typeof myAck === 'number') {
       for (const [seqId, record] of Array.from(this.pendingCommands.entries())) {
         if (seqId <= myAck) {

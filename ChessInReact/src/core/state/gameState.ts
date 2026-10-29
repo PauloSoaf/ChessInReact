@@ -36,6 +36,7 @@ export interface IDomainState {
     readonly lastActionTimestamp: number;
     readonly enPassantTarget: CoordinateKey | null;
     readonly fiftyMoveCounter: number;
+    readonly positionHistory?: readonly string[];
   };
 }
 

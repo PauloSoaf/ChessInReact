@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import fc from 'fast-check';
 import { RulesEngine } from '../RulesEngine';
 import { ClassicBoardFactory } from '../utils/ClassicBoardFactory';
 import { SquareTopology } from '../../../core/topology/SquareTopology';
@@ -7,6 +8,9 @@ import { produce } from 'immer';
 import { CheckValidator } from '../CheckValidator';
 import { IPieceEntity } from '../../../core/entities/types';
 import { parseCoord } from '../utils/CoordinateHelper';
+import { computePositionKey } from '../utils/PositionHasher';
+import { asEntityId, asCoordinateKey } from '../../../core/coordinates/types';
+import { IVariantConfiguration } from '../interfaces/IRulesContracts';
 
 describe('Spec 04 — Property-Based & Invariant Testing', () => {
   const topology = new SquareTopology({ width: 8, height: 8 });
@@ -201,4 +205,161 @@ describe('Spec 04 — Property-Based & Invariant Testing', () => {
       }
     }
   });
+
+  it('Invariant 6: fast-check Property — Arbitrary move choices maintain soundness, king safety, and occupancy bijection (RNF-15)', () => {
+    fc.assert(
+      fc.property(
+        fc.array(fc.integer({ min: 0, max: 50 }), { minLength: 5, maxLength: 25 }),
+        (choiceIndices) => {
+          let state = ClassicBoardFactory.createStandardInitialState();
+
+          for (const choice of choiceIndices) {
+            const legalMoves = RulesEngine.getLegalMoves(state, topology);
+            if (legalMoves.length === 0) {
+              break; // Terminal
+            }
+
+            // Every legal move must validate
+            const chosenMove = legalMoves[choice % legalMoves.length];
+            const validation = RulesEngine.validateMove(
+              state,
+              {
+                pieceId: chosenMove.pieceId,
+                actingPlayer: state.activePlayer,
+                from: chosenMove.from,
+                to: chosenMove.to,
+              },
+              topology
+            );
+            expect(validation.valid).toBe(true);
+
+            // Execute move
+            const actingPlayer = state.activePlayer;
+            state = produce(state, (draft) => {
+              const cmd = new MovePieceCommand(
+                chosenMove.pieceId,
+                chosenMove.from,
+                chosenMove.to,
+                actingPlayer,
+                undefined,
+                true,
+                false
+              );
+              cmd.execute(draft);
+            });
+
+            // King safety check for moving player
+            const royal = CheckValidator.findRoyalPiece(actingPlayer, state);
+            if (royal) {
+              const opponent = actingPlayer === 'P1' ? 'P2' : 'P1';
+              const inCheck = CheckValidator.isSquareAttacked(royal.position, opponent, state, topology);
+              expect(inCheck).toBe(false);
+            }
+
+            // Occupancy bijection check
+            const activePieces = Object.values(state.boardEntities).filter(
+              (e) => e && e.type === 'PIECE' && !e.isCaptured
+            );
+            expect(Object.keys(state.occupancy).length).toBe(activePieces.length);
+          }
+
+          return true;
+        }
+      ),
+      { numRuns: 40 }
+    );
+  });
+
+  it('Invariant 7: fast-check Property — Crazyhouse drop integrity: arbitrary drops on invalid cells, occupied cells, or rank 1/8 pawns always reject without state mutation (P0, RF-12)', () => {
+    const crazyVariant: IVariantConfiguration = {
+      variantId: 'crazyhouse',
+      allowDrops: true,
+    };
+
+    fc.assert(
+      fc.property(
+        fc.integer({ min: -2, max: 10 }),
+        fc.integer({ min: -2, max: 10 }),
+        fc.constantFrom<'PAWN' | 'KNIGHT' | 'BISHOP' | 'ROOK' | 'QUEEN'>('PAWN', 'KNIGHT', 'BISHOP', 'ROOK', 'QUEEN'),
+        (x, y, pieceType) => {
+          const state = produce(ClassicBoardFactory.createStandardInitialState(), (draft) => {
+            draft.capturedInventory.P1 = [pieceType];
+          });
+          const originalJson = JSON.stringify(state);
+
+          const targetCoord = `${x},${y}`;
+          const isOffBoard = x < 0 || x > 7 || y < 0 || y > 7;
+          const isOccupied = !isOffBoard && Boolean(state.occupancy[asCoordinateKey(targetCoord)]);
+          const isPawnRankViolation = !isOffBoard && pieceType === 'PAWN' && (y === 0 || y === 7);
+
+          const shouldReject = isOffBoard || isOccupied || isPawnRankViolation;
+
+          const cmd = new MovePieceCommand(
+            asEntityId('drop-test-fc'),
+            asCoordinateKey(targetCoord),
+            asCoordinateKey(targetCoord),
+            'P1',
+            undefined,
+            true,
+            true,
+            undefined,
+            topology,
+            crazyVariant,
+            true,
+            pieceType
+          );
+
+          if (shouldReject) {
+            expect(() => {
+              produce(state, (draft) => {
+                cmd.execute(draft);
+              });
+            }).toThrow();
+            // State must be unmutated
+            expect(JSON.stringify(state)).toBe(originalJson);
+          }
+
+          return true;
+        }
+      ),
+      { numRuns: 80 }
+    );
+  });
+
+  it('Invariant 8: fast-check Property — FIDE position hashing canonical determinism and sensitivity (RNF-05)', () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom<'P1' | 'P2'>('P1', 'P2'),
+        fc.constantFrom('e3', 'd6', null),
+        (activePlayer, epTarget) => {
+          const state1 = produce(ClassicBoardFactory.createStandardInitialState(), (draft) => {
+            draft.activePlayer = activePlayer;
+            draft.turnState.enPassantTarget = epTarget ? asCoordinateKey(epTarget) : null;
+          });
+          const state2 = produce(ClassicBoardFactory.createStandardInitialState(), (draft) => {
+            draft.activePlayer = activePlayer;
+            draft.turnState.enPassantTarget = epTarget ? asCoordinateKey(epTarget) : null;
+          });
+
+          const hash1 = computePositionKey(state1);
+          const hash2 = computePositionKey(state2);
+
+          // Determinism invariant
+          expect(hash1).toBe(hash2);
+
+          // Active player sensitivity
+          const otherPlayer = activePlayer === 'P1' ? 'P2' : 'P1';
+          const stateOtherPlayer = produce(state1, (draft) => {
+            draft.activePlayer = otherPlayer;
+          });
+          const hashOther = computePositionKey(stateOtherPlayer);
+          expect(hashOther).not.toBe(hash1);
+
+          return true;
+        }
+      ),
+      { numRuns: 30 }
+    );
+  });
 });
+

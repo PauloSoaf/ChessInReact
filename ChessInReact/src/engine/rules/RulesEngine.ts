@@ -27,6 +27,15 @@ export class RulesEngine {
     topology: ITopology,
     variantConfig?: IVariantConfiguration
   ): IValidationResult {
+    // 0. Game Over check (RF-01, RF-05)
+    if (state.isGameOver || state.winnerId !== null) {
+      return {
+        valid: false,
+        code: 'GAME_OVER',
+        reason: 'Game is already over. No further moves are permitted.',
+      };
+    }
+
     // 1. Entity existence & piece checks
     const piece = state.boardEntities[intent.pieceId] as IPieceEntity | undefined;
     if (!piece) {

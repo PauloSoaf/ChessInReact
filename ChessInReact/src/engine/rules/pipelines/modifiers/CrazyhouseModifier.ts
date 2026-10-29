@@ -1,4 +1,4 @@
-import { CoordinateKey, EntityId, PlayerId, asEntityId } from '../../../../core/coordinates';
+import { CoordinateKey, PlayerId, asEntityId } from '../../../../core/coordinates';
 import { ITopology } from '../../../../core/topology/types';
 import { IDomainState } from '../../../../core/state/gameState';
 import { IPieceEntity } from '../../../../core/entities/types';
@@ -66,11 +66,9 @@ export class CrazyhouseModifier {
         // Destination square must be completely empty
         if (state.occupancy[coord]) continue;
 
-        // Verify drop does not leave friendly king in check
-        // In-place test:
+        // Verify drop does not leave friendly king in check using immutable overlay (RNF-14)
         const virtualPieceId = asEntityId(`drop_${playerId}_${pieceVariant}_${coord}`);
-        (state.occupancy as Record<string, EntityId | undefined>)[coord] = virtualPieceId;
-        (state.boardEntities as Record<string, IPieceEntity | undefined>)[virtualPieceId] = {
+        const virtualPiece: IPieceEntity = {
           id: virtualPieceId,
           type: 'PIECE',
           position: coord,
@@ -80,14 +78,22 @@ export class CrazyhouseModifier {
           isCaptured: false,
         };
 
+        const overlayState: IDomainState = {
+          ...state,
+          occupancy: {
+            ...state.occupancy,
+            [coord]: virtualPieceId,
+          },
+          boardEntities: {
+            ...state.boardEntities,
+            [virtualPieceId]: virtualPiece,
+          },
+        };
+
         const kingCoord = king?.position;
         const leavesInCheck = kingCoord
-          ? CheckValidator.isSquareAttacked(kingCoord, opponentId, state, topology)
+          ? CheckValidator.isSquareAttacked(kingCoord, opponentId, overlayState, topology)
           : false;
-
-        // Restore state
-        delete (state.occupancy as Record<string, EntityId | undefined>)[coord];
-        delete (state.boardEntities as Record<string, IPieceEntity | undefined>)[virtualPieceId];
 
         if (!leavesInCheck) {
           legalDrops.push({

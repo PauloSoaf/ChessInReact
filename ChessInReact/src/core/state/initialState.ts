@@ -28,6 +28,7 @@ export function createDefaultDomainState(matchId = 'local_sandbox', variantId = 
       lastActionTimestamp: Date.now(),
       enPassantTarget: null,
       fiftyMoveCounter: 0,
+      positionHistory: [],
     },
   };
 }

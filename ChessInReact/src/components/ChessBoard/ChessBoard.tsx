@@ -73,6 +73,11 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({ boardSize = 8 }) => {
   }, [domain.occupancy, domain.boardEntities, boardSize]);
 
   const handleSquareClick = (squareInfo: ISquareInfo) => {
+    // Block any selection or move dispatch if match already concluded (RF-01, RF-05)
+    if (domain.isGameOver || domain.winnerId !== null) {
+      return;
+    }
+
     const gameX = squareInfo.column;
     const gameY = boardSize - 1 - squareInfo.row;
     const clickedCoord = asCoordinateKey(`${gameX},${gameY}`);

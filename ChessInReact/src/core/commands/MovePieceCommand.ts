@@ -8,6 +8,8 @@ import { RulesEngine } from '../../engine/rules/RulesEngine';
 import { parseCoord, toCoordKey } from '../../engine/rules/utils/CoordinateHelper';
 import { VariantRegistry } from '../../engine/rules/VariantRegistry';
 import { IVariantConfiguration } from '../../engine/rules/interfaces/IRulesContracts';
+import { CheckValidator } from '../../engine/rules/CheckValidator';
+import { computePositionKey } from '../../engine/rules/utils/PositionHasher';
 
 /**
  * MovePieceCommand executes a piece movement from one coordinate to another,
@@ -28,6 +30,7 @@ export class MovePieceCommand implements ICommand {
   private previousFiftyMoveCounter: number | null = null;
   private previousIsGameOver: boolean | null | undefined = undefined;
   private previousWinnerId: PlayerId | null | undefined = undefined;
+  private previousPositionHistory: readonly string[] | undefined = undefined;
   private previousHasMovedState = false;
   private previousActivePlayer: PlayerId | null = null;
   private previousTurnNumber: number | null = null;
@@ -55,14 +58,40 @@ export class MovePieceCommand implements ICommand {
   }
 
   public execute(draft: IDomainState): void {
+    // 0. Game Over check: Rejects any move if match already ended (RF-01, RF-05)
+    if (draft.isGameOver || draft.winnerId !== null) {
+      throw new Error('Cannot execute move: Game is already over.');
+    }
+
     this.previousIsGameOver = draft.isGameOver;
     this.previousWinnerId = draft.winnerId;
+    this.previousPositionHistory = draft.turnState?.positionHistory
+      ? [...draft.turnState.positionHistory]
+      : [];
 
     const activeConfig: IVariantConfiguration | undefined =
       this.variantConfig ?? (draft.variantId ? VariantRegistry.getVariant(draft.variantId)?.config : undefined);
 
     // Crazyhouse drop move execution
     if (this.isDropMove) {
+      // 1. Variant check: Crazyhouse must be enabled
+      const isCrazyhouseEnabled = Boolean(
+        activeConfig?.allowDrops ||
+        (draft.variantId && draft.variantId.toUpperCase().includes('CRAZYHOUSE')) ||
+        (activeConfig?.variantId && activeConfig.variantId.toUpperCase().includes('CRAZYHOUSE'))
+      );
+      if (!isCrazyhouseEnabled) {
+        throw new Error('Invalid drop move: Crazyhouse variant is not enabled for this match.');
+      }
+
+      // 2. Turn and player identity check
+      if (this.advanceTurn && draft.activePlayer !== this.actingPlayer) {
+        throw new Error(
+          `Invalid drop move: It is player "${draft.activePlayer}"'s turn, but drop requested for "${this.actingPlayer}".`
+        );
+      }
+
+      // 3. Piece variant availability in pocket inventory
       const dropVariant = (this.dropPieceVariant ?? 'PAWN').toUpperCase();
       const pocket = draft.capturedInventory?.[this.actingPlayer];
       const pocketIdx = pocket ? pocket.indexOf(dropVariant) : -1;
@@ -71,25 +100,84 @@ export class MovePieceCommand implements ICommand {
           `Invalid drop move: Piece variant "${dropVariant}" is not available in player "${this.actingPlayer}" inventory.`
         );
       }
-      if (draft.occupancy[this.to]) {
-        throw new Error(
-          `Invalid drop move: Destination coordinate "${this.to}" is already occupied.`
-        );
+
+      // 4. Entity ID collision check (ADR-001)
+      if (draft.boardEntities[this.pieceId]) {
+        throw new Error(`Invalid drop move: Entity ID "${this.pieceId}" already exists on the board.`);
       }
+
+      // 5. Destination bounds
       if (!this.defaultTopology.isValidCoordinate(this.to)) {
         throw new Error(
           `Invalid drop move: Destination coordinate "${this.to}" is out of bounds.`
         );
       }
 
-      // Remove from pocket inventory
+      // 6. Destination occupancy
+      if (draft.occupancy[this.to]) {
+        throw new Error(
+          `Invalid drop move: Destination coordinate "${this.to}" is already occupied.`
+        );
+      }
+
+      // 7. Terrain and obstacle checks
+      const terrainId = draft.terrain?.[this.to];
+      if (terrainId) {
+        const terrainEnt = draft.boardEntities[terrainId];
+        if (terrainEnt && terrainEnt.type === 'TERRAIN' && typeof terrainEnt.elevation === 'number' && terrainEnt.elevation > 0.5) {
+          throw new Error(`Invalid drop move: Destination coordinate "${this.to}" is an impassable terrain obstacle.`);
+        }
+      }
+
+      // 8. Pawn rank limitations (cannot be dropped on rank 1 or rank 8)
+      const isPawn = dropVariant === 'PAWN' || dropVariant === 'P';
+      if (isPawn) {
+        const parsed = parseCoord(this.to);
+        if (parsed && (parsed.y === 0 || parsed.y === 7)) {
+          throw new Error('Invalid drop move: Pawns cannot be dropped on the first or last rank.');
+        }
+      }
+
+      // 9. King safety (drop must not leave friendly king in check)
+      const king = CheckValidator.findRoyalPiece(this.actingPlayer, draft);
+      if (king && king.position) {
+        const opponentId: PlayerId = this.actingPlayer === 'P1' ? 'P2' : 'P1';
+        const simOccupancy = { ...draft.occupancy, [this.to]: this.pieceId };
+        const simEntities = {
+          ...draft.boardEntities,
+          [this.pieceId]: {
+            id: this.pieceId,
+            type: 'PIECE' as const,
+            ownerId: this.actingPlayer,
+            variantId: dropVariant,
+            position: this.to,
+            hasMoved: true,
+            isCaptured: false,
+          },
+        };
+        const simState: IDomainState = {
+          ...draft,
+          occupancy: simOccupancy,
+          boardEntities: simEntities,
+        };
+        const leavesInCheck = CheckValidator.isSquareAttacked(
+          king.position,
+          opponentId,
+          simState,
+          this.defaultTopology
+        );
+        if (leavesInCheck) {
+          throw new Error("Invalid drop move: Drop leaves player's King in check.");
+        }
+      }
+
+      // ALL VALIDATIONS PASSED: Mutate state atomically
       pocket.splice(pocketIdx, 1);
       this.droppedPieceSnapshot = {
         pieceId: this.pieceId,
         variant: dropVariant,
       };
 
-      // Place newly dropped piece on board
       const droppedEntity: IPieceEntity = {
         id: this.pieceId,
         type: 'PIECE',
@@ -115,6 +203,15 @@ export class MovePieceCommand implements ICommand {
         this.previousTurnNumber = draft.turnNumber;
         (draft as { activePlayer: PlayerId }).activePlayer = draft.activePlayer === 'P1' ? 'P2' : 'P1';
         (draft as { turnNumber: number }).turnNumber += 1;
+      }
+
+      // Record position history for 3-fold / 5-fold repetition (RF-11)
+      if (draft.turnState) {
+        const newKey = computePositionKey(draft);
+        (draft.turnState as { positionHistory?: readonly string[] }).positionHistory = [
+          ...(this.previousPositionHistory ?? []),
+          newKey,
+        ];
       }
 
       if (this.enforceRules || activeConfig) {
@@ -426,6 +523,15 @@ export class MovePieceCommand implements ICommand {
       (draft as { turnNumber: number }).turnNumber += 1;
     }
 
+    // Position history tracking & repetition check (RF-11)
+    if (draft.turnState) {
+      const newKey = computePositionKey(draft);
+      (draft.turnState as { positionHistory?: readonly string[] }).positionHistory = [
+        ...(this.previousPositionHistory ?? []),
+        newKey,
+      ];
+    }
+
     // Game over evaluation
     if ((this.enforceRules || activeConfig) && !draft.isGameOver) {
       const result = RulesEngine.getGameResult(draft, this.defaultTopology, activeConfig);
@@ -451,6 +557,9 @@ export class MovePieceCommand implements ICommand {
         }
         if (this.previousFiftyMoveCounter !== null) {
           (draft.turnState as { fiftyMoveCounter: number }).fiftyMoveCounter = this.previousFiftyMoveCounter;
+        }
+        if (this.previousPositionHistory !== undefined) {
+          (draft.turnState as { positionHistory: readonly string[] }).positionHistory = this.previousPositionHistory;
         }
       }
 
@@ -538,6 +647,9 @@ export class MovePieceCommand implements ICommand {
       }
       if (this.previousFiftyMoveCounter !== null) {
         (draft.turnState as { fiftyMoveCounter: number }).fiftyMoveCounter = this.previousFiftyMoveCounter;
+      }
+      if (this.previousPositionHistory !== undefined) {
+        (draft.turnState as { positionHistory: readonly string[] }).positionHistory = this.previousPositionHistory;
       }
     }
 
