@@ -635,14 +635,63 @@ export class RulesEngine {
     variantConfig?: IVariantConfiguration,
     positionHistory?: readonly string[]
   ): IGameResult {
+    const history = positionHistory ?? state.turnState?.positionHistory;
     const legalMoves = this.getLegalMoves(state, topology, variantConfig);
     return GameOverDetector.evaluateGameResult(
       state,
       topology,
       legalMoves.length,
       variantConfig,
-      positionHistory
+      history
     );
+  }
+
+  /**
+   * Evaluates whether a claimable draw (3-fold repetition or 50-move rule) is currently claimable by the active player.
+   */
+  public static canClaimDraw(
+    state: IDomainState,
+    topology: ITopology,
+    variantConfig?: IVariantConfiguration,
+    positionHistory?: readonly string[]
+  ): boolean {
+    const history = positionHistory ?? state.turnState?.positionHistory;
+    const configWithClaimable: IVariantConfiguration = {
+      ...(variantConfig ?? { variantId: state.variantId ?? 'CHESS_STANDARD' }),
+      claimableDrawRules: true,
+    };
+    const result = this.getGameResult(state, topology, configWithClaimable, history);
+    return Boolean(
+      result.canClaimDraw ||
+      (result.isGameOver && (result.status === 'THREEFOLD_REPETITION' || result.status === 'FIFTY_MOVE_RULE'))
+    );
+  }
+
+  /**
+   * Processes a formal draw claim by the active player.
+   * If claim conditions are satisfied, returns a game-over draw result.
+   */
+  public static claimDraw(
+    state: IDomainState,
+    topology: ITopology,
+    variantConfig?: IVariantConfiguration,
+    positionHistory?: readonly string[]
+  ): IGameResult {
+    const history = positionHistory ?? state.turnState?.positionHistory;
+    const configWithClaimable: IVariantConfiguration = {
+      ...(variantConfig ?? { variantId: state.variantId ?? 'CHESS_STANDARD' }),
+      claimableDrawRules: true,
+    };
+    const result = this.getGameResult(state, topology, configWithClaimable, history);
+    if (result.canClaimDraw) {
+      return {
+        isGameOver: true,
+        status: result.status,
+        winnerId: null,
+        reason: `Draw claimed by player ${state.activePlayer}: ${result.reason}`,
+      };
+    }
+    return result;
   }
 
   /**

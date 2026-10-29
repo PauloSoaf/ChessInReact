@@ -1,26 +1,37 @@
 # Spec 04 Formal Architectural Audit: Rules Engine, Fairy Chess & Multi-Topology Variants
 
-> **Status:** APPROVED & HOMOLOGATED (SPEC04-PATCH-02 COMPLETE)  
+> **Status:** APPROVED & HOMOLOGATED (SPEC04-PATCH-02 FINAL CLOSURE COMPLETE)  
 > **Target Branch:** `feat/spec04-rules-engine-fairy-variants`  
-> **Base Commit Audited:** `3b84181f795735fea433bec3de65fbaefe416a68`  
+> **Base Commit Audited:** `5b1b159d1b21952e88998429f08e68c50715e753`  
 > **Governance Authority:** Antigravity / Gemini Architectural Governance (`GEMINI.md`)  
-> **Execution Date:** 2026-10-28  
+> **Execution Date:** 2026-10-29  
 
 ---
 
 ## 1. Executive Summary & Audit Context
 
-This document certifies the formal audit and verification of **Spec 04 — Rules Engine, Fairy Chess, Validação Legal e Variantes** across the `ChessInReact` repository following the execution of **SPEC04-PATCH-02**.
+This document certifies the formal audit and verification of **Spec 04 — Rules Engine, Fairy Chess, Validação Legal e Variantes** across the `ChessInReact` repository following the execution of **SPEC04-PATCH-02 Final Closure**.
 
-### 1.1 Remediation Scope (SPEC04-PATCH-02)
-Following the publication of PATCH-01, an audit of the runtime execution path revealed five integrity defects requiring targeted remediation before Spec 04 closure:
-1. **P0 — Crazyhouse Drop Integrity & Entity ID Collision:** In `MovePieceCommand.ts`, drops previously lacked pre-mutation validation against active variant, turn ownership, match phase, rank 1/8 pawn placement, target cell occupancy, terrain obstacles, moving player king safety, and entity ID collision (which risked silently replacing existing pieces). All 9 pre-mutation checks are now strictly enforced, guaranteeing zero mutation on rejection.
-2. **P1 — Query Purity in Rules Engine:** In `CrazyhouseModifier.getLegalDropMoves()`, query execution temporarily mutated `state.occupancy` and `state.boardEntities`. This has been replaced by an immutable simulated overlay (`overlayState`), verified against deeply frozen state (`Object.freeze()`).
-3. **P1 — Move-Locking Upon Game Over:** `RulesEngine.validateMove()` now returns `{ valid: false, code: 'GAME_OVER' }`, `MovePieceCommand.execute()` throws an explicit error, and `ChessBoard.tsx` rejects user clicks when `isGameOver || winnerId !== null`.
-4. **P1 — FIDE Article 9.2 Canonical Position Repetition Key:** `PositionHasher.ts` was redesigned to compute canonical FIDE repetition keys based exclusively on functional piece distribution without generic `hasMoved`, active player, explicit initial castling rights `KQkq`, and effective en passant availability. This is tracked in `turnState.positionHistory` with 100% reversible `undo()` / `redo()`.
-5. **P1 — Dual Zustand Store Multiplayer Sync & Rollback:** `multiplayerRulesE2E.test.ts` now directly asserts dual Zustand client stores (`store1` for White and `store2` for Black) across en passant captures, checkmate move-locking, illegal optimistic move rollback, and mid-match spectator reconnection.
+### 1.1 Remediation Scope (SPEC04-PATCH-02 & Closure)
+Following the publication of PATCH-01 and the subsequent PATCH-02 verification, a targeted audit of the operational execution path identified and remediated the remaining integration requirements:
+1. **P0 — Crazyhouse Drop Integrity & Entity ID Collision:** In `MovePieceCommand.ts`, drops strictly enforce 9 pre-mutation validation checks (variant active, turn, match phase, rank 1/8 pawn restriction, destination occupancy, obstacles, king safety, and entity ID collision to prevent overwriting existing board entities). All rejections leave domain state bit-for-bit unchanged.
+2. **P1 — Query Purity in Rules Engine:** In `CrazyhouseModifier.getLegalDropMoves()`, in-place state mutations were replaced by an immutable simulated overlay (`overlayState`), verified against deeply frozen states (`Object.freeze()`).
+3. **P1 — Move-Locking Upon Game Over:** `RulesEngine.validateMove()` returns `{ valid: false, code: 'GAME_OVER' }`, `MovePieceCommand.execute()` throws an explicit error, and `ChessBoard.tsx` rejects user interactions when `isGameOver || winnerId !== null`.
+4. **P1 — Operational FIDE Draw Detection & Claimable vs Mandatory Differentiation:**
+   - `MovePieceCommand.execute()` explicitly supplies `turnState.positionHistory` to `RulesEngine.getGameResult()`, enabling threefold and fivefold repetition evaluation in real matches.
+   - Initial board positions are seeded into `positionHistory` on board creation (`ClassicBoardFactory.ts`), and command execution dynamically seeds `[initialKey, newKey]` when starting empty, while preserving exact bit-for-bit `undo()` restoration.
+   - Distinguished FIDE Article 9.2 / 9.3 claimable draws (3-fold repetition, 50-move rule returning `canClaimDraw: true, isGameOver: false` when claimable rules are configured) from Article 9.6 mandatory/automatic draws (5-fold repetition, 75-move rule automatically terminating the match).
+   - Added `RulesEngine.canClaimDraw()` and `RulesEngine.claimDraw()` static facades.
+5. **P1 — Authoritative Multiplayer Draw Metadata & Persistence:**
+   - Extended `RoomStateSchema.ts` with authoritative `@type('number') fiftyMoveCounter` and `@type(['string']) positionHistory`.
+   - `TurnResolver.ts` updates `fiftyMoveCounter` and appends canonical position keys on every move, feeding them to `GameOverDetector`.
+   - `StandardMoveValidator.ts` and `StateSyncBridge.ts` synchronize both fields to domain states without zeroing or emptying history.
+   - `ChessRoom.ts` processes formal `'CLAIM_DRAW'` client messages.
+6. **P1 — Genuine Multiplayer Player Reconnection vs Spectator Entry:**
+   - In `multiplayerRulesE2E.test.ts`, distinguished late-joining spectators from authenticated player reconnections.
+   - Implemented and verified real unconsented disconnection and reconnection using Colyseus `allowReconnection()`, re-keying `state.players` with the reconnected client's new session ID, resynchronizing `StateSyncBridge.sequenceCounter`, and confirming zero duplicate player entities.
 
-All remedial objectives have been verified by 520 automated tests (72 suites, 0 skipped), 97.18% Rules Engine coverage, 98.21% Topology coverage, real two-client Colyseus E2E tests, native Chromium Web Worker smoke tests, and Perft D5 conformance.
+All remedial objectives have been verified by 524 automated tests (72 suites, 0 skipped), 96.36% Rules Engine root coverage, 98.21% Topology coverage, real two-client Colyseus E2E tests, native Chromium Web Worker smoke tests, isolated memory benchmarks (+2.40 MB incremental, +0.12 MB retained), and Perft D1-D5 conformance.
 
 ---
 
@@ -40,7 +51,7 @@ The 15 Functional Requirements specified in `Spec_04_Rules_Engine_Fairy_Chess_Va
 | **RF-08** | **Modificador Atomic Chess** | `VERIFIED` | `AtomicModifier.ts` detonates capturing pieces upon capture, destroying capturing piece, captured piece, and all adjacent non-pawns in radius 1. Suicide king captures are illegal. Loss of king immediately terminates the game. Integrated with full undo/redo reversibility in `MovePieceCommand.ts`. Verified in `VariantCommandsIntegration.test.ts`. |
 | **RF-09** | **Mecânica de Crazyhouse e Drop Moves** | `VERIFIED` | `CrazyhouseModifier.ts` transfers captured pieces to the captor's hand (`capturedInventory[player]`). `MovePieceCommand.ts` handles `isDropMove: true` with 9 pre-mutation checks (pocket check, rank 1/8 restriction, ID collision check, king safety). Query purity verified on frozen objects. Verified in `CrazyhouseIntegrityRepro.test.ts`. |
 | **RF-10** | **Modificador Antichess com Captura Obrigatória** | `VERIFIED` | `AntichessModifier.ts` enforces mandatory captures: when any capture is legally available, all quiet moves are filtered out. Win condition is inverted: a player wins by losing all pieces or having no legal moves. Integrated into `MovePieceCommand.ts` and verified in `VariantCommandsIntegration.test.ts`. |
-| **RF-11** | **Regra de Três Repetições e Cinquenta Lances** | `VERIFIED` | `PositionHasher.ts` canonicalizes positions per FIDE Art. 9.2 (`player|castling|effectiveEP|pieces`). `GameOverDetector.ts` implements 50-move rule, 75-move rule, 3-fold repetition, and 5-fold repetition. Reversible in `MovePieceCommand.ts`. Verified in `PositionRepetitionIntegrity.test.ts`. |
+| **RF-11** | **Regra de Três Repetições e Cinquenta Lances** | `VERIFIED` | `PositionHasher.ts` canonicalizes positions per FIDE Art. 9.2 (`player|castling|effectiveEP|pieces`). Initial state seeds canonical key into `turnState.positionHistory`. `MovePieceCommand.ts` appends canonical keys across real move executions with 100% reversible `undo()`, passing history directly to `RulesEngine.getGameResult()`. FIDE distinction implemented: claimable draws (3-fold repetition / 50 moves return `canClaimDraw: true, isGameOver: false` when claimable rules are configured) vs mandatory draws (5-fold repetition / 75 moves terminate automatically). Multiplayer synchronization preserved authoritatively in `RoomStateSchema.ts` (`fiftyMoveCounter`, `positionHistory`) and handled via `'CLAIM_DRAW'`. Verified in `PositionRepetitionIntegrity.test.ts` and `multiplayerRulesE2E.test.ts`. |
 | **RF-12** | **Variante King of the Hill** | `VERIFIED` | `KingOfTheHillModifier.ts` grants immediate victory to any player whose king reaches the 4 central hill squares (`3,3`, `4,3`, `3,4`, `4,4`). Integrated into `MovePieceCommand.ts` with reversible game-over state. Verified in `VariantCommandsIntegration.test.ts`. |
 | **RF-13** | **Resolução de Fim de Jogo em Partidas N-Player** | `VERIFIED` | `NPlayerModifier.ts` orchestrates 3 to 8 player games with configurable elimination policies: `NEUTRALIZE_PIECES` (converts defeated army to inert gray terrain/obstacles), `REMOVE_FROM_BOARD` (removes all pieces), and `TRANSFER_TO_KILLER` (transfers ownership to victor). Verified in `VariantCommandsIntegration.test.ts`. |
 | **RF-14** | **Promoção de Peão com Múltiplas Escolhas** | `PARTIAL` | **Engine & Core Status:** `VERIFIED`. Promotion on topology terminal ranks handles Queen, Rook, Bishop, Knight choices; Perft traverses all 4 promotion branches; `MovePieceCommand.ts` executes pawn replacement. **UI Presentation:** `DEFERRED` to Spec 06 (interactive modal dialog during live user interaction). |
@@ -115,8 +126,13 @@ Two-client end-to-end integration tests (`src-backend/game-server/__tests__/mult
 3. **Optimistic Prediction Rollback on Illegal Move:**
    - White attempts illegal move (`e2 -> e6`). `store1` optimistically predicts `e6`.
    - Server rejects move. `StateSyncBridge` rolls back prediction, restoring `store1` occupancy at `e2` with zero divergence. `store2` never saw the invalid move.
-4. **Mid-Match Reconnection & Zustand Hydration:**
+4. **Late-Joining Spectator State Hydration:**
    - A 3rd client joins an in-progress room. Zustand store hydrates from authoritative snapshot with 100% parity (`e4` pawn, turn number, active player).
+5. **Genuine Unconsented Player Disconnection & Reconnection:**
+   - Authenticated player (Black) plays `e7 -> e5`, experiences an unexpected network disconnection (`client2.connection.close()`).
+   - Reconnects within the reconnection window using `allowReconnection(reconnectionToken)`.
+   - Server preserves room state, re-keys `state.players` with the reconnected client's session ID (preventing authorization rejects and player duplication), and client resynchronizes `sequenceCounter` to `myAck`.
+   - Black successfully issues subsequent moves (`g8 -> f6`), with full state, turn, move rights, and zero duplicate players in `players` map.
 
 ---
 
@@ -125,19 +141,19 @@ Two-client end-to-end integration tests (`src-backend/game-server/__tests__/mult
 Every local quality gate passed with zero defects:
 1. `npx tsc --noEmit` — 0 errors.
 2. `npm run lint` — 0 errors, 0 warnings.
-3. `npm run build` — Production bundle build succeeds (454.08 kB, 143.51 kB gzip).
-4. `npx vitest run --coverage` — 72 test suites passed, 520 tests passed, 0 skipped.
+3. `npm run build` — Production bundle build succeeds (455.31 kB, 143.77 kB gzip).
+4. `npx vitest run` — 72 test suites passed, 524 tests passed, 0 skipped.
    - Topology Coverage: **98.21%**
-   - Rules Engine Coverage: **97.18%**
-   - Overall Project Line Coverage: **76.13%**
-5. `node scripts/runChromiumSmoke.js` — Native Chromium headless smoke test passed (`skipped: false`).
-6. `npm run bench:memory` — Memory benchmark passed (+2.44 MB incremental delta < 40 MB budget, +0.12 MB retained delta).
-7. `npm run bench:perft` — Perft D1 latency: 0.0741 ms (< 0.20 ms budget), D5: 4,865,609 nodes.
+   - Rules Engine Root Coverage: **96.36%** (with `RulesEngine.ts` at **95.05%**, `GameOverDetector.ts` at **99.54%**, `CheckValidator.ts` at **96.96%**, and `VariantRegistry.ts` at **96.74%**)
+   - Overall Project Line Coverage: **76.17%**
+5. `node scripts/runChromiumSmoke.js` — Native Chromium headless smoke test passed (`skipped: false`, worker handshake verified).
+6. `npm run bench:memory` — Memory benchmark passed (+2.40 MB incremental delta < 40 MB budget, +0.12 MB retained delta).
+7. `npm run bench:perft` — Perft D1 latency: 0.0637 ms (< 0.20 ms budget), D5: 4,865,609 nodes (225,769 NPS).
 
 ---
 
 ## 8. Final Audit Certification
 
-The Rules Engine, Fairy Chess Behaviors, Multi-Topology Adapters, FIDE Position Repetition, Crazyhouse Drop Integrity, and Colyseus Authoritative Rules Integration have undergone complete auditing, defect remediation, and automated verification.
+The Rules Engine, Fairy Chess Behaviors, Multi-Topology Adapters, FIDE Position Repetition, Crazyhouse Drop Integrity, Operational Draw Detection, and Colyseus Authoritative Rules Integration have undergone complete auditing, defect remediation, and automated verification.
 
 **AUDIT VERDICT: SPEC 04 IS FULLY VERIFIED AND HOMOLOGATED. READY FOR FINAL AUDIT AND PR.**

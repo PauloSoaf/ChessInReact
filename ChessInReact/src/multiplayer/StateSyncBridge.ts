@@ -185,8 +185,10 @@ export class StateSyncBridge {
         phase: schema.phase === 'RESOLVING' ? 'RESOLUTION' : 'COMMIT',
         lastActionTimestamp: Date.now(),
         enPassantTarget: schema.enPassantTarget ? asCoordinateKey(schema.enPassantTarget) : null,
-        fiftyMoveCounter: 0,
-        positionHistory: [],
+        fiftyMoveCounter: schema.fiftyMoveCounter ?? 0,
+        positionHistory: schema.positionHistory
+          ? Array.from(schema.positionHistory).filter((k): k is string => typeof k === 'string')
+          : [],
       },
     };
   }
@@ -255,6 +257,9 @@ export class StateSyncBridge {
       ? (state.playerSequenceAcks.get(serverPlayerId) ?? state.playerSequenceAcks.get(String(this.myPlayerId)))
       : undefined;
     if (typeof myAck === 'number') {
+      if (myAck > this.sequenceCounter) {
+        this.sequenceCounter = myAck;
+      }
       for (const [seqId, record] of Array.from(this.pendingCommands.entries())) {
         if (seqId <= myAck) {
           this.optimisticManager.acknowledge(record.optimisticId);

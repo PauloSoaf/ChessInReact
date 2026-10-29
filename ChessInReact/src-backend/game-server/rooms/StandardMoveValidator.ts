@@ -63,7 +63,9 @@ export function buildDomainStateFromNetworkEntities(
   entities: Iterable<NetworkEntitySchema>,
   movingPieceOwnerId: string,
   isWhite: boolean,
-  enPassantTarget?: string
+  enPassantTarget?: string,
+  fiftyMoveCounter = 0,
+  positionHistory: readonly string[] = []
 ): IDomainState {
   const boardEntities: Record<EntityId, IPieceEntity> = {};
   const occupancy: Record<CoordinateKey, EntityId> = {};
@@ -118,7 +120,8 @@ export function buildDomainStateFromNetworkEntities(
       phase: 'WAITING',
       lastActionTimestamp: Date.now(),
       enPassantTarget: epTargetKey,
-      fiftyMoveCounter: 0,
+      fiftyMoveCounter,
+      positionHistory,
     },
     capturedInventory: {
       P1: [],

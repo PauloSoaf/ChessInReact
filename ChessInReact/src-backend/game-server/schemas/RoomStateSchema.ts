@@ -1,4 +1,4 @@
-import { Schema, MapSchema, type } from '@colyseus/schema';
+import { Schema, MapSchema, ArraySchema, type } from '@colyseus/schema';
 
 /**
  * Binary-serializable entity schema representing a piece or obstacle on the authoritative board.
@@ -63,6 +63,10 @@ export class ChessRoomStateSchema extends Schema {
   @type('number') public lastProcessedSequenceId: number = 0;
   @type('string') public winnerId: string = '';
   @type('string') public enPassantTarget: string = '';
+  @type('number') public fiftyMoveCounter: number = 0;
+
+  @type(['string'])
+  public positionHistory = new ArraySchema<string>();
 
   @type({ map: NetworkEntitySchema })
   public boardEntities = new MapSchema<NetworkEntitySchema>();
@@ -84,6 +88,7 @@ export class ChessRoomStateSchema extends Schema {
       if (init.lastProcessedSequenceId !== undefined) this.lastProcessedSequenceId = init.lastProcessedSequenceId;
       if (init.winnerId !== undefined) this.winnerId = init.winnerId;
       if (init.enPassantTarget !== undefined) this.enPassantTarget = init.enPassantTarget;
+      if (init.fiftyMoveCounter !== undefined) this.fiftyMoveCounter = init.fiftyMoveCounter;
     }
   }
 }

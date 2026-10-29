@@ -94,6 +94,15 @@ export class GameOverDetector {
       };
     }
     if (halfMoves >= 100) {
+      if (variantConfig?.claimableDrawRules) {
+        return {
+          isGameOver: false,
+          canClaimDraw: true,
+          status: 'FIFTY_MOVE_RULE',
+          winnerId: null,
+          reason: 'Claimable draw: 50 consecutive moves (100 halfmoves) elapsed without capture or pawn advance.',
+        };
+      }
       return {
         isGameOver: true,
         status: 'FIFTY_MOVE_RULE',
@@ -118,6 +127,15 @@ export class GameOverDetector {
         };
       }
       if (occurrences >= 3) {
+        if (variantConfig?.claimableDrawRules) {
+          return {
+            isGameOver: false,
+            canClaimDraw: true,
+            status: 'THREEFOLD_REPETITION',
+            winnerId: null,
+            reason: 'Claimable draw: The exact position has occurred 3 times.',
+          };
+        }
         return {
           isGameOver: true,
           status: 'THREEFOLD_REPETITION',

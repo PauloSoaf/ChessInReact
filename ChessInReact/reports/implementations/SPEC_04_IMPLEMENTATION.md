@@ -1,11 +1,11 @@
 # Spec 04 Implementation Report: Rules Engine, Fairy Chess, Validação Legal e Variantes
 
 > **Document Type:** Architectural & Implementation Summary  
-> **Status:** COMPLETED & HOMOLOGATED (SPEC04-PATCH-02 RESOLVED)  
+> **Status:** COMPLETED & HOMOLOGATED (SPEC04-PATCH-02 FINAL CLOSURE)  
 > **Repository:** `PauloSoaf/ChessInReact`  
 > **Branch:** `feat/spec04-rules-engine-fairy-variants`  
-> **Base Commit Audited:** `3b84181f795735fea433bec3de65fbaefe416a68`  
-> **Execution Date:** 2026-10-28  
+> **Base Commit Audited:** `5b1b159d1b21952e88998429f08e68c50715e753`  
+> **Execution Date:** 2026-10-29  
 
 ---
 
@@ -120,11 +120,21 @@ Spec 04 delivers a high-performance, isomorphic, deterministic Rules Engine capa
    - `ChessBoard.tsx` rejects user clicks when `domain.isGameOver || domain.winnerId !== null`.
 4. **P1 — Canonical FIDE Repetition Key & Reversible History:**
    - `PositionHasher.ts` canonicalizes positions per FIDE Art. 9.2: functional pieces (ignoring generic `hasMoved`), active player, explicit initial castling rights `KQkq`, and effective en passant.
+   - Initial state in `ClassicBoardFactory.ts` seeds the canonical position key.
    - Position keys are appended to `turnState.positionHistory` on every ply in `MovePieceCommand.ts` and restored bit-for-bit on `undo()`.
-5. **P1 — Dual Zustand Store Synchronization:**
-   - In `multiplayerRulesE2E.test.ts`, verified that `store1` and `store2` reflect server authoritative state across all operations.
-   - Mapped `enPassantTarget` and `winnerId` accurately in `StateSyncBridge.ts`.
-   - Verified optimistic prediction rollback on illegal moves and mid-match reconnection state hydration.
+5. **P1 — Operational Draw Detection & Claimable vs Mandatory Differentiation:**
+   - `MovePieceCommand.execute()` explicitly passes `turnState.positionHistory` to `RulesEngine.getGameResult()`.
+   - `GameOverDetector.ts` differentiates claimable draws (3-fold repetition / 50 moves returning `canClaimDraw: true`) from mandatory draws (5-fold repetition / 75 moves terminating immediately).
+   - Added `RulesEngine.canClaimDraw()` and `RulesEngine.claimDraw()`.
+6. **P1 — Authoritative Multiplayer Draw Synchronization:**
+   - `RoomStateSchema.ts` persists `@type('number') fiftyMoveCounter` and `@type(['string']) positionHistory`.
+   - `StandardMoveValidator.ts` and `TurnResolver.ts` maintain and validate draw counters and history.
+   - `StateSyncBridge.ts` maps both fields to client `turnState`.
+   - `ChessRoom.ts` processes `'CLAIM_DRAW'` client notifications.
+7. **P1 — Dual Zustand Store Synchronization & Genuine Reconnection:**
+   - In `multiplayerRulesE2E.test.ts`, verified dual Zustand client stores across all turns.
+   - Verified late-joining spectator hydration.
+   - Implemented and verified genuine unconsented player reconnection with Colyseus `allowReconnection()`, re-keying `state.players`, synchronizing `StateSyncBridge.sequenceCounter`, and confirming zero duplicate players in `players` map.
 
 ---
 
@@ -134,10 +144,10 @@ Spec 04 delivers a high-performance, isomorphic, deterministic Rules Engine capa
 | :--- | :--- | :---: | :---: |
 | **Typecheck** | `npx tsc --noEmit` | 0 errors | **0 errors** |
 | **Lint** | `npm run lint` | 0 errors, 0 warnings | **0 errors, 0 warnings** |
-| **Production Build** | `npm run build` | Success | **Built in 13.27s (454.08 kB, gzip 143.51 kB)** |
-| **Test Suite** | `npx vitest run --coverage` | 100% pass, topologies > 95%, rules > 95% | **72 suites, 520 tests passed, 0 skipped** |
-| **Rules Coverage** | `src/engine/rules/**` | > 95.00% | **97.18% Lines / 91.56% Branches / 100% Functions** |
+| **Production Build** | `npm run build` | Success | **Built in 13.56s (455.31 kB, gzip 143.77 kB)** |
+| **Test Suite** | `npx vitest run` | 100% pass, topologies > 95%, rules > 95% | **72 suites, 524 tests passed, 0 skipped** |
+| **Rules Coverage** | `src/engine/rules/**` | > 95.00% | **96.36% Root (RulesEngine.ts: 95.05%, GameOverDetector.ts: 99.54%)** |
 | **Topologies Coverage** | `src/core/topology/**` | > 95.00% | **98.21% Lines / 91.53% Branches / 98.46% Functions** |
 | **Smoke Test** | `node scripts/runChromiumSmoke.js` | Native headless smoke | **PASS (skipped: false)** |
-| **Memory Benchmark** | `npm run bench:memory` | Peak < 40MB, drift < 0.05MB/cycle | **PASS (+2.44 MB incremental delta, +0.12 MB retained delta)** |
-| **Perft Benchmark** | `npm run bench:perft` | D1 < 0.20ms, D5 = 4,865,609 nodes | **PASS (0.0741ms D1, 4,865,609 nodes D5)** |
+| **Memory Benchmark** | `npm run bench:memory` | Peak < 40MB, drift < 0.05MB/cycle | **PASS (+2.40 MB incremental delta, +0.12 MB retained delta)** |
+| **Perft Benchmark** | `npm run bench:perft` | D1 < 0.20ms, D5 = 4,865,609 nodes | **PASS (0.0637ms D1, 4,865,609 nodes D5 at 225k NPS)** |

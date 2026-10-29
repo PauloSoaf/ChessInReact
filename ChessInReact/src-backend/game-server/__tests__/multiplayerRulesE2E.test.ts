@@ -325,7 +325,7 @@ describe('Spec 04 & Spec 03 - End-to-End Authoritative Rules & Dual Zustand Stor
     bridge2.dispose();
   });
 
-  it('hydrates Zustand store with total parity on mid-match reconnection', async () => {
+  it('hydrates Zustand store with total parity on mid-match late join / spectator entry', async () => {
     const tokenP1 = signAuthToken({ playerId: 'player-white-reconnect', username: 'WhiteRec' });
     const tokenP2 = signAuthToken({ playerId: 'player-black-reconnect', username: 'BlackRec' });
 
@@ -351,7 +351,7 @@ describe('Spec 04 & Spec 03 - End-to-End Authoritative Rules & Dual Zustand Stor
     bridge1.sendOptimisticMove(asEntityId('piece-w-p-e'), asCoordinateKey('e2'), asCoordinateKey('e4'));
     await waitForCondition(() => room1.state.boardEntities.get('piece-w-p-e')?.position === 'e4');
 
-    // A 3rd client (spectator / reconnecting user) joins the room in-progress
+    // A 3rd client (spectator / late join) joins the room in-progress
     const tokenP3 = signAuthToken({ playerId: 'player-reconnected', username: 'SpectatorRec' });
     const client3 = new ColyseusClient({ endpoint });
     const store3 = createGameStore();
@@ -370,5 +370,114 @@ describe('Spec 04 & Spec 03 - End-to-End Authoritative Rules & Dual Zustand Stor
     bridge1.dispose();
     bridge2.dispose();
     bridge3.dispose();
+  });
+
+  it('handles unexpected disconnection and reconnects authenticated player restoring session, turn, history, and move rights without duplicate players', async () => {
+    const tokenP1 = signAuthToken({ playerId: 'player-white-real-rec', username: 'RealRecWhite' });
+    const tokenP2 = signAuthToken({ playerId: 'player-black-real-rec', username: 'RealRecBlack' });
+
+    const client1 = new ColyseusClient({ endpoint });
+    const store1 = createGameStore();
+    const room1 = await client1.joinOrCreateRoom({ authToken: tokenP1, matchId: 'e2e-real-reconnection-room' });
+    const bridge1 = new StateSyncBridge(room1, store1, 'P1');
+
+    const client2 = new ColyseusClient({ endpoint });
+    const store2 = createGameStore();
+    const room2 = await client2.joinOrCreateRoom({ authToken: tokenP2, matchId: 'e2e-real-reconnection-room' });
+    const bridge2 = new StateSyncBridge(room2, store2, 'P2');
+
+    await new Promise<void>((resolve) => {
+      if (room1.state.phase === 'PLAYING') return resolve();
+      room1.onStateChange((s) => {
+        if (s.phase === 'PLAYING') resolve();
+      });
+      setTimeout(resolve, 500);
+    });
+
+    expect(room1.state.phase).toBe('PLAYING');
+    expect(room1.state.players.size).toBe(2);
+
+    // Initial position history should already be seeded on server and synced to Zustand stores
+    expect(room1.state.positionHistory.length).toBeGreaterThanOrEqual(1);
+    expect(store1.getState().domain.turnState.positionHistory?.length).toBeGreaterThanOrEqual(1);
+
+    // White executes a move: e2 -> e4
+    bridge1.sendOptimisticMove(asEntityId('piece-w-p-e'), asCoordinateKey('e2'), asCoordinateKey('e4'));
+    await waitForCondition(() => room1.state.boardEntities.get('piece-w-p-e')?.position === 'e4');
+
+    expect(room1.state.activePlayerId).toBe('player-black-real-rec');
+    expect(room1.state.turnNumber).toBe(2);
+    expect(room1.state.fiftyMoveCounter).toBe(0);
+    expect(room1.state.positionHistory.length).toBe(2);
+    expect(store1.getState().domain.turnState.positionHistory?.length).toBe(2);
+    expect(store2.getState().domain.turnState.positionHistory?.length).toBe(2);
+
+    // Capture reconnection token from room1 before disconnecting
+    const reconnectionToken = room1.reconnectionToken;
+    expect(reconnectionToken).toBeDefined();
+
+    // Trigger unexpected disconnection (consented = false)
+    room1.connection.close();
+
+    // Wait for server to register disconnection (connected = false)
+    await waitForCondition(() => {
+      const p = room2.state.players.get(room1.sessionId);
+      return p ? !p.connected : false;
+    });
+
+    // Reconnect client1 with reconnection token
+    const reconnectedRoom = await client1.reconnectRoom(reconnectionToken);
+    expect(reconnectedRoom).toBeDefined();
+
+    // Verify player is reconnected
+    await waitForCondition(() => {
+      let isConnected = false;
+      reconnectedRoom.state.players.forEach((p) => {
+        if (p.playerId === 'player-white-real-rec' && p.connected) {
+          isConnected = true;
+        }
+      });
+      return isConnected;
+    });
+
+    // Verify NO DUPLICATE PLAYERS: exactly 2 players in room
+    expect(reconnectedRoom.state.players.size).toBe(2);
+
+    // Verify restored state: piece position, turnNumber, active player, fiftyMoveCounter, positionHistory
+    expect(reconnectedRoom.state.boardEntities.get('piece-w-p-e')?.position).toBe('e4');
+    expect(reconnectedRoom.state.turnNumber).toBe(2);
+    expect(reconnectedRoom.state.activePlayerId).toBe('player-black-real-rec');
+    expect(reconnectedRoom.state.fiftyMoveCounter).toBe(0);
+    expect(reconnectedRoom.state.positionHistory.length).toBe(2);
+
+    // Wire new bridge to reconnected room and verify Zustand store hydration
+    const storeReconnected = createGameStore();
+    const bridgeReconnected = new StateSyncBridge(reconnectedRoom, storeReconnected, 'P1');
+    const domRec = storeReconnected.getState().domain;
+    expect(domRec.occupancy[asCoordinateKey('e4')]).toBe('piece-w-p-e');
+    expect(domRec.activePlayer).toBe('P2');
+    expect(domRec.turnNumber).toBe(2);
+    expect(domRec.turnState.positionHistory?.length).toBe(2);
+
+    // Verify continuing gameplay: Black moves e7 -> e5
+    bridge2.sendOptimisticMove(asEntityId('piece-b-p-e'), asCoordinateKey('e7'), asCoordinateKey('e5'));
+    await waitForCondition(() => reconnectedRoom.state.boardEntities.get('piece-b-p-e')?.position === 'e5');
+
+    // Active player is now back to White!
+    await waitForCondition(() => reconnectedRoom.state.activePlayerId === 'player-white-real-rec');
+    expect(reconnectedRoom.state.turnNumber).toBe(3);
+
+    // White (reconnected player) can now move! Move Knight g1 -> f3
+    bridgeReconnected.sendOptimisticMove(asEntityId('piece-w-N-g1'), asCoordinateKey('g1'), asCoordinateKey('f3'));
+    await waitForCondition(() => reconnectedRoom.state.boardEntities.get('piece-w-N-g1')?.position === 'f3');
+
+    // Both stores and server reflect new state
+    expect(reconnectedRoom.state.boardEntities.get('piece-w-N-g1')?.position).toBe('f3');
+    expect(storeReconnected.getState().domain.occupancy[asCoordinateKey('f3')]).toBe('piece-w-N-g1');
+    expect(store2.getState().domain.occupancy[asCoordinateKey('f3')]).toBe('piece-w-N-g1');
+
+    bridge1.dispose();
+    bridge2.dispose();
+    bridgeReconnected.dispose();
   });
 });

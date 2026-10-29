@@ -68,6 +68,7 @@ export class MovePieceCommand implements ICommand {
     this.previousPositionHistory = draft.turnState?.positionHistory
       ? [...draft.turnState.positionHistory]
       : [];
+    const initialPositionKey = draft.turnState ? computePositionKey(draft) : undefined;
 
     const activeConfig: IVariantConfiguration | undefined =
       this.variantConfig ?? (draft.variantId ? VariantRegistry.getVariant(draft.variantId)?.config : undefined);
@@ -207,9 +208,15 @@ export class MovePieceCommand implements ICommand {
 
       // Record position history for 3-fold / 5-fold repetition (RF-11)
       if (draft.turnState) {
+        const baseHistory =
+          this.previousPositionHistory && this.previousPositionHistory.length > 0
+            ? this.previousPositionHistory
+            : initialPositionKey
+            ? [initialPositionKey]
+            : [];
         const newKey = computePositionKey(draft);
         (draft.turnState as { positionHistory?: readonly string[] }).positionHistory = [
-          ...(this.previousPositionHistory ?? []),
+          ...baseHistory,
           newKey,
         ];
       }
@@ -217,7 +224,12 @@ export class MovePieceCommand implements ICommand {
       if (this.enforceRules || activeConfig) {
         this.previousIsGameOver = draft.isGameOver;
         this.previousWinnerId = draft.winnerId;
-        const result = RulesEngine.getGameResult(draft, this.defaultTopology, activeConfig);
+        const result = RulesEngine.getGameResult(
+          draft,
+          this.defaultTopology,
+          activeConfig,
+          draft.turnState?.positionHistory
+        );
         if (result.isGameOver) {
           (draft as { isGameOver: boolean }).isGameOver = true;
           (draft as { winnerId: PlayerId | null }).winnerId = result.winnerId;
@@ -525,16 +537,27 @@ export class MovePieceCommand implements ICommand {
 
     // Position history tracking & repetition check (RF-11)
     if (draft.turnState) {
+      const baseHistory =
+        this.previousPositionHistory && this.previousPositionHistory.length > 0
+          ? this.previousPositionHistory
+          : initialPositionKey
+          ? [initialPositionKey]
+          : [];
       const newKey = computePositionKey(draft);
       (draft.turnState as { positionHistory?: readonly string[] }).positionHistory = [
-        ...(this.previousPositionHistory ?? []),
+        ...baseHistory,
         newKey,
       ];
     }
 
     // Game over evaluation
     if ((this.enforceRules || activeConfig) && !draft.isGameOver) {
-      const result = RulesEngine.getGameResult(draft, this.defaultTopology, activeConfig);
+      const result = RulesEngine.getGameResult(
+        draft,
+        this.defaultTopology,
+        activeConfig,
+        draft.turnState?.positionHistory
+      );
       if (result.isGameOver) {
         (draft as { isGameOver: boolean }).isGameOver = true;
         (draft as { winnerId: PlayerId | null }).winnerId = result.winnerId;

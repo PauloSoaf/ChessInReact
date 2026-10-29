@@ -115,6 +115,7 @@ export interface IGameResult {
   readonly status: GameTerminationStatus;
   readonly winnerId: PlayerId | null;
   readonly reason?: string;
+  readonly canClaimDraw?: boolean;
 }
 
 /**

@@ -3,6 +3,10 @@ import { ChessRoomStateSchema, NetworkEntitySchema, PlayerSchema } from '../sche
 import { TurnResolver } from './TurnResolver';
 import { RateLimiter } from './RateLimiter';
 import { verifyAuthToken, IAuthUser } from '../auth/jwtAuth';
+import { buildDomainStateFromNetworkEntities } from './StandardMoveValidator';
+import { computePositionKey } from '../../../src/engine/rules/utils/PositionHasher';
+import { RulesEngine } from '../../../src/engine/rules/RulesEngine';
+import { SquareTopology } from '../../../src/core/topology/SquareTopology';
 
 export interface IChessRoomOptions {
   matchId?: string;
@@ -63,6 +67,10 @@ export class ChessRoom extends Room<ChessRoomStateSchema> {
         clientSendTime: message?.clientSendTime ?? Date.now(),
         serverReceiveTime: Date.now(),
       });
+    });
+
+    this.onMessage('CLAIM_DRAW', (client: Client) => {
+      this.handleClaimDraw(client);
     });
   }
 
@@ -169,9 +177,14 @@ export class ChessRoom extends Room<ChessRoomStateSchema> {
     });
 
     try {
+      const oldSessionId = client.sessionId;
       const reconnectedClient = await this.allowReconnection(client, 60);
       player.connected = true;
       player.sessionId = reconnectedClient.sessionId;
+      if (reconnectedClient.sessionId !== oldSessionId) {
+        this.state.players.delete(oldSessionId);
+        this.state.players.set(reconnectedClient.sessionId, player);
+      }
       this.broadcast('PLAYER_RECONNECTED', { playerId: player.playerId });
     } catch {
       // 60-second window expired without reconnect (RF-09)
@@ -388,6 +401,49 @@ export class ChessRoom extends Room<ChessRoomStateSchema> {
     }
   }
 
+  private handleClaimDraw(client: Client): void {
+    const player = this.state.players.get(client.sessionId);
+    if (!player || (player.role !== 'WHITE' && player.role !== 'BLACK')) {
+      client.send('REJECT_CLAIM_DRAW', { reason: 'Unauthorized: Only active players can claim a draw.' });
+      return;
+    }
+    if (this.state.phase !== 'PLAYING') {
+      client.send('REJECT_CLAIM_DRAW', { reason: `Draw cannot be claimed in "${this.state.phase}" phase.` });
+      return;
+    }
+
+    const isWhite = player.role === 'WHITE';
+    const history: string[] = this.state.positionHistory
+      ? Array.from(this.state.positionHistory).filter((k): k is string => typeof k === 'string')
+      : [];
+    const domainState = buildDomainStateFromNetworkEntities(
+      this.state.boardEntities.values(),
+      player.playerId,
+      isWhite,
+      this.state.enPassantTarget || undefined,
+      this.state.fiftyMoveCounter,
+      history
+    );
+    const topology = new SquareTopology({ width: 8, height: 8 });
+    const canClaim = RulesEngine.canClaimDraw(domainState, topology, undefined, history);
+
+    if (canClaim) {
+      this.state.phase = 'GAME_OVER';
+      this.state.winnerId = '';
+      const claimResult = RulesEngine.claimDraw(domainState, topology, undefined, history);
+      this.broadcast('GAME_OVER', {
+        reason: claimResult.status,
+        claimedBy: player.playerId,
+        winnerId: '',
+        details: claimResult.reason,
+      });
+    } else {
+      client.send('REJECT_CLAIM_DRAW', {
+        reason: 'Draw conditions not met: 3-fold repetition or 50 moves without capture/pawn advance required.',
+      });
+    }
+  }
+
   /**
    * Initializes standard chess board entities for a 1v1 match.
    */
@@ -457,5 +513,21 @@ export class ChessRoom extends Room<ChessRoomStateSchema> {
         })
       );
     }
+
+    // Seed initial position key into state.positionHistory and reset fiftyMoveCounter (RF-11)
+    const initialDomainState = buildDomainStateFromNetworkEntities(
+      this.state.boardEntities.values(),
+      whiteId,
+      true,
+      undefined,
+      0,
+      []
+    );
+    const initialKey = computePositionKey(initialDomainState);
+    if (this.state.positionHistory) {
+      this.state.positionHistory.clear();
+      this.state.positionHistory.push(initialKey);
+    }
+    this.state.fiftyMoveCounter = 0;
   }
 }

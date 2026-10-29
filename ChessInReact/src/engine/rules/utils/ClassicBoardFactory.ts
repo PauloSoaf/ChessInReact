@@ -2,6 +2,7 @@ import { CoordinateKey, EntityId, PlayerId, asEntityId } from '../../../core/coo
 import { IDomainState } from '../../../core/state/gameState';
 import { IPieceEntity } from '../../../core/entities/types';
 import { parseCoord, toCoordKey } from './CoordinateHelper';
+import { computePositionKey } from './PositionHasher';
 
 const FEN_PIECE_MAP: Record<string, { variantId: string; ownerId: PlayerId }> = {
   p: { variantId: 'PAWN', ownerId: 'P2' },
@@ -112,7 +113,7 @@ export class ClassicBoardFactory {
       NONE: [],
     };
 
-    return {
+    const state: IDomainState = {
       matchId: `match-${Date.now()}`,
       variantId: 'CHESS_STANDARD',
       isGameOver: false,
@@ -128,7 +129,14 @@ export class ClassicBoardFactory {
         lastActionTimestamp: Date.now(),
         enPassantTarget,
         fiftyMoveCounter: halfMoves,
+        positionHistory: [],
       },
     };
+
+    // Seed initial position key into history for FIDE repetition tracking (RF-11)
+    const initialKey = computePositionKey(state);
+    (state.turnState as { positionHistory?: readonly string[] }).positionHistory = [initialKey];
+
+    return state;
   }
 }

@@ -2,6 +2,7 @@ import { ChessRoomStateSchema, PlayerSchema } from '../schemas/RoomStateSchema';
 import { validateStandardMove, parseBoardPosition, toAlgebraic, buildDomainStateFromNetworkEntities } from './StandardMoveValidator';
 import { RulesEngine } from '../../../src/engine/rules/RulesEngine';
 import { SquareTopology } from '../../../src/core/topology/SquareTopology';
+import { computePositionKey } from '../../../src/engine/rules/utils/PositionHasher';
 
 export interface IQueuedMove {
   readonly playerId: string;
@@ -194,6 +195,15 @@ export class TurnResolver {
       piece.variantId = 'Q';
     }
 
+    // Fifty-move counter update (FIDE Article 9.3)
+    const isPawnMove = vUpper === 'P' || vUpper === 'PAWN';
+    const isCaptureMove = Boolean(capturedPieceId);
+    if (isPawnMove || isCaptureMove) {
+      state.fiftyMoveCounter = 0;
+    } else {
+      state.fiftyMoveCounter += 1;
+    }
+
     state.lastProcessedSequenceId = move.seqId;
     if (state.playerSequenceAcks) {
       state.playerSequenceAcks.set(move.playerId, move.seqId);
@@ -223,14 +233,30 @@ export class TurnResolver {
 
     const nextPlayerObj = activePlayers.find((p) => p.playerId === state.activePlayerId);
     const isNextWhite = nextPlayerObj?.role === 'WHITE';
+    const currentHistory: string[] = state.positionHistory
+      ? Array.from(state.positionHistory).filter((k): k is string => typeof k === 'string')
+      : [];
     const nextDomainState = buildDomainStateFromNetworkEntities(
       state.boardEntities.values(),
       state.activePlayerId,
       Boolean(isNextWhite),
-      state.enPassantTarget || undefined
+      state.enPassantTarget || undefined,
+      state.fiftyMoveCounter,
+      currentHistory
     );
+
+    // Compute canonical position key and track in state.positionHistory
+    const currentKey = computePositionKey(nextDomainState);
+    if (state.positionHistory) {
+      state.positionHistory.push(currentKey);
+    }
+    const updatedHistory: string[] = state.positionHistory
+      ? Array.from(state.positionHistory).filter((k): k is string => typeof k === 'string')
+      : [currentKey];
+    (nextDomainState.turnState as { positionHistory?: readonly string[] }).positionHistory = updatedHistory;
+
     const topology = new SquareTopology({ width: 8, height: 8 });
-    const gameResult = RulesEngine.getGameResult(nextDomainState, topology);
+    const gameResult = RulesEngine.getGameResult(nextDomainState, topology, undefined, updatedHistory);
 
     if (gameResult.isGameOver) {
       gameOver = true;
