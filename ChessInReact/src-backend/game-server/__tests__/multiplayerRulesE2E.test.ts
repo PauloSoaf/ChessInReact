@@ -480,4 +480,106 @@ describe('Spec 04 & Spec 03 - End-to-End Authoritative Rules & Dual Zustand Stor
     bridge2.dispose();
     bridgeReconnected.dispose();
   });
+
+  it('handles formal CLAIM_DRAW validating active player turn, rejecting out-of-turn claims, and keeping 3-fold repetition in PLAYING phase until claimed', async () => {
+    const tokenP1 = signAuthToken({ playerId: 'player-white-claim', username: 'ClaimWhite' });
+    const tokenP2 = signAuthToken({ playerId: 'player-black-claim', username: 'ClaimBlack' });
+
+    const client1 = new ColyseusClient({ endpoint });
+    const store1 = createGameStore();
+    const room1 = await client1.joinOrCreateRoom({ authToken: tokenP1, matchId: 'e2e-claim-draw-room' });
+    const bridge1 = new StateSyncBridge(room1, store1, 'P1');
+
+    const client2 = new ColyseusClient({ endpoint });
+    const store2 = createGameStore();
+    const room2 = await client2.joinOrCreateRoom({ authToken: tokenP2, matchId: 'e2e-claim-draw-room' });
+    const bridge2 = new StateSyncBridge(room2, store2, 'P2');
+
+    await new Promise<void>((resolve) => {
+      if (room1.state.phase === 'PLAYING') return resolve();
+      room1.onStateChange((s) => {
+        if (s.phase === 'PLAYING') resolve();
+      });
+      setTimeout(resolve, 500);
+    });
+
+    expect(room1.state.phase).toBe('PLAYING');
+    expect(room1.state.activePlayerId).toBe('player-white-claim');
+
+    interface IRejectClaim {
+      reason: string;
+    }
+    const rejectClaims: { client1?: IRejectClaim; client2?: IRejectClaim } = {};
+    room1.onMessage<IRejectClaim>('REJECT_CLAIM_DRAW', (msg) => { rejectClaims.client1 = msg; });
+    room2.onMessage<IRejectClaim>('REJECT_CLAIM_DRAW', (msg) => { rejectClaims.client2 = msg; });
+
+    // 1. Out-of-turn claim test: Black claims while it is White's turn
+    room2.send('CLAIM_DRAW');
+    await waitForCondition(() => Boolean(rejectClaims.client2));
+    expect(rejectClaims.client2?.reason).toContain('You can only claim a draw on your turn');
+
+    // 2. Unmet condition claim test: White claims before any 3-fold repetition or 50 moves
+    room1.send('CLAIM_DRAW');
+    await waitForCondition(() => Boolean(rejectClaims.client1));
+    expect(rejectClaims.client1?.reason).toContain('Draw conditions not met');
+
+    // 3. Play 2 full knight cycles so initial position reaches 3 occurrences
+    // Move 1: White g1 -> f3
+    bridge1.sendOptimisticMove(asEntityId('piece-w-N-g1'), asCoordinateKey('g1'), asCoordinateKey('f3'));
+    await waitForCondition(() => room1.state.boardEntities.get('piece-w-N-g1')?.position === 'f3');
+
+    // Move 2: Black g8 -> f6
+    bridge2.sendOptimisticMove(asEntityId('piece-b-N-g8'), asCoordinateKey('g8'), asCoordinateKey('f6'));
+    await waitForCondition(() => room1.state.boardEntities.get('piece-b-N-g8')?.position === 'f6');
+
+    // Move 3: White f3 -> g1
+    bridge1.sendOptimisticMove(asEntityId('piece-w-N-g1'), asCoordinateKey('f3'), asCoordinateKey('g1'));
+    await waitForCondition(() => room1.state.boardEntities.get('piece-w-N-g1')?.position === 'g1');
+
+    // Move 4: Black f6 -> g8 (2nd occurrence of initial position)
+    bridge2.sendOptimisticMove(asEntityId('piece-b-N-g8'), asCoordinateKey('f6'), asCoordinateKey('g8'));
+    await waitForCondition(() => room1.state.boardEntities.get('piece-b-N-g8')?.position === 'g8');
+
+    // Move 5: White g1 -> f3
+    bridge1.sendOptimisticMove(asEntityId('piece-w-N-g1'), asCoordinateKey('g1'), asCoordinateKey('f3'));
+    await waitForCondition(() => room1.state.boardEntities.get('piece-w-N-g1')?.position === 'f3');
+
+    // Move 6: Black g8 -> f6
+    bridge2.sendOptimisticMove(asEntityId('piece-b-N-g8'), asCoordinateKey('g8'), asCoordinateKey('f6'));
+    await waitForCondition(() => room1.state.boardEntities.get('piece-b-N-g8')?.position === 'f6');
+
+    // Move 7: White f3 -> g1
+    bridge1.sendOptimisticMove(asEntityId('piece-w-N-g1'), asCoordinateKey('f3'), asCoordinateKey('g1'));
+    await waitForCondition(() => room1.state.boardEntities.get('piece-w-N-g1')?.position === 'g1');
+
+    // Move 8: Black f6 -> g8 (3rd occurrence of initial position!)
+    bridge2.sendOptimisticMove(asEntityId('piece-b-N-g8'), asCoordinateKey('f6'), asCoordinateKey('g8'));
+    await waitForCondition(() => room1.state.boardEntities.get('piece-b-N-g8')?.position === 'g8');
+
+    // In FIDE claimable mode, server MUST NOT terminate automatically on 3rd repetition!
+    expect(room1.state.phase).toBe('PLAYING');
+    expect(room1.state.activePlayerId).toBe('player-white-claim');
+
+    // 4. White (active player) formally claims the draw via CLAIM_DRAW
+    interface IGameOverEvent {
+      reason: string;
+      claimedBy?: string;
+      winnerId?: string;
+    }
+    const gameOverEvents: { client1?: IGameOverEvent; client2?: IGameOverEvent } = {};
+    room1.onMessage<IGameOverEvent>('GAME_OVER', (msg) => { gameOverEvents.client1 = msg; });
+    room2.onMessage<IGameOverEvent>('GAME_OVER', (msg) => { gameOverEvents.client2 = msg; });
+
+    room1.send('CLAIM_DRAW');
+
+    await waitForCondition(() => room1.state.phase === 'GAME_OVER' && Boolean(gameOverEvents.client1 && gameOverEvents.client2));
+
+    expect(room1.state.phase).toBe('GAME_OVER');
+    expect(gameOverEvents.client1?.reason).toBe('THREEFOLD_REPETITION');
+    expect(gameOverEvents.client1?.claimedBy).toBe('player-white-claim');
+    expect(gameOverEvents.client2?.reason).toBe('THREEFOLD_REPETITION');
+
+    bridge1.dispose();
+    bridge2.dispose();
+  });
 });

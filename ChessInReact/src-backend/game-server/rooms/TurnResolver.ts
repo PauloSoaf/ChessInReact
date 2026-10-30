@@ -256,7 +256,12 @@ export class TurnResolver {
     (nextDomainState.turnState as { positionHistory?: readonly string[] }).positionHistory = updatedHistory;
 
     const topology = new SquareTopology({ width: 8, height: 8 });
-    const gameResult = RulesEngine.getGameResult(nextDomainState, topology, undefined, updatedHistory);
+    const gameResult = RulesEngine.getGameResult(
+      nextDomainState,
+      topology,
+      { variantId: 'CHESS_STANDARD', claimableDrawRules: true },
+      updatedHistory
+    );
 
     if (gameResult.isGameOver) {
       gameOver = true;

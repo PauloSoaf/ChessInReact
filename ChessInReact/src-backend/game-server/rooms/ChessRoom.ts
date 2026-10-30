@@ -411,6 +411,10 @@ export class ChessRoom extends Room<ChessRoomStateSchema> {
       client.send('REJECT_CLAIM_DRAW', { reason: `Draw cannot be claimed in "${this.state.phase}" phase.` });
       return;
     }
+    if (player.playerId !== this.state.activePlayerId) {
+      client.send('REJECT_CLAIM_DRAW', { reason: 'Unauthorized: You can only claim a draw on your turn.' });
+      return;
+    }
 
     const isWhite = player.role === 'WHITE';
     const history: string[] = this.state.positionHistory

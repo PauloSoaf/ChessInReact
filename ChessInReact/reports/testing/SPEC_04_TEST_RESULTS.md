@@ -15,11 +15,11 @@ All mandatory gates defined in `GEMINI.md` have been executed locally and verifi
 ```
 [1/6] TypeScript Typecheck (npx tsc --noEmit)        : PASSED (0 errors)
 [2/6] ESLint Static Analysis (npm run lint)          : PASSED (0 errors, 0 warnings)
-[3/6] Production Build Bundle (npm run build)        : PASSED (455.31 kB, gzip: 143.77 kB)
-[4/6] Vitest Full Suite & Coverage                   : PASSED (72/72 suites, 524/524 tests, 0 skipped)
+[3/6] Production Build Bundle (npm run build)        : PASSED (455.43 kB, gzip: 143.79 kB)
+[4/6] Vitest Full Suite & Coverage                   : PASSED (72/72 suites, 526/526 tests, 0 skipped)
 [5/6] Chromium Headless Smoke Test                   : PASSED (skipped: false, worker handshake verified)
-[6/6] Unmasked Memory Benchmark (npm run bench:memory): PASSED (+2.40 MB incremental, +0.12 MB retained, Peak: 21.22 MB)
-[BONUS] Isolated Perft Benchmark (npm run bench:perft): PASSED (D1: 0.0637ms < 0.20ms, D5: 4,865,609 nodes)
+[6/6] Unmasked Memory Benchmark (npm run bench:memory): PASSED (+2.32 MB incremental, +0.12 MB retained, Peak: 21.03 MB)
+[BONUS] Isolated Perft Benchmark (npm run bench:perft): PASSED (D1: 0.0705ms < 0.20ms, D5: 4,865,609 nodes)
 ```
 
 ---
@@ -37,15 +37,15 @@ All mandatory gates defined in `GEMINI.md` have been executed locally and verifi
 | `Perft.test.ts` (Includes Depth 5) | 8 | 27.6s | `PASS` |
 | `RulesPropertyBased.test.ts` (fast-check) | 8 | 6.6s | `PASS` |
 | `RulesDeepCoverage.test.ts` | 13 | 45ms | `PASS` |
-| `PositionRepetitionIntegrity.test.ts` (FIDE Art. 9.2, Claimable Draws) | 8 | 24ms | `PASS` |
+| `PositionRepetitionIntegrity.test.ts` (FIDE Art. 9.2, Claimable Draws, Priority) | 9 | 24ms | `PASS` |
 | `CrazyhouseIntegrityRepro.test.ts` (P0 Drop Integrity) | 8 | 19ms | `PASS` |
-| **Total Rules Engine & Repro Suites** | **74** | **~35s** | **100% PASS** |
+| **Total Rules Engine & Repro Suites** | **75** | **~35s** | **100% PASS** |
 
 ### 2.2 Integration & Multiplayer Tests
 
 | Test File | Focus Area | Cases | Result |
 | :--- | :--- | :---: | :---: |
-| `multiplayerRulesE2E.test.ts` | Two Colyseus clients with dual Zustand store assertions across En Passant, checkmate, rollback, spectator hydration, and genuine player reconnection | 5 | `PASS` |
+| `multiplayerRulesE2E.test.ts` | Two Colyseus clients with dual Zustand store assertions across En Passant, checkmate, rollback, spectator hydration, player reconnection, and formal CLAIM_DRAW | 6 | `PASS` |
 | `VariantCommandsIntegration.test.ts` | MovePieceCommand integration with Atomic, Crazyhouse, Antichess, KOTH, N-Player | 7 | `PASS` |
 | `ChessBoardRulesIntegration.test.tsx` | React UI click rejection & move execution | 2 | `PASS` |
 | `ChessBoardMounted.test.tsx` | Mounted UI, selectors, and store binding | 4 | `PASS` |
@@ -62,15 +62,15 @@ All mandatory gates defined in `GEMINI.md` have been executed locally and verifi
 
 | Rules Engine Module | % Statements | % Branch | % Functions | % Lines | Status |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| `src/engine/rules` (Root) | **96.36%** | **89.13%** | **100.00%** | **96.36%** | `EXCEEDS (>95%)` |
-| `RulesEngine.ts` | 95.05% | 88.78% | 100.00% | 95.05% | `EXCEEDS (>95%)` |
-| `CheckValidator.ts` | 96.96% | 88.94% | 100.00% | 96.96% | `EXCEEDS (>95%)` |
-| `GameOverDetector.ts` | 99.54% | 91.17% | 100.00% | 99.54% | `EXCEEDS (>95%)` |
+| `src/engine/rules` (Root) | **97.33%** | **91.29%** | **100.00%** | **97.33%** | `EXCEEDS (>95%)` |
+| `RulesEngine.ts` | 96.89% | 92.05% | 100.00% | 96.89% | `EXCEEDS (>95%)` |
+| `CheckValidator.ts` | 96.96% | 90.20% | 100.00% | 96.96% | `EXCEEDS (>95%)` |
+| `GameOverDetector.ts` | 99.55% | 92.20% | 100.00% | 99.55% | `EXCEEDS (>95%)` |
 | `VariantRegistry.ts` | 96.74% | 85.71% | 100.00% | 96.74% | `EXCEEDS (>95%)` |
-| `src/engine/rules/behaviors` | **95.73%** | **94.32%** | **100.00%** | **95.73%** | `EXCEEDS (>95%)` |
-| `BetzaParser.ts` | 98.04% | 97.89% | 100.00% | 98.04% | `EXCEEDS (>95%)` |
+| `src/engine/rules/behaviors` | **95.73%** | **94.50%** | **100.00%** | **95.73%** | `EXCEEDS (>95%)` |
+| `BetzaParser.ts` | 98.04% | 98.00% | 100.00% | 98.04% | `EXCEEDS (>95%)` |
 | `HopperBehavior.ts` | 100.00% | 100.00% | 100.00% | 100.00% | `PERFECT (100%)` |
-| `LeaperBehavior.ts` | 97.76% | 90.47% | 100.00% | 97.76% | `EXCEEDS (>95%)` |
+| `LeaperBehavior.ts` | 97.76% | 90.69% | 100.00% | 97.76% | `EXCEEDS (>95%)` |
 | `SliderBehavior.ts` | 85.33% | 81.48% | 100.00% | 85.33% | `PASS` |
 | `src/engine/rules/pipelines` | **100.00%** | **100.00%** | **100.00%** | **100.00%** | `PERFECT (100%)` |
 | `src/engine/rules/pipelines/modifiers` | **98.50%** | **84.12%** | **100.00%** | **98.50%** | `EXCEEDS (>95%)` |
@@ -79,10 +79,10 @@ All mandatory gates defined in `GEMINI.md` have been executed locally and verifi
 | `CrazyhouseModifier.ts` | 97.32% | 66.66% | 100.00% | 97.32% | `EXCEEDS (>95%)` |
 | `KingOfTheHillModifier.ts` | 100.00% | 100.00% | 100.00% | 100.00% | `PERFECT (100%)` |
 | `NPlayerModifier.ts` | 100.00% | 100.00% | 100.00% | 100.00% | `PERFECT (100%)` |
-| `src/engine/rules/utils` | **99.57%** | **92.30%** | **100.00%** | **99.57%** | `EXCEEDS (>95%)` |
+| `src/engine/rules/utils` | **99.57%** | **92.68%** | **100.00%** | **99.57%** | `EXCEEDS (>95%)` |
 | `Perft.ts` | 100.00% | 93.54% | 100.00% | 100.00% | `PERFECT (100%)` |
-| `ClassicBoardFactory.ts` | 100.00% | 85.00% | 100.00% | 100.00% | `PERFECT (100%)` |
-| `CoordinateHelper.ts` | 97.64% | 85.18% | 100.00% | 97.64% | `EXCEEDS (>95%)` |
+| `ClassicBoardFactory.ts` | 100.00% | 85.71% | 100.00% | 100.00% | `PERFECT (100%)` |
+| `CoordinateHelper.ts` | 97.64% | 86.66% | 100.00% | 97.64% | `EXCEEDS (>95%)` |
 | `PositionHasher.ts` | 100.00% | 100.00% | 100.00% | 100.00% | `PERFECT (100%)` |
 
 ### 3.2 Topology Domain Coverage (>95% Requirement)

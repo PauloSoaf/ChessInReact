@@ -83,7 +83,8 @@ export class GameOverDetector {
       }
     }
 
-    // 4. Fifty-move & Seventy-five-move rules (RF-11, FIDE Article 9.3 & 9.6)
+    // 4. Mandatory Draws (FIDE Article 9.6)
+    // 4.1 Seventy-five-move rule (FIDE Article 9.6.2): 75 consecutive moves (150 halfmoves) without capture or pawn advance
     const halfMoves = state.turnState.fiftyMoveCounter ?? 0;
     if (halfMoves >= 150) {
       return {
@@ -93,6 +94,45 @@ export class GameOverDetector {
         reason: 'Draw: 75 consecutive moves (150 halfmoves) elapsed without capture or pawn advance.',
       };
     }
+
+    // 4.2 Fivefold repetition (FIDE Article 9.6.1): Exact position occurred 5 times
+    let repetitionOccurrences = 0;
+    if (positionHistory && positionHistory.length > 0) {
+      const currentKey = positionHistory[positionHistory.length - 1];
+      for (const key of positionHistory) {
+        if (key === currentKey) repetitionOccurrences++;
+      }
+      if (repetitionOccurrences >= 5) {
+        return {
+          isGameOver: true,
+          status: 'FIVEFOLD_REPETITION',
+          winnerId: null,
+          reason: 'Draw: The exact position has occurred 5 times.',
+        };
+      }
+    }
+
+    // 5. Claimable Draws (FIDE Article 9.2 & 9.3)
+    // 5.1 Threefold repetition (FIDE Article 9.2): Exact position occurred 3 times
+    if (repetitionOccurrences >= 3) {
+      if (variantConfig?.claimableDrawRules) {
+        return {
+          isGameOver: false,
+          canClaimDraw: true,
+          status: 'THREEFOLD_REPETITION',
+          winnerId: null,
+          reason: 'Claimable draw: The exact position has occurred 3 times.',
+        };
+      }
+      return {
+        isGameOver: true,
+        status: 'THREEFOLD_REPETITION',
+        winnerId: null,
+        reason: 'Draw: The exact position has occurred 3 times.',
+      };
+    }
+
+    // 5.2 Fifty-move rule (FIDE Article 9.3): 50 consecutive moves (100 halfmoves) without capture or pawn advance
     if (halfMoves >= 100) {
       if (variantConfig?.claimableDrawRules) {
         return {
@@ -109,40 +149,6 @@ export class GameOverDetector {
         winnerId: null,
         reason: 'Draw: 50 consecutive moves (100 halfmoves) elapsed without capture or pawn advance.',
       };
-    }
-
-    // 5. Threefold & Fivefold repetition (RF-11, FIDE Article 9.2 & 9.6)
-    if (positionHistory && positionHistory.length > 0) {
-      const currentKey = positionHistory[positionHistory.length - 1];
-      let occurrences = 0;
-      for (const key of positionHistory) {
-        if (key === currentKey) occurrences++;
-      }
-      if (occurrences >= 5) {
-        return {
-          isGameOver: true,
-          status: 'FIVEFOLD_REPETITION',
-          winnerId: null,
-          reason: 'Draw: The exact position has occurred 5 times.',
-        };
-      }
-      if (occurrences >= 3) {
-        if (variantConfig?.claimableDrawRules) {
-          return {
-            isGameOver: false,
-            canClaimDraw: true,
-            status: 'THREEFOLD_REPETITION',
-            winnerId: null,
-            reason: 'Claimable draw: The exact position has occurred 3 times.',
-          };
-        }
-        return {
-          isGameOver: true,
-          status: 'THREEFOLD_REPETITION',
-          winnerId: null,
-          reason: 'Draw: The exact position has occurred 3 times.',
-        };
-      }
     }
 
     // 6. Insufficient Material (RF-15)

@@ -365,4 +365,24 @@ describe('SPEC04-PATCH-02: FIDE Position Key Canonical Equivalence & Repetition 
     expect(claim50Res.isGameOver).toBe(true);
     expect(claim50Res.status).toBe('FIFTY_MOVE_RULE');
   });
+
+  it('prioritizes mandatory Fivefold repetition over claimable 50-move rule when both coexist (P2 priority conflict resolution)', () => {
+    const state = createDefaultDomainState('fide-priority-test');
+    const posKey = 'P1|KQkq|-|4,0:P1:KING';
+    const history5 = [posKey, 'a', posKey, 'b', posKey, 'c', posKey, 'd', posKey];
+
+    // Both 50 moves elapsed (claimable) AND 5-fold repetition reached (mandatory)
+    const state50And5Fold = {
+      ...state,
+      turnState: { ...state.turnState, fiftyMoveCounter: 100 },
+    };
+
+    const claimableConfig = { variantId: 'CHESS_STANDARD', claimableDrawRules: true };
+    const result = GameOverDetector.evaluateGameResult(state50And5Fold, sqTopology, 5, claimableConfig, history5);
+
+    // Mandatory draw (FIVEFOLD_REPETITION) MUST take precedence over claimable FIFTY_MOVE_RULE
+    expect(result.isGameOver).toBe(true);
+    expect(result.status).toBe('FIVEFOLD_REPETITION');
+    expect(result.reason).toContain('Draw: The exact position has occurred 5 times.');
+  });
 });

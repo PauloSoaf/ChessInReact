@@ -125,16 +125,18 @@ Spec 04 delivers a high-performance, isomorphic, deterministic Rules Engine capa
 5. **P1 — Operational Draw Detection & Claimable vs Mandatory Differentiation:**
    - `MovePieceCommand.execute()` explicitly passes `turnState.positionHistory` to `RulesEngine.getGameResult()`.
    - `GameOverDetector.ts` differentiates claimable draws (3-fold repetition / 50 moves returning `canClaimDraw: true`) from mandatory draws (5-fold repetition / 75 moves terminating immediately).
+   - Resolved draw priority conflict: mandatory draws (75-move and 5-fold repetition) are evaluated strictly before claimable draws (3-fold repetition and 50-move rule).
    - Added `RulesEngine.canClaimDraw()` and `RulesEngine.claimDraw()`.
-6. **P1 — Authoritative Multiplayer Draw Synchronization:**
+6. **P1 — Authoritative Multiplayer Draw Governance & Turn Authorization:**
    - `RoomStateSchema.ts` persists `@type('number') fiftyMoveCounter` and `@type(['string']) positionHistory`.
-   - `StandardMoveValidator.ts` and `TurnResolver.ts` maintain and validate draw counters and history.
+   - `TurnResolver.ts` configures `{ variantId: 'CHESS_STANDARD', claimableDrawRules: true }` so 3-fold repetition leaves the room in `PLAYING` phase until formally claimed.
+   - `ChessRoom.ts` strictly validates that `player.playerId === this.state.activePlayerId`, rejecting out-of-turn draw claims.
    - `StateSyncBridge.ts` maps both fields to client `turnState`.
-   - `ChessRoom.ts` processes `'CLAIM_DRAW'` client notifications.
 7. **P1 — Dual Zustand Store Synchronization & Genuine Reconnection:**
    - In `multiplayerRulesE2E.test.ts`, verified dual Zustand client stores across all turns.
    - Verified late-joining spectator hydration.
    - Implemented and verified genuine unconsented player reconnection with Colyseus `allowReconnection()`, re-keying `state.players`, synchronizing `StateSyncBridge.sequenceCounter`, and confirming zero duplicate players in `players` map.
+   - Covered formal `CLAIM_DRAW` lifecycle with 6 comprehensive end-to-end scenarios.
 
 ---
 
@@ -144,10 +146,10 @@ Spec 04 delivers a high-performance, isomorphic, deterministic Rules Engine capa
 | :--- | :--- | :---: | :---: |
 | **Typecheck** | `npx tsc --noEmit` | 0 errors | **0 errors** |
 | **Lint** | `npm run lint` | 0 errors, 0 warnings | **0 errors, 0 warnings** |
-| **Production Build** | `npm run build` | Success | **Built in 13.56s (455.31 kB, gzip 143.77 kB)** |
-| **Test Suite** | `npx vitest run` | 100% pass, topologies > 95%, rules > 95% | **72 suites, 524 tests passed, 0 skipped** |
-| **Rules Coverage** | `src/engine/rules/**` | > 95.00% | **96.36% Root (RulesEngine.ts: 95.05%, GameOverDetector.ts: 99.54%)** |
+| **Production Build** | `npm run build` | Success | **Built in 6.10s (455.43 kB, gzip 143.79 kB)** |
+| **Test Suite** | `npx vitest run` | 100% pass, topologies > 95%, rules > 95% | **72 suites, 526 tests passed, 0 skipped** |
+| **Rules Coverage** | `src/engine/rules/**` | > 95.00% | **97.33% Root (RulesEngine.ts: 96.89%, GameOverDetector.ts: 99.55%)** |
 | **Topologies Coverage** | `src/core/topology/**` | > 95.00% | **98.21% Lines / 91.53% Branches / 98.46% Functions** |
 | **Smoke Test** | `node scripts/runChromiumSmoke.js` | Native headless smoke | **PASS (skipped: false)** |
-| **Memory Benchmark** | `npm run bench:memory` | Peak < 40MB, drift < 0.05MB/cycle | **PASS (+2.40 MB incremental delta, +0.12 MB retained delta)** |
-| **Perft Benchmark** | `npm run bench:perft` | D1 < 0.20ms, D5 = 4,865,609 nodes | **PASS (0.0637ms D1, 4,865,609 nodes D5 at 225k NPS)** |
+| **Memory Benchmark** | `npm run bench:memory` | Peak < 40MB, drift < 0.05MB/cycle | **PASS (+2.32 MB incremental delta, +0.12 MB retained delta)** |
+| **Perft Benchmark** | `npm run bench:perft` | D1 < 0.20ms, D5 = 4,865,609 nodes | **PASS (0.0705ms D1, 4,865,609 nodes D5 at 239k NPS)** |

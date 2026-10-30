@@ -1,19 +1,19 @@
 # Spec 04 Formal Architectural Audit: Rules Engine, Fairy Chess & Multi-Topology Variants
 
-> **Status:** APPROVED & HOMOLOGATED (SPEC04-PATCH-02 FINAL CLOSURE COMPLETE)  
+> **Status:** APPROVED & HOMOLOGATED (SPEC04 FINAL AUDIT HOMOLOGATION COMPLETE)  
 > **Target Branch:** `feat/spec04-rules-engine-fairy-variants`  
-> **Base Commit Audited:** `5b1b159d1b21952e88998429f08e68c50715e753`  
+> **Base Commit Audited:** `ac7119bc88bbcde9e61686ff18a6dd7e968e68cc`  
 > **Governance Authority:** Antigravity / Gemini Architectural Governance (`GEMINI.md`)  
-> **Execution Date:** 2026-10-29  
+> **Execution Date:** 2026-10-30  
 
 ---
 
 ## 1. Executive Summary & Audit Context
 
-This document certifies the formal audit and verification of **Spec 04 — Rules Engine, Fairy Chess, Validação Legal e Variantes** across the `ChessInReact` repository following the execution of **SPEC04-PATCH-02 Final Closure**.
+This document certifies the formal audit, defect remediation, and final verification of **Spec 04 — Rules Engine, Fairy Chess, Validação Legal e Variantes** across the `ChessInReact` repository following the execution of the final closure remediations.
 
-### 1.1 Remediation Scope (SPEC04-PATCH-02 & Closure)
-Following the publication of PATCH-01 and the subsequent PATCH-02 verification, a targeted audit of the operational execution path identified and remediated the remaining integration requirements:
+### 1.1 Remediation Scope (SPEC04-PATCH-02 Final Closure & Draw Integrations)
+Following the publication and verification of commit `ac7119b`, three specific draw policy edge cases were identified, remediated, and covered by automated tests:
 1. **P0 — Crazyhouse Drop Integrity & Entity ID Collision:** In `MovePieceCommand.ts`, drops strictly enforce 9 pre-mutation validation checks (variant active, turn, match phase, rank 1/8 pawn restriction, destination occupancy, obstacles, king safety, and entity ID collision to prevent overwriting existing board entities). All rejections leave domain state bit-for-bit unchanged.
 2. **P1 — Query Purity in Rules Engine:** In `CrazyhouseModifier.getLegalDropMoves()`, in-place state mutations were replaced by an immutable simulated overlay (`overlayState`), verified against deeply frozen states (`Object.freeze()`).
 3. **P1 — Move-Locking Upon Game Over:** `RulesEngine.validateMove()` returns `{ valid: false, code: 'GAME_OVER' }`, `MovePieceCommand.execute()` throws an explicit error, and `ChessBoard.tsx` rejects user interactions when `isGameOver || winnerId !== null`.
@@ -22,16 +22,17 @@ Following the publication of PATCH-01 and the subsequent PATCH-02 verification, 
    - Initial board positions are seeded into `positionHistory` on board creation (`ClassicBoardFactory.ts`), and command execution dynamically seeds `[initialKey, newKey]` when starting empty, while preserving exact bit-for-bit `undo()` restoration.
    - Distinguished FIDE Article 9.2 / 9.3 claimable draws (3-fold repetition, 50-move rule returning `canClaimDraw: true, isGameOver: false` when claimable rules are configured) from Article 9.6 mandatory/automatic draws (5-fold repetition, 75-move rule automatically terminating the match).
    - Added `RulesEngine.canClaimDraw()` and `RulesEngine.claimDraw()` static facades.
-5. **P1 — Authoritative Multiplayer Draw Metadata & Persistence:**
-   - Extended `RoomStateSchema.ts` with authoritative `@type('number') fiftyMoveCounter` and `@type(['string']) positionHistory`.
-   - `TurnResolver.ts` updates `fiftyMoveCounter` and appends canonical position keys on every move, feeding them to `GameOverDetector`.
-   - `StandardMoveValidator.ts` and `StateSyncBridge.ts` synchronize both fields to domain states without zeroing or emptying history.
-   - `ChessRoom.ts` processes formal `'CLAIM_DRAW'` client messages.
-6. **P1 — Genuine Multiplayer Player Reconnection vs Spectator Entry:**
+5. **P1 — Authoritative Multiplayer Draw Governance & Turn Authorization:**
+   - `TurnResolver.ts` configures `{ variantId: 'CHESS_STANDARD', claimableDrawRules: true }`, ensuring 3-fold repetition does not prematurely end online matches before the active player uses `CLAIM_DRAW`.
+   - `ChessRoom.ts` (`handleClaimDraw`) strictly validates that `player.playerId === this.state.activePlayerId`, rejecting out-of-turn claims.
+   - Schema tracks `@type('number') fiftyMoveCounter` and `@type(['string']) positionHistory` authoritatively.
+6. **P2 — Resolution of Draw Priority Conflicts:**
+   - In `GameOverDetector.ts`, mandatory draws (FIDE Article 9.6: 75-move rule and Fivefold repetition) are evaluated strictly before claimable draws (FIDE Articles 9.2 & 9.3: Threefold repetition and 50-move rule). When 50 moves and 5-fold repetition coexist, the engine deterministically returns `{ isGameOver: true, status: 'FIVEFOLD_REPETITION' }` rather than a claimable draw.
+7. **P1 — Genuine Multiplayer Player Reconnection vs Spectator Entry:**
    - In `multiplayerRulesE2E.test.ts`, distinguished late-joining spectators from authenticated player reconnections.
    - Implemented and verified real unconsented disconnection and reconnection using Colyseus `allowReconnection()`, re-keying `state.players` with the reconnected client's new session ID, resynchronizing `StateSyncBridge.sequenceCounter`, and confirming zero duplicate player entities.
 
-All remedial objectives have been verified by 524 automated tests (72 suites, 0 skipped), 96.36% Rules Engine root coverage, 98.21% Topology coverage, real two-client Colyseus E2E tests, native Chromium Web Worker smoke tests, isolated memory benchmarks (+2.40 MB incremental, +0.12 MB retained), and Perft D1-D5 conformance.
+All remedial objectives have been verified by 526 automated tests (72 suites, 0 skipped), 97.33% Rules Engine root coverage, 98.21% Topology coverage, real two-client Colyseus E2E tests, native Chromium Web Worker smoke tests, isolated memory benchmarks (+2.32 MB incremental, +0.12 MB retained), and Perft D1-D5 conformance (4,865,609 nodes).
 
 ---
 
@@ -141,14 +142,14 @@ Two-client end-to-end integration tests (`src-backend/game-server/__tests__/mult
 Every local quality gate passed with zero defects:
 1. `npx tsc --noEmit` — 0 errors.
 2. `npm run lint` — 0 errors, 0 warnings.
-3. `npm run build` — Production bundle build succeeds (455.31 kB, 143.77 kB gzip).
-4. `npx vitest run` — 72 test suites passed, 524 tests passed, 0 skipped.
+3. `npm run build` — Production bundle build succeeds (455.43 kB, 143.79 kB gzip).
+4. `npx vitest run` — 72 test suites passed, 526 tests passed, 0 skipped.
    - Topology Coverage: **98.21%**
-   - Rules Engine Root Coverage: **96.36%** (with `RulesEngine.ts` at **95.05%**, `GameOverDetector.ts` at **99.54%**, `CheckValidator.ts` at **96.96%**, and `VariantRegistry.ts` at **96.74%**)
-   - Overall Project Line Coverage: **76.17%**
+   - Rules Engine Root Coverage: **97.33%** (with `RulesEngine.ts` at **96.89%**, `GameOverDetector.ts` at **99.55%**, `CheckValidator.ts` at **96.96%**, and `VariantRegistry.ts` at **96.74%**)
+   - Overall Project Line Coverage: **76.55%**
 5. `node scripts/runChromiumSmoke.js` — Native Chromium headless smoke test passed (`skipped: false`, worker handshake verified).
-6. `npm run bench:memory` — Memory benchmark passed (+2.40 MB incremental delta < 40 MB budget, +0.12 MB retained delta).
-7. `npm run bench:perft` — Perft D1 latency: 0.0637 ms (< 0.20 ms budget), D5: 4,865,609 nodes (225,769 NPS).
+6. `npm run bench:memory` — Memory benchmark passed (+2.32 MB incremental delta < 40 MB budget, +0.12 MB retained delta).
+7. `npm run bench:perft` — Perft D1 latency: 0.0705 ms (< 0.20 ms budget), D5: 4,865,609 nodes (239,824 NPS).
 
 ---
 
