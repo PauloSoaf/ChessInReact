@@ -11,7 +11,9 @@ export type GameEventType =
   | 'TURN_CHANGED'
   | 'GAME_ENDED'
   | 'EXPLOSION'
-  | 'TIME_WARNING';
+  | 'TIME_WARNING'
+  | 'AI_EVALUATION_READY'
+  | 'AI_SEARCH_PROGRESS';
 
 /**
  * Payloads associated with each domain event type.
@@ -53,6 +55,25 @@ export interface IGameEventPayload {
   TIME_WARNING: {
     readonly playerId: PlayerId;
     readonly secondsLeft: number;
+  };
+  AI_EVALUATION_READY: {
+    readonly bestMove: {
+      readonly fromCoord: CoordinateKey;
+      readonly toCoord: CoordinateKey;
+      readonly pieceId: EntityId;
+    } | null;
+    readonly evaluationScore: number;
+    readonly depthReached: number;
+    readonly pvLine: readonly string[];
+  };
+  AI_SEARCH_PROGRESS: {
+    readonly depthReached: number;
+    readonly nps: number;
+    readonly currentBestMove?: {
+      readonly fromCoord: CoordinateKey;
+      readonly toCoord: CoordinateKey;
+      readonly pieceId: EntityId;
+    };
   };
 }
 

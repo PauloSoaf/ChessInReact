@@ -4,6 +4,9 @@ import { CoordinateKey } from '../coordinates';
 import { createTopology, TopologyType } from '../topology';
 import { ChunkManager } from '../procedural/ChunkManager';
 import { findPathAStar } from '../topology/pathfinding/AStarPathfinder';
+import { AIEngine } from '../../workers/ai/AIEngine';
+import { AIDifficultyLevel } from '../../workers/ai/interfaces/IAIEngineContracts';
+import { reconstructDomainState } from '../../workers/ai/utils/StateReconstructor';
 
 /**
  * Handles incoming requests according to the Engine protocol.
@@ -149,6 +152,40 @@ export function processWorkerRequest(req: IWorkerRequest): IWorkerResponse {
           id: req.id,
           type: 'PATHFINDING_RESULT',
           result: pathResult,
+        };
+      }
+
+      case 'CALCULATE_BEST_MOVE': {
+        const buffer = req.payload?.buffer;
+        const stringTable = req.payload?.stringTable;
+        if (!buffer || !stringTable) {
+          return { id: req.id, type: 'ERROR', error: 'Missing buffer or stringTable payload' };
+        }
+        const workerState = deserializeWorkerState(new Int32Array(buffer), stringTable);
+        const state = reconstructDomainState(
+          workerState,
+          (req.payload?.variantId as string | undefined) ?? 'CHESS_STANDARD'
+        );
+        const topType = (req.payload?.variantId as string | undefined)?.includes('HEX')
+          ? 'HEXAGONAL'
+          : 'SQUARE';
+        const topology = createTopology(topType);
+        const ai = new AIEngine();
+        const bestMoveResult = ai.calculateBestMove(state, topology, {
+          difficulty: req.payload?.difficulty as AIDifficultyLevel,
+          timeBudgetMs: req.payload?.timeBudgetMs as number,
+          depthLimit: req.payload?.depthLimit as number,
+          isMultiplayerFFA: req.payload?.isMultiplayerFFA as boolean,
+          playerCount: req.payload?.playerCount as number,
+          randomSeed: req.payload?.randomSeed as number,
+          isAssistanceMode: req.payload?.isAssistanceMode as boolean,
+          variantId: req.payload?.variantId as string,
+        });
+
+        return {
+          id: req.id,
+          type: 'BEST_MOVE_RESULT',
+          result: bestMoveResult,
         };
       }
 

@@ -11,6 +11,7 @@ import {
   IWorkerRequest,
   IWorkerResponse,
 } from './types';
+import { IBestMoveResult, AIDifficultyLevel } from '../../workers/ai/interfaces/IAIEngineContracts';
 
 export interface IEngineBridgeOptions {
   readonly timeoutMs?: number;
@@ -167,6 +168,33 @@ export class EngineBridge {
     };
   }): Promise<IPathResult> {
     return this.sendRequest<IPathResult>('COMPUTE_PATHFINDING', options);
+  }
+
+  public async calculateBestMove(
+    state: IDomainState,
+    options?: {
+      difficulty?: AIDifficultyLevel;
+      timeBudgetMs?: number;
+      depthLimit?: number;
+      isMultiplayerFFA?: boolean;
+      playerCount?: number;
+      randomSeed?: number;
+      isAssistanceMode?: boolean;
+      variantId?: string;
+    }
+  ): Promise<IBestMoveResult> {
+    const snapshot = serializeStateForWorker(state);
+    return this.sendRequest<IBestMoveResult>(
+      'CALCULATE_BEST_MOVE',
+      {
+        buffer: snapshot.buffer.buffer,
+        stringTable: snapshot.stringTable,
+        activePlayer: state.activePlayer,
+        variantId: state.variantId ?? options?.variantId,
+        ...options,
+      },
+      [snapshot.buffer.buffer]
+    );
   }
 
   public getPendingCount(): number {
