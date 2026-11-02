@@ -46,7 +46,23 @@ const App: React.FC = () => {
 
   const handleUndo = () => {
     cancelSearch();
-    undo();
+    if (isBotEnabled) {
+      if (isThinking) {
+        // If bot is thinking, undo the single human move that initiated the deliberation
+        undo();
+      } else {
+        // In human's turn: undo full 2-ply round (bot move + human move)
+        const undoneFirst = undo();
+        if (undoneFirst) {
+          // If state reverts to bot's turn, undo once more so turn returns to the human
+          if (gameStore.getState().domain.activePlayer === 'P2') {
+            undo();
+          }
+        }
+      }
+    } else {
+      undo();
+    }
   };
 
   const handleBoardSizeChange = (newSize: number) => {
@@ -224,7 +240,12 @@ const App: React.FC = () => {
           border: '1px solid #27272a',
         }}
       >
-        <ChessBoard boardSize={boardSize} isBotThinking={isThinking} />
+        <ChessBoard
+          boardSize={boardSize}
+          isBotThinking={isThinking}
+          botPlayer={isBotEnabled ? 'P2' : undefined}
+          disabled={isBotEnabled && activePlayer === 'P2'}
+        />
       </main>
 
       <footer style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>

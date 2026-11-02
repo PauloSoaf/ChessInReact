@@ -8,11 +8,13 @@ import { MovePieceCommand } from '../../core/commands/MovePieceCommand';
 import { IPieceEntity } from '../../core/entities/types';
 import { SquareTopology } from '../../core/topology/SquareTopology';
 import { RulesEngine } from '../../engine/rules/RulesEngine';
+import { PlayerId } from '../../core/coordinates/types';
 
 export interface IChessBoardProps {
   boardSize?: number;
   isBotThinking?: boolean;
   disabled?: boolean;
+  botPlayer?: PlayerId;
   /** Optional legacy prop maintained for backward compatibility */
   boardDisplay?: IChessPiece[][];
   setBoardDisplay?: (newBoardDisplay: Array<IChessPiece>[]) => void;
@@ -35,6 +37,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
   boardSize = 8,
   isBotThinking = false,
   disabled = false,
+  botPlayer,
 }) => {
   const domain = useGameStore((state) => state.domain);
   const ui = useGameStore((state) => state.ui);
@@ -79,8 +82,14 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
   }, [domain.occupancy, domain.boardEntities, boardSize]);
 
   const handleSquareClick = (squareInfo: ISquareInfo) => {
-    // Block any selection or move dispatch if match already concluded or bot is calculating (RF-01, RF-05)
-    if (domain.isGameOver || domain.winnerId !== null || isBotThinking || disabled) {
+    // Block any selection or move dispatch if match already concluded, bot is thinking, disabled, or bot controls the turn
+    if (
+      domain.isGameOver ||
+      domain.winnerId !== null ||
+      isBotThinking ||
+      disabled ||
+      (botPlayer && domain.activePlayer === botPlayer)
+    ) {
       return;
     }
 

@@ -145,6 +145,7 @@
         aiDomain.occupancy[asCoordinateKey('4,0')] = asEntityId('w_k');
         aiDomain.occupancy[asCoordinateKey('4,7')] = asEntityId('b_k');
         aiDomain.occupancy[asCoordinateKey('0,7')] = asEntityId('b_r');
+        aiDomain.activePlayer = 'P2';
         aiDomain.turnState.activePlayer = 'P2';
 
         const aiResult = await bridge.calculateBestMove(aiDomain, {
@@ -155,6 +156,16 @@
 
         if (!aiResult || !aiResult.bestMove) {
           throw new Error('CALCULATE_BEST_MOVE failed to return a valid bestMove in worker');
+        }
+
+        const chosenPiece = aiDomain.boardEntities[aiResult.bestMove.pieceId];
+        if (!chosenPiece || chosenPiece.ownerId !== 'P2') {
+          throw new Error(`AI BestMove must belong to active player P2, got pieceId=${aiResult.bestMove.pieceId}, owner=${chosenPiece?.ownerId}`);
+        }
+
+        // Verify the original aiDomain state was not mutated by worker search
+        if (aiDomain.activePlayer !== 'P2' || aiDomain.boardEntities[asEntityId('b_k')].position !== '4,7') {
+          throw new Error('CALCULATE_BEST_MOVE illegally mutated original domain state');
         }
 
         // 8. Clean worker termination

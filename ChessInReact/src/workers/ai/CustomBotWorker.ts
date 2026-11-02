@@ -53,7 +53,11 @@ export function processAIWorkerRequest(req: IAIWorkerRequest): IAIWorkerResponse
         // Derive topology
         const topType: TopologyType =
           payload.variantId?.includes('HEX') ? 'HEXAGONAL' : 'SQUARE';
-        const topology = createTopology(topType);
+        const topology = createTopology(
+          topType,
+          (payload as { topologyOptions?: Record<string, unknown> }).topologyOptions ??
+            (topType === 'SQUARE' ? { width: 8, height: 8 } : undefined)
+        );
 
         // Derive variant configuration
         const variantConfig = payload.variantId

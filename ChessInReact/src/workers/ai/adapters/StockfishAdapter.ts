@@ -92,14 +92,63 @@ export class StockfishAdapter {
     });
   }
 
+  private currentNodes = 0;
+  private searchStartTime = 0;
+  private activeState: IDomainState | null = null;
+
+  public static domainStateToFEN(state: IDomainState): string {
+    const pieceCharMap: Record<string, string> = {
+      PAWN: 'P',
+      KNIGHT: 'N',
+      BISHOP: 'B',
+      ROOK: 'R',
+      QUEEN: 'Q',
+      KING: 'K',
+    };
+
+    const rows: string[] = [];
+    for (let r = 7; r >= 0; r--) {
+      let emptyCount = 0;
+      let rowStr = '';
+      for (let c = 0; c < 8; c++) {
+        const coord = `${c},${r}` as CoordinateKey;
+        const entityId = state.occupancy[coord];
+        const piece = entityId ? state.boardEntities[entityId] : undefined;
+        if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+          if (emptyCount > 0) {
+            rowStr += emptyCount;
+            emptyCount = 0;
+          }
+          const char = pieceCharMap[piece.variantId.toUpperCase()] ?? 'P';
+          rowStr += piece.ownerId === 'P1' ? char.toUpperCase() : char.toLowerCase();
+        } else {
+          emptyCount++;
+        }
+      }
+      if (emptyCount > 0) {
+        rowStr += emptyCount;
+      }
+      rows.push(rowStr);
+    }
+
+    const boardPart = rows.join('/');
+    const activeColor = state.activePlayer === 'P1' ? 'w' : 'b';
+    const enPassant = state.turnState?.enPassantTarget ? state.turnState.enPassantTarget : '-';
+    const halfmove = state.turnState?.fiftyMoveCounter ?? 0;
+    const fullmove = Math.max(1, Math.floor((state.turnNumber + 1) / 2));
+
+    // Castling flags (standard classical baseline)
+    return `${boardPart} ${activeColor} - ${enPassant} ${halfmove} ${fullmove}`;
+  }
+
   private setupMessageHandler(): void {
     if (!this.worker) return;
 
     this.worker.onmessage = (event: MessageEvent) => {
       const line = typeof event.data === 'string' ? event.data.trim() : '';
 
-      // Parse evaluation score: "info depth 8 score cp 45 ..."
-      if (line.startsWith('info') && line.includes('score cp')) {
+      // Parse evaluation score and search stats: "info depth 8 score cp 45 nodes 12345 ..."
+      if (line.startsWith('info')) {
         const parts = line.split(' ');
         const cpIdx = parts.indexOf('cp');
         if (cpIdx !== -1 && parts[cpIdx + 1]) {
@@ -108,6 +157,10 @@ export class StockfishAdapter {
         const depthIdx = parts.indexOf('depth');
         if (depthIdx !== -1 && parts[depthIdx + 1]) {
           this.currentDepth = parseInt(parts[depthIdx + 1], 10) || 0;
+        }
+        const nodesIdx = parts.indexOf('nodes');
+        if (nodesIdx !== -1 && parts[nodesIdx + 1]) {
+          this.currentNodes = parseInt(parts[nodesIdx + 1], 10) || 0;
         }
       }
 
@@ -123,7 +176,17 @@ export class StockfishAdapter {
           this.pendingReject = null;
           this.status = 'READY';
 
-          resolve(this.formatBestMoveResult(this.currentBestMove, this.currentScore, this.currentDepth));
+          const elapsedMs = Math.round(performance.now() - this.searchStartTime);
+          resolve(
+            this.formatBestMoveResult(
+              this.activeState,
+              this.currentBestMove,
+              this.currentScore,
+              this.currentDepth,
+              this.currentNodes,
+              elapsedMs
+            )
+          );
         }
       }
     };
@@ -139,17 +202,20 @@ export class StockfishAdapter {
   }
 
   private formatBestMoveResult(
+    state: IDomainState | null,
     uciMove: string | null,
     score: number,
-    depth: number
+    depth: number,
+    nodes: number,
+    calculationTimeMs: number
   ): IBestMoveResult {
     if (!uciMove || uciMove.length < 4) {
       return {
         bestMove: null,
         evaluationScore: score,
         depthReached: depth,
-        nodesCalculated: 1000,
-        calculationTimeMs: 50,
+        nodesCalculated: nodes,
+        calculationTimeMs,
         pvLine: [],
       };
     }
@@ -161,18 +227,19 @@ export class StockfishAdapter {
 
     const fromCoord = `${fromCol},${fromRow}` as CoordinateKey;
     const toCoord = `${toCol},${toRow}` as CoordinateKey;
+    const pieceId = state?.occupancy[fromCoord] ?? ('' as EntityId);
 
     return {
       bestMove: {
         fromCoord,
         toCoord,
-        pieceId: 'stockfish-piece' as EntityId,
+        pieceId,
         promotionVariant: uciMove[4] ? uciMove[4].toUpperCase() : undefined,
       },
       evaluationScore: score,
       depthReached: depth,
-      nodesCalculated: 1000,
-      calculationTimeMs: 50,
+      nodesCalculated: nodes,
+      calculationTimeMs,
       pvLine: [uciMove],
     };
   }
@@ -190,14 +257,18 @@ export class StockfishAdapter {
     }
 
     this.status = 'BUSY';
+    this.activeState = state;
+    this.searchStartTime = performance.now();
     const depth = options?.depthLimit ?? 5;
     const timeMs = options?.timeBudgetMs ?? 1000;
+    const fen = StockfishAdapter.domainStateToFEN(state);
 
     return new Promise<IBestMoveResult>((resolve, reject) => {
       this.pendingResolve = resolve;
       this.pendingReject = reject;
 
       this.worker?.postMessage('ucinewgame');
+      this.worker?.postMessage(`position fen ${fen}`);
       this.worker?.postMessage(`go depth ${depth} movetime ${timeMs}`);
     });
   }
@@ -210,5 +281,9 @@ export class StockfishAdapter {
       this.worker = null;
     }
     this.status = 'UNINITIALIZED';
+  }
+
+  public dispose(): void {
+    this.terminate();
   }
 }

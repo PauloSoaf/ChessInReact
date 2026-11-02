@@ -2,7 +2,7 @@ import { deserializeWorkerState } from '../serialization/FlatArraySerializer';
 import { IWorkerStateMetadata } from '../serialization/types';
 import { IWorkerPort, IWorkerRequest, IWorkerResponse } from './types';
 import { CoordinateKey } from '../coordinates';
-import { createTopology, TopologyType } from '../topology';
+import { createTopology, ITopologyFactoryOptions, TopologyType } from '../topology';
 import { ChunkManager } from '../procedural/ChunkManager';
 import { findPathAStar } from '../topology/pathfinding/AStarPathfinder';
 import { AIEngine } from '../../workers/ai/AIEngine';
@@ -171,7 +171,11 @@ export function processWorkerRequest(req: IWorkerRequest): IWorkerResponse {
         const topType = (req.payload?.variantId as string | undefined)?.includes('HEX')
           ? 'HEXAGONAL'
           : 'SQUARE';
-        const topology = createTopology(topType);
+        const topology = createTopology(
+          topType,
+          (req.payload?.topologyOptions as ITopologyFactoryOptions | undefined) ??
+            (topType === 'SQUARE' ? { width: 8, height: 8 } : undefined)
+        );
         const ai = new AIEngine();
         const bestMoveResult = ai.calculateBestMove(state, topology, {
           difficulty: req.payload?.difficulty as AIDifficultyLevel,

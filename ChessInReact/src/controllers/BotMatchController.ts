@@ -33,6 +33,8 @@ export class BotMatchController {
   private enabled: boolean;
   private bridge: EngineBridge;
   private topology: ITopology;
+  private isDisposedFlag = false;
+  private bridgeOptions?: IBotMatchControllerOptions;
 
   private isThinking = false;
   private currentTurnToken = 0;
@@ -42,19 +44,36 @@ export class BotMatchController {
   private listeners = new Set<(isThinking: boolean) => void>();
 
   constructor(options?: IBotMatchControllerOptions) {
+    this.bridgeOptions = options;
     this.botPlayer = options?.botPlayer ?? 'P2';
     this.humanPlayer = options?.humanPlayer ?? 'P1';
     this.difficulty = options?.difficulty ?? 2;
     this.enabled = options?.enabled ?? false;
+    this.bridge = this.createBridge(options);
+    this.topology = options?.topology ?? new SquareTopology({ width: 8, height: 8 });
+  }
+
+  private createBridge(options?: IBotMatchControllerOptions): EngineBridge {
     if (options?.bridge) {
-      this.bridge = options.bridge;
+      return options.bridge;
     } else if (typeof Worker !== 'undefined') {
-      this.bridge = new EngineBridge();
+      return new EngineBridge();
     } else {
       // Fallback for headless / Node test environments without native Worker API
-      this.bridge = new EngineBridge({ workerPort: new MockWorkerPort(5) });
+      return new EngineBridge({ workerPort: new MockWorkerPort(5) });
     }
-    this.topology = options?.topology ?? new SquareTopology({ width: 8, height: 8 });
+  }
+
+  public ensureBridge(): EngineBridge {
+    if (this.bridge.isDisposedBridge()) {
+      this.bridge = this.createBridge(this.bridgeOptions);
+      this.isDisposedFlag = false;
+    }
+    return this.bridge;
+  }
+
+  public isDisposed(): boolean {
+    return this.isDisposedFlag || this.bridge.isDisposedBridge();
   }
 
   public setEnabled(enabled: boolean): void {
@@ -163,9 +182,19 @@ export class BotMatchController {
     const turnNumber = domain.turnNumber;
 
     try {
-      const result = await this.bridge.calculateBestMove(domain, {
+      const bridge = this.ensureBridge();
+      const topologyOptions =
+        this.topology.type === 'SQUARE'
+          ? {
+              width: (this.topology as SquareTopology).width ?? 8,
+              height: (this.topology as SquareTopology).height ?? 8,
+            }
+          : undefined;
+
+      const result = await bridge.calculateBestMove(domain, {
         difficulty: this.difficulty,
         variantId: domain.variantId,
+        topologyOptions,
       });
 
       // 1. Stale token / Match reset check: Drop response if state changed during search
@@ -248,6 +277,7 @@ export class BotMatchController {
   }
 
   public dispose(): void {
+    this.isDisposedFlag = true;
     this.cancel();
     this.listeners.clear();
     this.bridge.dispose();

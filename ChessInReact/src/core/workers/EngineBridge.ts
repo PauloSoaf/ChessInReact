@@ -226,6 +226,7 @@ export class EngineBridge {
       randomSeed?: number;
       isAssistanceMode?: boolean;
       variantId?: string;
+      topologyOptions?: Record<string, unknown>;
     }
   ): Promise<IBestMoveResult> {
     const snapshot = serializeStateForWorker(state);
@@ -281,6 +282,10 @@ export class EngineBridge {
         reject(err);
       }
     });
+  }
+
+  public isDisposedBridge(): boolean {
+    return this.isDisposed;
   }
 
   public dispose(): void {
