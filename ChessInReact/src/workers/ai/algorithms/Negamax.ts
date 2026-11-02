@@ -81,7 +81,7 @@ export class NegamaxSearch {
 
     // Time budget and abort check every 64 nodes
     if ((this.nodesCalculated & 63) === 0) {
-      if (options?.cancellationToken?.aborted || performance.now() - this.startTime > this.timeBudgetMs) {
+      if (options?.cancellationToken?.aborted || (depth > 1 && performance.now() - this.startTime > this.timeBudgetMs)) {
         this.isAborted = true;
         return alpha;
       }
@@ -320,7 +320,7 @@ export class NegamaxSearch {
         }
       }
 
-      if (!this.isAborted && bestMoveForDepth) {
+      if (bestMoveForDepth && (!this.isAborted || depthReached === 0)) {
         currentBestMove = bestMoveForDepth;
         currentBestScore = bestScoreForDepth;
         depthReached = depth;

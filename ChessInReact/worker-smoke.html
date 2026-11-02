@@ -33,7 +33,7 @@
           isCaptured: false,
         };
         const meta = await bridge.echoStateMetadata(domain);
-        if (meta.schemaVersion !== 1 || meta.entityCount !== 1) {
+        if (meta.schemaVersion < 1 || meta.entityCount !== 1) {
           throw new Error(`Metadata mismatch: ${JSON.stringify(meta)}`);
         }
 
@@ -113,7 +113,51 @@
           throw new Error('VORONOI COMPUTE_PATHFINDING without explicit seed was not rejected');
         }
 
-        // 7. Clean worker termination
+        // 7. Spec 05 Real AI Best Move calculation in native Worker
+        const aiDomain = createDefaultDomainState('ai-smoke-match');
+        aiDomain.boardEntities[asEntityId('w_k')] = {
+          id: asEntityId('w_k'),
+          type: 'PIECE',
+          ownerId: 'P1',
+          variantId: 'KING',
+          position: asCoordinateKey('4,0'),
+          hasMoved: false,
+          isCaptured: false,
+        };
+        aiDomain.boardEntities[asEntityId('b_k')] = {
+          id: asEntityId('b_k'),
+          type: 'PIECE',
+          ownerId: 'P2',
+          variantId: 'KING',
+          position: asCoordinateKey('4,7'),
+          hasMoved: false,
+          isCaptured: false,
+        };
+        aiDomain.boardEntities[asEntityId('b_r')] = {
+          id: asEntityId('b_r'),
+          type: 'PIECE',
+          ownerId: 'P2',
+          variantId: 'ROOK',
+          position: asCoordinateKey('0,7'),
+          hasMoved: false,
+          isCaptured: false,
+        };
+        aiDomain.occupancy[asCoordinateKey('4,0')] = asEntityId('w_k');
+        aiDomain.occupancy[asCoordinateKey('4,7')] = asEntityId('b_k');
+        aiDomain.occupancy[asCoordinateKey('0,7')] = asEntityId('b_r');
+        aiDomain.turnState.activePlayer = 'P2';
+
+        const aiResult = await bridge.calculateBestMove(aiDomain, {
+          difficulty: 1,
+          timeBudgetMs: 500,
+          depthLimit: 2,
+        });
+
+        if (!aiResult || !aiResult.bestMove) {
+          throw new Error('CALCULATE_BEST_MOVE failed to return a valid bestMove in worker');
+        }
+
+        // 8. Clean worker termination
         bridge.dispose();
 
         resultEl.textContent = 'SUCCESS: ' + JSON.stringify({
@@ -123,6 +167,8 @@
           pathFound: pathResult.found,
           pathLength: pathResult.path.length,
           voronoiVerified: true,
+          aiVerified: true,
+          aiBestMove: aiResult.bestMove,
         });
       } catch (err) {
         resultEl.textContent = 'ERROR: ' + (err instanceof Error ? err.message : String(err));

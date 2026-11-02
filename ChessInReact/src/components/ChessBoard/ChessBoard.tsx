@@ -11,6 +11,8 @@ import { RulesEngine } from '../../engine/rules/RulesEngine';
 
 export interface IChessBoardProps {
   boardSize?: number;
+  isBotThinking?: boolean;
+  disabled?: boolean;
   /** Optional legacy prop maintained for backward compatibility */
   boardDisplay?: IChessPiece[][];
   setBoardDisplay?: (newBoardDisplay: Array<IChessPiece>[]) => void;
@@ -29,7 +31,11 @@ const getSquareBackground = (row: number, column: number) => {
     : defaultLightSquare.backgroundColor;
 };
 
-export const ChessBoard: React.FC<IChessBoardProps> = ({ boardSize = 8 }) => {
+export const ChessBoard: React.FC<IChessBoardProps> = ({
+  boardSize = 8,
+  isBotThinking = false,
+  disabled = false,
+}) => {
   const domain = useGameStore((state) => state.domain);
   const ui = useGameStore((state) => state.ui);
   const { executeCommand, selectPiece } = useGameActions();
@@ -73,8 +79,8 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({ boardSize = 8 }) => {
   }, [domain.occupancy, domain.boardEntities, boardSize]);
 
   const handleSquareClick = (squareInfo: ISquareInfo) => {
-    // Block any selection or move dispatch if match already concluded (RF-01, RF-05)
-    if (domain.isGameOver || domain.winnerId !== null) {
+    // Block any selection or move dispatch if match already concluded or bot is calculating (RF-01, RF-05)
+    if (domain.isGameOver || domain.winnerId !== null || isBotThinking || disabled) {
       return;
     }
 

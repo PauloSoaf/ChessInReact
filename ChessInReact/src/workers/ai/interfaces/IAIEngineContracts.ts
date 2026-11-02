@@ -1,4 +1,5 @@
 import { CoordinateKey, EntityId, PlayerId } from '../../../core/coordinates/types';
+import { IWorkerStateMetadata } from '../../../core/serialization/types';
 
 export type AIDifficultyLevel = 1 | 2 | 3 | 4 | 5;
 
@@ -54,6 +55,7 @@ export interface IAIWorkerRequest {
   readonly payload: {
     readonly stateBuffer?: ArrayBuffer;
     readonly stringTable?: readonly string[];
+    readonly metadata?: IWorkerStateMetadata;
     readonly activePlayerId: PlayerId;
     readonly variantId?: string;
     readonly difficulty?: AIDifficultyLevel;

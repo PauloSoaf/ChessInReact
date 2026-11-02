@@ -29,17 +29,25 @@ interface PendingPromiseRecord {
  * Protects against memory leaks, handles timeouts, and transfers ArrayBuffers with zero-copy.
  */
 export class EngineBridge {
-  private worker: IWorkerPort;
+  private worker!: IWorkerPort;
   private messageCounter = 0;
+  private currentGeneration = 0;
   private pendingPromises = new Map<number, PendingPromiseRecord>();
   private readonly timeoutMs: number;
   private isDisposed = false;
+  private options?: IEngineBridgeOptions;
 
   constructor(options?: IEngineBridgeOptions) {
+    this.options = options;
     this.timeoutMs = options?.timeoutMs ?? 5000;
+    this.initWorker();
+  }
 
-    if (options?.workerPort) {
-      this.worker = options.workerPort;
+  private initWorker(): void {
+    if (this.isDisposed) return;
+
+    if (this.options?.workerPort) {
+      this.worker = this.options.workerPort;
     } else if (typeof Worker !== 'undefined') {
       // Browser WebWorker initialization
       this.worker = new Worker(new URL('./engineWorker.ts', import.meta.url), {
@@ -60,12 +68,40 @@ export class EngineBridge {
     };
   }
 
+  /**
+   * Immediately aborts all active AI searches and resets worker execution (RNF-09, RNF-14).
+   * Guarantees cancellation in < 10ms by terminating worker thread directly and spawning a fresh instance.
+   */
+  public cancelPendingSearches(): void {
+    if (this.isDisposed) return;
+    this.currentGeneration++;
+
+    // 1. Reject all pending promises immediately
+    for (const [id, pending] of this.pendingPromises.entries()) {
+      clearTimeout(pending.timeoutId);
+      pending.reject(new Error('AI calculation aborted'));
+      this.pendingPromises.delete(id);
+    }
+
+    // 2. Terminate the active worker thread immediately (<10ms)
+    if (this.worker && this.worker.terminate) {
+      try {
+        this.worker.terminate();
+      } catch (err) {
+        console.warn('[EngineBridge] Worker terminate failed:', err);
+      }
+    }
+
+    // 3. Re-instantiate fresh worker (RNF-14)
+    this.initWorker();
+  }
+
   private handleWorkerMessage(data: IWorkerResponse): void {
     if (!data || typeof data.id !== 'number') return;
 
     const pending = this.pendingPromises.get(data.id);
     if (!pending) {
-      // Unknown or already timed out request ID - safely ignore
+      // Unknown, cancelled or already timed out request ID - safely ignore
       return;
     }
 
@@ -90,6 +126,15 @@ export class EngineBridge {
       clearTimeout(pending.timeoutId);
       pending.reject(new Error(`Worker failure: ${errorMsg}`));
       this.pendingPromises.delete(id);
+    }
+
+    // Resilient auto-restart (RNF-14): recover in < 500ms
+    if (!this.isDisposed) {
+      try {
+        this.initWorker();
+      } catch (restartErr) {
+        console.warn('[EngineBridge] Auto-restart worker failed:', restartErr);
+      }
     }
   }
 
@@ -189,6 +234,7 @@ export class EngineBridge {
       {
         buffer: snapshot.buffer.buffer,
         stringTable: snapshot.stringTable,
+        metadata: snapshot.metadata,
         activePlayer: state.activePlayer,
         variantId: state.variantId ?? options?.variantId,
         ...options,

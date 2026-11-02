@@ -1,4 +1,4 @@
-import { PlayerId } from '../../../core/coordinates/types';
+import { EntityId, PlayerId } from '../../../core/coordinates/types';
 import { IDomainState } from '../../../core/state/gameState';
 import { ITopology } from '../../../core/topology/types';
 import { ILegalMove, IVariantConfiguration } from '../../../engine/rules/interfaces/IRulesContracts';
@@ -90,6 +90,29 @@ export class MCTS {
     return bestChild ?? node;
   }
 
+  private getNextPlayer(state: IDomainState, playerCount?: number): PlayerId {
+    if (playerCount && playerCount > 2) {
+      const pNum = Number(state.activePlayer.replace('P', '')) || 1;
+      const nextNum = (pNum % playerCount) + 1;
+      return `P${nextNum}` as PlayerId;
+    }
+    const activePlayers: PlayerId[] = [];
+    for (const id in state.boardEntities) {
+      const e = state.boardEntities[id as EntityId];
+      if (e && e.type === 'PIECE' && !(e as IPieceEntity).isCaptured) {
+        const owner = (e as IPieceEntity).ownerId;
+        if (owner && owner !== 'NONE' && !activePlayers.includes(owner)) {
+          activePlayers.push(owner);
+        }
+      }
+    }
+    if (activePlayers.length <= 2) {
+      return state.activePlayer === 'P1' ? 'P2' : 'P1';
+    }
+    const idx = activePlayers.indexOf(state.activePlayer);
+    return idx !== -1 ? activePlayers[(idx + 1) % activePlayers.length] : 'P1';
+  }
+
   /**
    * Fast simulation/rollout of a random match up to maxPlies.
    */
@@ -98,7 +121,8 @@ export class MCTS {
     botPlayerId: PlayerId,
     topology: ITopology,
     variantConfig?: IVariantConfiguration,
-    maxPlies = 10
+    maxPlies = 10,
+    playerCount?: number
   ): number {
     let current = startState;
     let ply = 0;
@@ -119,7 +143,7 @@ export class MCTS {
         chosen.isEnPassant
       );
 
-      const nextPlayer: PlayerId = current.activePlayer === 'P1' ? 'P2' : 'P1';
+      const nextPlayer = this.getNextPlayer(current, playerCount);
       current = {
         ...simulated,
         activePlayer: nextPlayer,
@@ -135,14 +159,27 @@ export class MCTS {
     }
 
     // Heuristic payoff at terminal rollout horizon
-    const evalScore = BoardEvaluator.evaluateRelative2P(
-      current,
-      topology,
-      botPlayerId,
-      botPlayerId === 'P1' ? 'P2' : 'P1'
-    );
-    // Sigmoid compression: score in centipawns mapped to 0..1
-    return 1 / (1 + Math.exp(-evalScore / 400));
+    const configuredPlayerCount = (variantConfig as { playerCount?: number } | undefined)?.playerCount;
+    const isMulti = Boolean((playerCount && playerCount > 2) || (configuredPlayerCount && configuredPlayerCount > 2));
+    if (isMulti) {
+      const scores = BoardEvaluator.evaluate(current, topology);
+      let total = 0;
+      for (const p in scores) {
+        if (p !== 'NONE') total += Math.max(0, scores[p]);
+      }
+      const myScore = Math.max(0, scores[botPlayerId] ?? 0);
+      return total > 0 ? myScore / total : 0.5;
+    } else {
+      const opponent: PlayerId = botPlayerId === 'P1' ? 'P2' : 'P1';
+      const evalScore = BoardEvaluator.evaluateRelative2P(
+        current,
+        topology,
+        botPlayerId,
+        opponent
+      );
+      // Sigmoid compression: score in centipawns mapped to 0..1
+      return 1 / (1 + Math.exp(-evalScore / 400));
+    }
   }
 
   /**
@@ -215,7 +252,7 @@ export class MCTS {
           move.isCastling,
           move.isEnPassant
         );
-        const nextPlayer: PlayerId = node.state.activePlayer === 'P1' ? 'P2' : 'P1';
+        const nextPlayer = this.getNextPlayer(node.state, options?.playerCount);
         const nextState: IDomainState = {
           ...nextSimulated,
           activePlayer: nextPlayer,
@@ -229,7 +266,14 @@ export class MCTS {
       }
 
       // 3. Simulation
-      const reward = this.rollout(node.state, botPlayerId, topology, variantConfig);
+      const reward = this.rollout(
+        node.state,
+        botPlayerId,
+        topology,
+        variantConfig,
+        10,
+        options?.playerCount
+      );
 
       // 4. Backpropagation
       this.backpropagate(node, reward);

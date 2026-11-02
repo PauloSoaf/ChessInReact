@@ -97,8 +97,11 @@ describe('Spec 03 - End-to-End Authoritative Multiplayer Integration', () => {
     );
     expect(seqId1).toBe(1);
 
-    // Wait for server tick and delta sync
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    // Wait for server tick and delta sync (poll up to 1000ms to resist high CPU test load)
+    for (let w = 0; w < 50; w++) {
+      if (room1.state.boardEntities.get('piece-w-p-e')?.position === 'e4') break;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
 
     // Server state is updated: pawn is at e4, turn toggled to player-black
     const serverPawn = room1.state.boardEntities.get('piece-w-p-e');

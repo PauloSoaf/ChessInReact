@@ -5,7 +5,7 @@ import { IPieceEntity } from '../../../core/entities/types';
 /**
  * Deterministic 64-bit SplitMix64 PRNG generator for repeatable Zobrist keys.
  */
-class DeterministicPRNG64 {
+export class DeterministicPRNG64 {
   private state: bigint;
 
   constructor(seed = 0x853c49e6748fea9bn) {
@@ -26,40 +26,62 @@ class DeterministicPRNG64 {
  * Uses 64-bit BigInt keys and bitwise XOR operations for constant-time O(1) hash manipulation.
  */
 export class ZobristHasher {
-  private static prng = new DeterministicPRNG64();
   private static pieceKeys = new Map<string, bigint>();
   private static playerKeys = new Map<PlayerId, bigint>();
   private static castlingKeys = new Map<string, bigint>();
   private static enPassantKeys = new Map<CoordinateKey, bigint>();
 
+  /**
+   * Deterministic, order-independent 64-bit FNV-1a + SplitMix64 hash for any token.
+   * Guarantees 100% identical 64-bit keys across threads, machines, and discovery orders.
+   */
+  public static hashStringTo64(str: string): bigint {
+    let hash = 0xcbf29ce484222325n;
+    const prime = 0x100000001b3n;
+    for (let i = 0; i < str.length; i++) {
+      hash ^= BigInt(str.charCodeAt(i));
+      hash = (hash * prime) & 0xffffffffffffffffn;
+    }
+    // SplitMix64 avalanche mixing
+    let z = hash;
+    z = ((z ^ (z >> 30n)) * 0xbf58476d1ce4e5b9n) & 0xffffffffffffffffn;
+    z = ((z ^ (z >> 27n)) * 0x94d049bb133111ebn) & 0xffffffffffffffffn;
+    return (z ^ (z >> 31n)) & 0xffffffffffffffffn;
+  }
+
   static {
-    // Pre-initialize player keys
+    // Pre-initialize player keys with deterministic order-independent hashes
     const players: PlayerId[] = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8'];
     for (const player of players) {
-      this.playerKeys.set(player, this.prng.nextBigInt());
+      this.playerKeys.set(player, this.hashStringTo64(`PLAYER:${player}`));
     }
 
-    // Castling rights combinations
+    // Castling rights combinations with deterministic hashes
     const castlingTokens = ['K', 'Q', 'k', 'q', 'KQ', 'kq', 'Kq', 'kQ', 'KQk', 'KQq', 'Kkq', 'Qkq', 'KQkq'];
     for (const token of castlingTokens) {
-      this.castlingKeys.set(token, this.prng.nextBigInt());
+      this.castlingKeys.set(token, this.hashStringTo64(`CASTLE:${token}`));
     }
   }
 
-  private static getPieceKey(coord: CoordinateKey, variantId: string, ownerId: PlayerId): bigint {
+  public static clearCache(): void {
+    this.pieceKeys.clear();
+    this.enPassantKeys.clear();
+  }
+
+  public static getPieceKey(coord: CoordinateKey, variantId: string, ownerId: PlayerId): bigint {
     const key = `${coord}:${variantId.toUpperCase()}:${ownerId}`;
     let val = this.pieceKeys.get(key);
     if (val === undefined) {
-      val = this.prng.nextBigInt();
+      val = this.hashStringTo64(`PIECE:${key}`);
       this.pieceKeys.set(key, val);
     }
     return val;
   }
 
-  private static getEnPassantKey(coord: CoordinateKey): bigint {
+  public static getEnPassantKey(coord: CoordinateKey): bigint {
     let val = this.enPassantKeys.get(coord);
     if (val === undefined) {
-      val = this.prng.nextBigInt();
+      val = this.hashStringTo64(`EP:${coord}`);
       this.enPassantKeys.set(coord, val);
     }
     return val;

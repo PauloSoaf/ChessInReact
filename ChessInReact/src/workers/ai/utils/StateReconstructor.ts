@@ -1,15 +1,27 @@
 import { CoordinateKey, EntityId, PlayerId } from '../../../core/coordinates/types';
 import { IEntity, IPieceEntity, ITerrainEntity, IObstacleEntity } from '../../../core/entities/types';
 import { IDomainState } from '../../../core/state/gameState';
-import { DeserializedWorkerState } from '../../../core/serialization/types';
+import { DeserializedWorkerState, IWorkerStateMetadata } from '../../../core/serialization/types';
 
 /**
  * Reconstructs a full authoritative IDomainState from a deserialized worker buffer snapshot (ADR-002).
+ * Preserves enPassant, fiftyMoveCounter, positionHistory, capturedInventory (Crazyhouse),
+ * and game completion state with 100% domain fidelity.
  */
 export function reconstructDomainState(
   workerState: DeserializedWorkerState,
-  variantId = 'CHESS_STANDARD'
+  variantIdOrMetadata?: string | IWorkerStateMetadata
 ): IDomainState {
+  const metadata: IWorkerStateMetadata | undefined =
+    typeof variantIdOrMetadata === 'object'
+      ? variantIdOrMetadata
+      : workerState.metadata;
+
+  const resolvedVariantId =
+    typeof variantIdOrMetadata === 'string'
+      ? variantIdOrMetadata
+      : (metadata?.variantId ?? 'CHESS_STANDARD');
+
   const boardEntities: Record<EntityId, IEntity> = {};
   const occupancy: Record<CoordinateKey, EntityId> = {};
   const terrain: Record<CoordinateKey, EntityId> = {};
@@ -58,34 +70,58 @@ export function reconstructDomainState(
     }
   }
 
+  const enPassantTarget =
+    (workerState.enPassantTarget as CoordinateKey | undefined) ??
+    (metadata?.turnState?.enPassantTarget as CoordinateKey | undefined) ??
+    null;
+
+  const fiftyMoveCounter =
+    workerState.fiftyMoveCounter ??
+    metadata?.turnState?.fiftyMoveCounter ??
+    0;
+
+  const isGameOver =
+    workerState.isGameOver ??
+    metadata?.isGameOver ??
+    false;
+
+  const winnerId =
+    workerState.winnerId !== undefined
+      ? workerState.winnerId
+      : (metadata?.winnerId ?? null);
+
+  const capturedInventory: Record<PlayerId, string[]> = {
+    P1: [...(metadata?.capturedInventory?.P1 ?? [])],
+    P2: [...(metadata?.capturedInventory?.P2 ?? [])],
+    P3: [...(metadata?.capturedInventory?.P3 ?? [])],
+    P4: [...(metadata?.capturedInventory?.P4 ?? [])],
+    P5: [...(metadata?.capturedInventory?.P5 ?? [])],
+    P6: [...(metadata?.capturedInventory?.P6 ?? [])],
+    P7: [...(metadata?.capturedInventory?.P7 ?? [])],
+    P8: [...(metadata?.capturedInventory?.P8 ?? [])],
+    NONE: [],
+  };
+
   return {
-    matchId: 'ai-worker-sim-match',
-    variantId,
-    isGameOver: false,
-    winnerId: null,
+    matchId: metadata?.matchId ?? 'ai-worker-sim-match',
+    variantId: resolvedVariantId,
+    isGameOver,
+    winnerId,
     activePlayer: workerState.activePlayer,
     turnNumber: workerState.turnNumber,
-    revision: 0,
+    revision: metadata?.revision ?? 0,
     boardEntities,
     occupancy,
     terrain,
-    capturedInventory: {
-      P1: [],
-      P2: [],
-      P3: [],
-      P4: [],
-      P5: [],
-      P6: [],
-      P7: [],
-      P8: [],
-      NONE: [],
-    },
+    capturedInventory,
     turnState: {
-      phase: 'WAITING',
-      lastActionTimestamp: Date.now(),
-      enPassantTarget: null,
-      fiftyMoveCounter: 0,
-      positionHistory: [],
+      phase: metadata?.turnState?.phase ?? 'WAITING',
+      lastActionTimestamp: metadata?.turnState?.lastActionTimestamp ?? Date.now(),
+      enPassantTarget,
+      fiftyMoveCounter,
+      positionHistory: metadata?.turnState?.positionHistory
+        ? [...metadata.turnState.positionHistory]
+        : [],
     },
   };
 }

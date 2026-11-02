@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import ChessBoard from './components/ChessBoard/ChessBoard';
 import { Input } from 'antd';
 import { useActivePlayer, useGameActions, useGameStore, useTurnNumber } from './bindings/react/useGameStore';
+import { useBotMatch } from './bindings/react/useBotMatch';
+import { AIDifficultyLevel } from './workers/ai/interfaces/IAIEngineContracts';
 import { bootstrapGame } from './core/bootstrap/GameInitializer';
 import { gameStore } from './core/state/gameStore';
 
@@ -16,6 +18,20 @@ const App: React.FC = () => {
 
   const { undo, redo } = useGameActions();
 
+  const {
+    isBotEnabled,
+    difficulty,
+    isThinking,
+    lastEval,
+    toggleBot,
+    setDifficulty,
+    cancelSearch,
+    updateTopologySize,
+  } = useBotMatch({
+    botPlayer: 'P2',
+    difficulty: 3,
+  });
+
   // Initialize Core match on first mount (AUDIT-04 Single Source of Truth)
   useEffect(() => {
     if (entityCount === 0) {
@@ -24,7 +40,19 @@ const App: React.FC = () => {
   }, [entityCount]);
 
   const handleReset = () => {
+    cancelSearch();
     bootstrapGame({ targetStore: gameStore });
+  };
+
+  const handleUndo = () => {
+    cancelSearch();
+    undo();
+  };
+
+  const handleBoardSizeChange = (newSize: number) => {
+    const clamped = Math.max(4, Math.min(16, newSize));
+    setBoardSize(clamped);
+    updateTopologySize(clamped);
   };
 
   return (
@@ -81,6 +109,87 @@ const App: React.FC = () => {
         </div>
       </header>
 
+      {/* Minimal Bot Match Controls (Spec 05 functional integration, no Spec 06 visual overhaul) */}
+      <div
+        id="bot-controls"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '1rem',
+          backgroundColor: '#27272a',
+          padding: '0.625rem 1.25rem',
+          borderRadius: '8px',
+          border: '1px solid #3f3f46',
+          fontSize: '0.875rem',
+        }}
+      >
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+          <input
+            id="bot-toggle-checkbox"
+            type="checkbox"
+            checked={isBotEnabled}
+            onChange={(e) => toggleBot(e.target.checked)}
+            style={{ cursor: 'pointer', accentColor: '#38bdf8' }}
+          />
+          <span>AI Opponent (P2 - Black)</span>
+        </label>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <label htmlFor="bot-difficulty-select" style={{ color: '#a1a1aa' }}>
+            Level:
+          </label>
+          <select
+            id="bot-difficulty-select"
+            value={difficulty}
+            onChange={(e) => setDifficulty(Number(e.target.value) as AIDifficultyLevel)}
+            style={{
+              backgroundColor: '#18181b',
+              color: '#f4f4f5',
+              border: '1px solid #3f3f46',
+              borderRadius: '4px',
+              padding: '0.25rem 0.5rem',
+              fontSize: '0.875rem',
+            }}
+          >
+            <option value={1}>1 - Novice (D1)</option>
+            <option value={2}>2 - Casual (D2)</option>
+            <option value={3}>3 - Intermediate (D3)</option>
+            <option value={4}>4 - Advanced (D4)</option>
+            <option value={5}>5 - Master (D5)</option>
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span
+            id="bot-status-badge"
+            style={{
+              padding: '0.2rem 0.6rem',
+              borderRadius: '4px',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              backgroundColor: isThinking ? '#f59e0b' : '#3f3f46',
+              color: isThinking ? '#000000' : '#d4d4d8',
+            }}
+          >
+            {isThinking ? '🤖 Calculating...' : 'Idle'}
+          </span>
+          {lastEval !== null && (
+            <span
+              id="bot-eval-badge"
+              style={{
+                fontSize: '0.75rem',
+                color: '#a1a1aa',
+                fontFamily: 'monospace',
+              }}
+            >
+              Eval: {lastEval > 0 ? `+${(lastEval / 100).toFixed(2)}` : (lastEval / 100).toFixed(2)}
+            </span>
+          )}
+        </div>
+      </div>
+
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
         <label htmlFor="board-size-input" style={{ fontSize: '0.875rem', color: '#a1a1aa' }}>
           Board Dimension:
@@ -92,8 +201,7 @@ const App: React.FC = () => {
           max={16}
           value={boardSize}
           onChange={(event) => {
-            const newSize = Math.max(4, Math.min(16, Number(event.target.value) || 8));
-            setBoardSize(newSize);
+            handleBoardSizeChange(Number(event.target.value) || 8);
           }}
           style={{
             width: '4.5rem',
@@ -116,13 +224,13 @@ const App: React.FC = () => {
           border: '1px solid #27272a',
         }}
       >
-        <ChessBoard boardSize={boardSize} />
+        <ChessBoard boardSize={boardSize} isBotThinking={isThinking} />
       </main>
 
       <footer style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
         <button
           type="button"
-          onClick={() => undo()}
+          onClick={handleUndo}
           style={{
             padding: '0.5rem 1.25rem',
             fontSize: '0.9rem',

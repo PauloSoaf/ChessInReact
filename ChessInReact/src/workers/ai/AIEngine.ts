@@ -1,6 +1,7 @@
-import { PlayerId } from '../../core/coordinates/types';
+import { CoordinateKey, PlayerId } from '../../core/coordinates/types';
 import { IDomainState } from '../../core/state/gameState';
 import { ITopology } from '../../core/topology/types';
+import { IPieceEntity } from '../../core/entities/types';
 import { IVariantConfiguration } from '../../engine/rules/interfaces/IRulesContracts';
 import { RulesEngine } from '../../engine/rules/RulesEngine';
 import { GlobalEventBus } from '../../core/events/EventBus';
@@ -15,6 +16,7 @@ import {
 import { NegamaxSearch } from './algorithms/Negamax';
 import { ParanoidSearch } from './algorithms/MaxN';
 import { MCTS } from './algorithms/MCTS';
+import { BoardEvaluator } from './heuristics/BoardEvaluator';
 
 /**
  * High-level AI Engine coordinator (Spec 05 § 1, § 16 RF-01 to RF-15).
@@ -135,7 +137,8 @@ export class AIEngine {
     statesHistory: readonly IDomainState[],
     movesPlayed: readonly { from: string; to: string; player: string }[],
     topology: ITopology,
-    matchId = 'match-analysis-001'
+    matchId = 'match-analysis-001',
+    variantConfig?: IVariantConfiguration
   ): IPostGameAnalysisReport {
     const analysisItems: IMoveAnalysisItem[] = [];
     const playerCplLoss: Record<string, number[]> = { P1: [], P2: [] };
@@ -145,35 +148,62 @@ export class AIEngine {
       if (!state) continue;
 
       const played = movesPlayed[i];
-      const player = played.player as PlayerId;
+      const player = (played.player as PlayerId) || state.activePlayer;
+      const opponent: PlayerId = player === 'P1' ? 'P2' : 'P1';
 
-      // Compute best move in this position
-      const best = this.negamax.searchBestMove(state, topology, { depthLimit: 2, timeBudgetMs: 200 });
+      // 1. Calculate best move and best score from player's perspective
+      const best = this.negamax.searchBestMove(
+        state,
+        topology,
+        { depthLimit: 2, timeBudgetMs: 250 },
+        variantConfig
+      );
       const bestScore = best.evaluationScore;
 
-      // Classify move based on whether it matched best move or centipawn loss
-      let classification: MoveClassification = 'GOOD';
-      let scoreDelta = 0;
+      // 2. Derive state after the move was played
+      let afterState: IDomainState | undefined = statesHistory[i + 1];
+      if (!afterState) {
+        const pieceId = state.occupancy[played.from as CoordinateKey];
+        const piece = pieceId ? (state.boardEntities[pieceId] as IPieceEntity | undefined) : undefined;
+        if (piece) {
+          try {
+            afterState = RulesEngine.simulateMove(state, piece, played.to as CoordinateKey);
+          } catch {
+            afterState = state;
+          }
+        } else {
+          afterState = state;
+        }
+      }
 
-      const isExactBest =
+      // 3. Evaluate position after move from player's perspective
+      const playedScore = BoardEvaluator.evaluateRelative2P(afterState, topology, player, opponent);
+
+      // 4. Exact difference (centipawn loss)
+      const isExactBest = Boolean(
         best.bestMove &&
         best.bestMove.fromCoord === played.from &&
-        best.bestMove.toCoord === played.to;
+        best.bestMove.toCoord === played.to
+      );
 
-      if (isExactBest) {
-        if (bestScore > 500) {
-          classification = 'BRILLIANT';
-        } else {
-          classification = 'BEST';
-        }
+      let scoreDelta = isExactBest ? 0 : Math.max(0, bestScore - playedScore);
+
+      let classification: MoveClassification;
+      if (isExactBest && bestScore >= 400) {
+        classification = 'BRILLIANT';
+      } else if (isExactBest || scoreDelta <= 10) {
+        classification = 'BEST';
         scoreDelta = 0;
+      } else if (scoreDelta <= 30) {
+        classification = 'EXCELLENT';
+      } else if (scoreDelta <= 65) {
+        classification = 'GOOD';
+      } else if (scoreDelta <= 150) {
+        classification = 'INACCURACY';
+      } else if (scoreDelta <= 300) {
+        classification = 'MISTAKE';
       } else {
-        scoreDelta = Math.max(10, Math.floor(Math.random() * 80)); // Simulated score loss delta
-        if (scoreDelta <= 20) classification = 'EXCELLENT';
-        else if (scoreDelta <= 50) classification = 'GOOD';
-        else if (scoreDelta <= 100) classification = 'INACCURACY';
-        else if (scoreDelta <= 250) classification = 'MISTAKE';
-        else classification = 'BLUNDER';
+        classification = 'BLUNDER';
       }
 
       if (!playerCplLoss[player]) {
@@ -197,7 +227,9 @@ export class AIEngine {
         playerAccuracies[p] = 100.0;
       } else {
         const avgLoss = losses.reduce((a, b) => a + b, 0) / losses.length;
-        playerAccuracies[p] = Math.max(0, Math.min(100, Math.round((100 - avgLoss * 0.4) * 10) / 10));
+        // Standard non-linear accuracy formula
+        const acc = 100 * Math.exp(-0.004 * avgLoss);
+        playerAccuracies[p] = Math.max(0, Math.min(100, Math.round(acc * 10) / 10));
       }
     }
 

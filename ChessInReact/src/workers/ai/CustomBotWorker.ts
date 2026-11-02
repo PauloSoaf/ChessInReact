@@ -42,9 +42,13 @@ export function processAIWorkerRequest(req: IAIWorkerRequest): IAIWorkerResponse
 
         const workerState = deserializeWorkerState(
           new Int32Array(payload.stateBuffer),
-          payload.stringTable
+          payload.stringTable,
+          payload.metadata
         );
-        const state = reconstructDomainState(workerState, payload.variantId ?? 'CHESS_STANDARD');
+        const state = reconstructDomainState(
+          workerState,
+          payload.metadata ?? payload.variantId ?? 'CHESS_STANDARD'
+        );
 
         // Derive topology
         const topType: TopologyType =

@@ -1,4 +1,5 @@
 import { deserializeWorkerState } from '../serialization/FlatArraySerializer';
+import { IWorkerStateMetadata } from '../serialization/types';
 import { IWorkerPort, IWorkerRequest, IWorkerResponse } from './types';
 import { CoordinateKey } from '../coordinates';
 import { createTopology, TopologyType } from '../topology';
@@ -158,13 +159,14 @@ export function processWorkerRequest(req: IWorkerRequest): IWorkerResponse {
       case 'CALCULATE_BEST_MOVE': {
         const buffer = req.payload?.buffer;
         const stringTable = req.payload?.stringTable;
+        const metadata = req.payload?.metadata as IWorkerStateMetadata | undefined;
         if (!buffer || !stringTable) {
           return { id: req.id, type: 'ERROR', error: 'Missing buffer or stringTable payload' };
         }
-        const workerState = deserializeWorkerState(new Int32Array(buffer), stringTable);
+        const workerState = deserializeWorkerState(new Int32Array(buffer), stringTable, metadata);
         const state = reconstructDomainState(
           workerState,
-          (req.payload?.variantId as string | undefined) ?? 'CHESS_STANDARD'
+          metadata ?? (req.payload?.variantId as string | undefined) ?? 'CHESS_STANDARD'
         );
         const topType = (req.payload?.variantId as string | undefined)?.includes('HEX')
           ? 'HEXAGONAL'

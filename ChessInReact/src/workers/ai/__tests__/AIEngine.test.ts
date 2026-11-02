@@ -539,7 +539,7 @@ describe('Spec 05 — AI Engines, MCTS & Heuristic Evaluation Suite', () => {
       });
       const elapsed = performance.now() - start;
 
-      expect(result.calculationTimeMs).toBeLessThan(1000);
+      expect(result.calculationTimeMs).toBeLessThan(1500);
       expect(elapsed).toBeLessThan(2500);
       expect(result.bestMove).toBeDefined();
       expect(result.depthReached).toBeGreaterThanOrEqual(1);

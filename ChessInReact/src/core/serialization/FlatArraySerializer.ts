@@ -1,15 +1,18 @@
 import { PlayerId } from '../coordinates/types';
 import { IDomainState } from '../state/gameState';
 import {
-  BINARY_SCHEMA_VERSION,
+  BINARY_SCHEMA_VERSION_V1,
+  BINARY_SCHEMA_VERSION_V2,
   CoordinateKind,
   DeserializedWorkerState,
   ENTITY_STRIDE_INTS,
   EntityFieldOffset,
   EntityFlagsBinary,
   EntityTypeBinary,
-  HEADER_SIZE_INTS,
+  HEADER_SIZE_INTS_V1,
+  HEADER_SIZE_INTS_V2,
   HeaderOffset,
+  IWorkerStateMetadata,
   PlayerBinary,
   VariantBinary,
   WorkerSnapshot,
@@ -149,22 +152,44 @@ function parseAndValidateCoordinates(coord: string, entityId: string): ParsedCoo
 
 /**
  * Serializes domain state into a contiguous Int32Array buffer with an accompanying
- * stringTable dictionary sidecar. This avoids 32-bit hash truncation and guarantees
- * 100% collision-free entity identity round-trip (AUDIT-03 & ADR-002).
+ * stringTable dictionary sidecar and metadata. This avoids 32-bit hash truncation, guarantees
+ * 100% collision-free entity identity round-trip, and preserves full variant rights (AUDIT-03 & ADR-002).
  */
-export function serializeStateForWorker(domain: IDomainState): WorkerSnapshot {
+export function serializeStateForWorker(
+  domain: IDomainState,
+  schemaVersion: number = BINARY_SCHEMA_VERSION_V1
+): WorkerSnapshot {
+  const isV2 = schemaVersion === BINARY_SCHEMA_VERSION_V2;
+  const headerSize = isV2 ? HEADER_SIZE_INTS_V2 : HEADER_SIZE_INTS_V1;
   const entities = Object.values(domain.boardEntities);
-  const totalLength = HEADER_SIZE_INTS + entities.length * ENTITY_STRIDE_INTS;
+  const totalLength = headerSize + entities.length * ENTITY_STRIDE_INTS;
   const buffer = new Int32Array(totalLength);
   const stringTable: string[] = [];
 
-  // Write header
-  buffer[HeaderOffset.SCHEMA_VERSION] = BINARY_SCHEMA_VERSION;
+  // Write base header
+  buffer[HeaderOffset.SCHEMA_VERSION] = schemaVersion;
   buffer[HeaderOffset.ENTITY_COUNT] = entities.length;
   buffer[HeaderOffset.ACTIVE_PLAYER] = playerToBinary(domain.activePlayer);
   buffer[HeaderOffset.TURN_NUMBER] = domain.turnNumber;
 
-  let offset = HEADER_SIZE_INTS;
+  if (isV2) {
+    buffer[HeaderOffset.FIFTY_MOVE_COUNTER] = domain.turnState?.fiftyMoveCounter ?? 0;
+
+    const isGameOverBit = domain.isGameOver ? 1 : 0;
+    const winnerBinary = domain.winnerId ? playerToBinary(domain.winnerId) : PlayerBinary.NONE;
+    buffer[HeaderOffset.GAME_OVER_AND_WINNER] = (isGameOverBit << 4) | (winnerBinary & 0x0f);
+
+    if (domain.turnState?.enPassantTarget) {
+      const epParts = domain.turnState.enPassantTarget.split(',');
+      buffer[HeaderOffset.EN_PASSANT_X] = Number(epParts[0]) || 0;
+      buffer[HeaderOffset.EN_PASSANT_Y] = Number(epParts[1]) || 0;
+    } else {
+      buffer[HeaderOffset.EN_PASSANT_X] = -999999;
+      buffer[HeaderOffset.EN_PASSANT_Y] = -999999;
+    }
+  }
+
+  let offset = headerSize;
 
   for (let i = 0; i < entities.length; i++) {
     const entity = entities[i];
@@ -219,30 +244,70 @@ export function serializeStateForWorker(domain: IDomainState): WorkerSnapshot {
     offset += ENTITY_STRIDE_INTS;
   }
 
-  return { buffer, stringTable };
+  const metadata: IWorkerStateMetadata = {
+    matchId: domain.matchId,
+    variantId: domain.variantId,
+    isGameOver: domain.isGameOver,
+    winnerId: domain.winnerId,
+    revision: domain.revision,
+    capturedInventory: domain.capturedInventory
+      ? {
+          P1: [...(domain.capturedInventory.P1 ?? [])],
+          P2: [...(domain.capturedInventory.P2 ?? [])],
+          P3: [...(domain.capturedInventory.P3 ?? [])],
+          P4: [...(domain.capturedInventory.P4 ?? [])],
+          P5: [...(domain.capturedInventory.P5 ?? [])],
+          P6: [...(domain.capturedInventory.P6 ?? [])],
+          P7: [...(domain.capturedInventory.P7 ?? [])],
+          P8: [...(domain.capturedInventory.P8 ?? [])],
+          NONE: [],
+        }
+      : undefined,
+    turnState: domain.turnState
+      ? {
+          phase: domain.turnState.phase,
+          lastActionTimestamp: domain.turnState.lastActionTimestamp,
+          enPassantTarget: domain.turnState.enPassantTarget,
+          fiftyMoveCounter: domain.turnState.fiftyMoveCounter,
+          positionHistory: domain.turnState.positionHistory ? [...domain.turnState.positionHistory] : [],
+        }
+      : undefined,
+  };
+
+  return { buffer, stringTable, metadata };
 }
 
 /**
  * Deserializes an Int32Array and stringTable sidecar into typed structure
- * for worker consumption.
+ * for worker consumption. Supports both V1 (legacy 4-int header) and V2 (8-int header).
  * stringTable is mandatory for lossless identity restoration (AUDIT-03).
  * Validates full binary protocol schema, bijunctive stringTable references,
  * and coordinate geometries (PATCH-06, PATCH-07).
  */
 export function deserializeWorkerState(
   buffer: Int32Array,
-  stringTable: readonly string[]
+  stringTable: readonly string[],
+  metadata?: IWorkerStateMetadata
 ): DeserializedWorkerState {
-  if (buffer.length < HEADER_SIZE_INTS) {
+  if (buffer.length < HEADER_SIZE_INTS_V1) {
     throw new Error(
-      `Malformed buffer: length ${buffer.length} is less than header size ${HEADER_SIZE_INTS}`
+      `Malformed buffer: length ${buffer.length} is less than minimum header size ${HEADER_SIZE_INTS_V1}`
     );
   }
 
   const schemaVersion = buffer[HeaderOffset.SCHEMA_VERSION];
-  if (schemaVersion !== BINARY_SCHEMA_VERSION) {
+  if (schemaVersion !== BINARY_SCHEMA_VERSION_V1 && schemaVersion !== BINARY_SCHEMA_VERSION_V2) {
     throw new Error(
-      `Schema version mismatch: buffer has version ${schemaVersion}, expected ${BINARY_SCHEMA_VERSION}`
+      `Schema version mismatch: buffer has version ${schemaVersion}, expected ${BINARY_SCHEMA_VERSION_V1} or ${BINARY_SCHEMA_VERSION_V2}`
+    );
+  }
+
+  const isV2 = schemaVersion === BINARY_SCHEMA_VERSION_V2;
+  const headerSize = isV2 ? HEADER_SIZE_INTS_V2 : HEADER_SIZE_INTS_V1;
+
+  if (buffer.length < headerSize) {
+    throw new Error(
+      `Malformed buffer: length ${buffer.length} is less than header size ${headerSize}`
     );
   }
 
@@ -250,7 +315,7 @@ export function deserializeWorkerState(
   if (entityCount < 0) {
     throw new Error(`Malformed buffer: negative entityCount ${entityCount}`);
   }
-  const expectedLength = HEADER_SIZE_INTS + entityCount * ENTITY_STRIDE_INTS;
+  const expectedLength = headerSize + entityCount * ENTITY_STRIDE_INTS;
   if (buffer.length !== expectedLength) {
     throw new Error(
       `Buffer corruption: length is ${buffer.length}, expected ${expectedLength} for ${entityCount} entities`
@@ -288,9 +353,27 @@ export function deserializeWorkerState(
     throw new Error(`Buffer corruption: invalid turnNumber ${turnNumber} in header. Must be integer >= 1.`);
   }
 
+  let fiftyMoveCounter = metadata?.turnState?.fiftyMoveCounter ?? 0;
+  let isGameOver = metadata?.isGameOver ?? false;
+  let winnerId: PlayerId | null = metadata?.winnerId ?? null;
+  let enPassantTarget: string | null = metadata?.turnState?.enPassantTarget ?? null;
+
+  if (isV2) {
+    fiftyMoveCounter = buffer[HeaderOffset.FIFTY_MOVE_COUNTER];
+    const packedGO = buffer[HeaderOffset.GAME_OVER_AND_WINNER];
+    isGameOver = ((packedGO >> 4) & 1) === 1;
+    const winnerCode = packedGO & 0x0f;
+    winnerId = winnerCode !== PlayerBinary.NONE ? binaryToPlayer(winnerCode, true) : null;
+    const epX = buffer[HeaderOffset.EN_PASSANT_X];
+    const epY = buffer[HeaderOffset.EN_PASSANT_Y];
+    if (epX !== -999999 && epY !== -999999) {
+      enPassantTarget = `${epX},${epY}`;
+    }
+  }
+
   const seenTableIndices = new Set<number>();
   const entities: DeserializedWorkerState['entities'][number][] = [];
-  let offset = HEADER_SIZE_INTS;
+  let offset = headerSize;
 
   for (let i = 0; i < entityCount; i++) {
     const packed = buffer[offset + EntityFieldOffset.TYPE_OWNER_FLAGS_VARIANT];
@@ -420,6 +503,11 @@ export function deserializeWorkerState(
     entityCount,
     activePlayer,
     turnNumber,
+    fiftyMoveCounter,
+    isGameOver,
+    winnerId,
+    enPassantTarget,
+    metadata,
     entities,
   };
 }

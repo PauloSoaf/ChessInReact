@@ -6,31 +6,59 @@ import { IDomainState } from '../state/gameState';
  * 1. DomainSnapshot: In-memory structured representation of the full game state.
  * 2. PersistenceSnapshot: Lossless JSON string representing the full match history and state.
  * 3. WorkerSnapshot: Compact, contiguous Int32Array buffer with an immutable stringTable sidecar
- *    for zero-copy Worker transfer and 100% collision-free identity restoration.
+ *    and auxiliary metadata for zero-copy Worker transfer and 100% lossless state restoration.
  */
 export type DomainSnapshot = IDomainState;
 export type PersistenceSnapshot = string;
 
+export interface IWorkerStateMetadata {
+  readonly matchId?: string;
+  readonly variantId?: string;
+  readonly isGameOver?: boolean;
+  readonly winnerId?: PlayerId | null;
+  readonly revision?: number;
+  readonly capturedInventory?: Record<PlayerId, readonly string[]>;
+  readonly turnState?: {
+    readonly phase?: 'WAITING' | 'COMMIT' | 'RESOLUTION';
+    readonly lastActionTimestamp?: number;
+    readonly enPassantTarget?: string | null;
+    readonly fiftyMoveCounter?: number;
+    readonly positionHistory?: readonly string[];
+  };
+}
+
 export interface WorkerSnapshot {
   readonly buffer: Int32Array;
   readonly stringTable: readonly string[];
+  readonly metadata?: IWorkerStateMetadata;
 }
 
 /**
  * Binary protocol layout constants for worker flat array serialization.
  */
-export const BINARY_SCHEMA_VERSION = 1;
+export const BINARY_SCHEMA_VERSION_V1 = 1;
+export const BINARY_SCHEMA_VERSION_V2 = 2;
+export const BINARY_SCHEMA_VERSION = BINARY_SCHEMA_VERSION_V1;
 
 /**
- * Header layout in Int32Array: 4 integers (16 bytes).
+ * Header layout in Int32Array:
+ * V1 Header: 4 integers (16 bytes).
+ * V2 Header: 8 integers (32 bytes) incorporating enPassant, fiftyMoveCounter, and gameOver.
  */
-export const HEADER_SIZE_INTS = 4;
+export const HEADER_SIZE_INTS_V1 = 4;
+export const HEADER_SIZE_INTS_V2 = 8;
+export const HEADER_SIZE_INTS = HEADER_SIZE_INTS_V1;
 
 export enum HeaderOffset {
   SCHEMA_VERSION = 0,
   ENTITY_COUNT = 1,
   ACTIVE_PLAYER = 2,
   TURN_NUMBER = 3,
+  // Extended V2 Header fields:
+  FIFTY_MOVE_COUNTER = 4,
+  GAME_OVER_AND_WINNER = 5, // Packed: [isGameOver: 1 bit | winnerPlayerId: 4 bits]
+  EN_PASSANT_X = 6,         // En passant target coordinate X (or -999999 if null)
+  EN_PASSANT_Y = 7,         // En passant target coordinate Y (or -999999 if null)
 }
 
 /**
@@ -96,6 +124,11 @@ export interface DeserializedWorkerState {
   readonly entityCount: number;
   readonly activePlayer: PlayerId;
   readonly turnNumber: number;
+  readonly fiftyMoveCounter?: number;
+  readonly isGameOver?: boolean;
+  readonly winnerId?: PlayerId | null;
+  readonly enPassantTarget?: string | null;
+  readonly metadata?: IWorkerStateMetadata;
   readonly entities: readonly {
     readonly id: string;
     readonly type: 'PIECE' | 'TERRAIN' | 'OBSTACLE';
