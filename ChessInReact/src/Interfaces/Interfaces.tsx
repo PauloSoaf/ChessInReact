@@ -12,6 +12,8 @@ export interface IBoardSquare {
   isCaptureDestination?: boolean;
   rankLabel?: string;
   fileLabel?: string;
+  tabIndex?: number;
+  onFocusSquare?: (col: number, row: number) => void;
 }
 
 export interface IChessPiece {

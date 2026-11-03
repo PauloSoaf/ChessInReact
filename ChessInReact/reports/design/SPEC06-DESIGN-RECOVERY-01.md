@@ -99,17 +99,27 @@ A cena tridimensional foi projetada para demonstrar creative development com má
 
 ### 5. Auditoria de Contratos e Classificação dos Requisitos
 
-| Requisito | Descrição | Status Auditado (Commit 17279bb) | Evidência & Diagnóstico Técnico |
+#### 5.1 Critérios Formais da Especificação (Spec 06 — Seções 1 a 12)
+| Critério Formal da Spec 06 | Escopo Original | Status Auditado (Commit 17279bb) | Diagnóstico Técnico |
 | :--- | :--- | :--- | :--- |
-| **RF-01** | Game Hub como tela de entrada com composição editorial e acesso a novos jogos e partidas ativas. | **VERIFIED** | `GameHub.tsx` apresenta Hero assimétrico, retomada viva de turno e seleção de modos integrada. Coberto em `Spec06ThemeAndHUD.test.tsx`. |
-| **RF-02** | Navegação persistente por Hash (`#game` e `#hub`) sincronizada com preservação total de estado. | **VERIFIED** | Navegação bidirecional testada com preservação do tabuleiro, lances e worker sem reinicialização. |
-| **RF-03** | Showcase 3D com peça procedural, materiais físicos, iluminação e fallback. | **PARTIAL** | Renderização 3D e fallback vetorial operacionais; todavia, a auditoria identificou `pointerEvents: 'none'` no Canvas e ausência da declaração explícita `frameloop="demand"`, impedindo interação plena. Corrigido formalmente no patch SPEC06-DESIGN-RECOVERY-02. |
-| **RF-04** | HUD de Partida expandido com tabuleiro dominante, avaliação por centipawns pareada e cartões de jogadores sóbrios. | **VERIFIED** | Layout ampliado para 1080px no desktop com tabuleiro ocupando o centro visual (`min(82vw, 560px)`). |
-| **RF-05** | Modal de personalização com miniaturas vivas de tabuleiro e peças, acessível via teclado. | **PARTIAL** | Modal funcional com Escape e foco inicial, porém com focus trap incompleto (sem ciclo de Tab/Shift+Tab e sem bloqueio de rolagem do fundo). Corrigido no patch SPEC06-DESIGN-RECOVERY-02. |
-| **RF-06** | Favicon e identidade visual próprios, substituindo o `/vite.svg`. | **VERIFIED** | `public/favicon.svg` criado, `public/vite.svg` removido e `index.html` atualizado com metadados editoriais. |
-| **RNF-01** | Acessibilidade WCAG 2.2 AA no tabuleiro e controles. | **PARTIAL** | `BoardSquare.tsx` possuía `outline: 'none'` anulando o anel de foco, e 4 combinações de cores em Midnight e Ivory apresentavam contraste entre 3,02:1 e 4,38:1 (abaixo do limiar normativo de 4,5:1). Corrigido no patch SPEC06-DESIGN-RECOVERY-02. |
-| **RNF-02** | Zero dependências de Next.js no Vite (ADR-004). | **VERIFIED** | Primitives próprios implementados em `src/ui/components/primitives/`. Nenhuma dependência externa adicionada. |
-| **RNF-03** | Invariantes de qualidade (tsc, lint, build, vitest). | **VERIFIED** | `tsc --noEmit`: 0 erros; `npm run lint`: 0 erros; `npm run build`: sucesso; Vitest: 79 arquivos aprovados. |
+| **Critério 12.1: Seamless DOM Integration** | Overlays HTML/DOM sobre WebGL com barreira de ponteiro (Z-Index Sandwich) e sem vazamento de cliques. | **PARTIAL** | O DOM Overlay do Hub e TopNavBar foi implementado, porém o Canvas continha `pointerEvents: 'none'` global bloqueando a cena 3D. Corrigido em SPEC06-DESIGN-RECOVERY-02. |
+| **Critério 12.2: Smooth Drag and Drop 3D** | Arrastar peças 3D via plano matemático de interseção (Y=0) com conversão topológica. | **DEFERRED (SPEC 07)** | O escopo das Sprints 01 e 02 focou no redesign editorial 2D e Showcase de peça no Hub. O drag-and-drop de peças 3D completas no tabuleiro é escopo da Spec 07. |
+| **Critério 12.3: Multiplayer Observer Camera** | Câmera polar orbital adaptativa com ancoragem de perspectiva baseada no PlayerId atribuído pelo Colyseus. | **DEFERRED (SPEC 07/03)** | Câmera tridimensional de partida aguarda a integração da arena WebGL da Spec 07 com o servidor Colyseus da Spec 03. |
+| **Critério 12.4: Theme Toggling Visual Response** | Transição dinâmica de ambiente e materiais no WebGL e DOM entre os temas claro e escuro. | **VERIFIED** | Alternância imediata entre Midnight, Ivory e Synthwave com sincronização de iluminação de estúdio e materiais PBR. |
+| **Seção 4.2: 3D Raycasting Otimizado (BVH)** | Aceleração espacial three-mesh-bvh para modelos densos de peças fadas. | **DEFERRED (SPEC 07)** | Aplica-se à renderização do tabuleiro tridimensional da Spec 07, não ao showcase procedural isolado. |
+
+#### 5.2 Funcionalidades Efetivamente Entregues nas Sprints 01 e 02 (Hub & Design System)
+| Entregável da Sprint | Descrição | Status Auditado (Commit 17279bb) | Diagnóstico Técnico |
+| :--- | :--- | :--- | :--- |
+| **Game Hub Editorial** | Tela de entrada com Hero assimétrico, metadados de worker, seleção de modos e retomada viva de turno. | **VERIFIED** | Composição editorial responsiva com suporte a worker e partida ativa. |
+| **Navegação por Hash** | Navegação persistente entre `#game` e `#hub` com conservação do estado da partida. | **VERIFIED** | Estado do Core e partida contra bot preservados na troca de visão. |
+| **Showcase 3D de Peça** | Peça procedural do Cavalo Staunton no Hub com acabamentos PBR e fallback vetorial 2D. | **PARTIAL** | Renderização operacional, porém com bloqueio de ponteiro e ausência de `frameloop="demand"` explícito. Corrigido em RECOVERY-02. |
+| **HUD de Partida Expandido** | Tabuleiro dominante, alinhamento lateral da barra de avaliação e cartões sóbrios. | **VERIFIED** | Tabuleiro ocupa posição central e proporção hierárquica adequada. |
+| **Modal de Personalização** | Diálogo acessível com miniaturas vivas de temas e peças. | **PARTIAL** | Modal funcional com Escape, porém com focus trap incompleto. Corrigido em RECOVERY-02. |
+| **Favicon & Identidade Visual** | Favicon Staunton autoral em SVG e substituição de metadados do Vite. | **VERIFIED** | `public/favicon.svg` implementado e ativo no `index.html`. |
+| **RNF-01: Acessibilidade WCAG 2.2 AA** | Contraste de cores $\ge 4.5:1$ e foco visível no teclado. | **PARTIAL** | Foco removido com `outline: 'none'` e 4 pares de cores com contraste insuficiente no commit auditado. Corrigido em RECOVERY-02. |
+| **RNF-02: Zero Next.js (ADR-004)** | Arquitetura pura React 18 + Vite sem dependências do Next.js. | **VERIFIED** | Componentes próprios em `src/ui/components/primitives/`. |
+| **RNF-03: Invariantes de Qualidade** | Quality gates automatizados (tsc, lint, build, vitest). | **VERIFIED** | Gates locais aprovados sem avisos nem falhas. |
 
 ---
 

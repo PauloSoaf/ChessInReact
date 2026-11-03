@@ -34,6 +34,27 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
   const ui = useGameStore((state) => state.ui);
   const { executeCommand, selectPiece } = useGameActions();
 
+  // WAI-ARIA Roving Tabindex for 8x8 Chessboard Grid: exactly 1 active tab stop
+  const [focusedSquare, setFocusedSquare] = React.useState<{ col: number; row: number }>({
+    col: isFlipped ? 3 : 4,
+    row: isFlipped ? 1 : 6, // e2 on standard board
+  });
+
+  // Keep roving active square in sync with selected piece
+  React.useEffect(() => {
+    if (!ui.selectedPieceId) return;
+    const entity = domain.boardEntities[ui.selectedPieceId] as IPieceEntity | undefined;
+    if (!entity?.position) return;
+    const parts = entity.position.split(',');
+    if (parts.length === 2) {
+      const gx = parseInt(parts[0], 10);
+      const gy = parseInt(parts[1], 10);
+      const col = isFlipped ? boardSize - 1 - gx : gx;
+      const row = isFlipped ? gy : boardSize - 1 - gy;
+      setFocusedSquare({ col, row });
+    }
+  }, [ui.selectedPieceId, domain.boardEntities, isFlipped, boardSize]);
+
   const topology = useMemo(
     () => new SquareTopology({ width: boardSize, height: boardSize }),
     [boardSize]
@@ -240,6 +261,9 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               ? String.fromCharCode(97 + gameX)
               : undefined;
 
+          const isRovingActive =
+            focusedSquare.col === columnIndex && focusedSquare.row === rowIndex;
+
           return (
             <BoardSquare
               key={`${columnIndex}-${rowIndex}`}
@@ -261,6 +285,8 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               isCaptureDestination={isCaptureDestination}
               rankLabel={rankLabel}
               fileLabel={fileLabel}
+              tabIndex={isRovingActive ? 0 : -1}
+              onFocusSquare={(col, row) => setFocusedSquare({ col, row })}
             />
           );
         })

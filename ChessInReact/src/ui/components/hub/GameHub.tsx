@@ -177,7 +177,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
 
             {!isMatchInProgress && (
               <button
-                id="hub-btn-play-bot"
+                id="hub-hero-btn-play-bot"
                 onClick={() => onStartBotMatch(botDifficulty)}
                 style={{
                   backgroundColor: 'var(--color-accent)',
@@ -420,7 +420,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
               {botEnabled && isMatchInProgress ? (
                 <>
                   <button
-                    id="hub-btn-play-bot"
+                    id="hub-card-btn-continue-bot"
                     onClick={onResumeMatch}
                     style={{
                       width: '100%',
@@ -444,7 +444,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                   </button>
 
                   <button
-                    id="hub-btn-new-bot"
+                    id="hub-card-btn-new-bot"
                     onClick={() => onStartBotMatch(botDifficulty)}
                     style={{
                       width: '100%',
@@ -469,7 +469,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
               ) : (
                 <>
                   <button
-                    id="hub-btn-play-bot"
+                    id="hub-card-btn-play-bot"
                     onClick={() => onStartBotMatch(botDifficulty)}
                     style={{
                       width: '100%',

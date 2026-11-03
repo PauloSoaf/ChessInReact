@@ -14,15 +14,37 @@ export const InteractiveKnightScene: React.FC<IInteractiveKnightSceneProps> = ({
   reducedMotion = false,
 }) => {
   const groupRef = useRef<THREE.Group>(null);
-  const { pointer, invalidate } = useThree();
+  const { pointer, invalidate, gl } = useThree();
 
   // Baseline 3/4 beauty profile angle (approx 35 degrees)
   const baseRotationY = 0.55;
 
-  // Invalidate on finish change or mount
+  // Invalidate immediately on finish change or mount
   React.useEffect(() => {
     invalidate();
   }, [finish, invalidate]);
+
+  // Connect explicit pointer activity directly to invalidate() in demand frameloop
+  React.useEffect(() => {
+    const domElement = gl?.domElement;
+    if (!domElement) return;
+
+    const onPointerActivity = () => {
+      if (!reducedMotion) {
+        invalidate();
+      }
+    };
+
+    domElement.addEventListener('pointermove', onPointerActivity, { passive: true });
+    domElement.addEventListener('pointerdown', onPointerActivity, { passive: true });
+    domElement.addEventListener('pointerenter', onPointerActivity, { passive: true });
+
+    return () => {
+      domElement.removeEventListener('pointermove', onPointerActivity);
+      domElement.removeEventListener('pointerdown', onPointerActivity);
+      domElement.removeEventListener('pointerenter', onPointerActivity);
+    };
+  }, [gl, invalidate, reducedMotion]);
 
   useFrame((state, delta) => {
     if (!groupRef.current) return;

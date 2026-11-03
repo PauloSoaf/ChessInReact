@@ -173,17 +173,27 @@ Sessão de validação executada via Chromium autônomo com gravação WebP e ca
 
 ## 7. Classificação Conclusiva dos Requisitos da SPEC 06
 
-| Requisito | Descrição | Status Conclusivo | Evidência Comprovada |
+### 7.1 Critérios Formais da Especificação (Spec 06 — Seções 1 a 12)
+| Critério Formal da Spec 06 | Escopo Original da Spec | Status Conclusivo | Evidência Comprovada |
 | :--- | :--- | :--- | :--- |
-| **RF-01** | Game Hub com composição editorial, novos jogos e partida ativa. | **VERIFIED** | Comprovado em navegador real e coberto por 34 testes em `Spec06ThemeAndHUD.test.tsx`. |
-| **RF-02** | Navegação por Hash (`#game` e `#hub`) com preservação total de estado. | **VERIFIED** | Navegação sem remounts desnecessários com conservação da partida contra IA. |
-| **RF-03** | Showcase 3D com peça procedural, materiais físicos, iluminação e fallback. | **VERIFIED** | Rotação suave ao ponteiro com amortecimento, `frameloop="demand"`, liberação de recursos e clique desimpedido nos swatches. |
-| **RF-04** | HUD de Partida com tabuleiro dominante, avaliação por centipawns e cards sóbrios. | **VERIFIED** | Ergonomia visual profissional comprovada em resoluções de 360 px até 1920 px. |
-| **RF-05** | Modal de personalização com miniaturas vivas, acessível via teclado. | **VERIFIED** | Focus trap estrito (Tab/Shift+Tab), tecla Escape, bloqueio de rolagem do body e retorno de foco. |
-| **RF-06** | Favicon e identidade visual próprios, substituindo o `/vite.svg`. | **VERIFIED** | Favicon Staunton em SVG e metadados editoriais aplicados no `index.html`. |
-| **RNF-01** | Acessibilidade WCAG 2.2 AA no tabuleiro e controles. | **VERIFIED** | Contraste $\ge$ 5.16:1 em todos os pares de texto normal; anéis de foco visíveis de 3px; navegação matricial por setas no tabuleiro e roving tabindex no SegmentedControl. |
-| **RNF-02** | Zero dependências de Next.js no Vite (ADR-004). | **VERIFIED** | Implementação 100% agnóstica sem acoplamento externo. |
-| **RNF-03** | Invariantes de qualidade (tsc, lint, build, vitest, memory, chromium smoke). | **VERIFIED** | Todos os 6 quality gates locais aprovados sem advertências. |
+| **Critério 12.1: Seamless DOM Integration** | Overlays HTML/DOM sobre WebGL com barreira de ponteiro (Z-Index Sandwich) e sem vazamento de cliques. | **PARTIAL** | No RECOVERY-02, os eventos de ponteiro foram restaurados no Canvas com swatches clicáveis; contudo, a auditoria subsequente apontou desmontagem do Canvas em caso de perda de contexto WebGL (corrigido definitivamente no RECOVERY-03). |
+| **Critério 12.2: Smooth Drag and Drop 3D** | Arrastar peças 3D via plano matemático de interseção (Y=0) com conversão topológica. | **DEFERRED (SPEC 07)** | O escopo das Sprints 01 e 02 focou no redesign editorial 2D e Showcase de peça no Hub. O drag-and-drop de peças 3D completas no tabuleiro é escopo da Spec 07. |
+| **Critério 12.3: Multiplayer Observer Camera** | Câmera polar orbital adaptativa com ancoragem de perspectiva baseada no PlayerId atribuído pelo Colyseus. | **DEFERRED (SPEC 07/03)** | Câmera tridimensional de partida aguarda a integração da arena WebGL da Spec 07 com o servidor Colyseus da Spec 03. |
+| **Critério 12.4: Theme Toggling Visual Response** | Transição dinâmica de ambiente e materiais no WebGL e DOM entre os temas claro e escuro. | **VERIFIED** | Alternância imediata entre Midnight, Ivory e Synthwave com sincronização de iluminação de estúdio e materiais PBR. |
+| **Seção 4.2: 3D Raycasting Otimizado (BVH)** | Aceleração espacial three-mesh-bvh para modelos densos de peças fadas. | **DEFERRED (SPEC 07)** | Aplica-se à renderização do tabuleiro tridimensional da Spec 07, não ao showcase procedural isolado. |
+
+### 7.2 Funcionalidades Efetivamente Entregues nas Sprints 01 e 02 (Hub & Design System)
+| Entregável da Sprint | Descrição | Status Conclusivo | Evidência Comprovada |
+| :--- | :--- | :--- | :--- |
+| **Game Hub Editorial** | Tela de entrada com Hero assimétrico, novos jogos e partida ativa. | **VERIFIED** | Comprovado em navegador real e coberto por testes em `Spec06ThemeAndHUD.test.tsx`. |
+| **Navegação por Hash** | Navegação por Hash (`#game` e `#hub`) com preservação total de estado. | **VERIFIED** | Navegação sem remounts desnecessários com conservação da partida contra IA. |
+| **Showcase 3D de Peça** | Peça procedural, materiais físicos, iluminação e fallback. | **PARTIAL** | Interatividade reabilitada, mas restauração de contexto WebGL necessitou da máquina de estados do RECOVERY-03. |
+| **HUD de Partida Expandido** | Tabuleiro dominante, avaliação por centipawns e cards sóbrios. | **VERIFIED** | Ergonomia visual profissional comprovada em resoluções de 360 px até 1920 px. |
+| **Modal de Personalização** | Modal de personalização com miniaturas vivas, acessível via teclado. | **PARTIAL** | Focus trap básico adicionado, aprimorado para userEvent e remoção de offsetParent no RECOVERY-03. |
+| **Favicon & Identidade Visual** | Favicon e identidade visual próprios, substituindo o `/vite.svg`. | **VERIFIED** | Favicon Staunton em SVG e metadados editoriais aplicados no `index.html`. |
+| **RNF-01: Acessibilidade WCAG 2.2 AA** | Contraste de cores $\ge 4.5:1$ e foco visível no teclado. | **VERIFIED** | Contraste $\ge$ 5.16:1 em todos os pares de texto normal; anéis de foco visíveis de 3px; navegação matricial por setas no tabuleiro e roving tabindex. |
+| **RNF-02: Zero Next.js (ADR-004)** | Zero dependências de Next.js no Vite (ADR-004). | **VERIFIED** | Implementação 100% agnóstica sem acoplamento externo. |
+| **RNF-03: Invariantes de Qualidade** | Invariantes de qualidade (tsc, lint, build, vitest, memory, chromium smoke). | **VERIFIED** | Todos os quality gates locais aprovados sem advertências. |
 
 ---
 

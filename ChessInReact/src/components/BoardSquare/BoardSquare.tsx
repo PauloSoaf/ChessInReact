@@ -15,6 +15,8 @@ const BoardSquare: React.FC<IBoardSquare> = ({
   isCaptureDestination,
   rankLabel,
   fileLabel,
+  tabIndex,
+  onFocusSquare,
 }) => {
   const { pieceSet, activeBoardColors } = useTheme();
   const isPiecePresent = Boolean(piece && piece.name && piece.name !== 'none');
@@ -55,19 +57,40 @@ const BoardSquare: React.FC<IBoardSquare> = ({
       return;
     }
 
-    // Grid Arrow Key Navigation (WCAG Roving Navigation)
+    // Grid Arrow Key Navigation (WAI-ARIA Roving Navigation)
     let dCol = 0;
     let dRow = 0;
+    const boardSize = boardDisplay.length;
+
     if (e.key === 'ArrowLeft') dCol = -1;
     else if (e.key === 'ArrowRight') dCol = 1;
     else if (e.key === 'ArrowUp') dRow = -1;
     else if (e.key === 'ArrowDown') dRow = 1;
+    else if (e.key === 'Home') {
+      e.preventDefault();
+      const targetCol = 0;
+      onFocusSquare?.(targetCol, squareInfo.row);
+      const nextSquare = document.querySelector<HTMLElement>(
+        `[data-square-col="${targetCol}"][data-square-row="${squareInfo.row}"]`
+      );
+      nextSquare?.focus();
+      return;
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      const targetCol = boardSize - 1;
+      onFocusSquare?.(targetCol, squareInfo.row);
+      const nextSquare = document.querySelector<HTMLElement>(
+        `[data-square-col="${targetCol}"][data-square-row="${squareInfo.row}"]`
+      );
+      nextSquare?.focus();
+      return;
+    }
 
     if (dCol !== 0 || dRow !== 0) {
       e.preventDefault();
-      const boardSize = boardDisplay.length;
       const targetCol = Math.max(0, Math.min(boardSize - 1, squareInfo.column + dCol));
       const targetRow = Math.max(0, Math.min(boardSize - 1, squareInfo.row + dRow));
+      onFocusSquare?.(targetCol, targetRow);
       const nextSquare = document.querySelector<HTMLElement>(
         `[data-square-col="${targetCol}"][data-square-row="${targetRow}"]`
       );
@@ -78,12 +101,13 @@ const BoardSquare: React.FC<IBoardSquare> = ({
   return (
     <div
       role="button"
-      tabIndex={0}
+      tabIndex={tabIndex ?? 0}
       aria-label={accessibleLabel}
       aria-pressed={isSelected}
       data-testid={testId}
       data-square-col={squareInfo.column}
       data-square-row={squareInfo.row}
+      onFocus={() => onFocusSquare?.(squareInfo.column, squareInfo.row)}
       className="board-square"
       style={{
         backgroundColor: `${backgroundColor}`,

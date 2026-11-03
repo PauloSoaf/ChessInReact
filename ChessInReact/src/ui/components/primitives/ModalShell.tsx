@@ -37,6 +37,16 @@ export const ModalShell: React.FC<IModalShellProps> = ({
     document.body.style.overflow = 'hidden';
 
     // Focus trap handler
+    const isFocusableVisible = (el: HTMLElement): boolean => {
+      if (el.hasAttribute('disabled')) return false;
+      if (el.getAttribute('aria-hidden') === 'true') return false;
+      if (typeof window !== 'undefined' && window.getComputedStyle) {
+        const style = window.getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden') return false;
+      }
+      return true;
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
@@ -50,7 +60,7 @@ export const ModalShell: React.FC<IModalShellProps> = ({
           modalRef.current.querySelectorAll<HTMLElement>(
             'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
           )
-        ).filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null);
+        ).filter(isFocusableVisible);
 
         if (focusableElements.length === 0) {
           e.preventDefault();
@@ -79,16 +89,19 @@ export const ModalShell: React.FC<IModalShellProps> = ({
     // Initial focus: prioritize close button or first focusable element
     const timer = setTimeout(() => {
       if (modalRef.current) {
-        const firstInteractive = modalRef.current.querySelector<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (firstInteractive) {
-          firstInteractive.focus();
+        const focusables = Array.from(
+          modalRef.current.querySelectorAll<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter(isFocusableVisible);
+
+        if (focusables.length > 0) {
+          focusables[0].focus();
         } else {
           modalRef.current.focus();
         }
       }
-    }, 10);
+    }, 0);
 
     return () => {
       clearTimeout(timer);

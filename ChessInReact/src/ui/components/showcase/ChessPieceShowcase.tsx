@@ -48,6 +48,8 @@ function checkWebGLSupport(): boolean {
   }
 }
 
+export type WebGLContextStatus = 'available' | 'lost' | 'recovering' | 'fallback';
+
 export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
   initialFinish = 'antique-brass',
   className = '',
@@ -55,10 +57,13 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
 }) => {
   const [finish, setFinish] = useState<KnightMaterialFinish>(initialFinish);
   const [hasWebGL, setHasWebGL] = useState<boolean>(false);
-  const [isContextLost, setIsContextLost] = useState<boolean>(false);
+  const [contextStatus, setContextStatus] = useState<WebGLContextStatus>('available');
+  const [remountKey, setRemountKey] = useState<number>(0);
   const [reducedMotion, setReducedMotion] = useState<boolean>(false);
   const [isVisible, setIsVisible] = useState<boolean>(true);
   const containerRef = useRef<HTMLDivElement>(null);
+  const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
+  const recoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setHasWebGL(checkWebGLSupport());
@@ -70,6 +75,15 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
       mediaQuery.addEventListener?.('change', listener);
       return () => mediaQuery.removeEventListener?.('change', listener);
     }
+  }, []);
+
+  // Cleanup recovery timer on unmount
+  useEffect(() => {
+    return () => {
+      if (recoveryTimerRef.current) {
+        clearTimeout(recoveryTimerRef.current);
+      }
+    };
   }, []);
 
   // Pause rendering when scrolled out of view
@@ -87,6 +101,42 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
     return () => observer.disconnect();
   }, []);
 
+  const handleContextLost = (e: Event) => {
+    e.preventDefault();
+    console.warn('[ChessPieceShowcase] WebGL context lost, transitioning to lost state');
+    setContextStatus('lost');
+
+    if (recoveryTimerRef.current) {
+      clearTimeout(recoveryTimerRef.current);
+    }
+    // If context restoration is not received within 5 seconds, transition to fallback
+    recoveryTimerRef.current = setTimeout(() => {
+      console.warn('[ChessPieceShowcase] WebGL restoration timed out, transitioning to fallback');
+      setContextStatus('fallback');
+    }, 5000);
+  };
+
+  const handleContextRestored = () => {
+    console.info('[ChessPieceShowcase] WebGL context restored, rebuilding 3D scene');
+    if (recoveryTimerRef.current) {
+      clearTimeout(recoveryTimerRef.current);
+    }
+    setContextStatus('recovering');
+    // Increment remount key to ensure fresh R3F state on the restored context
+    setRemountKey((prev) => prev + 1);
+    setTimeout(() => {
+      setContextStatus('available');
+    }, 50);
+  };
+
+  const handleManualRetry = () => {
+    setContextStatus('recovering');
+    setRemountKey((prev) => prev + 1);
+    setTimeout(() => {
+      setContextStatus('available');
+    }, 50);
+  };
+
   const fallbackNode = <ShowcaseFallback finish={finish} />;
 
   return (
@@ -94,6 +144,7 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
       ref={containerRef}
       id="chess-piece-showcase"
       data-testid="chess-piece-showcase"
+      data-webgl-status={contextStatus}
       className={`chess-piece-showcase ${className}`}
       style={{
         position: 'relative',
@@ -122,35 +173,83 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
           justifyContent: 'center',
         }}
       >
-        {hasWebGL && !isContextLost ? (
+        {hasWebGL ? (
           <ShowcaseErrorBoundary fallback={fallbackNode}>
             <Suspense fallback={fallbackNode}>
-              {isVisible ? (
-                <Canvas
-                  frameloop="demand"
-                  camera={{ position: [0, 0.4, 4.2], fov: 42 }}
-                  dpr={[1, 1.5]}
-                  gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-                  style={{ width: '100%', height: '100%', pointerEvents: 'auto', touchAction: 'none' }}
-                  onCreated={({ gl }) => {
-                    const canvas = gl.domElement;
-                    const handleContextLost = (e: Event) => {
-                      e.preventDefault();
-                      console.warn('[ChessPieceShowcase] WebGL context lost, activating vector fallback');
-                      setIsContextLost(true);
-                    };
-                    const handleContextRestored = () => {
-                      console.info('[ChessPieceShowcase] WebGL context restored');
-                      setIsContextLost(false);
-                    };
-                    canvas.addEventListener('webglcontextlost', handleContextLost);
-                    canvas.addEventListener('webglcontextrestored', handleContextRestored);
+              {/* Keep Canvas mounted in DOM so webglcontextrestored can fire on the canvas element */}
+              <div
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  visibility: contextStatus === 'available' ? 'visible' : 'hidden',
+                  opacity: contextStatus === 'available' ? 1 : 0,
+                  pointerEvents: contextStatus === 'available' ? 'auto' : 'none',
+                  transition: 'opacity 0.25s ease',
+                }}
+              >
+                {isVisible && (
+                  <Canvas
+                    key={`showcase-canvas-${remountKey}`}
+                    frameloop="demand"
+                    camera={{ position: [0, 0.4, 4.2], fov: 42 }}
+                    dpr={[1, 1.5]}
+                    gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+                    style={{ width: '100%', height: '100%', pointerEvents: 'auto', touchAction: 'none' }}
+                    onCreated={({ gl }) => {
+                      const canvas = gl.domElement;
+                      if (canvasElementRef.current && canvasElementRef.current !== canvas) {
+                        canvasElementRef.current.removeEventListener('webglcontextlost', handleContextLost);
+                        canvasElementRef.current.removeEventListener('webglcontextrestored', handleContextRestored);
+                      }
+                      canvasElementRef.current = canvas;
+                      canvas.addEventListener('webglcontextlost', handleContextLost);
+                      canvas.addEventListener('webglcontextrestored', handleContextRestored);
+                    }}
+                  >
+                    <InteractiveKnightScene finish={finish} reducedMotion={reducedMotion} />
+                  </Canvas>
+                )}
+              </div>
+
+              {/* Overlay Fallback or Recovery UI when context is not available */}
+              {contextStatus !== 'available' && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 2,
                   }}
                 >
-                  <InteractiveKnightScene finish={finish} reducedMotion={reducedMotion} />
-                </Canvas>
-              ) : (
-                fallbackNode
+                  {fallbackNode}
+                  {contextStatus === 'fallback' && (
+                    <button
+                      id="showcase-btn-retry-3d"
+                      type="button"
+                      onClick={handleManualRetry}
+                      style={{
+                        position: 'absolute',
+                        top: '1rem',
+                        right: '1rem',
+                        backgroundColor: 'var(--bg-surface-elevated)',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '0.35rem 0.65rem',
+                        fontSize: '0.75rem',
+                        fontFamily: 'var(--font-sans)',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        zIndex: 10,
+                      }}
+                    >
+                      Restaurar 3D
+                    </button>
+                  )}
+                </div>
               )}
             </Suspense>
           </ShowcaseErrorBoundary>

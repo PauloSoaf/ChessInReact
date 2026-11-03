@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ThemeProvider, useTheme } from '../theme/ThemeContext';
 import { UI_THEMES, BOARD_THEMES, PIECE_SETS } from '../theme/themeRegistry';
@@ -641,11 +642,12 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       expect(screen.getByText('Card Content')).toBeDefined();
     });
 
-    it('renders ModalShell with dialog semantics, focus trap, and Escape key handler', () => {
+    it('renders ModalShell with dialog semantics, focus trap, and Escape key handler', async () => {
+      const user = userEvent.setup();
       const onClose = vi.fn();
 
       function ModalTestWrapper() {
-        const [isOpen, setIsOpen] = React.useState(true);
+        const [isOpen, setIsOpen] = React.useState(false);
         return (
           <div>
             <button id="opener-btn" onClick={() => setIsOpen(true)}>
@@ -668,29 +670,52 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       }
 
       const { unmount } = render(<ModalTestWrapper />);
+      const openerBtn = document.getElementById('opener-btn') as HTMLButtonElement;
+      expect(openerBtn).not.toBeNull();
+
+      // User focuses and clicks opener button to open modal
+      await user.click(openerBtn);
 
       expect(screen.getByRole('dialog')).toBeDefined();
       expect(screen.getByText('Diálogo de Teste')).toBeDefined();
 
-      const closeBtn = document.getElementById('close-modal-shell-btn');
-      const input = document.getElementById('modal-input-1');
-      const actionBtn = document.getElementById('modal-btn-1');
+      const closeBtn = document.getElementById('close-modal-shell-btn') as HTMLButtonElement;
+      const input = document.getElementById('modal-input-1') as HTMLInputElement;
+      const actionBtn = document.getElementById('modal-btn-1') as HTMLButtonElement;
 
       expect(closeBtn).not.toBeNull();
       expect(input).not.toBeNull();
       expect(actionBtn).not.toBeNull();
 
-      // Test Tab wraps from last element to first element
-      actionBtn?.focus();
-      fireEvent.keyDown(window, { key: 'Tab' });
+      // Test real initial focus
+      await vi.waitFor(() => {
+        expect(document.activeElement).toBe(closeBtn);
+      });
 
-      // Test Shift+Tab wraps from first element to last element
-      closeBtn?.focus();
-      fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
+      // Tab advances: closeBtn -> input -> actionBtn -> closeBtn (wraps)
+      await user.tab();
+      expect(document.activeElement).toBe(input);
 
-      // Test Escape key closes modal
-      fireEvent.keyDown(window, { key: 'Escape' });
+      await user.tab();
+      expect(document.activeElement).toBe(actionBtn);
+
+      // Tab on last element wraps to first element
+      await user.tab();
+      expect(document.activeElement).toBe(closeBtn);
+
+      // Shift+Tab on first element wraps to last element
+      await user.tab({ shift: true });
+      expect(document.activeElement).toBe(actionBtn);
+
+      // Escape key closes modal
+      await user.keyboard('{Escape}');
       expect(onClose).toHaveBeenCalled();
+
+      // Focus restituted to opener button
+      await vi.waitFor(() => {
+        const openerBtn = document.getElementById('opener-btn');
+        expect(document.activeElement).toBe(openerBtn);
+      });
 
       unmount();
     });
@@ -733,6 +758,13 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
 
       rerender(<ShowcaseFallback finish="ivory-marble" />);
       expect(screen.getByTestId('showcase-fallback-vector')).toBeDefined();
+    });
+
+    it('initializes ChessPieceShowcase with explicit WebGL status attribute', () => {
+      render(<ChessPieceShowcase initialFinish="antique-brass" />);
+      const showcase = document.getElementById('chess-piece-showcase');
+      expect(showcase).not.toBeNull();
+      expect(showcase?.getAttribute('data-webgl-status')).toBe('available');
     });
   });
 
@@ -808,6 +840,24 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       // Press ArrowRight to move focus from column 3 to column 4
       fireEvent.keyDown(sq1, { key: 'ArrowRight' });
       expect(document.activeElement).toBe(sq2);
+    });
+
+    it('implements WAI-ARIA roving tabindex on 8x8 ChessBoard with exactly 1 active tab stop', () => {
+      render(
+        <ThemeProvider>
+          <ChessBoard boardSize={8} />
+        </ThemeProvider>
+      );
+
+      const allSquares = screen.getAllByRole('button');
+      expect(allSquares.length).toBe(64);
+
+      const tabStopSquares = allSquares.filter((sq) => sq.getAttribute('tabindex') === '0');
+      const inactiveSquares = allSquares.filter((sq) => sq.getAttribute('tabindex') === '-1');
+
+      // Exactly ONE square is in the tab order (roving tabindex), remaining 63 are -1
+      expect(tabStopSquares.length).toBe(1);
+      expect(inactiveSquares.length).toBe(63);
     });
   });
 

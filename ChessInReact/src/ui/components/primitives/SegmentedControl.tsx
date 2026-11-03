@@ -23,7 +23,7 @@ export function SegmentedControl<T extends string | number>({
   idPrefix = 'seg',
 }: ISegmentedControlProps<T>): React.ReactElement {
   const isSm = size === 'sm';
-  const containerRef = React.useRef<HTMLDivElement>(null);
+  const buttonRefs = React.useRef<(HTMLButtonElement | null)[]>([]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, currentIndex: number) => {
     let nextIndex = -1;
@@ -45,19 +45,13 @@ export function SegmentedControl<T extends string | number>({
     if (nextIndex >= 0 && nextIndex < options.length) {
       const nextOption = options[nextIndex];
       onChange(nextOption.value);
-      // Move DOM focus to next button
-      setTimeout(() => {
-        const nextButton = containerRef.current?.querySelector<HTMLButtonElement>(
-          `#${idPrefix}-${nextOption.value}`
-        );
-        nextButton?.focus();
-      }, 0);
+      // Synchronously move DOM focus using direct element reference
+      buttonRefs.current[nextIndex]?.focus();
     }
   };
 
   return (
     <div
-      ref={containerRef}
       role="radiogroup"
       style={{
         display: 'inline-flex',
@@ -75,6 +69,9 @@ export function SegmentedControl<T extends string | number>({
         return (
           <button
             key={String(opt.value)}
+            ref={(el) => {
+              buttonRefs.current[index] = el;
+            }}
             id={`${idPrefix}-${opt.value}`}
             type="button"
             role="radio"
