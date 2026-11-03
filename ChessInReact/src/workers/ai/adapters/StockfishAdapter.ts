@@ -16,6 +16,16 @@ export interface IStockfishAdapterOptions {
  * Stockfish WASM UCI Adapter (Spec 05 § 4 Fonte 3, § 14.1 Fonte 1, § 16 RF-05, § 17 RNF-07).
  * Connects to a Stockfish WebAssembly Web Worker via standard UCI text protocol.
  * Falls back transparently to the native TypeScript AIEngine when WASM is not available.
+ *
+ * ARCHITECTURAL COMPLIANCE & STATUS (SPEC05-PATCH-04):
+ * - RF-05 (Stockfish WASM Integration): PARTIAL
+ *   * Fully implements standard FEN generation with FIDE castling rights (KQkq) and algebraic en passant targets.
+ *   * Implements UCI handshake ('uci', 'isready', 'ucinewgame', 'position fen', 'go movetime/depth', 'stop', 'quit').
+ *   * The compiled 'stockfish.js' / WASM binary is NOT checked into repository version control to respect
+ *     GNU General Public License v3 (GPLv3) distribution boundaries and avoid bundling a ~15-40MB binary in core repo.
+ * - RNF-07 (Stockfish WASM Package Size & Lazy Loading): DEFERRED
+ *   * Configured for on-demand lazy loading via external CDN or configurable workerUrl.
+ *   * Final bundle verification deferred until dedicated WebAssembly CDN deployment pipeline is active.
  */
 export class StockfishAdapter {
   private worker: Worker | null = null;

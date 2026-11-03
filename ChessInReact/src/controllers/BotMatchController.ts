@@ -59,8 +59,11 @@ export class BotMatchController {
     } else if (typeof Worker !== 'undefined') {
       return new EngineBridge();
     } else {
-      // Fallback for headless / Node test environments without native Worker API
-      return new EngineBridge({ workerPort: new MockWorkerPort(5) });
+      // Fallback for headless / Node test environments without native Worker API:
+      // provide workerFactory so each worker reset spawns a clean, non-terminated instance
+      return new EngineBridge({
+        workerFactory: () => new MockWorkerPort(5),
+      });
     }
   }
 
@@ -263,8 +266,13 @@ export class BotMatchController {
 
       return result;
     } catch (err) {
-      // Abort errors are expected on cancel/reset
-      if (!(err instanceof Error) || !err.message.includes('aborted')) {
+      // Abort, cancellation and disposal errors are expected on cancel/reset/turn transition
+      const msg = err instanceof Error ? err.message : String(err);
+      const isExpectedAbort =
+        msg.includes('aborted') ||
+        msg.includes('disposed') ||
+        msg.includes('cancelled');
+      if (!isExpectedAbort) {
         console.warn('[BotMatchController] Bot computation failed:', err);
       }
       return null;

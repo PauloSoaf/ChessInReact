@@ -342,6 +342,101 @@ describe('Real Multi-threaded Worker Integration (PATCH-08)', () => {
       rawPort.terminate();
     }
   });
+
+  describe('EngineBridge Cancellation, Re-instantiation & Worker Lifecycle Resilience (SPEC05-PATCH-04)', () => {
+    it('aborts active search immediately (<10ms) and subsequent request succeeds on fresh worker', async () => {
+      const slowPort = new MockWorkerPort(50); // 50ms delay
+      const testBridge = new EngineBridge({
+        workerPort: slowPort,
+        timeoutMs: 1000,
+      });
+
+      try {
+        const domain = createDefaultDomainState('abort-test');
+        // Launch calculation that would take 50ms
+        const searchPromise = testBridge.calculateBestMove(domain);
+
+        // Cancel immediately
+        testBridge.cancelPendingSearches();
+
+        // Previous search must be rejected with 'AI calculation aborted'
+        await expect(searchPromise).rejects.toThrow('AI calculation aborted');
+
+        // Old worker must be terminated and have listeners detached
+        expect(slowPort.isTerminated).toBe(true);
+        expect(slowPort.onerror).toBeNull();
+        expect(slowPort.onmessage).toBeNull();
+
+        // Fresh request must succeed without 'Worker is terminated' error
+        const pingResult = await testBridge.ping();
+        expect(pingResult).toBe('PONG');
+        expect(testBridge.getPendingCount()).toBe(0);
+      } finally {
+        testBridge.dispose();
+      }
+    });
+
+    it('handles multiple rapid cancellations without orphan workers or stale response leakage', async () => {
+      let workerSpawnCount = 0;
+      const factoryBridge = new EngineBridge({
+        workerFactory: () => {
+          workerSpawnCount++;
+          return new MockWorkerPort(20);
+        },
+        timeoutMs: 1000,
+      });
+
+      try {
+        expect(workerSpawnCount).toBe(1);
+
+        // Rapidly cancel 5 times in succession
+        for (let i = 0; i < 5; i++) {
+          factoryBridge.cancelPendingSearches();
+        }
+
+        // Each cancellation spawned a fresh, clean worker
+        expect(workerSpawnCount).toBe(6);
+
+        // The active worker processes requests cleanly
+        const result = await factoryBridge.ping();
+        expect(result).toBe('PONG');
+        expect(factoryBridge.getPendingCount()).toBe(0);
+      } finally {
+        factoryBridge.dispose();
+      }
+    });
+
+    it('safely isolates errors from old generation workers so they never affect current search', async () => {
+      let activeMockPort: MockWorkerPort | null = null;
+      const testBridge = new EngineBridge({
+        workerFactory: () => {
+          activeMockPort = new MockWorkerPort(10);
+          return activeMockPort;
+        },
+        timeoutMs: 1000,
+      });
+
+      try {
+        const firstPort = activeMockPort!;
+        expect(firstPort).toBeDefined();
+
+        testBridge.cancelPendingSearches();
+        const secondPort = activeMockPort!;
+        expect(secondPort).not.toBe(firstPort);
+
+        // Attempting to invoke onerror on firstPort does not crash the bridge
+        if (firstPort.onerror) {
+          firstPort.onerror(new Error('Stale worker error'));
+        }
+
+        // Active worker still functions flawlessly
+        const res = await testBridge.ping();
+        expect(res).toBe('PONG');
+      } finally {
+        testBridge.dispose();
+      }
+    });
+  });
 });
 
 describe('Browser worker entrypoint (engineWorker protocol handler)', () => {

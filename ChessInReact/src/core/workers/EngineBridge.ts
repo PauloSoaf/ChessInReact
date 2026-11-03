@@ -12,13 +12,16 @@ import {
   IWorkerResponse,
 } from './types';
 import { IBestMoveResult, AIDifficultyLevel } from '../../workers/ai/interfaces/IAIEngineContracts';
+import { MockWorkerPort } from './dummyWorker';
 
 export interface IEngineBridgeOptions {
   readonly timeoutMs?: number;
   readonly workerPort?: IWorkerPort;
+  readonly workerFactory?: () => IWorkerPort;
 }
 
 interface PendingPromiseRecord {
+  readonly generation: number;
   readonly resolve: (value: unknown) => void;
   readonly reject: (reason: Error) => void;
   readonly timeoutId: ReturnType<typeof setTimeout>;
@@ -46,8 +49,29 @@ export class EngineBridge {
   private initWorker(): void {
     if (this.isDisposed) return;
 
-    if (this.options?.workerPort) {
-      this.worker = this.options.workerPort;
+    if (this.options?.workerFactory) {
+      this.worker = this.options.workerFactory();
+    } else if (this.options?.workerPort) {
+      const existing = this.options.workerPort as {
+        isTerminated?: boolean;
+        createFresh?: () => IWorkerPort;
+        responseDelayMs?: number;
+      };
+      if (existing.isTerminated) {
+        if (typeof existing.createFresh === 'function') {
+          this.worker = existing.createFresh();
+          (this.options as { workerPort: IWorkerPort }).workerPort = this.worker;
+        } else if (existing instanceof MockWorkerPort) {
+          this.worker = new MockWorkerPort(existing.responseDelayMs ?? 0);
+          (this.options as { workerPort: IWorkerPort }).workerPort = this.worker;
+        } else {
+          throw new Error(
+            'Worker is terminated and cannot be re-instantiated without a workerFactory.'
+          );
+        }
+      } else {
+        this.worker = this.options.workerPort;
+      }
     } else if (typeof Worker !== 'undefined') {
       // Browser WebWorker initialization
       this.worker = new Worker(new URL('./engineWorker.ts', import.meta.url), {
@@ -55,7 +79,7 @@ export class EngineBridge {
       }) as unknown as IWorkerPort;
     } else {
       throw new Error(
-        'Worker is not available in current environment. Please supply a mock workerPort.'
+        'Worker is not available in current environment. Please supply a mock workerPort or workerFactory.'
       );
     }
 
@@ -76,19 +100,23 @@ export class EngineBridge {
     if (this.isDisposed) return;
     this.currentGeneration++;
 
-    // 1. Reject all pending promises immediately
+    // 1. Reject all pending promises immediately with cancellation error
     for (const [id, pending] of this.pendingPromises.entries()) {
       clearTimeout(pending.timeoutId);
       pending.reject(new Error('AI calculation aborted'));
       this.pendingPromises.delete(id);
     }
 
-    // 2. Terminate the active worker thread immediately (<10ms)
-    if (this.worker && this.worker.terminate) {
-      try {
-        this.worker.terminate();
-      } catch (err) {
-        console.warn('[EngineBridge] Worker terminate failed:', err);
+    // 2. Detach listeners so no events or errors from the dying worker leak into current state
+    if (this.worker) {
+      this.worker.onmessage = null;
+      this.worker.onerror = null;
+      if (this.worker.terminate) {
+        try {
+          this.worker.terminate();
+        } catch (err) {
+          console.warn('[EngineBridge] Worker terminate failed:', err);
+        }
       }
     }
 
@@ -102,6 +130,13 @@ export class EngineBridge {
     const pending = this.pendingPromises.get(data.id);
     if (!pending) {
       // Unknown, cancelled or already timed out request ID - safely ignore
+      return;
+    }
+
+    // Stale generation check
+    if (pending.generation !== this.currentGeneration) {
+      clearTimeout(pending.timeoutId);
+      this.pendingPromises.delete(data.id);
       return;
     }
 
@@ -131,6 +166,17 @@ export class EngineBridge {
     // Resilient auto-restart (RNF-14): recover in < 500ms
     if (!this.isDisposed) {
       try {
+        if (this.worker) {
+          this.worker.onmessage = null;
+          this.worker.onerror = null;
+          if (this.worker.terminate) {
+            try {
+              this.worker.terminate();
+            } catch {
+              // ignore
+            }
+          }
+        }
         this.initWorker();
       } catch (restartErr) {
         console.warn('[EngineBridge] Auto-restart worker failed:', restartErr);
@@ -258,6 +304,7 @@ export class EngineBridge {
     }
 
     const id = ++this.messageCounter;
+    const generation = this.currentGeneration;
 
     return new Promise<T>((resolve, reject) => {
       const timeoutId = setTimeout(() => {
@@ -268,6 +315,7 @@ export class EngineBridge {
       }, this.timeoutMs);
 
       this.pendingPromises.set(id, {
+        generation,
         resolve: (val: unknown) => resolve(val as T),
         reject,
         timeoutId,
@@ -298,8 +346,16 @@ export class EngineBridge {
       this.pendingPromises.delete(id);
     }
 
-    if (this.worker.terminate) {
-      this.worker.terminate();
+    if (this.worker) {
+      this.worker.onmessage = null;
+      this.worker.onerror = null;
+      if (this.worker.terminate) {
+        try {
+          this.worker.terminate();
+        } catch {
+          // ignore
+        }
+      }
     }
   }
 }

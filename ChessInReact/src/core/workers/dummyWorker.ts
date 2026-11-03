@@ -218,10 +218,14 @@ export class MockWorkerPort implements IWorkerPort {
   public onmessage: ((event: { data: IWorkerResponse }) => void) | null = null;
   public onerror: ((error: ErrorEvent | Error) => void) | null = null;
   public isTerminated = false;
-  private responseDelayMs: number;
+  public readonly responseDelayMs: number;
 
   constructor(responseDelayMs = 0) {
     this.responseDelayMs = responseDelayMs;
+  }
+
+  public createFresh(): MockWorkerPort {
+    return new MockWorkerPort(this.responseDelayMs);
   }
 
   public postMessage(message: IWorkerRequest): void {
