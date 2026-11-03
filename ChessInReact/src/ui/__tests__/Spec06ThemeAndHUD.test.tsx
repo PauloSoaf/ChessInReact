@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import React from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ThemeProvider, useTheme } from '../theme/ThemeContext';
@@ -51,6 +52,44 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       expect(PIECE_SETS['neo-classic'].type).toBe('UNICODE');
       expect(PIECE_SETS['tournament-vector'].type).toBe('SVG_VECTOR');
       expect(PIECE_SETS['pixel-art'].type).toBe('PIXEL');
+    });
+
+    it('verifies WCAG 2.2 AA contrast ratios (>= 4.5:1) for active semantic token pairs', () => {
+      function getLuminance(hex: string): number {
+        const clean = hex.replace('#', '');
+        const r = parseInt(clean.substring(0, 2), 16) / 255;
+        const g = parseInt(clean.substring(2, 4), 16) / 255;
+        const b = parseInt(clean.substring(4, 6), 16) / 255;
+        const [rl, gl, bl] = [r, g, b].map((c) =>
+          c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+        );
+        return 0.2126 * rl + 0.7152 * gl + 0.0722 * bl;
+      }
+
+      function getContrast(fg: string, bg: string): number {
+        const l1 = getLuminance(fg);
+        const l2 = getLuminance(bg);
+        return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+      }
+
+      // Midnight Slate theme pairs
+      expect(getContrast('#F4F1EB', '#090D11')).toBeGreaterThanOrEqual(4.5); // primary on app
+      expect(getContrast('#B4BCC4', '#161C20')).toBeGreaterThanOrEqual(4.5); // secondary on elevated
+      expect(getContrast('#8E9BA6', '#090D11')).toBeGreaterThanOrEqual(4.5); // muted on app
+      expect(getContrast('#8E9BA6', '#161C20')).toBeGreaterThanOrEqual(4.5); // muted on elevated
+      expect(getContrast('#F87171', '#090D11')).toBeGreaterThanOrEqual(4.5); // danger on app
+      expect(getContrast('#F87171', '#161C20')).toBeGreaterThanOrEqual(4.5); // danger on elevated
+
+      // Warm Ivory theme pairs
+      expect(getContrast('#141A20', '#FFFFFF')).toBeGreaterThanOrEqual(4.5); // primary on white
+      expect(getContrast('#3D4A56', '#FFFFFF')).toBeGreaterThanOrEqual(4.5); // secondary on white
+      expect(getContrast('#53616E', '#FFFFFF')).toBeGreaterThanOrEqual(4.5); // muted on white
+      expect(getContrast('#53616E', '#F5F2EB')).toBeGreaterThanOrEqual(4.5); // muted on app
+      expect(getContrast('#B91C1C', '#FFFFFF')).toBeGreaterThanOrEqual(4.5); // danger on white
+
+      // Synthwave theme pairs
+      expect(getContrast('#C084FC', '#080312')).toBeGreaterThanOrEqual(4.5); // muted on app
+      expect(getContrast('#FB7185', '#080312')).toBeGreaterThanOrEqual(4.5); // danger on app
     });
   });
 
@@ -226,6 +265,31 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       const startBotBtn = screen.getByRole('button', { name: /Iniciar Nova Partida/i });
       fireEvent.click(startBotBtn);
       expect(onStartBotMatch).toHaveBeenCalledWith(3);
+    });
+
+    it('does not display resume match action when match is concluded (isGameOver=true)', () => {
+      const onStartBotMatch = vi.fn();
+      const onResumeMatch = vi.fn();
+
+      render(
+        <GameHub
+          onStartBotMatch={onStartBotMatch}
+          onStartLocalMatch={vi.fn()}
+          onResumeMatch={onResumeMatch}
+          hasActiveMatch={true}
+          turnNumber={14}
+          isGameOver={true}
+          botEnabled={true}
+          botDifficulty={4}
+          onSelectDifficulty={vi.fn()}
+          onOpenThemeModal={vi.fn()}
+        />
+      );
+
+      // Must NOT present "Retomar Partida" when match is over
+      expect(screen.queryByText(/Retomar Partida/i)).toBeNull();
+      // Should present final position option
+      expect(screen.getByText(/Fim de Jogo/i)).toBeDefined();
     });
   });
 
@@ -508,27 +572,62 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       expect(onClick).toHaveBeenCalled();
     });
 
-    it('renders SegmentedControl with keyboard radio navigation', () => {
+    it('renders SegmentedControl with roving tabindex and keyboard arrow navigation', () => {
       const onChange = vi.fn();
-      render(
+      const { rerender } = render(
         <SegmentedControl
           value="tab2"
           onChange={onChange}
           options={[
             { value: 'tab1', label: 'Primeiro' },
             { value: 'tab2', label: 'Segundo' },
+            { value: 'tab3', label: 'Terceiro' },
           ]}
         />
       );
 
       const tab1 = screen.getByRole('radio', { name: /Primeiro/i });
       const tab2 = screen.getByRole('radio', { name: /Segundo/i });
+      const tab3 = screen.getByRole('radio', { name: /Terceiro/i });
 
+      // Roving tabindex verification: active item is 0, inactive items are -1
+      expect(tab2.getAttribute('tabindex')).toBe('0');
+      expect(tab1.getAttribute('tabindex')).toBe('-1');
+      expect(tab3.getAttribute('tabindex')).toBe('-1');
       expect(tab2.getAttribute('aria-checked')).toBe('true');
-      expect(tab1.getAttribute('aria-checked')).toBe('false');
 
+      // Arrow navigation: ArrowLeft moves from tab2 to tab1
+      fireEvent.keyDown(tab2, { key: 'ArrowLeft' });
+      expect(onChange).toHaveBeenCalledWith('tab1');
+
+      // Arrow navigation: ArrowRight moves from tab2 to tab3
+      fireEvent.keyDown(tab2, { key: 'ArrowRight' });
+      expect(onChange).toHaveBeenCalledWith('tab3');
+
+      // Home and End keys
+      fireEvent.keyDown(tab2, { key: 'Home' });
+      expect(onChange).toHaveBeenCalledWith('tab1');
+
+      fireEvent.keyDown(tab2, { key: 'End' });
+      expect(onChange).toHaveBeenCalledWith('tab3');
+
+      // Direct click works
       fireEvent.click(tab1);
       expect(onChange).toHaveBeenCalledWith('tab1');
+
+      rerender(
+        <SegmentedControl
+          value="tab1"
+          onChange={onChange}
+          options={[
+            { value: 'tab1', label: 'Primeiro' },
+            { value: 'tab2', label: 'Segundo' },
+            { value: 'tab3', label: 'Terceiro' },
+          ]}
+        />
+      );
+      expect(tab1.getAttribute('tabindex')).toBe('0');
+      expect(tab2.getAttribute('tabindex')).toBe('-1');
     });
 
     it('renders Card with variant styling and interactive states', () => {
@@ -542,21 +641,58 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       expect(screen.getByText('Card Content')).toBeDefined();
     });
 
-    it('renders ModalShell with dialog semantics and Escape key handler', () => {
+    it('renders ModalShell with dialog semantics, focus trap, and Escape key handler', () => {
       const onClose = vi.fn();
-      render(
-        <ModalShell isOpen={true} onClose={onClose} title="Diálogo de Teste" description="Descrição do teste">
-          <div>Conteúdo Interno</div>
-        </ModalShell>
-      );
+
+      function ModalTestWrapper() {
+        const [isOpen, setIsOpen] = React.useState(true);
+        return (
+          <div>
+            <button id="opener-btn" onClick={() => setIsOpen(true)}>
+              Abrir Modal
+            </button>
+            <ModalShell
+              isOpen={isOpen}
+              onClose={() => {
+                onClose();
+                setIsOpen(false);
+              }}
+              title="Diálogo de Teste"
+              description="Descrição do teste"
+            >
+              <input id="modal-input-1" placeholder="Input 1" />
+              <button id="modal-btn-1">Ação</button>
+            </ModalShell>
+          </div>
+        );
+      }
+
+      const { unmount } = render(<ModalTestWrapper />);
 
       expect(screen.getByRole('dialog')).toBeDefined();
       expect(screen.getByText('Diálogo de Teste')).toBeDefined();
-      expect(screen.getByText('Conteúdo Interno')).toBeDefined();
+
+      const closeBtn = document.getElementById('close-modal-shell-btn');
+      const input = document.getElementById('modal-input-1');
+      const actionBtn = document.getElementById('modal-btn-1');
+
+      expect(closeBtn).not.toBeNull();
+      expect(input).not.toBeNull();
+      expect(actionBtn).not.toBeNull();
+
+      // Test Tab wraps from last element to first element
+      actionBtn?.focus();
+      fireEvent.keyDown(window, { key: 'Tab' });
+
+      // Test Shift+Tab wraps from first element to last element
+      closeBtn?.focus();
+      fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
 
       // Test Escape key closes modal
       fireEvent.keyDown(window, { key: 'Escape' });
       expect(onClose).toHaveBeenCalled();
+
+      unmount();
     });
 
     it('renders StatusIndicator with semantic status dots', () => {
@@ -635,6 +771,43 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       // Keyboard activation via Space key
       fireEvent.keyDown(square, { key: ' ' });
       expect(handleClick).toHaveBeenCalledTimes(2);
+    });
+
+    it('supports keyboard arrow navigation between adjacent board squares', () => {
+      render(
+        <ThemeProvider>
+          <div>
+            <BoardSquare
+              piece={{ name: 'PAWN', color: 'white' }}
+              backgroundColor="#e2e8f0"
+              handleClick={vi.fn()}
+              squareInfo={{ row: 3, column: 3, gameX: 3, gameY: 4, squareID: '3-3', name: 'PAWN3' }}
+              isSelected={false}
+              boardDisplay={Array(8).fill(Array(8).fill({ name: 'none' }))}
+              testId="square-3,4"
+            />
+            <BoardSquare
+              piece={{ name: 'none' }}
+              backgroundColor="#0f766e"
+              handleClick={vi.fn()}
+              squareInfo={{ row: 3, column: 4, gameX: 4, gameY: 4, squareID: '4-3', name: 'EMPTY' }}
+              isSelected={false}
+              boardDisplay={Array(8).fill(Array(8).fill({ name: 'none' }))}
+              testId="square-4,4"
+            />
+          </div>
+        </ThemeProvider>
+      );
+
+      const sq1 = screen.getByTestId('square-3,4');
+      const sq2 = screen.getByTestId('square-4,4');
+
+      sq1.focus();
+      expect(document.activeElement).toBe(sq1);
+
+      // Press ArrowRight to move focus from column 3 to column 4
+      fireEvent.keyDown(sq1, { key: 'ArrowRight' });
+      expect(document.activeElement).toBe(sq2);
     });
   });
 

@@ -48,10 +48,30 @@ const BoardSquare: React.FC<IBoardSquare> = ({
     isMoveDestination ? ' (movimento legal disponível)' : ''
   }${isCaptureDestination ? ' (captura legal disponível)' : ''}`;
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       handleClick(squareInfo, piece);
+      return;
+    }
+
+    // Grid Arrow Key Navigation (WCAG Roving Navigation)
+    let dCol = 0;
+    let dRow = 0;
+    if (e.key === 'ArrowLeft') dCol = -1;
+    else if (e.key === 'ArrowRight') dCol = 1;
+    else if (e.key === 'ArrowUp') dRow = -1;
+    else if (e.key === 'ArrowDown') dRow = 1;
+
+    if (dCol !== 0 || dRow !== 0) {
+      e.preventDefault();
+      const boardSize = boardDisplay.length;
+      const targetCol = Math.max(0, Math.min(boardSize - 1, squareInfo.column + dCol));
+      const targetRow = Math.max(0, Math.min(boardSize - 1, squareInfo.row + dRow));
+      const nextSquare = document.querySelector<HTMLElement>(
+        `[data-square-col="${targetCol}"][data-square-row="${targetRow}"]`
+      );
+      nextSquare?.focus();
     }
   };
 
@@ -62,6 +82,8 @@ const BoardSquare: React.FC<IBoardSquare> = ({
       aria-label={accessibleLabel}
       aria-pressed={isSelected}
       data-testid={testId}
+      data-square-col={squareInfo.column}
+      data-square-row={squareInfo.row}
       className="board-square"
       style={{
         backgroundColor: `${backgroundColor}`,
@@ -80,7 +102,6 @@ const BoardSquare: React.FC<IBoardSquare> = ({
         position: 'relative',
         userSelect: 'none',
         transition: 'background-color 150ms ease, box-shadow 150ms ease',
-        outline: 'none',
       }}
       onClick={() => handleClick(squareInfo, piece)}
       onKeyDown={handleKeyDown}

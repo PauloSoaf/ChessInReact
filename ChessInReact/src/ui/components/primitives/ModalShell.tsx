@@ -23,33 +23,82 @@ export const ModalShell: React.FC<IModalShellProps> = ({
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedElement = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!isOpen) return;
 
+    // Save previous active element for restitution on close
     previouslyFocusedElement.current = document.activeElement as HTMLElement | null;
 
+    // Lock background scrolling
+    const originalBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    // Focus trap handler
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose();
+        e.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusableElements = Array.from(
+          modalRef.current.querySelectorAll<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null);
+
+        if (focusableElements.length === 0) {
+          e.preventDefault();
+          return;
+        }
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement || !modalRef.current.contains(document.activeElement)) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement || !modalRef.current.contains(document.activeElement)) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
 
-    // Auto-focus container
-    if (modalRef.current) {
-      modalRef.current.focus();
-    }
+    // Initial focus: prioritize close button or first focusable element
+    const timer = setTimeout(() => {
+      if (modalRef.current) {
+        const firstInteractive = modalRef.current.querySelector<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (firstInteractive) {
+          firstInteractive.focus();
+        } else {
+          modalRef.current.focus();
+        }
+      }
+    }, 10);
 
     return () => {
+      clearTimeout(timer);
       window.removeEventListener('keydown', handleKeyDown);
-      if (previouslyFocusedElement.current) {
+      document.body.style.overflow = originalBodyOverflow;
+      if (previouslyFocusedElement.current && typeof previouslyFocusedElement.current.focus === 'function') {
         previouslyFocusedElement.current.focus();
       }
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

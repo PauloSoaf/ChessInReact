@@ -85,6 +85,19 @@ export const ProceduralKnight: React.FC<IProceduralKnightProps> = ({
     return geom;
   }, []);
 
+  // Explicit GPU Resource Cleanup
+  React.useEffect(() => {
+    return () => {
+      material.dispose();
+    };
+  }, [material]);
+
+  React.useEffect(() => {
+    return () => {
+      headGeometry.dispose();
+    };
+  }, [headGeometry]);
+
   return (
     <group scale={[scale, scale, scale]} position={[0, -1.0, 0]}>
       {/* 1. Pedestal Base Tier 1 (Wide bottom rim) */}

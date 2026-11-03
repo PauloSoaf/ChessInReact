@@ -99,15 +99,15 @@ A cena tridimensional foi projetada para demonstrar creative development com má
 
 ### 5. Auditoria de Contratos e Classificação dos Requisitos
 
-| Requisito | Descrição | Status | Evidência Concreta |
+| Requisito | Descrição | Status Auditado (Commit 17279bb) | Evidência & Diagnóstico Técnico |
 | :--- | :--- | :--- | :--- |
 | **RF-01** | Game Hub como tela de entrada com composição editorial e acesso a novos jogos e partidas ativas. | **VERIFIED** | `GameHub.tsx` apresenta Hero assimétrico, retomada viva de turno e seleção de modos integrada. Coberto em `Spec06ThemeAndHUD.test.tsx`. |
 | **RF-02** | Navegação persistente por Hash (`#game` e `#hub`) sincronizada com preservação total de estado. | **VERIFIED** | Navegação bidirecional testada com preservação do tabuleiro, lances e worker sem reinicialização. |
-| **RF-03** | Showcase 3D com peça procedural, materiais físicos, iluminação e fallback. | **VERIFIED** | Componente `ChessPieceShowcase` funcional em R3F/Three.js com alternância de 3 acabamentos e fallback vetorial validado em testes. |
+| **RF-03** | Showcase 3D com peça procedural, materiais físicos, iluminação e fallback. | **PARTIAL** | Renderização 3D e fallback vetorial operacionais; todavia, a auditoria identificou `pointerEvents: 'none'` no Canvas e ausência da declaração explícita `frameloop="demand"`, impedindo interação plena. Corrigido formalmente no patch SPEC06-DESIGN-RECOVERY-02. |
 | **RF-04** | HUD de Partida expandido com tabuleiro dominante, avaliação por centipawns pareada e cartões de jogadores sóbrios. | **VERIFIED** | Layout ampliado para 1080px no desktop com tabuleiro ocupando o centro visual (`min(82vw, 560px)`). |
-| **RF-05** | Modal de personalização com miniaturas vivas de tabuleiro e peças, acessível via teclado. | **VERIFIED** | `ThemeCustomizerModal.tsx` estruturado sobre `ModalShell` com fechamento por Escape, role="dialog" e prévias funcionais. |
+| **RF-05** | Modal de personalização com miniaturas vivas de tabuleiro e peças, acessível via teclado. | **PARTIAL** | Modal funcional com Escape e foco inicial, porém com focus trap incompleto (sem ciclo de Tab/Shift+Tab e sem bloqueio de rolagem do fundo). Corrigido no patch SPEC06-DESIGN-RECOVERY-02. |
 | **RF-06** | Favicon e identidade visual próprios, substituindo o `/vite.svg`. | **VERIFIED** | `public/favicon.svg` criado, `public/vite.svg` removido e `index.html` atualizado com metadados editoriais. |
-| **RNF-01** | Acessibilidade WCAG 2.2 AA no tabuleiro e controles. | **VERIFIED** | `BoardSquare.tsx` com `role="button"`, `tabIndex={0}`, `aria-label` descritivo e suporte a <kbd>Enter</kbd>/<kbd>Espaço</kbd>. |
+| **RNF-01** | Acessibilidade WCAG 2.2 AA no tabuleiro e controles. | **PARTIAL** | `BoardSquare.tsx` possuía `outline: 'none'` anulando o anel de foco, e 4 combinações de cores em Midnight e Ivory apresentavam contraste entre 3,02:1 e 4,38:1 (abaixo do limiar normativo de 4,5:1). Corrigido no patch SPEC06-DESIGN-RECOVERY-02. |
 | **RNF-02** | Zero dependências de Next.js no Vite (ADR-004). | **VERIFIED** | Primitives próprios implementados em `src/ui/components/primitives/`. Nenhuma dependência externa adicionada. |
 | **RNF-03** | Invariantes de qualidade (tsc, lint, build, vitest). | **VERIFIED** | `tsc --noEmit`: 0 erros; `npm run lint`: 0 erros; `npm run build`: sucesso; Vitest: 79 arquivos aprovados. |
 

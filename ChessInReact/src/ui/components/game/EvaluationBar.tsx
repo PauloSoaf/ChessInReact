@@ -26,7 +26,7 @@ export const EvaluationBar: React.FC<IEvaluationBarProps> = ({ evalScore, height
       aria-valuemin={-1000}
       aria-valuemax={1000}
       style={{
-        width: '32px',
+        width: 'clamp(22px, 3.5vw, 30px)',
         height,
         backgroundColor: '#12161A',
         borderRadius: 'var(--radius-sm)',

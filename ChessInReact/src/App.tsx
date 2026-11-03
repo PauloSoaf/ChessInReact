@@ -241,7 +241,7 @@ const AppContent: React.FC = () => {
             maxWidth: '1080px',
             width: '100%',
             margin: '0 auto',
-            padding: '2rem 1.5rem 4rem',
+            padding: 'clamp(1rem, 3vw, 2rem) clamp(0.75rem, 2.5vw, 1.5rem) clamp(2rem, 4vw, 4rem)',
             display: 'flex',
             flexDirection: 'column',
             gap: '1.25rem',
@@ -251,7 +251,8 @@ const AppContent: React.FC = () => {
           {/* Match HUD Subheader */}
           <div
             style={{
-              width: 'min(92vw, 620px)',
+              width: '100%',
+              maxWidth: '620px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -286,8 +287,8 @@ const AppContent: React.FC = () => {
                   letterSpacing: '0.08em',
                   padding: '0.2rem 0.65rem',
                   borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'rgba(168, 66, 66, 0.16)',
-                  border: '1px solid rgba(168, 66, 66, 0.35)',
+                  backgroundColor: 'rgba(248, 113, 113, 0.16)',
+                  border: '1px solid rgba(248, 113, 113, 0.35)',
                 }}
               >
                 FIM DE JOGO
@@ -296,7 +297,7 @@ const AppContent: React.FC = () => {
           </div>
 
           {/* Opponent Card (Black - P2) */}
-          <div style={{ width: 'min(92vw, 620px)' }}>
+          <div style={{ width: '100%', maxWidth: '620px' }}>
             <PlayerCard
               playerId="P2"
               displayName={isBotEnabled ? 'Robô MCTS / Alpha-Beta' : 'Jogador 2'}
@@ -310,22 +311,25 @@ const AppContent: React.FC = () => {
           {/* Central Arena: Evaluation Bar + Protagonist Chessboard (Pieces rendered upright) */}
           <div
             style={{
-              width: 'min(92vw, 620px)',
+              width: '100%',
+              maxWidth: '620px',
               display: 'flex',
-              alignItems: 'center',
+              alignItems: 'stretch',
               justifyContent: 'center',
-              gap: '0.875rem',
+              gap: 'clamp(0.4rem, 1.5vw, 0.875rem)',
             }}
           >
             {/* Real-time Positional Evaluation Bar (Spec 06 RF-15) */}
-            <div style={{ height: 'min(82vw, 560px)', alignSelf: 'stretch' }}>
+            <div style={{ display: 'flex', flexShrink: 0, alignSelf: 'stretch' }}>
               <EvaluationBar evalScore={lastEval} />
             </div>
 
             {/* Chessboard Main Surface (No inverted CSS transform) */}
             <main
               style={{
-                width: 'min(82vw, 560px)',
+                flex: 1,
+                maxWidth: '560px',
+                aspectRatio: '1 / 1',
                 borderRadius: 'var(--radius-lg)',
                 overflow: 'hidden',
                 boxShadow: 'var(--shadow-lg), var(--shadow-glow)',
@@ -343,7 +347,7 @@ const AppContent: React.FC = () => {
           </div>
 
           {/* Player Card (White - P1 / You) */}
-          <div style={{ width: 'min(92vw, 620px)' }}>
+          <div style={{ width: '100%', maxWidth: '620px' }}>
             <PlayerCard
               playerId="P1"
               displayName="Você (Humano)"
@@ -352,7 +356,7 @@ const AppContent: React.FC = () => {
           </div>
 
           {/* Unified Controls Bar */}
-          <div style={{ width: 'min(92vw, 620px)', marginTop: '0.25rem' }}>
+          <div style={{ width: '100%', maxWidth: '620px', marginTop: '0.25rem' }}>
             <GameControlsBar
               isBotEnabled={isBotEnabled}
               difficulty={difficulty}

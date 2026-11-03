@@ -55,6 +55,7 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
 }) => {
   const [finish, setFinish] = useState<KnightMaterialFinish>(initialFinish);
   const [hasWebGL, setHasWebGL] = useState<boolean>(false);
+  const [isContextLost, setIsContextLost] = useState<boolean>(false);
   const [reducedMotion, setReducedMotion] = useState<boolean>(false);
   const [isVisible, setIsVisible] = useState<boolean>(true);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -98,15 +99,14 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
         position: 'relative',
         width: '100%',
         height: '100%',
-        minHeight: '340px',
-        maxHeight: '460px',
+        minHeight: '260px',
+        maxHeight: '440px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: 'var(--radius-xl)',
         background: 'radial-gradient(ellipse at center, rgba(196, 167, 125, 0.08) 0%, rgba(9, 13, 17, 0) 70%)',
-        overflow: 'hidden',
         userSelect: 'none',
         ...style,
       }}
@@ -122,15 +122,30 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
           justifyContent: 'center',
         }}
       >
-        {hasWebGL ? (
+        {hasWebGL && !isContextLost ? (
           <ShowcaseErrorBoundary fallback={fallbackNode}>
             <Suspense fallback={fallbackNode}>
               {isVisible ? (
                 <Canvas
+                  frameloop="demand"
                   camera={{ position: [0, 0.4, 4.2], fov: 42 }}
-                  dpr={typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 1.75) : 1}
+                  dpr={[1, 1.5]}
                   gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-                  style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
+                  style={{ width: '100%', height: '100%', pointerEvents: 'auto', touchAction: 'none' }}
+                  onCreated={({ gl }) => {
+                    const canvas = gl.domElement;
+                    const handleContextLost = (e: Event) => {
+                      e.preventDefault();
+                      console.warn('[ChessPieceShowcase] WebGL context lost, activating vector fallback');
+                      setIsContextLost(true);
+                    };
+                    const handleContextRestored = () => {
+                      console.info('[ChessPieceShowcase] WebGL context restored');
+                      setIsContextLost(false);
+                    };
+                    canvas.addEventListener('webglcontextlost', handleContextLost);
+                    canvas.addEventListener('webglcontextrestored', handleContextRestored);
+                  }}
                 >
                   <InteractiveKnightScene finish={finish} reducedMotion={reducedMotion} />
                 </Canvas>

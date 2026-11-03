@@ -23,9 +23,41 @@ export function SegmentedControl<T extends string | number>({
   idPrefix = 'seg',
 }: ISegmentedControlProps<T>): React.ReactElement {
   const isSm = size === 'sm';
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, currentIndex: number) => {
+    let nextIndex = -1;
+
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      nextIndex = (currentIndex + 1) % options.length;
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      nextIndex = (currentIndex - 1 + options.length) % options.length;
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      nextIndex = 0;
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      nextIndex = options.length - 1;
+    }
+
+    if (nextIndex >= 0 && nextIndex < options.length) {
+      const nextOption = options[nextIndex];
+      onChange(nextOption.value);
+      // Move DOM focus to next button
+      setTimeout(() => {
+        const nextButton = containerRef.current?.querySelector<HTMLButtonElement>(
+          `#${idPrefix}-${nextOption.value}`
+        );
+        nextButton?.focus();
+      }, 0);
+    }
+  };
 
   return (
     <div
+      ref={containerRef}
       role="radiogroup"
       style={{
         display: 'inline-flex',
@@ -38,7 +70,7 @@ export function SegmentedControl<T extends string | number>({
         userSelect: 'none',
       }}
     >
-      {options.map((opt) => {
+      {options.map((opt, index) => {
         const isSelected = opt.value === value;
         return (
           <button
@@ -46,8 +78,10 @@ export function SegmentedControl<T extends string | number>({
             id={`${idPrefix}-${opt.value}`}
             type="button"
             role="radio"
+            tabIndex={isSelected ? 0 : -1}
             aria-checked={isSelected}
             onClick={() => onChange(opt.value)}
+            onKeyDown={(e) => handleKeyDown(e, index)}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -63,7 +97,6 @@ export function SegmentedControl<T extends string | number>({
               boxShadow: isSelected ? 'var(--shadow-sm)' : 'none',
               cursor: 'pointer',
               transition: 'all var(--transition-fast)',
-              outline: 'none',
               whiteSpace: 'nowrap',
             }}
           >

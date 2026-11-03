@@ -14,10 +14,15 @@ export const InteractiveKnightScene: React.FC<IInteractiveKnightSceneProps> = ({
   reducedMotion = false,
 }) => {
   const groupRef = useRef<THREE.Group>(null);
-  const { pointer } = useThree();
+  const { pointer, invalidate } = useThree();
 
   // Baseline 3/4 beauty profile angle (approx 35 degrees)
   const baseRotationY = 0.55;
+
+  // Invalidate on finish change or mount
+  React.useEffect(() => {
+    invalidate();
+  }, [finish, invalidate]);
 
   useFrame((state, delta) => {
     if (!groupRef.current) return;
@@ -30,17 +35,26 @@ export const InteractiveKnightScene: React.FC<IInteractiveKnightSceneProps> = ({
     }
 
     // 1. Interactive Pointer Tilt (Smooth Lerp dampened by delta)
-    const targetY = baseRotationY + (pointer.x * 0.45);
+    const targetY = baseRotationY + pointer.x * 0.45;
     const targetX = -pointer.y * 0.22;
 
-    const lerpSpeed = Math.min(delta * 4.5, 1);
-    groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetY, lerpSpeed);
-    groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, targetX, lerpSpeed);
+    const lerpSpeed = Math.min(delta * 5.0, 1);
+    const currentY = groupRef.current.rotation.y;
+    const currentX = groupRef.current.rotation.x;
 
-    // 2. Subtle Idle Breathing Float
-    const elapsedTime = state.clock.getElapsedTime();
-    const breathingOffset = Math.sin(elapsedTime * 1.2) * 0.035;
-    groupRef.current.position.y = -0.15 + breathingOffset;
+    const nextY = THREE.MathUtils.lerp(currentY, targetY, lerpSpeed);
+    const nextX = THREE.MathUtils.lerp(currentX, targetX, lerpSpeed);
+
+    groupRef.current.rotation.y = nextY;
+    groupRef.current.rotation.x = nextX;
+    groupRef.current.position.y = -0.15;
+
+    // In frameloop="demand", only schedule the next frame if still converging
+    const deltaY = Math.abs(nextY - targetY);
+    const deltaX = Math.abs(nextX - targetX);
+    if (deltaY > 0.0005 || deltaX > 0.0005) {
+      state.invalidate();
+    }
   });
 
   return (
