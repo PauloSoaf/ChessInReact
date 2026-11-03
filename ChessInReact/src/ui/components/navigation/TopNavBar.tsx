@@ -30,6 +30,9 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
 
   return (
     <header
+      id="top-nav-bar"
+      data-testid="top-nav-bar"
+      className="top-nav-bar"
       style={{
         width: '100%',
         backgroundColor: 'var(--bg-surface-glass)',
@@ -72,6 +75,7 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
               color: '#ffffff',
               fontSize: '1.25rem',
               fontWeight: 900,
+              flexShrink: 0,
             }}
           >
             ♞
@@ -80,7 +84,16 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
             <div style={{ fontSize: '1.1rem', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.1 }}>
               ChessInReact
             </div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            <div
+              className="nav-brand-subtitle"
+              style={{
+                fontSize: '0.7rem',
+                color: 'var(--text-muted)',
+                fontWeight: 600,
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+              }}
+            >
               Core Engine & Hub
             </div>
           </div>
@@ -89,8 +102,9 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
         {/* Status Pill in Match */}
         {isMatchActive && (
           <div
+            className="nav-status-pill"
             style={{
-              marginLeft: '1rem',
+              marginLeft: '0.75rem',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.5rem',
@@ -101,6 +115,7 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
               fontSize: '0.75rem',
               fontWeight: 600,
               color: 'var(--text-secondary)',
+              whiteSpace: 'nowrap',
             }}
           >
             <span
@@ -122,7 +137,7 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
       </div>
 
       {/* Nav Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         {/* View Switcher: Hub vs Live Match */}
         <div
           style={{
@@ -137,7 +152,7 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
             id="nav-btn-hub"
             onClick={() => onNavigate('HUB')}
             style={{
-              padding: '0.375rem 0.875rem',
+              padding: '0.375rem 0.75rem',
               borderRadius: 'var(--radius-sm)',
               border: 'none',
               backgroundColor: currentView === 'HUB' ? 'var(--bg-surface-elevated)' : 'transparent',
@@ -153,13 +168,13 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
             }}
           >
             <span>🏠</span>
-            <span>Game Hub</span>
+            <span className="nav-btn-text">Game Hub</span>
           </button>
           <button
             id="nav-btn-game"
             onClick={() => onNavigate('GAME')}
             style={{
-              padding: '0.375rem 0.875rem',
+              padding: '0.375rem 0.75rem',
               borderRadius: 'var(--radius-sm)',
               border: 'none',
               backgroundColor: currentView === 'GAME' ? 'var(--bg-surface-elevated)' : 'transparent',
@@ -175,7 +190,7 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
             }}
           >
             <span>♟</span>
-            <span>Tabuleiro</span>
+            <span className="nav-btn-text">Tabuleiro</span>
           </button>
         </div>
 
@@ -206,7 +221,7 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
           id="nav-open-theme-customizer"
           onClick={onOpenThemeModal}
           style={{
-            padding: '0.45rem 0.875rem',
+            padding: '0.45rem 0.75rem',
             backgroundColor: 'var(--color-accent-subtle)',
             color: 'var(--color-accent)',
             border: '1px solid var(--border-subtle)',
@@ -221,7 +236,7 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
           }}
         >
           <span>🎨</span>
-          <span>Personalizar</span>
+          <span className="nav-btn-text">Personalizar</span>
         </button>
       </div>
     </header>

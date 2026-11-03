@@ -29,6 +29,46 @@ const SVG_PIECE_PATHS: Record<string, string> = {
   PAWN: 'M12 5a3 3 0 100 6 3 3 0 000-6zm-3 8l-1 5h8l-1-5H9zm-2 7h10',
 };
 
+// Authentic 16x16 Pixel Art Sprites (Crisp edges geometry)
+interface IPixelSprite {
+  outline: string;
+  fill: string;
+  accent?: string;
+}
+
+const PIXEL_ART_SPRITES: Record<string, IPixelSprite> = {
+  PAWN: {
+    outline: 'M6 2h4v1h1v4h-1v1h2v1h1v4h-1v1h2v1H2v-1h2v-1H3V9h1V8h2V7H5V3h1V2z',
+    fill: 'M7 3h2v1H7V3zm-1 2h4v1H6V5zm0 3h4v1H6V8zm-1 2h6v2H5v-2zm-1 3h8v1H4v-1z',
+    accent: 'M7 5h2v1H7V5z',
+  },
+  KNIGHT: {
+    outline: 'M5 2h3v1h1v1h1v1h1v1h1v4h-1v2h1v1h1v1H3v-1h1v-2h-1v-2h1V7h-1V5h1V4h1V2z',
+    fill: 'M6 3h2v1h2v2H9v1h2v3h-1v2h-1v-1H5v-1h1V9H5V8h2V7H4V6h1V5h1V3zm2 4h1v1H8V7z',
+    accent: 'M6 4h1v1H6V4zm3 4h1v1H9V8z',
+  },
+  BISHOP: {
+    outline: 'M7 1h2v1h1v1h1v5h-1v1h1v1h1v3h-1v1h2v1H2v-1h2v-1H3V10h1V9h1V8H4V3h1V2h1V1h1z',
+    fill: 'M7 2h2v1H7V2zm-1 2h3v1h-1v1h2v2H8v1h2v1H6v-1h1V8H5V5h1V4zm-1 7h6v2H5v-2zm-1 3h8v1H4v-1z',
+    accent: 'M8 4h1v2H8V4z',
+  },
+  ROOK: {
+    outline: 'M2 2h3v2h2V2h2v2h2V2h3v5h-1v1h1v4h-1v1h2v1H1v-1h2v-1H2V8h1V7H2V2z',
+    fill: 'M3 3h1v2h2V4h4v1h2V3h1v4h-1v2h-1v2h2v1H3v-1h2V9H4V7H3V3z',
+    accent: 'M6 6h4v1H6V6z',
+  },
+  QUEEN: {
+    outline: 'M2 2h2v1h1v2h1V3h1V1h2v2h1v2h1V3h1V2h2v5h-1v1h1v4h-1v1h2v1H1v-1h2v-1H2V8h1V7H2V2z',
+    fill: 'M3 3h1v2h2V4h1V3h2v1h1v1h2V4h1v3h-1v2h-1v2h2v1H4v-1h2V9H5V7H4V3zm4 4h2v1H7V7z',
+    accent: 'M7 3h2v1H7V3zm-4 4h1v1H3V7zm10 0h1v1h-1V7z',
+  },
+  KING: {
+    outline: 'M7 1h2v1h1v1H9v1h3v4h-1v1h1v4h-1v1h2v1H2v-1h2v-1H3V9h1V8H3V4h3V3H5V2h1V1h1z',
+    fill: 'M7 2h2v1h1v1H6V3h1V2zm-2 3h6v3h-1v1h-1v1h2v2H5v-2h2V9H6V8H5V5zm2 5h2v1H7v-1z',
+    accent: 'M7 2h2v1H7V2zm0 6h2v1H7V8z',
+  },
+};
+
 export const PieceRenderer: React.FC<IPieceRendererProps> = ({
   variantId,
   ownerId,
@@ -47,6 +87,7 @@ export const PieceRenderer: React.FC<IPieceRendererProps> = ({
     return (
       <svg
         viewBox="0 0 24 24"
+        data-testid="tournament-vector-piece"
         style={{
           width: size,
           height: size,
@@ -68,25 +109,34 @@ export const PieceRenderer: React.FC<IPieceRendererProps> = ({
     );
   }
 
-  // 2. Pixel Art stylized
+  // 2. Authentic 16x16 Pixel Art rendering (8-Bit Retro Arcade)
   if (pieceSet === 'pixel-art') {
-    const glyph = UNICODE_GLYPHS[normVariant] ?? '♟';
+    const sprite = PIXEL_ART_SPRITES[normVariant] ?? PIXEL_ART_SPRITES.PAWN;
+    const outlineColor = isWhite ? '#0284c7' : '#881337';
+    const fillColor = isWhite ? '#e0f2fe' : '#ffe4e6';
+    const accentColor = isWhite ? '#38bdf8' : '#f43f5e';
+
     return (
-      <span
+      <svg
+        viewBox="0 0 16 16"
+        data-testid="pixel-art-piece"
+        shapeRendering="crispEdges"
         style={{
-          fontSize: '110%',
-          fontFamily: '"Courier New", Courier, monospace',
-          fontWeight: 900,
-          color: isWhite ? '#e0f2fe' : '#ffe4e6',
-          textShadow: isWhite
-            ? '1px 1px 0 #0284c7, -1px -1px 0 #0369a1'
-            : '1px 1px 0 #be123c, -1px -1px 0 #881337',
-          imageRendering: 'pixelated',
-          userSelect: 'none',
+          width: size,
+          height: size,
+          maxWidth: '85%',
+          maxHeight: '85%',
+          shapeRendering: 'crispEdges',
+          filter: isWhite
+            ? 'drop-shadow(0 2px 0 #0369a1)'
+            : 'drop-shadow(0 2px 0 #4c0519)',
+          transition: 'transform 150ms ease-out',
         }}
       >
-        {glyph}
-      </span>
+        <path d={sprite.outline} fill={outlineColor} />
+        <path d={sprite.fill} fill={fillColor} />
+        {sprite.accent && <path d={sprite.accent} fill={accentColor} />}
+      </svg>
     );
   }
 
@@ -94,6 +144,7 @@ export const PieceRenderer: React.FC<IPieceRendererProps> = ({
   const glyph = UNICODE_GLYPHS[normVariant] ?? '♟';
   return (
     <span
+      data-testid="neo-classic-piece"
       style={{
         fontSize: '130%',
         color: isWhite ? '#ffffff' : '#fda4af',

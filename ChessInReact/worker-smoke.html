@@ -189,6 +189,7 @@
         bridge.dispose();
 
         // 9. Full React.StrictMode Human vs Native Bot Match Integration in real browser
+        window.location.hash = '#game';
         const reactContainer = document.getElementById('react-root');
         const reactRoot = ReactDOM.createRoot(reactContainer);
         reactRoot.render(React.createElement(React.StrictMode, null, React.createElement(App)));

@@ -5,7 +5,7 @@ import { useBotMatch } from './bindings/react/useBotMatch';
 import { AIDifficultyLevel } from './workers/ai/interfaces/IAIEngineContracts';
 import { bootstrapGame } from './core/bootstrap/GameInitializer';
 import { gameStore } from './core/state/gameStore';
-import { ThemeProvider } from './ui/theme/ThemeContext';
+import { ThemeProvider, useTheme } from './ui/theme/ThemeContext';
 import { TopNavBar } from './ui/components/navigation/TopNavBar';
 import { ThemeCustomizerModal } from './ui/components/navigation/ThemeCustomizerModal';
 import { GameHub } from './ui/components/hub/GameHub';
@@ -25,19 +25,22 @@ const DIFFICULTY_LABELS: Record<AIDifficultyLevel, string> = {
 const AppContent: React.FC = () => {
   const [boardSize, setBoardSize] = useState(8);
   const [currentView, setCurrentView] = useState<'HUB' | 'GAME'>(() => {
-    if (typeof window !== 'undefined' && window.location.hash === '#hub') {
-      return 'HUB';
+    if (typeof window !== 'undefined' && window.location.hash === '#game') {
+      return 'GAME';
     }
-    return 'GAME';
+    return 'HUB';
   });
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
-  const [isBoardFlipped, setIsBoardFlipped] = useState(false);
+
+  const { preferences, updatePreferences } = useTheme();
+  const isBoardFlipped = Boolean(preferences.flipBoard);
 
   const activePlayer = useActivePlayer();
   const turnNumber = useTurnNumber();
   const revision = useGameStore((state) => state.domain.revision);
   const isGameOver = useGameStore((state) => state.domain.isGameOver);
   const entityCount = useGameStore((state) => Object.keys(state.domain.boardEntities).length);
+  const hasActiveMatch = turnNumber > 1 || revision > 0;
 
   const { undo, redo } = useGameActions();
 
@@ -61,6 +64,28 @@ const AppContent: React.FC = () => {
       bootstrapGame({ targetStore: gameStore });
     }
   }, [entityCount]);
+
+  // Two-way synchronization with URL hash (#game vs #hub)
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (typeof window !== 'undefined') {
+        setCurrentView(window.location.hash === '#game' ? 'GAME' : 'HUB');
+      }
+    };
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const navigateTo = useCallback((view: 'HUB' | 'GAME') => {
+    setCurrentView(view);
+    if (typeof window !== 'undefined') {
+      const targetHash = view === 'GAME' ? '#game' : '#hub';
+      if (window.location.hash !== targetHash) {
+        window.location.hash = targetHash;
+      }
+    }
+  }, []);
 
   const handleReset = useCallback(() => {
     cancelSearch();
@@ -114,44 +139,62 @@ const AppContent: React.FC = () => {
     [updateTopologySize]
   );
 
-  // Global Keyboard Shortcuts
+  const handleFlipBoard = useCallback(() => {
+    updatePreferences({ flipBoard: !preferences.flipBoard });
+  }, [preferences.flipBoard, updatePreferences]);
+
+  // Global Keyboard Shortcuts (Strictly disabled when modal is open to avoid unintended rollbacks)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Avoid intercepting input fields
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) {
+      if (isThemeModalOpen) {
+        if (e.key === 'Escape') {
+          setIsThemeModalOpen(false);
+        }
         return;
       }
 
-      if (e.key === 'Escape' && isThemeModalOpen) {
-        setIsThemeModalOpen(false);
-      } else if (e.key === 'z' || e.key === 'Z') {
+      // Avoid intercepting form inputs
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLSelectElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      if (e.key === 'z' || e.key === 'Z') {
         if (e.shiftKey) handleRedo();
         else handleUndo();
       } else if (e.key === 'y' || e.key === 'Y') {
         handleRedo();
       } else if (e.key === 'h' || e.key === 'H') {
-        setCurrentView((prev) => (prev === 'HUB' ? 'GAME' : 'HUB'));
+        navigateTo(currentView === 'HUB' ? 'GAME' : 'HUB');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isThemeModalOpen, handleUndo, handleRedo]);
+  }, [isThemeModalOpen, handleUndo, handleRedo, navigateTo, currentView]);
 
-  const handleStartBotMatch = (level: AIDifficultyLevel) => {
-    toggleBot(true);
-    setDifficulty(level);
-    handleReset();
-    setCurrentView('GAME');
-    if (typeof window !== 'undefined') window.location.hash = '#game';
-  };
+  const handleResumeMatch = useCallback(() => {
+    navigateTo('GAME');
+  }, [navigateTo]);
 
-  const handleStartLocalMatch = () => {
+  const handleStartBotMatch = useCallback(
+    (level: AIDifficultyLevel) => {
+      toggleBot(true);
+      setDifficulty(level);
+      handleReset();
+      navigateTo('GAME');
+    },
+    [toggleBot, setDifficulty, handleReset, navigateTo]
+  );
+
+  const handleStartLocalMatch = useCallback(() => {
     toggleBot(false);
     handleReset();
-    setCurrentView('GAME');
-    if (typeof window !== 'undefined') window.location.hash = '#game';
-  };
+    navigateTo('GAME');
+  }, [toggleBot, handleReset, navigateTo]);
 
   return (
     <div
@@ -159,23 +202,18 @@ const AppContent: React.FC = () => {
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: 'var(--bg-canvas)',
+        backgroundColor: 'var(--bg-canvas, var(--bg-app))',
         color: 'var(--text-primary)',
         fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         transition: 'background-color var(--transition-normal), color var(--transition-normal)',
       }}
     >
-      {/* Modern Top Navigation Bar */}
+      {/* Modern Responsive Top Navigation Bar */}
       <TopNavBar
         currentView={currentView}
-        onNavigate={(view) => {
-          setCurrentView(view);
-          if (typeof window !== 'undefined') {
-            window.location.hash = view === 'HUB' ? '#hub' : '#game';
-          }
-        }}
+        onNavigate={navigateTo}
         onOpenThemeModal={() => setIsThemeModalOpen(true)}
-        isMatchActive={turnNumber > 1 || revision > 0}
+        isMatchActive={hasActiveMatch}
         turnNumber={turnNumber}
         activePlayer={activePlayer}
         isGameOver={isGameOver}
@@ -186,11 +224,8 @@ const AppContent: React.FC = () => {
         <GameHub
           onStartBotMatch={handleStartBotMatch}
           onStartLocalMatch={handleStartLocalMatch}
-          onResumeMatch={() => {
-            setCurrentView('GAME');
-            if (typeof window !== 'undefined') window.location.hash = '#game';
-          }}
-          hasActiveMatch={turnNumber > 1 || revision > 0}
+          onResumeMatch={handleResumeMatch}
+          hasActiveMatch={hasActiveMatch}
           turnNumber={turnNumber}
           activePlayer={activePlayer}
           isGameOver={isGameOver}
@@ -268,7 +303,7 @@ const AppContent: React.FC = () => {
             />
           </div>
 
-          {/* Central Arena: Evaluation Bar + Protagonist Chessboard */}
+          {/* Central Arena: Evaluation Bar + Protagonist Chessboard (Pieces rendered upright) */}
           <div
             style={{
               width: '100%',
@@ -283,7 +318,7 @@ const AppContent: React.FC = () => {
               <EvaluationBar evalScore={lastEval} />
             </div>
 
-            {/* Chessboard Main Surface */}
+            {/* Chessboard Main Surface (No inverted CSS transform) */}
             <main
               style={{
                 width: 'min(75vw, 520px)',
@@ -292,8 +327,6 @@ const AppContent: React.FC = () => {
                 boxShadow: 'var(--shadow-lg)',
                 border: '2px solid var(--border-prominent)',
                 backgroundColor: 'var(--bg-card)',
-                transition: 'transform var(--transition-normal)',
-                transform: isBoardFlipped ? 'rotate(180deg)' : 'none',
               }}
             >
               <ChessBoard
@@ -329,7 +362,7 @@ const AppContent: React.FC = () => {
               onRedo={handleRedo}
               onReset={handleReset}
               onOpenThemeModal={() => setIsThemeModalOpen(true)}
-              onFlipBoard={() => setIsBoardFlipped((prev) => !prev)}
+              onFlipBoard={handleFlipBoard}
               isBoardFlipped={isBoardFlipped}
             />
           </div>

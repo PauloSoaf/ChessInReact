@@ -8,6 +8,10 @@ export interface IBoardSquare {
   isSelected?: boolean;
   squareInfo: ISquareInfo;
   boardDisplay: IChessPiece[][];
+  isMoveDestination?: boolean;
+  isCaptureDestination?: boolean;
+  rankLabel?: string;
+  fileLabel?: string;
 }
 
 export interface IChessPiece {
@@ -20,9 +24,11 @@ export interface IChessPieces {
   [key: string]: IChessPiece;
 }
 
-export interface ISquareInfo{
+export interface ISquareInfo {
   row: number;
   column: number;
   squareID: string;
   name?: string;
+  gameX?: number;
+  gameY?: number;
 }

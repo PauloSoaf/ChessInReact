@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
-import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ThemeProvider, useTheme } from '../theme/ThemeContext';
 import { UI_THEMES, BOARD_THEMES, PIECE_SETS } from '../theme/themeRegistry';
 import { PieceRenderer } from '../components/pieces/PieceRenderer';
@@ -11,11 +10,19 @@ import { GameHub } from '../components/hub/GameHub';
 import { PlayerCard } from '../components/game/PlayerCard';
 import { EvaluationBar } from '../components/game/EvaluationBar';
 import { GameControlsBar } from '../components/game/GameControlsBar';
+import ChessBoard from '../../components/ChessBoard/ChessBoard';
+import { gameStore } from '../../core/state/gameStore';
+import { bootstrapGame } from '../../core/bootstrap/GameInitializer';
+import App from '../../App';
 
 describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
   beforeEach(() => {
     localStorage.clear();
     document.documentElement.className = '';
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   describe('Theme Registry & Tokens (Spec 06 Independent 3-Category System)', () => {
@@ -110,13 +117,22 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       expect(path).not.toBeNull();
     });
 
-    it('renders pixelated typography for pixel-art arcade set', () => {
+    it('renders authentic crisp vector pixel-art sprites for pixel-art arcade set', () => {
       const { container } = render(
         <PieceRenderer variantId="KING" ownerId="P1" pieceSet="pixel-art" />
       );
-      expect(container.textContent).toContain('♚');
-      const span = container.querySelector('span');
-      expect(span?.style.fontFamily).toContain('Courier New');
+      const svg = container.querySelector('[data-testid="pixel-art-piece"]');
+      expect(svg).not.toBeNull();
+      expect(svg?.getAttribute('shape-rendering')).toBe('crispEdges');
+
+      // Verify all 6 pieces render for both players
+      const pieceTypes = ['KING', 'QUEEN', 'ROOK', 'BISHOP', 'KNIGHT', 'PAWN'] as const;
+      for (const pt of pieceTypes) {
+        const { container: p1c } = render(<PieceRenderer variantId={pt} ownerId="P1" pieceSet="pixel-art" />);
+        expect(p1c.querySelector('[data-testid="pixel-art-piece"]')).not.toBeNull();
+        const { container: p2c } = render(<PieceRenderer variantId={pt} ownerId="P2" pieceSet="pixel-art" />);
+        expect(p2c.querySelector('[data-testid="pixel-art-piece"]')).not.toBeNull();
+      }
     });
   });
 
@@ -202,7 +218,7 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       expect(screen.getByText(/Retomar Partida/i)).toBeDefined();
 
       // Start Bot Match
-      const startBotBtn = screen.getByRole('button', { name: /contra/i });
+      const startBotBtn = screen.getByRole('button', { name: /Iniciar Nova Partida/i });
       fireEvent.click(startBotBtn);
       expect(onStartBotMatch).toHaveBeenCalledWith(3);
     });
@@ -291,6 +307,166 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       const resetBtn = screen.getByRole('button', { name: /Reset Match/i });
       fireEvent.click(resetBtn);
       expect(onReset).toHaveBeenCalled();
+    });
+  });
+
+  describe('ChessBoard Visual Controls & Board Flip (Spec 06 RF-14, RF-16)', () => {
+    beforeEach(() => {
+      gameStore.getState().resetDomainState({
+        ...gameStore.getState().domain,
+        boardEntities: {},
+        occupancy: {},
+        revision: 0,
+        turnNumber: 1,
+        activePlayer: 'P1',
+        isGameOver: false,
+        winnerId: null,
+      });
+      bootstrapGame({ targetStore: gameStore });
+    });
+
+    it('renders coordinate labels when showCoordinates is true', () => {
+      localStorage.setItem(
+        'chess_in_react_theme_preferences',
+        JSON.stringify({ showCoordinates: true })
+      );
+
+      const { container } = render(
+        <ThemeProvider>
+          <ChessBoard />
+        </ThemeProvider>
+      );
+
+      const rankLabels = container.querySelectorAll('[data-testid="coordinate-rank"]');
+      const fileLabels = container.querySelectorAll('[data-testid="coordinate-file"]');
+      expect(rankLabels.length).toBeGreaterThan(0);
+      expect(fileLabels.length).toBeGreaterThan(0);
+    });
+
+    it('hides coordinate labels when showCoordinates is false', () => {
+      localStorage.setItem(
+        'chess_in_react_theme_preferences',
+        JSON.stringify({ showCoordinates: false })
+      );
+
+      const { container } = render(
+        <ThemeProvider>
+          <ChessBoard />
+        </ThemeProvider>
+      );
+
+      const rankLabels = container.querySelectorAll('[data-testid="coordinate-rank"]');
+      const fileLabels = container.querySelectorAll('[data-testid="coordinate-file"]');
+      expect(rankLabels.length).toBe(0);
+      expect(fileLabels.length).toBe(0);
+    });
+
+    it('renders legal move indicators when showLegalMoves is true and a piece is clicked', () => {
+      localStorage.setItem(
+        'chess_in_react_theme_preferences',
+        JSON.stringify({ showLegalMoves: true })
+      );
+
+      const { container } = render(
+        <ThemeProvider>
+          <ChessBoard />
+        </ThemeProvider>
+      );
+
+      // Click white pawn at e2 (4, 1)
+      const sqE2 = container.querySelector('[data-testid="square-4,1"]');
+      expect(sqE2).not.toBeNull();
+      fireEvent.click(sqE2!);
+
+      // Should render legal move dots on e3 (4,2) and e4 (4,3)
+      const dots = container.querySelectorAll('[data-testid="legal-move-dot"]');
+      expect(dots.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('logically inverts board rows and columns when flipBoard is true without rotating container', () => {
+      localStorage.setItem(
+        'chess_in_react_theme_preferences',
+        JSON.stringify({ flipBoard: true })
+      );
+
+      const { container } = render(
+        <ThemeProvider>
+          <ChessBoard />
+        </ThemeProvider>
+      );
+
+      // Top-left square in standard orientation is (0, 7) [a8]
+      // In flipped orientation, top-left square is (7, 0) [h1]
+      const firstSquare = container.querySelector('.chess-board-grid > :first-child');
+      expect(firstSquare?.getAttribute('data-testid')).toBe('square-7,0');
+
+      // The board itself must NOT have transform: rotate(180deg)
+      const boardElement = container.querySelector('.chess-board-grid');
+      expect(boardElement?.getAttribute('style') || '').not.toContain('rotate(180deg)');
+    });
+  });
+
+  describe('App Navigation & Hash Synchronization (Spec 06 RF-01, RF-02)', () => {
+    beforeEach(() => {
+      window.location.hash = '';
+      gameStore.getState().resetDomainState({
+        ...gameStore.getState().domain,
+        boardEntities: {},
+        occupancy: {},
+        revision: 0,
+        turnNumber: 1,
+        activePlayer: 'P1',
+        isGameOver: false,
+        winnerId: null,
+      });
+      bootstrapGame({ targetStore: gameStore });
+    });
+
+    it('renders Game Hub by default when no hash is present', () => {
+      render(<App />);
+      expect(screen.getByText('Partida contra Robô (IA)')).toBeDefined();
+      expect(screen.getByText(/Experiência de Xadrez Avançada/i)).toBeDefined();
+    });
+
+    it('renders Game directly when #game hash is present', () => {
+      window.location.hash = '#game';
+      render(<App />);
+      expect(screen.getByTestId('top-nav-bar')).toBeDefined();
+      expect(document.getElementById('bot-toggle-checkbox')).not.toBeNull();
+    });
+
+    it('preserves match state when navigating between Hub and Game', () => {
+      window.location.hash = '#game';
+      render(<App />);
+
+      // Enable bot match
+      const botCheckbox = document.getElementById('bot-toggle-checkbox')!;
+      fireEvent.click(botCheckbox);
+
+      // White moves e2 to e4
+      const sqE2 = screen.getByTestId('square-4,1');
+      const sqE4 = screen.getByTestId('square-4,3');
+      fireEvent.click(sqE2);
+      fireEvent.click(sqE4);
+
+      // Turn advanced
+      expect(gameStore.getState().domain.turnNumber).toBe(2);
+
+      // Navigate to Hub
+      const hubBtn = screen.getByRole('button', { name: /Game Hub/i });
+      fireEvent.click(hubBtn);
+
+      // Hub shows "Continuar contra Bot (Turno #2)"
+      const resumeBtn = screen.getByRole('button', { name: /Continuar contra Bot/i });
+      expect(resumeBtn).toBeDefined();
+      expect(resumeBtn.textContent).toContain('Turno #2');
+
+      // Click to resume
+      fireEvent.click(resumeBtn);
+
+      // Back on game, turn number is still 2!
+      expect(gameStore.getState().domain.turnNumber).toBe(2);
+      expect(document.getElementById('bot-toggle-checkbox')).not.toBeNull();
     });
   });
 });

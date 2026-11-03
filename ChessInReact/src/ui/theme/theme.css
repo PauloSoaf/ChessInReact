@@ -181,3 +181,25 @@ body {
 .pulse-turn {
   animation: pulseTurn 2s infinite;
 }
+
+/* Responsive TopNavBar and UI layout (Prevents overflow on mobile: 375px) */
+.top-nav-bar {
+  max-width: 100vw;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+@media (max-width: 640px) {
+  .top-nav-bar {
+    padding: 0.5rem 0.75rem !important;
+  }
+  .nav-brand-subtitle {
+    display: none !important;
+  }
+  .nav-status-pill {
+    display: none !important;
+  }
+  .nav-btn-text {
+    display: none !important;
+  }
+}

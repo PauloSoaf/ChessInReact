@@ -260,30 +260,85 @@ export const GameHub: React.FC<IGameHubProps> = ({
               </div>
             </div>
 
-            <button
-              id="hub-btn-play-bot"
-              onClick={() => onStartBotMatch(botDifficulty)}
-              style={{
-                width: '100%',
-                backgroundColor: 'var(--color-accent)',
-                color: '#ffffff',
-                border: 'none',
-                padding: '0.75rem',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.925rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: 'var(--shadow-sm)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                transition: 'all var(--transition-fast)',
-              }}
-            >
-              <span>⚔️</span>
-              <span>{botEnabled && hasActiveMatch ? 'Continuar contra Bot' : 'Jogar contra o Bot'}</span>
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
+              {botEnabled && hasActiveMatch ? (
+                <>
+                  <button
+                    id="hub-btn-play-bot"
+                    onClick={onResumeMatch}
+                    style={{
+                      width: '100%',
+                      backgroundColor: 'var(--color-accent)',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '0.75rem',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.925rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: 'var(--shadow-sm)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      transition: 'all var(--transition-fast)',
+                    }}
+                  >
+                    <span>⚔️</span>
+                    <span>Continuar contra Bot (Turno #{turnNumber})</span>
+                  </button>
+
+                  <button
+                    id="hub-btn-new-bot"
+                    onClick={() => onStartBotMatch(botDifficulty)}
+                    style={{
+                      width: '100%',
+                      backgroundColor: 'transparent',
+                      color: 'var(--text-secondary)',
+                      border: '1px solid var(--border-subtle)',
+                      padding: '0.55rem',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem',
+                      transition: 'all var(--transition-fast)',
+                    }}
+                  >
+                    <span>↻</span>
+                    <span>Iniciar Nova Partida contra Bot</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  id="hub-btn-play-bot"
+                  onClick={() => onStartBotMatch(botDifficulty)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'var(--color-accent)',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '0.75rem',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.925rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: 'var(--shadow-sm)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    transition: 'all var(--transition-fast)',
+                  }}
+                >
+                  <span>⚔️</span>
+                  <span>Jogar contra o Bot</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Card 2: Pass and Play Local */}
@@ -342,29 +397,84 @@ export const GameHub: React.FC<IGameHubProps> = ({
               </div>
             </div>
 
-            <button
-              id="hub-btn-play-local"
-              onClick={onStartLocalMatch}
-              style={{
-                width: '100%',
-                backgroundColor: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-prominent)',
-                padding: '0.75rem',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.925rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                transition: 'all var(--transition-fast)',
-              }}
-            >
-              <span>♟</span>
-              <span>Iniciar Partida Local</span>
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
+              {!botEnabled && hasActiveMatch ? (
+                <>
+                  <button
+                    id="hub-btn-play-local"
+                    onClick={onResumeMatch}
+                    style={{
+                      width: '100%',
+                      backgroundColor: 'var(--bg-surface)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border-prominent)',
+                      padding: '0.75rem',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.925rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: 'var(--shadow-sm)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      transition: 'all var(--transition-fast)',
+                    }}
+                  >
+                    <span>👥</span>
+                    <span>Continuar Partida Local (Turno #{turnNumber})</span>
+                  </button>
+
+                  <button
+                    id="hub-btn-new-local"
+                    onClick={onStartLocalMatch}
+                    style={{
+                      width: '100%',
+                      backgroundColor: 'transparent',
+                      color: 'var(--text-secondary)',
+                      border: '1px solid var(--border-subtle)',
+                      padding: '0.55rem',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem',
+                      transition: 'all var(--transition-fast)',
+                    }}
+                  >
+                    <span>↻</span>
+                    <span>Iniciar Nova Partida Local</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  id="hub-btn-play-local"
+                  onClick={onStartLocalMatch}
+                  style={{
+                    width: '100%',
+                    backgroundColor: 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-prominent)',
+                    padding: '0.75rem',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.925rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    transition: 'all var(--transition-fast)',
+                  }}
+                >
+                  <span>👥</span>
+                  <span>Iniciar Partida Local</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

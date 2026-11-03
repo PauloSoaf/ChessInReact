@@ -30,6 +30,7 @@ describe('Spec 05 React.StrictMode Human vs Bot Autonomous Match Integration Sui
   });
 
   beforeEach(() => {
+    window.location.hash = '#game';
     gameStore.getState().resetDomainState({
       ...gameStore.getState().domain,
       boardEntities: {},
