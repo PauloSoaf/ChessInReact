@@ -47,8 +47,9 @@ const App: React.FC = () => {
   const handleUndo = () => {
     cancelSearch();
     if (isBotEnabled) {
-      if (isThinking) {
-        // If bot is thinking, undo the single human move that initiated the deliberation
+      const currentActive = gameStore.getState().domain.activePlayer;
+      if (currentActive === 'P2') {
+        // In bot's turn: undo the human move that initiated the deliberation
         undo();
       } else {
         // In human's turn: undo full 2-ply round (bot move + human move)

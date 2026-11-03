@@ -83,11 +83,14 @@ export class EngineBridge {
       );
     }
 
+    const boundWorker = this.worker;
     this.worker.onmessage = (event: { data: IWorkerResponse }) => {
+      if (this.worker !== boundWorker) return;
       this.handleWorkerMessage(event.data);
     };
 
     this.worker.onerror = (err: ErrorEvent | Error) => {
+      if (this.worker !== boundWorker) return;
       this.handleWorkerError(err);
     };
   }

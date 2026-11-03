@@ -224,11 +224,14 @@
           throw new Error(`React native bot response timed out: turn=${domainAfterBot.turnNumber}, player=${domainAfterBot.activePlayer}`);
         }
 
+        // Allow React to commit the new bot turn and settle render tree
+        await new Promise((r) => setTimeout(r, 300));
+
         // Test Undo: 2-ply round rollback
         const undoBtn = document.getElementById('bot-undo-button');
         if (!undoBtn) throw new Error('bot-undo-button not found');
         undoBtn.click();
-        await new Promise((r) => setTimeout(r, 200));
+        await new Promise((r) => setTimeout(r, 300));
 
         const domainAfterUndo = gameStore.getState().domain;
         if (domainAfterUndo.turnNumber !== 1 || domainAfterUndo.activePlayer !== 'P1') {

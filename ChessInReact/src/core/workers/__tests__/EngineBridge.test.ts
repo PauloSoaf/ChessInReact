@@ -406,7 +406,7 @@ describe('Real Multi-threaded Worker Integration (PATCH-08)', () => {
       }
     });
 
-    it('safely isolates errors from old generation workers so they never affect current search', async () => {
+    it('safely isolates errors and late messages from old generation workers so they never affect current search', async () => {
       let activeMockPort: MockWorkerPort | null = null;
       const testBridge = new EngineBridge({
         workerFactory: () => {
@@ -420,18 +420,34 @@ describe('Real Multi-threaded Worker Integration (PATCH-08)', () => {
         const firstPort = activeMockPort!;
         expect(firstPort).toBeDefined();
 
+        // Capture original listener references assigned to firstPort before cancel
+        const savedErrorHandler = firstPort.onerror;
+        const savedMessageHandler = firstPort.onmessage;
+        expect(savedErrorHandler).toBeTypeOf('function');
+        expect(savedMessageHandler).toBeTypeOf('function');
+
         testBridge.cancelPendingSearches();
         const secondPort = activeMockPort!;
         expect(secondPort).not.toBe(firstPort);
 
-        // Attempting to invoke onerror on firstPort does not crash the bridge
-        if (firstPort.onerror) {
-          firstPort.onerror(new Error('Stale worker error'));
-        }
+        // Verification 1: Listeners on old worker are explicitly detached
+        expect(firstPort.onerror).toBeNull();
+        expect(firstPort.onmessage).toBeNull();
+        expect(firstPort.isTerminated).toBe(true);
 
-        // Active worker still functions flawlessly
-        const res = await testBridge.ping();
+        // Start an active request on the new worker
+        const activeSearchPromise = testBridge.ping();
+
+        // Verification 2: Even if an old thread's captured handler fires, boundWorker guard ignores it
+        savedErrorHandler!(new Error('Late stale crash from superseded thread'));
+
+        // Verification 3: Even if an old thread's captured message fires, it is safely ignored
+        savedMessageHandler!({ data: { id: 999, type: 'PONG', result: 'STALE' } });
+
+        // Active request on the second worker resolves cleanly with PONG
+        const res = await activeSearchPromise;
         expect(res).toBe('PONG');
+        expect(testBridge.getPendingCount()).toBe(0);
       } finally {
         testBridge.dispose();
       }
