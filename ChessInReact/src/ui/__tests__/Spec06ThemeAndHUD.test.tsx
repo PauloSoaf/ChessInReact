@@ -14,6 +14,11 @@ import ChessBoard from '../../components/ChessBoard/ChessBoard';
 import { gameStore } from '../../core/state/gameStore';
 import { bootstrapGame } from '../../core/bootstrap/GameInitializer';
 import App from '../../App';
+import { BrandMark, ActionButton, SegmentedControl, ModalShell, Card, StatusIndicator } from '../components/primitives';
+import { ChessPieceShowcase, ShowcaseFallback } from '../components/showcase';
+import BoardSquare from '../../components/BoardSquare/BoardSquare';
+import fs from 'fs';
+import path from 'path';
 
 describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
   beforeEach(() => {
@@ -467,6 +472,183 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       // Back on game, turn number is still 2!
       expect(gameStore.getState().domain.turnNumber).toBe(2);
       expect(document.getElementById('bot-toggle-checkbox')).not.toBeNull();
+    });
+  });
+
+  describe('Component Library Primitives (Spec 06 Design Recovery)', () => {
+    it('renders BrandMark with emblem, title and optional subtitle', () => {
+      const onBrandClick = vi.fn();
+      const { rerender } = render(
+        <BrandMark size="md" subtitleText="Editorial Atelier" onClick={onBrandClick} />
+      );
+
+      expect(screen.getByText('ChessInReact')).toBeDefined();
+      expect(screen.getByText('Editorial Atelier')).toBeDefined();
+
+      fireEvent.click(screen.getByText('ChessInReact'));
+      expect(onBrandClick).toHaveBeenCalled();
+
+      rerender(<BrandMark showSubtitle={false} />);
+      expect(screen.queryByText('Editorial Atelier')).toBeNull();
+    });
+
+    it('renders ActionButton with variants, icons and click behavior', () => {
+      const onClick = vi.fn();
+      render(
+        <ActionButton variant="primary" leadingIcon={<span data-testid="test-icon">★</span>} onClick={onClick}>
+          Disputar Partida
+        </ActionButton>
+      );
+
+      const btn = screen.getByRole('button', { name: /Disputar Partida/i });
+      expect(btn).toBeDefined();
+      expect(screen.getByTestId('test-icon')).toBeDefined();
+
+      fireEvent.click(btn);
+      expect(onClick).toHaveBeenCalled();
+    });
+
+    it('renders SegmentedControl with keyboard radio navigation', () => {
+      const onChange = vi.fn();
+      render(
+        <SegmentedControl
+          value="tab2"
+          onChange={onChange}
+          options={[
+            { value: 'tab1', label: 'Primeiro' },
+            { value: 'tab2', label: 'Segundo' },
+          ]}
+        />
+      );
+
+      const tab1 = screen.getByRole('radio', { name: /Primeiro/i });
+      const tab2 = screen.getByRole('radio', { name: /Segundo/i });
+
+      expect(tab2.getAttribute('aria-checked')).toBe('true');
+      expect(tab1.getAttribute('aria-checked')).toBe('false');
+
+      fireEvent.click(tab1);
+      expect(onChange).toHaveBeenCalledWith('tab1');
+    });
+
+    it('renders Card with variant styling and interactive states', () => {
+      render(
+        <Card variant="interactive" selected={true} id="test-card">
+          <span>Card Content</span>
+        </Card>
+      );
+      const card = document.getElementById('test-card');
+      expect(card).not.toBeNull();
+      expect(screen.getByText('Card Content')).toBeDefined();
+    });
+
+    it('renders ModalShell with dialog semantics and Escape key handler', () => {
+      const onClose = vi.fn();
+      render(
+        <ModalShell isOpen={true} onClose={onClose} title="Diálogo de Teste" description="Descrição do teste">
+          <div>Conteúdo Interno</div>
+        </ModalShell>
+      );
+
+      expect(screen.getByRole('dialog')).toBeDefined();
+      expect(screen.getByText('Diálogo de Teste')).toBeDefined();
+      expect(screen.getByText('Conteúdo Interno')).toBeDefined();
+
+      // Test Escape key closes modal
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    it('renders StatusIndicator with semantic status dots', () => {
+      const { rerender } = render(<StatusIndicator status="active" label="Vez das Brancas" pulse={true} />);
+      expect(screen.getByText('Vez das Brancas')).toBeDefined();
+
+      rerender(<StatusIndicator status="thinking" label="Calculando lance" />);
+      expect(screen.getByText('Calculando lance')).toBeDefined();
+    });
+  });
+
+  describe('Interactive 3D Showcase & Fallback (Spec 06 Creative Dev)', () => {
+    it('renders ChessPieceShowcase and displays 2D vector fallback in headless environment', () => {
+      render(<ChessPieceShowcase initialFinish="antique-brass" />);
+      expect(document.getElementById('chess-piece-showcase')).not.toBeNull();
+
+      // In jsdom without hardware WebGL, ShowcaseFallback is gracefully rendered
+      const fallback = screen.getByTestId('showcase-fallback-vector');
+      expect(fallback).toBeDefined();
+      expect(fallback.getAttribute('role')).toBe('img');
+
+      // Finish switcher buttons exist and are clickable
+      const brassBtn = document.getElementById('showcase-btn-finish-brass');
+      const obsidianBtn = document.getElementById('showcase-btn-finish-obsidian');
+      const ivoryBtn = document.getElementById('showcase-btn-finish-ivory');
+
+      expect(brassBtn).not.toBeNull();
+      expect(obsidianBtn).not.toBeNull();
+      expect(ivoryBtn).not.toBeNull();
+
+      fireEvent.click(obsidianBtn!);
+      fireEvent.click(ivoryBtn!);
+    });
+
+    it('renders direct ShowcaseFallback with multiple material gradients', () => {
+      const { rerender } = render(<ShowcaseFallback finish="obsidian" />);
+      expect(screen.getByTestId('showcase-fallback-vector')).toBeDefined();
+
+      rerender(<ShowcaseFallback finish="ivory-marble" />);
+      expect(screen.getByTestId('showcase-fallback-vector')).toBeDefined();
+    });
+  });
+
+  describe('BoardSquare WCAG 2.2 AA Accessibility', () => {
+    it('provides accessible role=button, tabIndex, detailed aria-label and keyboard Enter/Space activation', () => {
+      const handleClick = vi.fn();
+      render(
+        <ThemeProvider>
+          <BoardSquare
+            piece={{ name: 'PAWN', color: 'white' }}
+            backgroundColor="#e2e8f0"
+            handleClick={handleClick}
+            squareInfo={{ row: 1, column: 4, gameX: 4, gameY: 1, squareID: '4-1', name: 'PAWN1' }}
+            isSelected={false}
+            boardDisplay={[]}
+            testId="square-4,1"
+            isMoveDestination={true}
+          />
+        </ThemeProvider>
+      );
+
+      const square = screen.getByRole('button');
+      expect(square).toBeDefined();
+      expect(square.getAttribute('tabindex')).toBe('0');
+
+      // Detailed accessible label with algebraic coordinate and piece
+      const label = square.getAttribute('aria-label');
+      expect(label).toContain('Casa e2');
+      expect(label).toContain('Peão Branco');
+      expect(label).toContain('movimento legal disponível');
+
+      // Keyboard activation via Enter key
+      fireEvent.keyDown(square, { key: 'Enter' });
+      expect(handleClick).toHaveBeenCalledTimes(1);
+
+      // Keyboard activation via Space key
+      fireEvent.keyDown(square, { key: ' ' });
+      expect(handleClick).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('Favicon & Platform Identity Verification', () => {
+    it('verifies that index.html contains /favicon.svg and no obsolete /vite.svg', () => {
+      const indexPath = path.resolve(__dirname, '../../../index.html');
+      const content = fs.readFileSync(indexPath, 'utf-8');
+
+      expect(content).toContain('/favicon.svg');
+      expect(content).not.toContain('/vite.svg');
+      expect(content).toContain('ChessInReact');
+
+      const faviconPath = path.resolve(__dirname, '../../../public/favicon.svg');
+      expect(fs.existsSync(faviconPath)).toBe(true);
     });
   });
 });

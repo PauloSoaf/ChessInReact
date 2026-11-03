@@ -238,37 +238,41 @@ const AppContent: React.FC = () => {
         <div
           className="animate-fade-in"
           style={{
-            maxWidth: '820px',
+            maxWidth: '1080px',
             width: '100%',
             margin: '0 auto',
-            padding: '1.5rem 1rem 3rem',
+            padding: '2rem 1.5rem 4rem',
             display: 'flex',
             flexDirection: 'column',
-            gap: '1rem',
+            gap: '1.25rem',
             alignItems: 'center',
           }}
         >
           {/* Match HUD Subheader */}
           <div
             style={{
-              width: '100%',
+              width: 'min(92vw, 620px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '0.25rem 0.5rem',
-              fontSize: '0.875rem',
+              padding: '0.35rem 0.75rem',
+              fontSize: '0.8125rem',
+              fontFamily: 'var(--font-mono)',
               color: 'var(--text-secondary)',
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <span>
                 Turno: <strong style={{ color: 'var(--text-primary)' }}>#{turnNumber}</strong>
               </span>
-              <span>•</span>
+              <span style={{ opacity: 0.4 }}>•</span>
               <span>
                 Rev: <strong style={{ color: 'var(--text-muted)' }}>{revision}</strong>
               </span>
-              <span>•</span>
+              <span style={{ opacity: 0.4 }}>•</span>
               <span>
                 Dim: <strong style={{ color: 'var(--text-primary)' }}>{boardSize}×{boardSize}</strong>
               </span>
@@ -277,13 +281,13 @@ const AppContent: React.FC = () => {
             {isGameOver && (
               <span
                 style={{
-                  color: '#ef4444',
+                  color: 'var(--color-danger)',
                   fontWeight: 800,
-                  letterSpacing: '0.05em',
-                  padding: '0.2rem 0.6rem',
+                  letterSpacing: '0.08em',
+                  padding: '0.2rem 0.65rem',
                   borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  backgroundColor: 'rgba(168, 66, 66, 0.16)',
+                  border: '1px solid rgba(168, 66, 66, 0.35)',
                 }}
               >
                 FIM DE JOGO
@@ -292,7 +296,7 @@ const AppContent: React.FC = () => {
           </div>
 
           {/* Opponent Card (Black - P2) */}
-          <div style={{ width: '100%' }}>
+          <div style={{ width: 'min(92vw, 620px)' }}>
             <PlayerCard
               playerId="P2"
               displayName={isBotEnabled ? 'Robô MCTS / Alpha-Beta' : 'Jogador 2'}
@@ -306,25 +310,25 @@ const AppContent: React.FC = () => {
           {/* Central Arena: Evaluation Bar + Protagonist Chessboard (Pieces rendered upright) */}
           <div
             style={{
-              width: '100%',
+              width: 'min(92vw, 620px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '0.75rem',
+              gap: '0.875rem',
             }}
           >
             {/* Real-time Positional Evaluation Bar (Spec 06 RF-15) */}
-            <div style={{ height: 'min(75vw, 520px)', alignSelf: 'stretch' }}>
+            <div style={{ height: 'min(82vw, 560px)', alignSelf: 'stretch' }}>
               <EvaluationBar evalScore={lastEval} />
             </div>
 
             {/* Chessboard Main Surface (No inverted CSS transform) */}
             <main
               style={{
-                width: 'min(75vw, 520px)',
+                width: 'min(82vw, 560px)',
                 borderRadius: 'var(--radius-lg)',
                 overflow: 'hidden',
-                boxShadow: 'var(--shadow-lg)',
+                boxShadow: 'var(--shadow-lg), var(--shadow-glow)',
                 border: '2px solid var(--border-prominent)',
                 backgroundColor: 'var(--bg-card)',
               }}
@@ -339,7 +343,7 @@ const AppContent: React.FC = () => {
           </div>
 
           {/* Player Card (White - P1 / You) */}
-          <div style={{ width: '100%' }}>
+          <div style={{ width: 'min(92vw, 620px)' }}>
             <PlayerCard
               playerId="P1"
               displayName="Você (Humano)"
@@ -348,7 +352,7 @@ const AppContent: React.FC = () => {
           </div>
 
           {/* Unified Controls Bar */}
-          <div style={{ width: '100%', marginTop: '0.25rem' }}>
+          <div style={{ width: 'min(92vw, 620px)', marginTop: '0.25rem' }}>
             <GameControlsBar
               isBotEnabled={isBotEnabled}
               difficulty={difficulty}

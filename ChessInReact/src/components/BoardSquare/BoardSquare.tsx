@@ -24,9 +24,45 @@ const BoardSquare: React.FC<IBoardSquare> = ({
       ? activeBoardColors.lightSquare
       : activeBoardColors.darkSquare;
 
+  // Compute accessible algebraic notation (e.g. "Casa e4, Peão Branco")
+  const effX = squareInfo.gameX ?? squareInfo.column;
+  const effY = squareInfo.gameY ?? squareInfo.row;
+  const colLetter = String.fromCharCode(97 + effX);
+  const rowNumber = effY + 1;
+  const coordAlgebraic = `${colLetter}${rowNumber}`;
+
+  const pieceNameMap: Record<string, string> = {
+    PAWN: 'Peão',
+    KNIGHT: 'Cavalo',
+    BISHOP: 'Bispo',
+    ROOK: 'Torre',
+    QUEEN: 'Dama',
+    KING: 'Rei',
+  };
+
+  const friendlyPieceName = pieceNameMap[piece.name.toUpperCase()] ?? piece.name;
+  const friendlyColor = piece.color === 'white' ? 'Branco' : 'Preto';
+  const pieceDescription = isPiecePresent ? `${friendlyPieceName} ${friendlyColor}` : 'Vazia';
+
+  const accessibleLabel = `Casa ${coordAlgebraic}, ${pieceDescription}${isSelected ? ' (selecionada)' : ''}${
+    isMoveDestination ? ' (movimento legal disponível)' : ''
+  }${isCaptureDestination ? ' (captura legal disponível)' : ''}`;
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick(squareInfo, piece);
+    }
+  };
+
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={accessibleLabel}
+      aria-pressed={isSelected}
       data-testid={testId}
+      className="board-square"
       style={{
         backgroundColor: `${backgroundColor}`,
         fontSize: `${boardDisplay.length < 12 ? '200%' : 200 - boardDisplay.length * 5 + '%'}`,
@@ -37,13 +73,17 @@ const BoardSquare: React.FC<IBoardSquare> = ({
         aspectRatio: 1 / 1,
         width: `${boardDisplay.length < 12 ? '95%' : '100%'}`,
         height: `${boardDisplay.length < 12 ? '95%' : '100%'}`,
-        boxShadow: isSelected ? 'inset 0 0 0 2px var(--color-accent, #38bdf8)' : 'none',
+        boxShadow: isSelected
+          ? 'inset 0 0 0 3px var(--border-active, #C4A77D), 0 0 12px var(--color-accent-glow)'
+          : 'none',
         cursor: 'pointer',
         position: 'relative',
         userSelect: 'none',
         transition: 'background-color 150ms ease, box-shadow 150ms ease',
+        outline: 'none',
       }}
       onClick={() => handleClick(squareInfo, piece)}
+      onKeyDown={handleKeyDown}
     >
       {/* Coordinate Labels (Rank along left, File along bottom) */}
       {rankLabel && (
@@ -51,9 +91,10 @@ const BoardSquare: React.FC<IBoardSquare> = ({
           data-testid="coordinate-rank"
           style={{
             position: 'absolute',
-            top: '2px',
-            left: '3px',
-            fontSize: '0.625rem',
+            top: '3px',
+            left: '4px',
+            fontSize: '0.6875rem',
+            fontFamily: 'var(--font-mono)',
             fontWeight: 800,
             color: coordLabelColor,
             opacity: 0.85,
@@ -70,9 +111,10 @@ const BoardSquare: React.FC<IBoardSquare> = ({
           data-testid="coordinate-file"
           style={{
             position: 'absolute',
-            bottom: '2px',
-            right: '3px',
-            fontSize: '0.625rem',
+            bottom: '3px',
+            right: '4px',
+            fontSize: '0.6875rem',
+            fontFamily: 'var(--font-mono)',
             fontWeight: 800,
             color: coordLabelColor,
             opacity: 0.85,
@@ -95,7 +137,7 @@ const BoardSquare: React.FC<IBoardSquare> = ({
             borderRadius: '50%',
             backgroundColor: activeBoardColors.legalMoveDot,
             pointerEvents: 'none',
-            boxShadow: '0 0 4px rgba(0,0,0,0.25)',
+            boxShadow: '0 0 6px rgba(0,0,0,0.3)',
           }}
         />
       )}
@@ -107,10 +149,11 @@ const BoardSquare: React.FC<IBoardSquare> = ({
           style={{
             position: 'absolute',
             inset: '3px',
-            borderRadius: 'var(--radius-sm, 4px)',
+            borderRadius: 'var(--radius-sm, 6px)',
             border: `3px solid ${activeBoardColors.captureSquare}`,
-            backgroundColor: 'rgba(239, 68, 68, 0.15)',
+            backgroundColor: 'rgba(168, 66, 66, 0.18)',
             pointerEvents: 'none',
+            boxShadow: 'inset 0 0 8px rgba(168, 66, 66, 0.4)',
           }}
         />
       )}

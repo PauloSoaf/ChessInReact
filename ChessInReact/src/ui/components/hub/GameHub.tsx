@@ -1,5 +1,7 @@
 import React from 'react';
 import { AIDifficultyLevel } from '../../../workers/ai/interfaces/IAIEngineContracts';
+import { ChessPieceShowcase } from '../showcase/ChessPieceShowcase';
+import { Card } from '../primitives/Card';
 
 export interface IGameHubProps {
   onStartBotMatch: (difficulty: AIDifficultyLevel) => void;
@@ -15,12 +17,15 @@ export interface IGameHubProps {
   onOpenThemeModal: () => void;
 }
 
-const DIFFICULTY_NAMES: Record<AIDifficultyLevel, { title: string; desc: string; icon: string }> = {
-  1: { title: 'Iniciante (Nível 1)', desc: 'Movimentos relaxados, ideal para aprendizado.', icon: '🌱' },
-  2: { title: 'Casual (Nível 2)', desc: 'Jogo tático humano sem cálculo profundo.', icon: '♟' },
-  3: { title: 'Intermediário (Nível 3)', desc: 'Visão tática consistente e defesa sólida.', icon: '⚔️' },
-  4: { title: 'Avançado (Nível 4)', desc: 'Alpha-Beta profundo e controle territorial.', icon: '🛡️' },
-  5: { title: 'Mestre (Nível 5)', desc: 'Máximo poder de cálculo e busca de quietude.', icon: '👑' },
+const DIFFICULTY_CONFIG: Record<
+  AIDifficultyLevel,
+  { title: string; desc: string; label: string; depth: string }
+> = {
+  1: { title: 'Iniciante (Nível 1)', label: 'D1 Iniciante', desc: 'Movimentos relaxados, ideal para aprendizado.', depth: '1 ply' },
+  2: { title: 'Casual (Nível 2)', label: 'D2 Casual', desc: 'Jogo tático humano sem cálculo profundo.', depth: '2 plies' },
+  3: { title: 'Intermediário (Nível 3)', label: 'D3 Intermediário', desc: 'Visão tática consistente e defesa sólida.', depth: '3 plies' },
+  4: { title: 'Avançado (Nível 4)', label: 'D4 Avançado', desc: 'Alpha-Beta profundo e controle territorial.', depth: '4 plies' },
+  5: { title: 'Mestre (Nível 5)', label: 'D5 Mestre', desc: 'Máximo poder de cálculo e busca de quietude.', depth: '5+ plies' },
 };
 
 export const GameHub: React.FC<IGameHubProps> = ({
@@ -29,224 +34,336 @@ export const GameHub: React.FC<IGameHubProps> = ({
   onResumeMatch,
   hasActiveMatch,
   turnNumber,
-  activePlayer,
-  isGameOver,
   botEnabled,
   botDifficulty,
   onSelectDifficulty,
   onOpenThemeModal,
 }) => {
+
   return (
     <div
       className="animate-fade-in"
       style={{
-        maxWidth: '1100px',
+        maxWidth: '1280px',
+        width: '100%',
         margin: '0 auto',
-        padding: '2rem 1.5rem',
+        padding: '2.5rem 2rem 4rem',
         display: 'flex',
         flexDirection: 'column',
-        gap: '2rem',
+        gap: '3rem',
       }}
     >
-      {/* Hero Welcome Banner */}
-      <div
+      {/* 1. Asymmetric Editorial Hero: Headline on Left, 3D Showcase on Right */}
+      <section
         style={{
-          background: 'linear-gradient(135deg, var(--bg-surface-elevated) 0%, var(--bg-card) 100%)',
-          borderRadius: 'var(--radius-xl)',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+          gap: '2.5rem',
+          alignItems: 'center',
+          backgroundColor: 'var(--bg-surface-elevated)',
           border: '1px solid var(--border-prominent)',
+          borderRadius: 'var(--radius-xl)',
           padding: '2.5rem',
-          boxShadow: 'var(--shadow-md)',
+          boxShadow: 'var(--shadow-lg)',
           position: 'relative',
           overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1rem',
         }}
       >
+        {/* Subtle Watermark Silhouette */}
         <div
           style={{
             position: 'absolute',
-            right: '-20px',
-            bottom: '-30px',
-            fontSize: '12rem',
-            opacity: 0.05,
+            left: '-20px',
+            bottom: '-40px',
+            fontSize: '14rem',
+            opacity: 0.03,
             pointerEvents: 'none',
             userSelect: 'none',
+            fontFamily: 'serif',
           }}
         >
-          ♞
+          ♚
         </div>
 
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', alignSelf: 'flex-start' }}>
-          <span
+        {/* Left Column: Editorial Headline & Actions */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', zIndex: 1 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.625rem' }}>
+            <span
+              style={{
+                backgroundColor: 'var(--color-accent-subtle)',
+                color: 'var(--color-accent)',
+                padding: '0.25rem 0.85rem',
+                borderRadius: 'var(--radius-full)',
+                fontSize: '0.75rem',
+                fontFamily: 'var(--font-sans)',
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                border: '1px solid var(--border-prominent)',
+              }}
+            >
+              Chess Editorial Atelier
+            </span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>•</span>
+            <span
+              style={{
+                fontSize: '0.8125rem',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--text-secondary)',
+                fontWeight: 600,
+              }}
+            >
+              MCTS & Web Worker
+            </span>
+          </div>
+
+          <h1
             style={{
-              backgroundColor: 'var(--color-accent-subtle)',
-              color: 'var(--color-accent)',
-              padding: '0.25rem 0.75rem',
-              borderRadius: '9999px',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase',
-              border: '1px solid var(--border-subtle)',
+              margin: 0,
+              fontFamily: 'var(--font-display)',
+              fontSize: 'clamp(1.75rem, 3.5vw, 2.75rem)',
+              fontWeight: 800,
+              letterSpacing: '-0.03em',
+              lineHeight: 1.15,
+              color: 'var(--text-primary)',
             }}
           >
-            Spec 06 UI/UX Design System
-          </span>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>•</span>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>MCTS & Alpha-Beta Engine</span>
-        </div>
+            Experiência de Xadrez Avançada, Multitópica e com Inteligência Artificial
+          </h1>
 
-        <h1
-          style={{
-            margin: 0,
-            fontSize: 'clamp(1.75rem, 4vw, 2.75rem)',
-            fontWeight: 800,
-            letterSpacing: '-0.03em',
-            lineHeight: 1.15,
-            maxWidth: '700px',
-          }}
-        >
-          Experiência de Xadrez Avançada, Multitópica e com Inteligência Artificial
-        </h1>
+          <p
+            style={{
+              margin: 0,
+              fontSize: '1rem',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6,
+              maxWidth: '560px',
+            }}
+          >
+            Dispute partidas completas contra o motor de IA em thread dedicada com minimax, poda Alpha-Beta e avaliação dinâmica em centipawns. Explore múltiplos temas curados e precisão tátil em qualquer resolução.
+          </p>
 
-        <p
-          style={{
-            margin: 0,
-            fontSize: '1rem',
-            color: 'var(--text-secondary)',
-            maxWidth: '650px',
-            lineHeight: 1.5,
-          }}
-        >
-          Dispute partidas completas contra a inteligência artificial em Web Worker dedicado, treine localmente ou explore variantes com suporte a múltiplos temas e design responsivo.
-        </p>
+          {/* Call to Actions */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.875rem', marginTop: '0.75rem' }}>
+            {hasActiveMatch && (
+              <button
+                id="hub-btn-resume-match"
+                onClick={onResumeMatch}
+                style={{
+                  backgroundColor: 'var(--color-accent)',
+                  color: 'var(--text-inverse)',
+                  border: 'none',
+                  padding: '0.75rem 1.75rem',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.925rem',
+                  fontFamily: 'var(--font-sans)',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-glow)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  transition: 'all var(--transition-fast)',
+                }}
+              >
+                <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor">
+                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                </svg>
+                <span>Retomar Partida (Turno #{turnNumber})</span>
+              </button>
+            )}
 
-        {/* Quick Action in Hero */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '0.5rem' }}>
-          {hasActiveMatch && !isGameOver && (
+            {!hasActiveMatch && (
+              <button
+                id="hub-btn-play-bot"
+                onClick={() => onStartBotMatch(botDifficulty)}
+                style={{
+                  backgroundColor: 'var(--color-accent)',
+                  color: 'var(--text-inverse)',
+                  border: 'none',
+                  padding: '0.75rem 1.75rem',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.925rem',
+                  fontFamily: 'var(--font-sans)',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: 'var(--shadow-glow)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  transition: 'all var(--transition-fast)',
+                }}
+              >
+                <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor">
+                  <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm-1.5 5.5a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zm4.5 7h-6v-1a3 3 0 016 0v1z" />
+                </svg>
+                <span>Jogar contra Robô</span>
+              </button>
+            )}
+
             <button
-              id="hub-btn-resume-match"
-              onClick={onResumeMatch}
+              id="hub-btn-customize-hero"
+              onClick={onOpenThemeModal}
               style={{
-                backgroundColor: 'var(--color-accent)',
-                color: '#ffffff',
-                border: 'none',
-                padding: '0.875rem 1.75rem',
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-prominent)',
+                padding: '0.75rem 1.5rem',
                 borderRadius: 'var(--radius-md)',
-                fontSize: '0.95rem',
-                fontWeight: 700,
+                fontSize: '0.925rem',
+                fontFamily: 'var(--font-sans)',
+                fontWeight: 600,
                 cursor: 'pointer',
-                boxShadow: 'var(--shadow-glow)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
                 transition: 'all var(--transition-fast)',
               }}
             >
-              <span>▶</span>
-              <span>Retomar Partida (Turno #{turnNumber})</span>
+              <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="7.5" cy="7.5" r="1.5" />
+                <circle cx="12.5" cy="7.5" r="1.5" />
+                <circle cx="10" cy="12.5" r="1.5" />
+                <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0z" />
+              </svg>
+              <span>Personalizar Tabuleiro & Peças</span>
             </button>
-          )}
+          </div>
+        </div>
 
-          <button
-            id="hub-btn-customize-hero"
-            onClick={onOpenThemeModal}
+        {/* Right Column: Interactive 3D Piece Showcase */}
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1 }}>
+          <ChessPieceShowcase initialFinish="antique-brass" />
+        </div>
+      </section>
+
+      {/* 2. Game Modes Section */}
+      <section style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div>
+          <h2
             style={{
-              backgroundColor: 'var(--bg-surface)',
+              fontFamily: 'var(--font-display)',
+              fontSize: '1.5rem',
+              fontWeight: 700,
+              margin: '0 0 0.35rem',
+              letterSpacing: '-0.02em',
               color: 'var(--text-primary)',
-              border: '1px solid var(--border-prominent)',
-              padding: '0.875rem 1.5rem',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.95rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              transition: 'all var(--transition-fast)',
             }}
           >
-            <span>🎨</span>
-            <span>Personalizar Tabuleiro & Peças</span>
-          </button>
+            Modos de Jogo
+          </h2>
+          <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+            Selecione uma modalidade para iniciar ou continuar seus estudos táticos.
+          </p>
         </div>
-      </div>
-
-      {/* Primary Game Modes Grid */}
-      <div>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 1rem', letterSpacing: '-0.02em' }}>
-          Modos de Jogo
-        </h2>
 
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            gap: '1.25rem',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+            gap: '1.5rem',
           }}
         >
-          {/* Card 1: Human vs Bot */}
-          <div
+          {/* Card 1: Bot Match (AI) */}
+          <Card
             id="card-mode-bot"
+            variant="elevated"
             style={{
-              backgroundColor: 'var(--bg-surface-elevated)',
-              borderRadius: 'var(--radius-lg)',
-              border: '1px solid var(--border-subtle)',
-              padding: '1.75rem',
-              boxShadow: 'var(--shadow-sm)',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              gap: '1.25rem',
-              position: 'relative',
+              gap: '1.5rem',
             }}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '2rem' }}>🤖</span>
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--color-accent-subtle)',
+                    border: '1px solid var(--border-prominent)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--color-accent)',
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="10" rx="2" />
+                    <circle cx="12" cy="5" r="2" />
+                    <path d="M12 7v4M8 16h.01M16 16h.01" />
+                  </svg>
+                </div>
+
                 <span
                   style={{
-                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                    backgroundColor: 'rgba(113, 133, 117, 0.16)',
                     color: 'var(--color-success)',
-                    padding: '0.2rem 0.6rem',
-                    borderRadius: '9999px',
+                    padding: '0.2rem 0.65rem',
+                    borderRadius: 'var(--radius-full)',
                     fontSize: '0.75rem',
+                    fontFamily: 'var(--font-mono)',
                     fontWeight: 700,
+                    border: '1px solid rgba(113, 133, 117, 0.3)',
                   }}
                 >
                   Worker Nativo Ativo
                 </span>
               </div>
 
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>Partida contra Robô (IA)</h3>
-              <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: '1.25rem',
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                }}
+              >
+                Partida contra Robô (IA)
+              </h3>
+
+              <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                 Enfrente o motor de IA em thread dedicada com busca minimax, poda Alpha-Beta e avaliação dinâmica em centipawns.
               </p>
 
-              {/* Difficulty selector inside card */}
+              {/* Difficulty Selector */}
               <div style={{ marginTop: '0.5rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.4rem' }}>
+                <label
+                  style={{
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    color: 'var(--text-muted)',
+                    display: 'block',
+                    marginBottom: '0.45rem',
+                  }}
+                >
                   Nível de Dificuldade:
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.35rem' }}>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.4rem' }}>
                   {([1, 2, 3, 4, 5] as AIDifficultyLevel[]).map((lvl) => {
-                    const isSel = botDifficulty === lvl;
+                    const isSelected = botDifficulty === lvl;
                     return (
                       <button
                         key={lvl}
-                        id={`hub-diff-btn-${lvl}`}
+                        id={`hub-difficulty-btn-${lvl}`}
+                        type="button"
                         onClick={() => onSelectDifficulty(lvl)}
                         style={{
-                          padding: '0.5rem 0',
-                          border: isSel ? '2px solid var(--color-accent)' : '1px solid var(--border-subtle)',
+                          padding: '0.45rem 0',
+                          backgroundColor: isSelected ? 'var(--color-accent)' : 'var(--bg-app)',
+                          color: isSelected ? 'var(--text-inverse)' : 'var(--text-secondary)',
+                          border: isSelected ? '1px solid var(--color-accent)' : '1px solid var(--border-subtle)',
                           borderRadius: 'var(--radius-sm)',
-                          backgroundColor: isSel ? 'var(--color-accent-subtle)' : 'var(--bg-card)',
-                          color: isSel ? 'var(--color-accent)' : 'var(--text-secondary)',
-                          fontWeight: 700,
-                          fontSize: '0.875rem',
+                          fontSize: '0.8125rem',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: isSelected ? 800 : 500,
                           cursor: 'pointer',
                           transition: 'all var(--transition-fast)',
+                          outline: 'none',
                         }}
                       >
                         {lvl}
@@ -254,12 +371,24 @@ export const GameHub: React.FC<IGameHubProps> = ({
                     );
                   })}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
-                  {DIFFICULTY_NAMES[botDifficulty].icon} {DIFFICULTY_NAMES[botDifficulty].title}: {DIFFICULTY_NAMES[botDifficulty].desc}
+
+                <div
+                  style={{
+                    fontSize: '0.75rem',
+                    fontFamily: 'var(--font-sans)',
+                    color: 'var(--text-muted)',
+                    marginTop: '0.45rem',
+                  }}
+                >
+                  <strong style={{ color: 'var(--text-primary)' }}>
+                    {DIFFICULTY_CONFIG[botDifficulty].label}
+                  </strong>
+                  : {DIFFICULTY_CONFIG[botDifficulty].desc}
                 </div>
               </div>
             </div>
 
+            {/* Actions for Bot Card */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
               {botEnabled && hasActiveMatch ? (
                 <>
@@ -269,7 +398,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                     style={{
                       width: '100%',
                       backgroundColor: 'var(--color-accent)',
-                      color: '#ffffff',
+                      color: 'var(--text-inverse)',
                       border: 'none',
                       padding: '0.75rem',
                       borderRadius: 'var(--radius-md)',
@@ -284,7 +413,6 @@ export const GameHub: React.FC<IGameHubProps> = ({
                       transition: 'all var(--transition-fast)',
                     }}
                   >
-                    <span>⚔️</span>
                     <span>Continuar contra Bot (Turno #{turnNumber})</span>
                   </button>
 
@@ -308,95 +436,145 @@ export const GameHub: React.FC<IGameHubProps> = ({
                       transition: 'all var(--transition-fast)',
                     }}
                   >
-                    <span>↻</span>
                     <span>Iniciar Nova Partida contra Bot</span>
                   </button>
                 </>
               ) : (
-                <button
-                  id="hub-btn-play-bot"
-                  onClick={() => onStartBotMatch(botDifficulty)}
-                  style={{
-                    width: '100%',
-                    backgroundColor: 'var(--color-accent)',
-                    color: '#ffffff',
-                    border: 'none',
-                    padding: '0.75rem',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.925rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    boxShadow: 'var(--shadow-sm)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem',
-                    transition: 'all var(--transition-fast)',
-                  }}
-                >
-                  <span>⚔️</span>
-                  <span>Jogar contra o Bot</span>
-                </button>
+                <>
+                  <button
+                    id="hub-btn-play-bot"
+                    onClick={() => onStartBotMatch(botDifficulty)}
+                    style={{
+                      width: '100%',
+                      backgroundColor: 'var(--color-accent)',
+                      color: 'var(--text-inverse)',
+                      border: 'none',
+                      padding: '0.75rem',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.925rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: 'var(--shadow-sm)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      transition: 'all var(--transition-fast)',
+                    }}
+                  >
+                    <span>Jogar contra Robô</span>
+                  </button>
+
+                  {hasActiveMatch && (
+                    <button
+                      id="hub-btn-new-bot"
+                      onClick={() => onStartBotMatch(botDifficulty)}
+                      style={{
+                        width: '100%',
+                        backgroundColor: 'transparent',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid var(--border-subtle)',
+                        padding: '0.55rem',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.4rem',
+                        transition: 'all var(--transition-fast)',
+                      }}
+                    >
+                      <span>Iniciar Nova Partida contra Bot</span>
+                    </button>
+                  )}
+                </>
               )}
             </div>
-          </div>
+          </Card>
 
-          {/* Card 2: Pass and Play Local */}
-          <div
+          {/* Card 2: Pass & Play (Local) */}
+          <Card
             id="card-mode-local"
+            variant="elevated"
             style={{
-              backgroundColor: 'var(--bg-surface-elevated)',
-              borderRadius: 'var(--radius-lg)',
-              border: '1px solid var(--border-subtle)',
-              padding: '1.75rem',
-              boxShadow: 'var(--shadow-sm)',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              gap: '1.25rem',
+              gap: '1.5rem',
             }}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '2rem' }}>👥</span>
-                <span
+                <div
                   style={{
-                    backgroundColor: 'rgba(56, 189, 248, 0.15)',
-                    color: 'var(--color-accent)',
-                    padding: '0.2rem 0.6rem',
-                    borderRadius: '9999px',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--text-primary)',
                   }}
                 >
-                  2 Jogadores
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 00-3-3.87" />
+                    <path d="M16 3.13a4 4 0 010 7.75" />
+                  </svg>
+                </div>
+
+                <span
+                  style={{
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-muted)',
+                    padding: '0.2rem 0.65rem',
+                    borderRadius: 'var(--radius-full)',
+                    fontSize: '0.75rem',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 600,
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  Offline Local
                 </span>
               </div>
 
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>Pass & Play (Local)</h3>
-              <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                Dispute partidas clássicas com um amigo no mesmo dispositivo com alternância de turnos, roque, en passant e validação estrita FIDE.
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: '1.25rem',
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                }}
+              >
+                Pass & Play (Local)
+              </h3>
+
+              <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                Jogue presencialmente com outro humano no mesmo dispositivo. Alterne o controle a cada turno com suporte completo ao histórico de Undo/Redo e regras estritas.
               </p>
 
               <div
                 style={{
-                  padding: '0.75rem',
-                  backgroundColor: 'var(--bg-card)',
-                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--bg-app)',
                   border: '1px solid var(--border-subtle)',
-                  fontSize: '0.8rem',
-                  color: 'var(--text-secondary)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.35rem',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '0.75rem',
+                  fontSize: '0.8125rem',
+                  color: 'var(--text-muted)',
                 }}
               >
-                <div>✓ Validação legal em tempo real</div>
-                <div>✓ Histórico de comandos reversível (Undo/Redo)</div>
-                <div>✓ Suporte a tabuleiros dinâmicos (4x4 a 16x16)</div>
+                Ideal para análise compartilhada, treinamento de aberturas e partidas amistosas.
               </div>
             </div>
 
+            {/* Actions for Local Card */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
               {!botEnabled && hasActiveMatch ? (
                 <>
@@ -413,7 +591,6 @@ export const GameHub: React.FC<IGameHubProps> = ({
                       fontSize: '0.925rem',
                       fontWeight: 700,
                       cursor: 'pointer',
-                      boxShadow: 'var(--shadow-sm)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -421,7 +598,6 @@ export const GameHub: React.FC<IGameHubProps> = ({
                       transition: 'all var(--transition-fast)',
                     }}
                   >
-                    <span>👥</span>
                     <span>Continuar Partida Local (Turno #{turnNumber})</span>
                   </button>
 
@@ -445,7 +621,6 @@ export const GameHub: React.FC<IGameHubProps> = ({
                       transition: 'all var(--transition-fast)',
                     }}
                   >
-                    <span>↻</span>
                     <span>Iniciar Nova Partida Local</span>
                   </button>
                 </>
@@ -470,46 +645,13 @@ export const GameHub: React.FC<IGameHubProps> = ({
                     transition: 'all var(--transition-fast)',
                   }}
                 >
-                  <span>👥</span>
-                  <span>Iniciar Partida Local</span>
+                  <span>Jogar Partida Local</span>
                 </button>
               )}
             </div>
-          </div>
+          </Card>
         </div>
-      </div>
-
-      {/* Architecture & Spec Progress Footer Banner */}
-      <div
-        style={{
-          padding: '1.25rem 1.5rem',
-          backgroundColor: 'var(--bg-card)',
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid var(--border-subtle)',
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '1rem',
-          fontSize: '0.85rem',
-          color: 'var(--text-secondary)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span style={{ fontSize: '1.25rem' }}>🏛️</span>
-          <div>
-            <strong>ChessInReact Governance:</strong> Spec 01 (ECS Core), Spec 04 (Rules Engine) e Spec 05 (AI Engines) homologadas.
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem' }}>
-          <span style={{ padding: '0.2rem 0.5rem', backgroundColor: 'var(--bg-surface)', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
-            Turno Atual: #{turnNumber} ({activePlayer === 'P1' ? 'Brancas' : 'Pretas'})
-          </span>
-          <span style={{ padding: '0.2rem 0.5rem', backgroundColor: 'var(--bg-surface)', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
-            Bot: {botEnabled ? `Ativo (Nível ${botDifficulty})` : 'Desativado'}
-          </span>
-        </div>
-      </div>
+      </section>
     </div>
   );
 };
