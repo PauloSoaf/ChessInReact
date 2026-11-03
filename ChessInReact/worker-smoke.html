@@ -6,7 +6,24 @@
 </head>
 <body>
   <div id="result">RUNNING</div>
+  <div id="react-root" style="opacity: 0.01; pointer-events: auto;"></div>
+  <script>
+    window.onerror = function(msg, url, line, col, err) {
+      var errStr = 'ERROR: uncaught ' + msg + ' at ' + url + ':' + line + ':' + col;
+      document.getElementById('result').textContent = errStr;
+      fetch('/__smoke_result', { method: 'POST', body: errStr }).catch(function(){});
+    };
+    window.onunhandledrejection = function(e) {
+      var errStr = 'ERROR: unhandled rejection: ' + (e.reason ? (e.reason.stack || e.reason.message || e.reason) : e);
+      document.getElementById('result').textContent = errStr;
+      fetch('/__smoke_result', { method: 'POST', body: errStr }).catch(function(){});
+    };
+  </script>
   <script type="module">
+    import React from 'react';
+    import ReactDOM from 'react-dom/client';
+    import App from './src/App.tsx';
+    import { gameStore } from './src/core/state/gameStore.ts';
     import { EngineBridge } from './src/core/workers/EngineBridge.ts';
     import { createDefaultDomainState } from './src/core/state/initialState.ts';
     import { asCoordinateKey, asEntityId } from './src/core/coordinates/index.ts';
@@ -168,8 +185,79 @@
           throw new Error('CALCULATE_BEST_MOVE illegally mutated original domain state');
         }
 
-        // 8. Clean worker termination
+        // 8. Clean isolated worker termination
         bridge.dispose();
+
+        // 9. Full React.StrictMode Human vs Native Bot Match Integration in real browser
+        const reactContainer = document.getElementById('react-root');
+        const reactRoot = ReactDOM.createRoot(reactContainer);
+        reactRoot.render(React.createElement(React.StrictMode, null, React.createElement(App)));
+
+        // Wait for React to complete mount
+        await new Promise((r) => setTimeout(r, 500));
+
+        const botCheckbox = document.getElementById('bot-toggle-checkbox');
+        if (!botCheckbox) throw new Error('React tree did not render bot-toggle-checkbox');
+        botCheckbox.click();
+        await new Promise((r) => setTimeout(r, 200));
+
+        // White moves e2 -> e4 (4,1 -> 4,3)
+        const sqE2 = document.querySelector('[data-testid="square-4,1"]');
+        const sqE4 = document.querySelector('[data-testid="square-4,3"]');
+        if (!sqE2 || !sqE4) throw new Error('Chess board squares e2 or e4 not found in React tree');
+        sqE2.click();
+        await new Promise((r) => setTimeout(r, 200));
+        sqE4.click();
+
+        // Wait for Native Web Worker to calculate and apply Black's response (Turn 3, activePlayer P1)
+        const reactWaitStart = Date.now();
+        while (Date.now() - reactWaitStart < 12000) {
+          const dom = gameStore.getState().domain;
+          if (dom.turnNumber >= 3 && dom.activePlayer === 'P1') {
+            break;
+          }
+          await new Promise((r) => setTimeout(r, 100));
+        }
+
+        const domainAfterBot = gameStore.getState().domain;
+        if (domainAfterBot.turnNumber < 3 || domainAfterBot.activePlayer !== 'P1') {
+          throw new Error(`React native bot response timed out: turn=${domainAfterBot.turnNumber}, player=${domainAfterBot.activePlayer}`);
+        }
+
+        // Test Undo: 2-ply round rollback
+        const undoBtn = document.getElementById('bot-undo-button');
+        if (!undoBtn) throw new Error('bot-undo-button not found');
+        undoBtn.click();
+        await new Promise((r) => setTimeout(r, 200));
+
+        const domainAfterUndo = gameStore.getState().domain;
+        if (domainAfterUndo.turnNumber !== 1 || domainAfterUndo.activePlayer !== 'P1') {
+          throw new Error(`Undo did not roll back full 2-ply round in browser: turn=${domainAfterUndo.turnNumber}`);
+        }
+
+        // Test Redo: 2-ply round restoration
+        const redoBtn = document.getElementById('bot-redo-button');
+        if (!redoBtn) throw new Error('bot-redo-button not found');
+        redoBtn.click();
+        await new Promise((r) => setTimeout(r, 200));
+
+        const domainAfterRedo = gameStore.getState().domain;
+        if (domainAfterRedo.turnNumber !== 3 || domainAfterRedo.activePlayer !== 'P1') {
+          throw new Error(`Redo did not restore full 2-ply round in browser: turn=${domainAfterRedo.turnNumber}`);
+        }
+
+        // Test Reset: reset match
+        const resetBtn = document.getElementById('bot-reset-button');
+        if (!resetBtn) throw new Error('bot-reset-button not found');
+        resetBtn.click();
+        await new Promise((r) => setTimeout(r, 200));
+
+        const domainAfterReset = gameStore.getState().domain;
+        if (domainAfterReset.turnNumber !== 1 || domainAfterReset.activePlayer !== 'P1') {
+          throw new Error(`Reset button did not restore initial match in browser: turn=${domainAfterReset.turnNumber}`);
+        }
+
+        reactRoot.unmount();
 
         resultEl.textContent = 'SUCCESS: ' + JSON.stringify({
           handshake: pong,
@@ -180,6 +268,7 @@
           voronoiVerified: true,
           aiVerified: true,
           aiBestMove: aiResult.bestMove,
+          reactIntegrationVerified: true,
         });
       } catch (err) {
         resultEl.textContent = 'ERROR: ' + (err instanceof Error ? err.message : String(err));

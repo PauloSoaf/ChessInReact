@@ -65,6 +65,22 @@ const App: React.FC = () => {
     }
   };
 
+  const handleRedo = () => {
+    cancelSearch();
+    if (isBotEnabled) {
+      // In human vs bot mode, redo restores a full 2-ply round (human move + bot move)
+      const redoneFirst = redo();
+      if (redoneFirst) {
+        // If state is at bot's turn, redo the bot move immediately as part of the same round
+        if (gameStore.getState().domain.activePlayer === 'P2') {
+          redo();
+        }
+      }
+    } else {
+      redo();
+    }
+  };
+
   const handleBoardSizeChange = (newSize: number) => {
     const clamped = Math.max(4, Math.min(16, newSize));
     setBoardSize(clamped);
@@ -250,6 +266,7 @@ const App: React.FC = () => {
 
       <footer style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
         <button
+          id="bot-undo-button"
           type="button"
           onClick={handleUndo}
           style={{
@@ -268,8 +285,9 @@ const App: React.FC = () => {
         </button>
 
         <button
+          id="bot-redo-button"
           type="button"
-          onClick={() => redo()}
+          onClick={handleRedo}
           style={{
             padding: '0.5rem 1.25rem',
             fontSize: '0.9rem',
@@ -286,6 +304,7 @@ const App: React.FC = () => {
         </button>
 
         <button
+          id="bot-reset-button"
           type="button"
           onClick={handleReset}
           style={{

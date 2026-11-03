@@ -2,6 +2,8 @@
 import React from 'react';
 import { render, fireEvent, screen, waitFor, cleanup } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { EntityId } from '../../../core/coordinates';
+import { IPieceEntity } from '../../../core/entities/types';
 import App from '../../../App';
 import { bootstrapGame } from '../../../core/bootstrap/GameInitializer';
 import { gameStore } from '../../../core/state/gameStore';
@@ -202,5 +204,125 @@ describe('Spec 05 React.StrictMode Human vs Bot Autonomous Match Integration Sui
     expect(gameStore.getState().domain.turnNumber).toBe(1);
     expect(screen.getByTestId('square-4,1').textContent).toContain('♟');
     expect(screen.getByTestId('square-4,3').textContent).not.toContain('♟');
+  });
+
+  it('executes coherent round-trip Undo and Redo operations in AI opponent mode without triggering re-calculation', async () => {
+    render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
+
+    const checkbox = screen.getByRole('checkbox');
+    fireEvent.click(checkbox);
+
+    // 1. White plays e2 -> e4
+    fireEvent.click(screen.getByTestId('square-4,1'));
+    fireEvent.click(screen.getByTestId('square-4,3'));
+
+    // Wait for Black bot to respond (Round 1 complete, Turn 3)
+    await waitFor(
+      () => {
+        expect(gameStore.getState().domain.activePlayer).toBe('P1');
+        expect(gameStore.getState().domain.turnNumber).toBe(3);
+      },
+      { timeout: 3000 }
+    );
+
+    const botRespondedPieceId = Object.keys(gameStore.getState().domain.boardEntities).find((id) => {
+      const p = gameStore.getState().domain.boardEntities[id as EntityId];
+      return p.type === 'PIECE' && p.ownerId === 'P2' && p.hasMoved;
+    }) as EntityId | undefined;
+    expect(botRespondedPieceId).toBeDefined();
+
+    // 2. Click Undo: rolls back full 2-ply round to Turn 1 (White's turn)
+    const undoButton = screen.getByRole('button', { name: /Undo/i });
+    fireEvent.click(undoButton);
+
+    expect(gameStore.getState().domain.activePlayer).toBe('P1');
+    expect(gameStore.getState().domain.turnNumber).toBe(1);
+    expect(screen.getByTestId('square-4,1').textContent).toContain('♟');
+    expect(screen.getByTestId('square-4,3').textContent).not.toContain('♟');
+
+    // 3. Click Redo: restores full 2-ply round to Turn 3 (White's turn) with bot's exact previous move
+    const redoButton = screen.getByRole('button', { name: /Redo/i });
+    fireEvent.click(redoButton);
+
+    expect(gameStore.getState().domain.activePlayer).toBe('P1');
+    expect(gameStore.getState().domain.turnNumber).toBe(3);
+    expect(screen.getByTestId('square-4,3').textContent).toContain('♟');
+    // Bot's moved piece is restored
+    const restoredBotPiece = gameStore.getState().domain.boardEntities[botRespondedPieceId!] as IPieceEntity;
+    expect(restoredBotPiece.hasMoved).toBe(true);
+
+    // 4. Invalidation test: Undo back to Turn 1, then play a new alternative move d2 -> d4
+    fireEvent.click(undoButton);
+    expect(gameStore.getState().domain.turnNumber).toBe(1);
+
+    // Play alternative move d2 -> d4 (3,1 -> 3,3)
+    fireEvent.click(screen.getByTestId('square-3,1'));
+    fireEvent.click(screen.getByTestId('square-3,3'));
+
+    // Redo should now be invalidated by the new branch
+    fireEvent.click(redoButton);
+    // Board stays on d4 (new branch), turn number proceeds from the new branch
+    expect(screen.getByTestId('square-3,3').textContent).toContain('♟');
+    expect(screen.getByTestId('square-4,3').textContent).not.toContain('♟');
+  });
+
+  it('supports multi-round Undo and Redo across consecutive turns while bot is active', async () => {
+    render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
+
+    const checkbox = screen.getByRole('checkbox');
+    fireEvent.click(checkbox);
+
+    // Round 1: e2 -> e4
+    fireEvent.click(screen.getByTestId('square-4,1'));
+    fireEvent.click(screen.getByTestId('square-4,3'));
+
+    await waitFor(
+      () => {
+        expect(gameStore.getState().domain.turnNumber).toBe(3);
+      },
+      { timeout: 3000 }
+    );
+
+    // Round 2: d2 -> d4
+    fireEvent.click(screen.getByTestId('square-3,1'));
+    fireEvent.click(screen.getByTestId('square-3,3'));
+
+    await waitFor(
+      () => {
+        expect(gameStore.getState().domain.turnNumber).toBe(5);
+      },
+      { timeout: 3000 }
+    );
+
+    const undoButton = screen.getByRole('button', { name: /Undo/i });
+    const redoButton = screen.getByRole('button', { name: /Redo/i });
+
+    // Undo Round 2
+    fireEvent.click(undoButton);
+    expect(gameStore.getState().domain.turnNumber).toBe(3);
+    expect(gameStore.getState().domain.activePlayer).toBe('P1');
+
+    // Undo Round 1
+    fireEvent.click(undoButton);
+    expect(gameStore.getState().domain.turnNumber).toBe(1);
+    expect(gameStore.getState().domain.activePlayer).toBe('P1');
+
+    // Redo Round 1
+    fireEvent.click(redoButton);
+    expect(gameStore.getState().domain.turnNumber).toBe(3);
+    expect(gameStore.getState().domain.activePlayer).toBe('P1');
+
+    // Redo Round 2
+    fireEvent.click(redoButton);
+    expect(gameStore.getState().domain.turnNumber).toBe(5);
+    expect(gameStore.getState().domain.activePlayer).toBe('P1');
   });
 });

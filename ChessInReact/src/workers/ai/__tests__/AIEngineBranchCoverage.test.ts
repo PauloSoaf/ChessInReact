@@ -107,8 +107,8 @@ describe('Spec 05 AI Engine & Heuristics Deep Branch Coverage Suite (RNF-10, RNF
       const parts = fen.split(' ');
       expect(parts.length).toBe(6);
       expect(parts[1]).toBe('w'); // Active player White
-      expect(parts[2]).toBe('-'); // Castling flags
-      expect(parts[3]).toBe('4,5'); // enPassant
+      expect(parts[2]).toBe('KQkq'); // Castling flags
+      expect(parts[3]).toBe('e6'); // 4,5 translated to algebraic e6
       expect(parts[4]).toBe('4'); // half-move clock
       expect(parts[5]).toBe('1'); // full-move turn
     });

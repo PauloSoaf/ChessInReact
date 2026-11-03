@@ -1,4 +1,5 @@
 import { CoordinateKey, EntityId } from '../../../core/coordinates/types';
+import { IPieceEntity } from '../../../core/entities/types';
 import { IDomainState } from '../../../core/state/gameState';
 import { ITopology } from '../../../core/topology/types';
 import { IBestMoveResult, IAISearchOptions } from '../interfaces/IAIEngineContracts';
@@ -133,12 +134,61 @@ export class StockfishAdapter {
 
     const boardPart = rows.join('/');
     const activeColor = state.activePlayer === 'P1' ? 'w' : 'b';
-    const enPassant = state.turnState?.enPassantTarget ? state.turnState.enPassantTarget : '-';
+
+    // Castling rights (FIDE standard)
+    let castling = '';
+    const wKingId = state.occupancy['4,0' as CoordinateKey];
+    const wKing = wKingId ? (state.boardEntities[wKingId] as IPieceEntity | undefined) : undefined;
+    if (wKing && wKing.ownerId === 'P1' && wKing.variantId.toUpperCase() === 'KING' && !wKing.hasMoved) {
+      const wKRookId = state.occupancy['7,0' as CoordinateKey];
+      const wKRook = wKRookId ? (state.boardEntities[wKRookId] as IPieceEntity | undefined) : undefined;
+      if (wKRook && wKRook.ownerId === 'P1' && wKRook.variantId.toUpperCase() === 'ROOK' && !wKRook.hasMoved) {
+        castling += 'K';
+      }
+      const wQRookId = state.occupancy['0,0' as CoordinateKey];
+      const wQRook = wQRookId ? (state.boardEntities[wQRookId] as IPieceEntity | undefined) : undefined;
+      if (wQRook && wQRook.ownerId === 'P1' && wQRook.variantId.toUpperCase() === 'ROOK' && !wQRook.hasMoved) {
+        castling += 'Q';
+      }
+    }
+
+    const bKingId = state.occupancy['4,7' as CoordinateKey];
+    const bKing = bKingId ? (state.boardEntities[bKingId] as IPieceEntity | undefined) : undefined;
+    if (bKing && bKing.ownerId === 'P2' && bKing.variantId.toUpperCase() === 'KING' && !bKing.hasMoved) {
+      const bKRookId = state.occupancy['7,7' as CoordinateKey];
+      const bKRook = bKRookId ? (state.boardEntities[bKRookId] as IPieceEntity | undefined) : undefined;
+      if (bKRook && bKRook.ownerId === 'P2' && bKRook.variantId.toUpperCase() === 'ROOK' && !bKRook.hasMoved) {
+        castling += 'k';
+      }
+      const bQRookId = state.occupancy['0,7' as CoordinateKey];
+      const bQRook = bQRookId ? (state.boardEntities[bQRookId] as IPieceEntity | undefined) : undefined;
+      if (bQRook && bQRook.ownerId === 'P2' && bQRook.variantId.toUpperCase() === 'ROOK' && !bQRook.hasMoved) {
+        castling += 'q';
+      }
+    }
+
+    if (castling === '') {
+      castling = '-';
+    }
+
+    // Algebraic En Passant
+    let enPassant = '-';
+    if (state.turnState?.enPassantTarget) {
+      const ep = state.turnState.enPassantTarget;
+      const commaIdx = ep.indexOf(',');
+      if (commaIdx !== -1) {
+        const col = Number(ep.substring(0, commaIdx));
+        const row = Number(ep.substring(commaIdx + 1));
+        if (Number.isInteger(col) && Number.isInteger(row) && col >= 0 && col < 8 && row >= 0 && row < 8) {
+          enPassant = `${String.fromCharCode(97 + col)}${row + 1}`;
+        }
+      }
+    }
+
     const halfmove = state.turnState?.fiftyMoveCounter ?? 0;
     const fullmove = Math.max(1, Math.floor((state.turnNumber + 1) / 2));
 
-    // Castling flags (standard classical baseline)
-    return `${boardPart} ${activeColor} - ${enPassant} ${halfmove} ${fullmove}`;
+    return `${boardPart} ${activeColor} ${castling} ${enPassant} ${halfmove} ${fullmove}`;
   }
 
   private setupMessageHandler(): void {
