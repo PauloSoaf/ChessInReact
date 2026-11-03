@@ -20,18 +20,7 @@ export interface IChessBoardProps {
   setBoardDisplay?: (newBoardDisplay: Array<IChessPiece>[]) => void;
 }
 
-const defaultLightSquare = {
-  backgroundColor: 'black',
-};
-const defaultDarkSquare = {
-  backgroundColor: '#300030',
-};
-
-const getSquareBackground = (row: number, column: number) => {
-  return (row + column) % 2 === 0
-    ? defaultDarkSquare.backgroundColor
-    : defaultLightSquare.backgroundColor;
-};
+import { useTheme } from '../../ui/theme/ThemeContext';
 
 export const ChessBoard: React.FC<IChessBoardProps> = ({
   boardSize = 8,
@@ -39,9 +28,16 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
   disabled = false,
   botPlayer,
 }) => {
+  const { activeBoardColors } = useTheme();
   const domain = useGameStore((state) => state.domain);
   const ui = useGameStore((state) => state.ui);
   const { executeCommand, selectPiece } = useGameActions();
+
+  const getSquareBackground = (row: number, column: number) => {
+    return (row + column) % 2 === 0
+      ? activeBoardColors.darkSquare
+      : activeBoardColors.lightSquare;
+  };
 
   const topology = useMemo(
     () => new SquareTopology({ width: boardSize, height: boardSize }),

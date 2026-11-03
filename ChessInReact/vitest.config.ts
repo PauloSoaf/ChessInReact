@@ -11,6 +11,7 @@ export default defineConfig({
       'src/bindings/**/__tests__/**/*.test.{ts,tsx}',
       'src/controllers/**/__tests__/**/*.test.{ts,tsx}',
       'src/multiplayer/**/__tests__/**/*.test.{ts,tsx}',
+      'src/ui/**/__tests__/**/*.test.{ts,tsx}',
       'src-backend/**/__tests__/**/*.test.{ts,tsx}',
     ],
     coverage: {
