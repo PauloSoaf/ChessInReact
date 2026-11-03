@@ -34,11 +34,28 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
   const ui = useGameStore((state) => state.ui);
   const { executeCommand, selectPiece } = useGameActions();
 
-  // WAI-ARIA Roving Tabindex for 8x8 Chessboard Grid: exactly 1 active tab stop
-  const [focusedSquare, setFocusedSquare] = React.useState<{ col: number; row: number }>({
-    col: isFlipped ? 3 : 4,
-    row: isFlipped ? 1 : 6, // e2 on standard board
-  });
+  // WAI-ARIA Roving Tabindex: store focused square in logical game coordinates (gameX, gameY)
+  // Ensures exactly 1 valid tab stop across any boardSize (4x4, 8x8, 16x16) and orientation (flipped).
+  const [focusedLogicalCoord, setFocusedLogicalCoord] = React.useState<{ gameX: number; gameY: number }>(() => ({
+    gameX: Math.floor(boardSize / 2),
+    gameY: Math.min(1, boardSize - 1),
+  }));
+
+  // Ensure logical coordinates remain within current board boundaries if boardSize changes
+  const validLogicalCoord = useMemo(() => {
+    return {
+      gameX: Math.max(0, Math.min(boardSize - 1, focusedLogicalCoord.gameX)),
+      gameY: Math.max(0, Math.min(boardSize - 1, focusedLogicalCoord.gameY)),
+    };
+  }, [focusedLogicalCoord, boardSize]);
+
+  // Derive visual (col, row) coordinates reactively from logical coordinates and flip state
+  const activeVisualCoord = useMemo(() => {
+    return {
+      col: isFlipped ? boardSize - 1 - validLogicalCoord.gameX : validLogicalCoord.gameX,
+      row: isFlipped ? validLogicalCoord.gameY : boardSize - 1 - validLogicalCoord.gameY,
+    };
+  }, [validLogicalCoord, isFlipped, boardSize]);
 
   // Keep roving active square in sync with selected piece
   React.useEffect(() => {
@@ -49,11 +66,35 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
     if (parts.length === 2) {
       const gx = parseInt(parts[0], 10);
       const gy = parseInt(parts[1], 10);
-      const col = isFlipped ? boardSize - 1 - gx : gx;
-      const row = isFlipped ? gy : boardSize - 1 - gy;
-      setFocusedSquare({ col, row });
+      if (!isNaN(gx) && !isNaN(gy)) {
+        setFocusedLogicalCoord({
+          gameX: Math.max(0, Math.min(boardSize - 1, gx)),
+          gameY: Math.max(0, Math.min(boardSize - 1, gy)),
+        });
+      }
     }
-  }, [ui.selectedPieceId, domain.boardEntities, isFlipped, boardSize]);
+  }, [ui.selectedPieceId, domain.boardEntities, boardSize]);
+
+  // When board is flipped or resized while an element inside the board is focused, retain DOM focus on the updated visual square
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const activeEl = document.activeElement;
+    if (activeEl && activeEl.getAttribute('data-square-col') !== null) {
+      const nextSquare = document.querySelector<HTMLElement>(
+        `[data-square-col="${activeVisualCoord.col}"][data-square-row="${activeVisualCoord.row}"]`
+      );
+      nextSquare?.focus();
+    }
+  }, [isFlipped, boardSize, activeVisualCoord.col, activeVisualCoord.row]);
+
+  const handleFocusSquare = (visualCol: number, visualRow: number) => {
+    const gx = isFlipped ? boardSize - 1 - visualCol : visualCol;
+    const gy = isFlipped ? visualRow : boardSize - 1 - visualRow;
+    setFocusedLogicalCoord({
+      gameX: Math.max(0, Math.min(boardSize - 1, gx)),
+      gameY: Math.max(0, Math.min(boardSize - 1, gy)),
+    });
+  };
 
   const topology = useMemo(
     () => new SquareTopology({ width: boardSize, height: boardSize }),
@@ -262,7 +303,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               : undefined;
 
           const isRovingActive =
-            focusedSquare.col === columnIndex && focusedSquare.row === rowIndex;
+            activeVisualCoord.col === columnIndex && activeVisualCoord.row === rowIndex;
 
           return (
             <BoardSquare
@@ -286,7 +327,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               rankLabel={rankLabel}
               fileLabel={fileLabel}
               tabIndex={isRovingActive ? 0 : -1}
-              onFocusSquare={(col, row) => setFocusedSquare({ col, row })}
+              onFocusSquare={handleFocusSquare}
             />
           );
         })

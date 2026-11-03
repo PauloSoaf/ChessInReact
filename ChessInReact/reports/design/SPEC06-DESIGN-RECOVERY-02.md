@@ -179,7 +179,7 @@ Sessão de validação executada via Chromium autônomo com gravação WebP e ca
 | **Critério 12.1: Seamless DOM Integration** | Overlays HTML/DOM sobre WebGL com barreira de ponteiro (Z-Index Sandwich) e sem vazamento de cliques. | **PARTIAL** | No RECOVERY-02, os eventos de ponteiro foram restaurados no Canvas com swatches clicáveis; contudo, a auditoria subsequente apontou desmontagem do Canvas em caso de perda de contexto WebGL (corrigido definitivamente no RECOVERY-03). |
 | **Critério 12.2: Smooth Drag and Drop 3D** | Arrastar peças 3D via plano matemático de interseção (Y=0) com conversão topológica. | **DEFERRED (SPEC 07)** | O escopo das Sprints 01 e 02 focou no redesign editorial 2D e Showcase de peça no Hub. O drag-and-drop de peças 3D completas no tabuleiro é escopo da Spec 07. |
 | **Critério 12.3: Multiplayer Observer Camera** | Câmera polar orbital adaptativa com ancoragem de perspectiva baseada no PlayerId atribuído pelo Colyseus. | **DEFERRED (SPEC 07/03)** | Câmera tridimensional de partida aguarda a integração da arena WebGL da Spec 07 com o servidor Colyseus da Spec 03. |
-| **Critério 12.4: Theme Toggling Visual Response** | Transição dinâmica de ambiente e materiais no WebGL e DOM entre os temas claro e escuro. | **VERIFIED** | Alternância imediata entre Midnight, Ivory e Synthwave com sincronização de iluminação de estúdio e materiais PBR. |
+| **Critério 12.4: Theme Toggling Visual Response** | Transição dinâmica de ambiente e materiais no WebGL e DOM entre os temas claro e escuro. | **PARTIAL** | Transição visual no DOM e showcase 3D; sincronização completa com HDRI e neblina do tabuleiro 3D de partida pertence à Spec 07. |
 | **Seção 4.2: 3D Raycasting Otimizado (BVH)** | Aceleração espacial three-mesh-bvh para modelos densos de peças fadas. | **DEFERRED (SPEC 07)** | Aplica-se à renderização do tabuleiro tridimensional da Spec 07, não ao showcase procedural isolado. |
 
 ### 7.2 Funcionalidades Efetivamente Entregues nas Sprints 01 e 02 (Hub & Design System)
@@ -191,9 +191,9 @@ Sessão de validação executada via Chromium autônomo com gravação WebP e ca
 | **HUD de Partida Expandido** | Tabuleiro dominante, avaliação por centipawns e cards sóbrios. | **VERIFIED** | Ergonomia visual profissional comprovada em resoluções de 360 px até 1920 px. |
 | **Modal de Personalização** | Modal de personalização com miniaturas vivas, acessível via teclado. | **PARTIAL** | Focus trap básico adicionado, aprimorado para userEvent e remoção de offsetParent no RECOVERY-03. |
 | **Favicon & Identidade Visual** | Favicon e identidade visual próprios, substituindo o `/vite.svg`. | **VERIFIED** | Favicon Staunton em SVG e metadados editoriais aplicados no `index.html`. |
-| **RNF-01: Acessibilidade WCAG 2.2 AA** | Contraste de cores $\ge 4.5:1$ e foco visível no teclado. | **VERIFIED** | Contraste $\ge$ 5.16:1 em todos os pares de texto normal; anéis de foco visíveis de 3px; navegação matricial por setas no tabuleiro e roving tabindex. |
-| **RNF-02: Zero Next.js (ADR-004)** | Zero dependências de Next.js no Vite (ADR-004). | **VERIFIED** | Implementação 100% agnóstica sem acoplamento externo. |
-| **RNF-03: Invariantes de Qualidade** | Invariantes de qualidade (tsc, lint, build, vitest, memory, chromium smoke). | **VERIFIED** | Todos os quality gates locais aprovados sem advertências. |
+| **RNF-04 (WCAG AA)** | Contraste de cores $\ge 4.5:1$ e foco visível no teclado. | **VERIFIED** | Contraste $\ge$ 5.16:1 em todos os pares de texto normal; anéis de foco visíveis de 3px; navegação matricial por setas no tabuleiro e roving tabindex. |
+| **ADR-004 (Zero Next.js)** | Zero dependências de Next.js no Vite (ADR-004). | **VERIFIED** | Implementação 100% agnóstica sem acoplamento externo. |
+| **Invariantes GEMINI.md** | Invariantes de qualidade (tsc, lint, build, vitest, memory, chromium smoke). | **VERIFIED** | Todos os quality gates locais aprovados sem advertências. |
 
 ---
 

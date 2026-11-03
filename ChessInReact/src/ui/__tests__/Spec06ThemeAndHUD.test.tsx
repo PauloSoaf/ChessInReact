@@ -766,6 +766,27 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       expect(showcase).not.toBeNull();
       expect(showcase?.getAttribute('data-webgl-status')).toBe('available');
     });
+
+    it('synchronizes ChessPieceShowcase theme bridge across midnight, ivory, and synthwave', () => {
+      const { rerender } = render(<ChessPieceShowcase theme="midnight" />);
+      const showcase = document.getElementById('chess-piece-showcase');
+      expect(showcase).not.toBeNull();
+      expect(showcase?.style.background).toContain('196, 167, 125');
+
+      rerender(<ChessPieceShowcase theme="ivory" />);
+      expect(showcase?.style.background).toContain('30, 41, 59');
+
+      rerender(<ChessPieceShowcase theme="synthwave" />);
+      expect(showcase?.style.background).toContain('217, 70, 239');
+    });
+
+    it('cleans up WebGL context listeners and recovery timers symmetrically on unmount', () => {
+      const { unmount } = render(<ChessPieceShowcase initialFinish="antique-brass" />);
+      const showcase = document.getElementById('chess-piece-showcase');
+      expect(showcase).not.toBeNull();
+      expect(showcase?.getAttribute('data-webgl-status')).toBe('available');
+      expect(() => unmount()).not.toThrow();
+    });
   });
 
   describe('BoardSquare WCAG 2.2 AA Accessibility', () => {
@@ -842,22 +863,105 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       expect(document.activeElement).toBe(sq2);
     });
 
-    it('implements WAI-ARIA roving tabindex on 8x8 ChessBoard with exactly 1 active tab stop', () => {
-      render(
+    it('implements WAI-ARIA roving tabindex across multiple board sizes (4x4, 8x8, 16x16) with exactly 1 active tab stop', () => {
+      // 4x4
+      const { unmount: unmount4 } = render(
+        <ThemeProvider>
+          <ChessBoard boardSize={4} />
+        </ThemeProvider>
+      );
+      const squares4 = screen.getAllByRole('button');
+      expect(squares4.length).toBe(16);
+      expect(squares4.filter((sq) => sq.getAttribute('tabindex') === '0').length).toBe(1);
+      expect(squares4.filter((sq) => sq.getAttribute('tabindex') === '-1').length).toBe(15);
+      unmount4();
+
+      // 8x8
+      const { unmount: unmount8 } = render(
         <ThemeProvider>
           <ChessBoard boardSize={8} />
         </ThemeProvider>
       );
+      const squares8 = screen.getAllByRole('button');
+      expect(squares8.length).toBe(64);
+      expect(squares8.filter((sq) => sq.getAttribute('tabindex') === '0').length).toBe(1);
+      expect(squares8.filter((sq) => sq.getAttribute('tabindex') === '-1').length).toBe(63);
+      unmount8();
 
-      const allSquares = screen.getAllByRole('button');
-      expect(allSquares.length).toBe(64);
+      // 16x16
+      const { unmount: unmount16 } = render(
+        <ThemeProvider>
+          <ChessBoard boardSize={16} />
+        </ThemeProvider>
+      );
+      const squares16 = screen.getAllByRole('button');
+      expect(squares16.length).toBe(256);
+      expect(squares16.filter((sq) => sq.getAttribute('tabindex') === '0').length).toBe(1);
+      expect(squares16.filter((sq) => sq.getAttribute('tabindex') === '-1').length).toBe(255);
+      unmount16();
+    });
 
-      const tabStopSquares = allSquares.filter((sq) => sq.getAttribute('tabindex') === '0');
-      const inactiveSquares = allSquares.filter((sq) => sq.getAttribute('tabindex') === '-1');
+    it('preserves logical square when board is flipped and updates visual coordinates', () => {
+      const FlipTestComponent = () => {
+        const { updatePreferences } = useTheme();
+        return (
+          <div>
+            <button id="flip-btn" onClick={() => updatePreferences({ flipBoard: true })}>
+              Inverter Tabuleiro
+            </button>
+            <ChessBoard boardSize={8} />
+          </div>
+        );
+      };
 
-      // Exactly ONE square is in the tab order (roving tabindex), remaining 63 are -1
-      expect(tabStopSquares.length).toBe(1);
-      expect(inactiveSquares.length).toBe(63);
+      render(
+        <ThemeProvider>
+          <FlipTestComponent />
+        </ThemeProvider>
+      );
+
+      // On standard 8x8 unflipped: initial square is gameX: 4, gameY: 1 (e2 -> visual col 4, row 6)
+      const unflippedSquare = screen.getByTestId('square-4,1');
+      expect(unflippedSquare.getAttribute('tabindex')).toBe('0');
+
+      // Click flip button
+      fireEvent.click(screen.getByRole('button', { name: /Inverter Tabuleiro/i }));
+
+      // After flip: the same logical square (square-4,1) MUST still have tabIndex 0!
+      const flippedSquare = screen.getByTestId('square-4,1');
+      expect(flippedSquare.getAttribute('tabindex')).toBe('0');
+      // Visual coordinates rotated: col = 8 - 1 - 4 = 3, row = 1
+      expect(flippedSquare.getAttribute('data-square-col')).toBe('3');
+      expect(flippedSquare.getAttribute('data-square-row')).toBe('1');
+    });
+
+    it('supports Home and End keys for column boundary navigation', () => {
+      const handleFocus = vi.fn();
+      render(
+        <ThemeProvider>
+          <div data-testid="grid-container">
+            <BoardSquare
+              piece={{ name: 'PAWN', color: 'white' }}
+              backgroundColor="#e2e8f0"
+              handleClick={vi.fn()}
+              squareInfo={{ row: 3, column: 4, gameX: 4, gameY: 4, squareID: '4-3', name: 'PAWN' }}
+              boardDisplay={Array(8).fill(Array(8).fill({ name: 'none', symbol: '', color: '' }))}
+              testId="square-col4"
+              tabIndex={0}
+              onFocusSquare={handleFocus}
+            />
+          </div>
+        </ThemeProvider>
+      );
+
+      const sq = screen.getByTestId('square-col4');
+      // Press Home -> jumps to col 0
+      fireEvent.keyDown(sq, { key: 'Home' });
+      expect(handleFocus).toHaveBeenCalledWith(0, 3);
+
+      // Press End -> jumps to col 7 (boardSize - 1)
+      fireEvent.keyDown(sq, { key: 'End' });
+      expect(handleFocus).toHaveBeenCalledWith(7, 3);
     });
   });
 

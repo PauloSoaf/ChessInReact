@@ -3,15 +3,18 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { ProceduralKnight, KnightMaterialFinish } from './ProceduralKnight';
 import { StudioEnvironment } from './StudioEnvironment';
+import { UIThemeId } from '../../theme/types';
 
 export interface IInteractiveKnightSceneProps {
   finish?: KnightMaterialFinish;
   reducedMotion?: boolean;
+  theme?: UIThemeId;
 }
 
 export const InteractiveKnightScene: React.FC<IInteractiveKnightSceneProps> = ({
   finish = 'antique-brass',
   reducedMotion = false,
+  theme = 'midnight',
 }) => {
   const groupRef = useRef<THREE.Group>(null);
   const { pointer, invalidate, gl } = useThree();
@@ -19,10 +22,10 @@ export const InteractiveKnightScene: React.FC<IInteractiveKnightSceneProps> = ({
   // Baseline 3/4 beauty profile angle (approx 35 degrees)
   const baseRotationY = 0.55;
 
-  // Invalidate immediately on finish change or mount
+  // Invalidate immediately on finish or theme change or mount
   React.useEffect(() => {
     invalidate();
-  }, [finish, invalidate]);
+  }, [finish, theme, invalidate]);
 
   // Connect explicit pointer activity directly to invalidate() in demand frameloop
   React.useEffect(() => {
@@ -81,7 +84,7 @@ export const InteractiveKnightScene: React.FC<IInteractiveKnightSceneProps> = ({
 
   return (
     <>
-      <StudioEnvironment />
+      <StudioEnvironment theme={theme} />
       <group ref={groupRef} position={[0, -0.15, 0]}>
         <ProceduralKnight finish={finish} scale={0.92} />
       </group>

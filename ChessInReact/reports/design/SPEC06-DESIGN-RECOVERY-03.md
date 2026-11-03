@@ -186,7 +186,7 @@ O teste comprova:
 | **Critério 12.1: Seamless DOM Integration** | Overlays HTML/DOM sobre WebGL com barreira de ponteiro (Z-Index Sandwich) e sem vazamento de cliques. | **VERIFIED** | HUD e Hub isolados sobre a cena; Canvas responsivo ao ponteiro sem bloquear os swatches; máquina de estados preserva integridade gráfica em perda de contexto. |
 | **Critério 12.2: Smooth Drag and Drop 3D** | Arrastar peças 3D via plano matemático de interseção (Y=0) com conversão topológica de coordenadas (`pixelToHex`). | **DEFERRED (SPEC 07)** | O escopo das Sprints 01 e 02 focou no redesign editorial 2D e Showcase procedural isolado no Hub. O drag-and-drop de peças 3D completas na partida pertence à Spec 07. |
 | **Critério 12.3: Multiplayer Observer Camera** | Câmera polar orbital adaptativa com ancoragem de perspectiva baseada no PlayerId atribuído pelo Colyseus. | **DEFERRED (SPEC 07/03)** | Câmera tridimensional de partida depende da união da arena WebGL da Spec 07 com o servidor Colyseus da Spec 03. |
-| **Critério 12.4: Theme Toggling Visual Response** | Transição dinâmica de ambiente e materiais no WebGL e DOM entre os temas claro e escuro. | **VERIFIED** | Alternância imediata entre Midnight, Ivory e Synthwave com sincronização de iluminação de estúdio e materiais PBR. |
+| **Critério 12.4: Theme Toggling Visual Response** | Transição dinâmica de ambiente e materiais no WebGL e DOM entre os temas claro e escuro. | **PARTIAL** | No RECOVERY-03, a alternância atualizava o DOM e materiais PBR do Cavalo; a ponte explícita com iluminação de estúdio foi concluída no RECOVERY-04, enquanto o céu HDRI e neblina do tabuleiro 3D completo pertencem à Spec 07. |
 | **Seção 4.2: 3D Raycasting Otimizado (BVH)** | Aceleração espacial three-mesh-bvh para modelos densos de peças fadas. | **DEFERRED (SPEC 07)** | Aplica-se à renderização do tabuleiro tridimensional denso na Spec 07, não ao showcase procedural isolado. |
 
 ### 7.2 Funcionalidades Efetivamente Entregues nas Sprints 01, 02 e 03 (Design System & Hub)
@@ -198,9 +198,9 @@ O teste comprova:
 | **HUD de Partida Expandido** | Tabuleiro dominante, avaliação por centipawns e cards sóbrios. | **VERIFIED** | Ergonomia visual profissional comprovada em resoluções de 360 px até 1920 px. |
 | **Modal de Personalização** | Modal de personalização com miniaturas vivas, acessível via teclado. | **VERIFIED** | Focus trap estrito (Tab/Shift+Tab com `userEvent`), tecla Escape, bloqueio de rolagem do body e retorno de foco. |
 | **Favicon & Identidade Visual** | Favicon e identidade visual próprios, substituindo o `/vite.svg`. | **VERIFIED** | Favicon Staunton em SVG e metadados editoriais aplicados no `index.html`. |
-| **RNF-01: Acessibilidade WCAG 2.2 AA** | Contraste de cores $\ge 4.5:1$, foco visível e roving tabindex. | **VERIFIED** | Contraste $\ge$ 5.16:1 em todos os pares de texto normal; anéis de foco visíveis de 3px; roving tabindex com 1 casa ativa no tabuleiro e no SegmentedControl. |
-| **RNF-02: Zero Next.js (ADR-004)** | Zero dependências de Next.js no Vite (ADR-004). | **VERIFIED** | Implementação 100% agnóstica sem acoplamento externo. |
-| **RNF-03: Invariantes de Qualidade** | Invariantes de qualidade (tsc, lint, build, vitest, memory, chromium smoke). | **VERIFIED** | Todos os 6 quality gates locais aprovados sem advertências. |
+| **RNF-04 (WCAG AA)** | Contraste de cores $\ge 4.5:1$, foco visível e roving tabindex. | **VERIFIED** | Contraste $\ge$ 5.16:1 em todos os pares de texto normal; anéis de foco visíveis de 3px; roving tabindex com 1 casa ativa no tabuleiro e no SegmentedControl. |
+| **ADR-004 (Zero Next.js)** | Zero dependências de Next.js no Vite (ADR-004). | **VERIFIED** | Implementação 100% agnóstica sem acoplamento externo. |
+| **Invariantes GEMINI.md** | Invariantes de qualidade (tsc, lint, build, vitest, memory, chromium smoke). | **VERIFIED** | Todos os 6 quality gates locais aprovados sem advertências. |
 
 ---
 

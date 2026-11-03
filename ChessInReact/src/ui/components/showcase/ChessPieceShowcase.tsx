@@ -1,11 +1,14 @@
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { InteractiveKnightScene } from './InteractiveKnightScene';
 import { ShowcaseFallback } from './ShowcaseFallback';
 import { KnightMaterialFinish } from './ProceduralKnight';
+import { useTheme } from '../../theme/ThemeContext';
+import { UIThemeId } from '../../theme/types';
 
 export interface IChessPieceShowcaseProps {
   initialFinish?: KnightMaterialFinish;
+  theme?: UIThemeId;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -50,17 +53,28 @@ function checkWebGLSupport(): boolean {
 
 export type WebGLContextStatus = 'available' | 'lost' | 'recovering' | 'fallback';
 
+const THEME_GRADIENTS: Record<UIThemeId, string> = {
+  midnight: 'radial-gradient(ellipse at center, rgba(196, 167, 125, 0.08) 0%, rgba(9, 13, 17, 0) 70%)',
+  ivory: 'radial-gradient(ellipse at center, rgba(30, 41, 59, 0.05) 0%, rgba(248, 250, 252, 0) 70%)',
+  synthwave: 'radial-gradient(ellipse at center, rgba(217, 70, 239, 0.12) 0%, rgba(13, 2, 28, 0) 70%)',
+};
+
 export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
   initialFinish = 'antique-brass',
+  theme: propTheme,
   className = '',
   style,
 }) => {
+  const themeCtx = useTheme();
+  const effectiveTheme: UIThemeId = propTheme ?? themeCtx?.uiTheme ?? 'midnight';
+
   const [finish, setFinish] = useState<KnightMaterialFinish>(initialFinish);
   const [hasWebGL, setHasWebGL] = useState<boolean>(false);
   const [contextStatus, setContextStatus] = useState<WebGLContextStatus>('available');
   const [remountKey, setRemountKey] = useState<number>(0);
   const [reducedMotion, setReducedMotion] = useState<boolean>(false);
   const [isVisible, setIsVisible] = useState<boolean>(true);
+  const [isPageVisible, setIsPageVisible] = useState<boolean>(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
   const recoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -77,14 +91,65 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
     }
   }, []);
 
-  // Cleanup recovery timer on unmount
+  // Track page visibility to suspend rendering in background tabs (RNF-14)
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const onVisibilityChange = () => {
+      setIsPageVisible(document.visibilityState === 'visible');
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
+
+  const handleContextLost = useCallback((e: Event) => {
+    e.preventDefault();
+    console.warn('[ChessPieceShowcase] WebGL context lost, transitioning to lost state');
+    setContextStatus('lost');
+
+    if (recoveryTimerRef.current) {
+      clearTimeout(recoveryTimerRef.current);
+    }
+    // If context restoration is not received within 5 seconds, transition to fallback
+    recoveryTimerRef.current = setTimeout(() => {
+      console.warn('[ChessPieceShowcase] WebGL restoration timed out, transitioning to fallback');
+      setContextStatus('fallback');
+      recoveryTimerRef.current = null;
+    }, 5000);
+  }, []);
+
+  const handleContextRestored = useCallback(() => {
+    console.info('[ChessPieceShowcase] WebGL context restored, rebuilding 3D scene');
+    if (recoveryTimerRef.current) {
+      clearTimeout(recoveryTimerRef.current);
+      recoveryTimerRef.current = null;
+    }
+    setContextStatus('recovering');
+    // Increment remount key to recreate R3F Canvas and fresh Three.js state
+    setRemountKey((prev) => prev + 1);
+    // Note: status 'available' is set strictly inside onCreated once R3F mounts the new context.
+    recoveryTimerRef.current = setTimeout(() => {
+      setContextStatus((curr) => (curr === 'recovering' ? 'fallback' : curr));
+      recoveryTimerRef.current = null;
+    }, 5000);
+  }, []);
+
+  const detachListeners = useCallback((canvas: HTMLCanvasElement | null) => {
+    if (!canvas) return;
+    canvas.removeEventListener('webglcontextlost', handleContextLost);
+    canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+  }, [handleContextLost, handleContextRestored]);
+
+  // Cleanup recovery timer and detach listeners symmetrically on unmount
   useEffect(() => {
     return () => {
       if (recoveryTimerRef.current) {
         clearTimeout(recoveryTimerRef.current);
+        recoveryTimerRef.current = null;
       }
+      detachListeners(canvasElementRef.current);
+      canvasElementRef.current = null;
     };
-  }, []);
+  }, [detachListeners]);
 
   // Pause rendering when scrolled out of view
   useEffect(() => {
@@ -101,40 +166,17 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
     return () => observer.disconnect();
   }, []);
 
-  const handleContextLost = (e: Event) => {
-    e.preventDefault();
-    console.warn('[ChessPieceShowcase] WebGL context lost, transitioning to lost state');
-    setContextStatus('lost');
-
-    if (recoveryTimerRef.current) {
-      clearTimeout(recoveryTimerRef.current);
-    }
-    // If context restoration is not received within 5 seconds, transition to fallback
-    recoveryTimerRef.current = setTimeout(() => {
-      console.warn('[ChessPieceShowcase] WebGL restoration timed out, transitioning to fallback');
-      setContextStatus('fallback');
-    }, 5000);
-  };
-
-  const handleContextRestored = () => {
-    console.info('[ChessPieceShowcase] WebGL context restored, rebuilding 3D scene');
-    if (recoveryTimerRef.current) {
-      clearTimeout(recoveryTimerRef.current);
-    }
-    setContextStatus('recovering');
-    // Increment remount key to ensure fresh R3F state on the restored context
-    setRemountKey((prev) => prev + 1);
-    setTimeout(() => {
-      setContextStatus('available');
-    }, 50);
-  };
-
   const handleManualRetry = () => {
+    if (recoveryTimerRef.current) {
+      clearTimeout(recoveryTimerRef.current);
+      recoveryTimerRef.current = null;
+    }
     setContextStatus('recovering');
     setRemountKey((prev) => prev + 1);
-    setTimeout(() => {
-      setContextStatus('available');
-    }, 50);
+    recoveryTimerRef.current = setTimeout(() => {
+      setContextStatus((curr) => (curr === 'recovering' ? 'fallback' : curr));
+      recoveryTimerRef.current = null;
+    }, 5000);
   };
 
   const fallbackNode = <ShowcaseFallback finish={finish} />;
@@ -157,7 +199,7 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: 'var(--radius-xl)',
-        background: 'radial-gradient(ellipse at center, rgba(196, 167, 125, 0.08) 0%, rgba(9, 13, 17, 0) 70%)',
+        background: THEME_GRADIENTS[effectiveTheme] ?? THEME_GRADIENTS.midnight,
         userSelect: 'none',
         ...style,
       }}
@@ -187,7 +229,7 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
                   transition: 'opacity 0.25s ease',
                 }}
               >
-                {isVisible && (
+                {isVisible && isPageVisible && (
                   <Canvas
                     key={`showcase-canvas-${remountKey}`}
                     frameloop="demand"
@@ -198,15 +240,24 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
                     onCreated={({ gl }) => {
                       const canvas = gl.domElement;
                       if (canvasElementRef.current && canvasElementRef.current !== canvas) {
-                        canvasElementRef.current.removeEventListener('webglcontextlost', handleContextLost);
-                        canvasElementRef.current.removeEventListener('webglcontextrestored', handleContextRestored);
+                        detachListeners(canvasElementRef.current);
                       }
                       canvasElementRef.current = canvas;
                       canvas.addEventListener('webglcontextlost', handleContextLost);
                       canvas.addEventListener('webglcontextrestored', handleContextRestored);
+                      // Succeeded WebGL context creation verified by R3F
+                      setContextStatus('available');
+                      if (recoveryTimerRef.current) {
+                        clearTimeout(recoveryTimerRef.current);
+                        recoveryTimerRef.current = null;
+                      }
                     }}
                   >
-                    <InteractiveKnightScene finish={finish} reducedMotion={reducedMotion} />
+                    <InteractiveKnightScene
+                      finish={finish}
+                      reducedMotion={reducedMotion}
+                      theme={effectiveTheme}
+                    />
                   </Canvas>
                 )}
               </div>

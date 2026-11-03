@@ -117,9 +117,9 @@ A cena tridimensional foi projetada para demonstrar creative development com má
 | **HUD de Partida Expandido** | Tabuleiro dominante, alinhamento lateral da barra de avaliação e cartões sóbrios. | **VERIFIED** | Tabuleiro ocupa posição central e proporção hierárquica adequada. |
 | **Modal de Personalização** | Diálogo acessível com miniaturas vivas de temas e peças. | **PARTIAL** | Modal funcional com Escape, porém com focus trap incompleto. Corrigido em RECOVERY-02. |
 | **Favicon & Identidade Visual** | Favicon Staunton autoral em SVG e substituição de metadados do Vite. | **VERIFIED** | `public/favicon.svg` implementado e ativo no `index.html`. |
-| **RNF-01: Acessibilidade WCAG 2.2 AA** | Contraste de cores $\ge 4.5:1$ e foco visível no teclado. | **PARTIAL** | Foco removido com `outline: 'none'` e 4 pares de cores com contraste insuficiente no commit auditado. Corrigido em RECOVERY-02. |
-| **RNF-02: Zero Next.js (ADR-004)** | Arquitetura pura React 18 + Vite sem dependências do Next.js. | **VERIFIED** | Componentes próprios em `src/ui/components/primitives/`. |
-| **RNF-03: Invariantes de Qualidade** | Quality gates automatizados (tsc, lint, build, vitest). | **VERIFIED** | Gates locais aprovados sem avisos nem falhas. |
+| **RNF-04 (WCAG AA)** | Contraste de cores $\ge 4.5:1$ e foco visível no teclado. | **PARTIAL** | Foco removido com `outline: 'none'` e 4 pares de cores com contraste insuficiente no commit auditado. Corrigido em RECOVERY-02. |
+| **ADR-004 (Zero Next.js)** | Arquitetura pura React 18 + Vite sem dependências do Next.js. | **VERIFIED** | Componentes próprios em `src/ui/components/primitives/`. |
+| **Invariantes GEMINI.md** | Quality gates automatizados (tsc, lint, build, vitest). | **VERIFIED** | Gates locais aprovados sem avisos nem falhas. |
 
 ---
 
