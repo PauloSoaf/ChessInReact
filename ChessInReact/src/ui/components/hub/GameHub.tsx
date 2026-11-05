@@ -1,7 +1,11 @@
 import React from 'react';
 import { AIDifficultyLevel } from '../../../workers/ai/interfaces/IAIEngineContracts';
-import { ChessPieceShowcase } from '../showcase/ChessPieceShowcase';
+import { ShowcaseFallback } from '../showcase/ShowcaseFallback';
 import { Card } from '../primitives/Card';
+
+const ChessPieceShowcase = React.lazy(() =>
+  import('../showcase/ChessPieceShowcase').then((mod) => ({ default: mod.ChessPieceShowcase }))
+);
 
 export interface IGameHubProps {
   onStartBotMatch: (difficulty: AIDifficultyLevel) => void;
@@ -259,7 +263,29 @@ export const GameHub: React.FC<IGameHubProps> = ({
 
         {/* Right Column: Interactive 3D Piece Showcase */}
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1, width: '100%', minHeight: '260px' }}>
-          <ChessPieceShowcase initialFinish="antique-brass" />
+          <React.Suspense
+            fallback={
+              <div
+                id="chess-piece-showcase-fallback-container"
+                style={{
+                  width: '100%',
+                  maxWidth: '420px',
+                  height: '260px',
+                  minHeight: '260px',
+                  borderRadius: 'var(--radius-xl, 1.25rem)',
+                  border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                  background: 'radial-gradient(circle at 50% 35%, rgba(196, 167, 125, 0.12), rgba(0, 0, 0, 0.4) 75%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <ShowcaseFallback finish="antique-brass" />
+              </div>
+            }
+          >
+            <ChessPieceShowcase initialFinish="antique-brass" />
+          </React.Suspense>
         </div>
       </section>
 

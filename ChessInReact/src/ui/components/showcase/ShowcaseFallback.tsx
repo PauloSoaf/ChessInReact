@@ -1,5 +1,5 @@
 import React from 'react';
-import { KnightMaterialFinish } from './ProceduralKnight';
+import { KnightMaterialFinish } from './types';
 
 export interface IShowcaseFallbackProps {
   finish?: KnightMaterialFinish;

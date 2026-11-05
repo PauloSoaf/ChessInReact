@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
+import { KnightMaterialFinish } from './types';
 
-export type KnightMaterialFinish = 'antique-brass' | 'obsidian' | 'ivory-marble';
+export type { KnightMaterialFinish };
 
 export interface IProceduralKnightProps {
   finish?: KnightMaterialFinish;

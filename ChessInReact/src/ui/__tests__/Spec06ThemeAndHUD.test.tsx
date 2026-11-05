@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ThemeProvider, useTheme } from '../theme/ThemeContext';
@@ -18,6 +18,8 @@ import { bootstrapGame } from '../../core/bootstrap/GameInitializer';
 import App from '../../App';
 import { BrandMark, ActionButton, SegmentedControl, ModalShell, Card, StatusIndicator } from '../components/primitives';
 import { ChessPieceShowcase, ShowcaseFallback } from '../components/showcase';
+import { StudioEnvironment } from '../components/showcase/StudioEnvironment';
+import { THEME_LIGHTING } from '../components/showcase/lightingConfig';
 import BoardSquare from '../../components/BoardSquare/BoardSquare';
 import fs from 'fs';
 import path from 'path';
@@ -786,6 +788,227 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       expect(showcase).not.toBeNull();
       expect(showcase?.getAttribute('data-webgl-status')).toBe('available');
       expect(() => unmount()).not.toThrow();
+    });
+  });
+
+  describe('StudioEnvironment WebGL Theme Photometric Lighting Bridge', () => {
+    it('defines explicit photometric lighting profiles for midnight, ivory, and synthwave', () => {
+      expect(THEME_LIGHTING.midnight).toBeDefined();
+      expect(THEME_LIGHTING.ivory).toBeDefined();
+      expect(THEME_LIGHTING.synthwave).toBeDefined();
+
+      // Midnight: editorial studio warmth
+      expect(THEME_LIGHTING.midnight.key.color).toBe('#FFF6E8');
+      expect(THEME_LIGHTING.midnight.key.intensity).toBe(1.35);
+      expect(THEME_LIGHTING.midnight.ambient.intensity).toBe(0.45);
+
+      // Ivory: bright museum alabaster
+      expect(THEME_LIGHTING.ivory.key.color).toBe('#FFFBF0');
+      expect(THEME_LIGHTING.ivory.key.intensity).toBe(1.5);
+      expect(THEME_LIGHTING.ivory.ambient.intensity).toBe(0.8);
+      expect(THEME_LIGHTING.ivory.ambient.color).toBe('#FFFFFF');
+
+      // Synthwave: neon magenta, cyan, and violet high contrast
+      expect(THEME_LIGHTING.synthwave.key.color).toBe('#FB7185');
+      expect(THEME_LIGHTING.synthwave.key.intensity).toBe(1.8);
+      expect(THEME_LIGHTING.synthwave.fill.color).toBe('#22D3EE');
+      expect(THEME_LIGHTING.synthwave.rim.color).toBe('#C084FC');
+      expect(THEME_LIGHTING.synthwave.rim.intensity).toBe(2.4);
+    });
+
+    it('renders StudioEnvironment and binds lights with correct thematic attributes', () => {
+      const { container: midnightContainer, rerender } = render(<StudioEnvironment theme="midnight" />);
+      const ambientMidnight = midnightContainer.querySelector('ambientlight');
+      expect(ambientMidnight?.getAttribute('color')).toBe('#F8FAFC');
+      expect(ambientMidnight?.getAttribute('intensity')).toBe('0.45');
+
+      rerender(<StudioEnvironment theme="synthwave" />);
+      const ambientSynth = midnightContainer.querySelector('ambientlight');
+      expect(ambientSynth?.getAttribute('color')).toBe('#3B0764');
+      expect(ambientSynth?.getAttribute('intensity')).toBe('0.55');
+
+      rerender(<StudioEnvironment theme="ivory" />);
+      const ambientIvory = midnightContainer.querySelector('ambientlight');
+      expect(ambientIvory?.getAttribute('color')).toBe('#FFFFFF');
+      expect(ambientIvory?.getAttribute('intensity')).toBe('0.8');
+    });
+  });
+
+  describe('GameHub Component Lifecycle, Actions & Mode Selection', () => {
+    it('renders idle GameHub and handles Bot, Local, and Theme customization dispatches', async () => {
+      const onStartBotMatch = vi.fn();
+      const onStartLocalMatch = vi.fn();
+      const onResumeMatch = vi.fn();
+      const onSelectDifficulty = vi.fn();
+      const onOpenThemeModal = vi.fn();
+
+      await act(async () => {
+        render(
+          <GameHub
+            onStartBotMatch={onStartBotMatch}
+            onStartLocalMatch={onStartLocalMatch}
+            onResumeMatch={onResumeMatch}
+            hasActiveMatch={false}
+            turnNumber={1}
+            botEnabled={true}
+            botDifficulty={3}
+            onSelectDifficulty={onSelectDifficulty}
+            onOpenThemeModal={onOpenThemeModal}
+          />
+        );
+      });
+
+      // 1. Verify primary hero actions
+      const playBotHeroBtn = document.getElementById('hub-hero-btn-play-bot')!;
+      expect(playBotHeroBtn).not.toBeNull();
+      fireEvent.click(playBotHeroBtn);
+      expect(onStartBotMatch).toHaveBeenCalledWith(3);
+
+      const customizeBtn = document.getElementById('hub-btn-customize-hero')!;
+      expect(customizeBtn).not.toBeNull();
+      fireEvent.click(customizeBtn);
+      expect(onOpenThemeModal).toHaveBeenCalled();
+
+      // 2. Verify local match action from Pass & Play card
+      const playLocalBtn = document.getElementById('hub-btn-play-local')!;
+      expect(playLocalBtn).not.toBeNull();
+      fireEvent.click(playLocalBtn);
+      expect(onStartLocalMatch).toHaveBeenCalled();
+    });
+
+    it('handles bot difficulty changes via SegmentedControl in Bot card', async () => {
+      const onSelectDifficulty = vi.fn();
+
+      await act(async () => {
+        render(
+          <GameHub
+            onStartBotMatch={vi.fn()}
+            onStartLocalMatch={vi.fn()}
+            onResumeMatch={vi.fn()}
+            hasActiveMatch={false}
+            turnNumber={1}
+            botEnabled={true}
+            botDifficulty={3}
+            onSelectDifficulty={onSelectDifficulty}
+            onOpenThemeModal={vi.fn()}
+          />
+        );
+      });
+
+      // Click on level 4 difficulty button
+      const d4Option = document.getElementById('hub-difficulty-btn-4')!;
+      expect(d4Option).not.toBeNull();
+      fireEvent.click(d4Option);
+      expect(onSelectDifficulty).toHaveBeenCalledWith(4);
+    });
+
+    it('displays in-progress match indicators and allows resuming bot match', async () => {
+      const onResumeMatch = vi.fn();
+      const onStartBotMatch = vi.fn();
+
+      await act(async () => {
+        render(
+          <GameHub
+            onStartBotMatch={onStartBotMatch}
+            onStartLocalMatch={vi.fn()}
+            onResumeMatch={onResumeMatch}
+            hasActiveMatch={true}
+            isGameOver={false}
+            turnNumber={7}
+            activePlayer="P1"
+            botEnabled={true}
+            botDifficulty={3}
+            onSelectDifficulty={vi.fn()}
+            onOpenThemeModal={vi.fn()}
+          />
+        );
+      });
+
+      // Hero resume button
+      const resumeHeroBtn = document.getElementById('hub-btn-resume-match')!;
+      expect(resumeHeroBtn).not.toBeNull();
+      fireEvent.click(resumeHeroBtn);
+      expect(onResumeMatch).toHaveBeenCalled();
+
+      // Bot card "Continuar contra Bot (Turno #7)" button
+      const continueBotBtn = document.getElementById('hub-card-btn-continue-bot')!;
+      expect(continueBotBtn).not.toBeNull();
+
+      // Bot card "Iniciar Nova Partida contra Bot" button
+      const newBotMatchBtn = document.getElementById('hub-card-btn-new-bot')!;
+      expect(newBotMatchBtn).not.toBeNull();
+      fireEvent.click(newBotMatchBtn);
+      expect(onStartBotMatch).toHaveBeenCalledWith(3);
+    });
+
+    it('displays in-progress match indicators and allows resuming local match', async () => {
+      const onResumeMatch = vi.fn();
+      const onStartLocalMatch = vi.fn();
+
+      await act(async () => {
+        render(
+          <GameHub
+            onStartBotMatch={vi.fn()}
+            onStartLocalMatch={onStartLocalMatch}
+            onResumeMatch={onResumeMatch}
+            hasActiveMatch={true}
+            isGameOver={false}
+            turnNumber={4}
+            activePlayer="P2"
+            botEnabled={false}
+            botDifficulty={3}
+            onSelectDifficulty={vi.fn()}
+            onOpenThemeModal={vi.fn()}
+          />
+        );
+      });
+
+      // Local card shows continue local match
+      const resumeLocalBtn = document.getElementById('hub-btn-play-local')!;
+      expect(resumeLocalBtn).not.toBeNull();
+      fireEvent.click(resumeLocalBtn);
+      expect(onResumeMatch).toHaveBeenCalled();
+
+      // Local card allows starting a fresh local match
+      const newLocalBtn = document.getElementById('hub-btn-new-local')!;
+      expect(newLocalBtn).not.toBeNull();
+      fireEvent.click(newLocalBtn);
+      expect(onStartLocalMatch).toHaveBeenCalled();
+    });
+
+    it('handles concluded match state with review and reset options', async () => {
+      const onResumeMatch = vi.fn();
+      const onStartBotMatch = vi.fn();
+
+      await act(async () => {
+        render(
+          <GameHub
+            onStartBotMatch={onStartBotMatch}
+            onStartLocalMatch={vi.fn()}
+            onResumeMatch={onResumeMatch}
+            hasActiveMatch={true}
+            isGameOver={true}
+            turnNumber={18}
+            activePlayer="P1"
+            botEnabled={true}
+            botDifficulty={4}
+            onSelectDifficulty={vi.fn()}
+            onOpenThemeModal={vi.fn()}
+          />
+        );
+      });
+
+      // View final position button
+      const viewFinalBtn = document.getElementById('hub-btn-view-board')!;
+      expect(viewFinalBtn).not.toBeNull();
+      fireEvent.click(viewFinalBtn);
+      expect(onResumeMatch).toHaveBeenCalled();
+
+      // Start new match button in hero
+      const startNewBtn = document.getElementById('hub-hero-btn-play-bot')!;
+      expect(startNewBtn).not.toBeNull();
+      fireEvent.click(startNewBtn);
+      expect(onStartBotMatch).toHaveBeenCalledWith(4);
     });
   });
 
