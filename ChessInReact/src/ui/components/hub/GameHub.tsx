@@ -19,6 +19,7 @@ export interface IGameHubProps {
   botDifficulty: AIDifficultyLevel;
   onSelectDifficulty: (level: AIDifficultyLevel) => void;
   onOpenThemeModal: () => void;
+  progressive3DMode?: 'idle' | 'eager' | 'off';
 }
 
 const DIFFICULTY_CONFIG: Record<
@@ -38,12 +39,52 @@ export const GameHub: React.FC<IGameHubProps> = ({
   onResumeMatch,
   hasActiveMatch,
   turnNumber,
+  activePlayer = 'P1',
   isGameOver = false,
   botEnabled,
   botDifficulty,
   onSelectDifficulty,
   onOpenThemeModal,
+  progressive3DMode = 'idle',
 }) => {
+  const isTestEnv = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+  const effectiveMode = isTestEnv && progressive3DMode === 'idle' ? 'off' : progressive3DMode;
+
+  const [is3DActive, setIs3DActive] = React.useState<boolean>(effectiveMode === 'eager');
+
+  React.useEffect(() => {
+    if (effectiveMode !== 'idle') return;
+    if (typeof window === 'undefined') return;
+
+    let cancelled = false;
+    if ('requestIdleCallback' in window) {
+      const handle = (window as unknown as { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback(
+        () => {
+          if (!cancelled) setIs3DActive(true);
+        },
+        { timeout: 1500 }
+      );
+      return () => {
+        cancelled = true;
+        (window as unknown as { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(handle);
+      };
+    } else {
+      const timer = setTimeout(() => {
+        if (!cancelled) setIs3DActive(true);
+      }, 1000);
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
+    }
+  }, [effectiveMode]);
+
+  const handleActivate3D = React.useCallback(() => {
+    if (!is3DActive) {
+      setIs3DActive(true);
+    }
+  }, [is3DActive]);
+
   const isMatchInProgress = hasActiveMatch && !isGameOver;
   const isMatchConcluded = hasActiveMatch && isGameOver;
 
@@ -261,31 +302,61 @@ export const GameHub: React.FC<IGameHubProps> = ({
           </div>
         </div>
 
-        {/* Right Column: Interactive 3D Piece Showcase */}
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1, width: '100%', minHeight: '260px' }}>
-          <React.Suspense
-            fallback={
-              <div
-                id="chess-piece-showcase-fallback-container"
-                style={{
-                  width: '100%',
-                  maxWidth: '420px',
-                  height: '260px',
-                  minHeight: '260px',
-                  borderRadius: 'var(--radius-xl, 1.25rem)',
-                  border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-                  background: 'radial-gradient(circle at 50% 35%, rgba(196, 167, 125, 0.12), rgba(0, 0, 0, 0.4) 75%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <ShowcaseFallback finish="antique-brass" />
-              </div>
-            }
-          >
-            <ChessPieceShowcase initialFinish="antique-brass" />
-          </React.Suspense>
+        {/* Right Column: Progressive 3D Piece Showcase */}
+        <div
+          id="chess-piece-showcase-container"
+          onMouseEnter={handleActivate3D}
+          onTouchStart={handleActivate3D}
+          onFocus={handleActivate3D}
+          style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1, width: '100%', minHeight: '260px' }}
+        >
+          {is3DActive ? (
+            <React.Suspense
+              fallback={
+                <div
+                  id="chess-piece-showcase-fallback-container"
+                  style={{
+                    width: '100%',
+                    maxWidth: '420px',
+                    height: '260px',
+                    minHeight: '260px',
+                    borderRadius: 'var(--radius-xl, 1.25rem)',
+                    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                    background: 'radial-gradient(circle at 50% 35%, rgba(196, 167, 125, 0.12), rgba(0, 0, 0, 0.4) 75%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <ShowcaseFallback finish="antique-brass" />
+                </div>
+              }
+            >
+              <ChessPieceShowcase initialFinish="antique-brass" />
+            </React.Suspense>
+          ) : (
+            <div
+              id="chess-piece-showcase-fallback-container"
+              style={{
+                width: '100%',
+                maxWidth: '420px',
+                height: '260px',
+                minHeight: '260px',
+                borderRadius: 'var(--radius-xl, 1.25rem)',
+                border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                background: 'radial-gradient(circle at 50% 35%, rgba(196, 167, 125, 0.12), rgba(0, 0, 0, 0.4) 75%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+              onClick={handleActivate3D}
+              role="region"
+              aria-label="Modelo de Peça Editorial - Toque para ativar modelo 3D interativo"
+            >
+              <ShowcaseFallback finish="antique-brass" />
+            </div>
+          )}
         </div>
       </section>
 
@@ -320,6 +391,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
           {/* Card 1: Bot Match (AI) */}
           <Card
             id="card-mode-bot"
+            data-active-player={activePlayer}
             variant="elevated"
             style={{
               display: 'flex',

@@ -55,6 +55,7 @@ export const ShowcaseFallback: React.FC<IShowcaseFallbackProps> = ({
       }}
     >
       <svg
+        id="chess-piece-fallback-svg"
         viewBox="0 0 240 280"
         style={{
           width: '85%',

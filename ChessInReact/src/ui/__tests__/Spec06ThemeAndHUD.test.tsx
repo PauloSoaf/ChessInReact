@@ -17,6 +17,7 @@ import { gameStore } from '../../core/state/gameStore';
 import { bootstrapGame } from '../../core/bootstrap/GameInitializer';
 import App from '../../App';
 import { BrandMark, ActionButton, SegmentedControl, ModalShell, Card, StatusIndicator } from '../components/primitives';
+import * as THREE from 'three';
 import { ChessPieceShowcase, ShowcaseFallback } from '../components/showcase';
 import { StudioEnvironment } from '../components/showcase/StudioEnvironment';
 import { THEME_LIGHTING } from '../components/showcase/lightingConfig';
@@ -238,27 +239,29 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
   });
 
   describe('GameHub Component', () => {
-    it('renders difficulty selector and dispatches bot match start', () => {
+    it('renders difficulty selector and dispatches bot match start', async () => {
       const onStartBotMatch = vi.fn();
       const onStartLocalMatch = vi.fn();
       const onResumeMatch = vi.fn();
       const onSelectDifficulty = vi.fn();
 
-      render(
-        <GameHub
-          onStartBotMatch={onStartBotMatch}
-          onStartLocalMatch={onStartLocalMatch}
-          onResumeMatch={onResumeMatch}
-          hasActiveMatch={true}
-          turnNumber={5}
-          activePlayer="P1"
-          isGameOver={false}
-          botEnabled={true}
-          botDifficulty={3}
-          onSelectDifficulty={onSelectDifficulty}
-          onOpenThemeModal={vi.fn()}
-        />
-      );
+      await act(async () => {
+        render(
+          <GameHub
+            onStartBotMatch={onStartBotMatch}
+            onStartLocalMatch={onStartLocalMatch}
+            onResumeMatch={onResumeMatch}
+            hasActiveMatch={true}
+            turnNumber={5}
+            activePlayer="P1"
+            isGameOver={false}
+            botEnabled={true}
+            botDifficulty={3}
+            onSelectDifficulty={onSelectDifficulty}
+            onOpenThemeModal={vi.fn()}
+          />
+        );
+      });
 
       expect(screen.getByText('Partida contra Robô (IA)')).toBeDefined();
       expect(screen.getByText(/Pass & Play/i)).toBeDefined();
@@ -266,33 +269,81 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
 
       // Start Bot Match
       const startBotBtn = screen.getByRole('button', { name: /Iniciar Nova Partida/i });
-      fireEvent.click(startBotBtn);
+      await act(async () => {
+        fireEvent.click(startBotBtn);
+      });
       expect(onStartBotMatch).toHaveBeenCalledWith(3);
     });
 
-    it('does not display resume match action when match is concluded (isGameOver=true)', () => {
+    it('does not display resume match action when match is concluded (isGameOver=true)', async () => {
       const onStartBotMatch = vi.fn();
       const onResumeMatch = vi.fn();
 
-      render(
-        <GameHub
-          onStartBotMatch={onStartBotMatch}
-          onStartLocalMatch={vi.fn()}
-          onResumeMatch={onResumeMatch}
-          hasActiveMatch={true}
-          turnNumber={14}
-          isGameOver={true}
-          botEnabled={true}
-          botDifficulty={4}
-          onSelectDifficulty={vi.fn()}
-          onOpenThemeModal={vi.fn()}
-        />
-      );
+      await act(async () => {
+        render(
+          <GameHub
+            onStartBotMatch={onStartBotMatch}
+            onStartLocalMatch={vi.fn()}
+            onResumeMatch={onResumeMatch}
+            hasActiveMatch={true}
+            turnNumber={14}
+            isGameOver={true}
+            botEnabled={true}
+            botDifficulty={4}
+            onSelectDifficulty={vi.fn()}
+            onOpenThemeModal={vi.fn()}
+          />
+        );
+      });
 
       // Must NOT present "Retomar Partida" when match is over
       expect(screen.queryByText(/Retomar Partida/i)).toBeNull();
       // Should present final position option
       expect(screen.getByText(/Fim de Jogo/i)).toBeDefined();
+    });
+
+    it('supports progressive enhancement from 2D vector fallback to 3D showcase', async () => {
+      const { rerender } = render(
+        <GameHub
+          onStartBotMatch={vi.fn()}
+          onStartLocalMatch={vi.fn()}
+          onResumeMatch={vi.fn()}
+          hasActiveMatch={false}
+          turnNumber={1}
+          botEnabled={true}
+          botDifficulty={3}
+          onSelectDifficulty={vi.fn()}
+          onOpenThemeModal={vi.fn()}
+          progressive3DMode="off"
+        />
+      );
+
+      // Verify 2D vector fallback is rendered immediately
+      const fallbackContainer = document.getElementById('chess-piece-showcase-fallback-container');
+      expect(fallbackContainer).not.toBeNull();
+      expect(document.getElementById('chess-piece-fallback-svg')).not.toBeNull();
+
+      // Trigger 3D activation via progressive3DMode="eager"
+      await act(async () => {
+        rerender(
+          <GameHub
+            onStartBotMatch={vi.fn()}
+            onStartLocalMatch={vi.fn()}
+            onResumeMatch={vi.fn()}
+            hasActiveMatch={false}
+            turnNumber={1}
+            botEnabled={true}
+            botDifficulty={3}
+            onSelectDifficulty={vi.fn()}
+            onOpenThemeModal={vi.fn()}
+            progressive3DMode="eager"
+          />
+        );
+      });
+
+      // After eager activation, the 3D showcase container is present
+      const showcaseContainer = document.getElementById('chess-piece-showcase-container');
+      expect(showcaseContainer).not.toBeNull();
     });
   });
 
@@ -494,15 +545,19 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       bootstrapGame({ targetStore: gameStore });
     });
 
-    it('renders Game Hub by default when no hash is present', () => {
-      render(<App />);
+    it('renders Game Hub by default when no hash is present', async () => {
+      await act(async () => {
+        render(<App />);
+      });
       expect(screen.getByText('Partida contra Robô (IA)')).toBeDefined();
       expect(screen.getByText(/Experiência de Xadrez Avançada/i)).toBeDefined();
     });
 
-    it('renders Game directly when #game hash is present', () => {
+    it('renders Game directly when #game hash is present', async () => {
       window.location.hash = '#game';
-      render(<App />);
+      await act(async () => {
+        render(<App />);
+      });
       expect(screen.getByTestId('top-nav-bar')).toBeDefined();
       expect(document.getElementById('bot-toggle-checkbox')).not.toBeNull();
     });
@@ -816,21 +871,61 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       expect(THEME_LIGHTING.synthwave.rim.intensity).toBe(2.4);
     });
 
-    it('renders StudioEnvironment and binds lights with correct thematic attributes', () => {
-      const { container: midnightContainer, rerender } = render(<StudioEnvironment theme="midnight" />);
-      const ambientMidnight = midnightContainer.querySelector('ambientlight');
-      expect(ambientMidnight?.getAttribute('color')).toBe('#F8FAFC');
-      expect(ambientMidnight?.getAttribute('intensity')).toBe('0.45');
+    it('produces valid R3F light elements and binds photometric attributes for each theme', () => {
+      // 1. Midnight Theme R3F Tree
+      const midnightTree = StudioEnvironment({ theme: 'midnight' }) as React.ReactElement<{ children: React.ReactNode }>;
+      const midnightChildren = React.Children.toArray(midnightTree.props.children) as React.ReactElement[];
+      expect(midnightChildren).toHaveLength(5);
 
-      rerender(<StudioEnvironment theme="synthwave" />);
-      const ambientSynth = midnightContainer.querySelector('ambientlight');
-      expect(ambientSynth?.getAttribute('color')).toBe('#3B0764');
-      expect(ambientSynth?.getAttribute('intensity')).toBe('0.55');
+      const ambientMidnight = midnightChildren[0];
+      expect(ambientMidnight.type).toBe('ambientLight');
+      expect(ambientMidnight.props.color).toBe('#F8FAFC');
+      expect(ambientMidnight.props.intensity).toBe(0.45);
 
-      rerender(<StudioEnvironment theme="ivory" />);
-      const ambientIvory = midnightContainer.querySelector('ambientlight');
-      expect(ambientIvory?.getAttribute('color')).toBe('#FFFFFF');
-      expect(ambientIvory?.getAttribute('intensity')).toBe('0.8');
+      const keyMidnight = midnightChildren[1];
+      expect(keyMidnight.type).toBe('directionalLight');
+      expect(keyMidnight.props.color).toBe('#FFF6E8');
+      expect(keyMidnight.props.intensity).toBe(1.35);
+      expect(keyMidnight.props.castShadow).toBe(true);
+
+      // 2. Synthwave Theme R3F Tree
+      const synthwaveTree = StudioEnvironment({ theme: 'synthwave' }) as React.ReactElement<{ children: React.ReactNode }>;
+      const synthwaveChildren = React.Children.toArray(synthwaveTree.props.children) as React.ReactElement[];
+      const ambientSynth = synthwaveChildren[0];
+      expect(ambientSynth.type).toBe('ambientLight');
+      expect(ambientSynth.props.color).toBe('#3B0764');
+      expect(ambientSynth.props.intensity).toBe(0.55);
+
+      const rimSynth = synthwaveChildren[3];
+      expect(rimSynth.type).toBe('directionalLight');
+      expect(rimSynth.props.color).toBe('#C084FC');
+      expect(rimSynth.props.intensity).toBe(2.4);
+
+      // 3. Ivory Theme R3F Tree
+      const ivoryTree = StudioEnvironment({ theme: 'ivory' }) as React.ReactElement<{ children: React.ReactNode }>;
+      const ivoryChildren = React.Children.toArray(ivoryTree.props.children) as React.ReactElement[];
+      const ambientIvory = ivoryChildren[0];
+      expect(ambientIvory.type).toBe('ambientLight');
+      expect(ambientIvory.props.color).toBe('#FFFFFF');
+      expect(ambientIvory.props.intensity).toBe(0.8);
+
+      // 4. Real Three.js Photometric Light Instances Validation
+      const ambientLight = new THREE.AmbientLight(
+        THEME_LIGHTING.midnight.ambient.color,
+        THEME_LIGHTING.midnight.ambient.intensity
+      );
+      expect(ambientLight.color.getHexString().toLowerCase()).toBe('f8fafc');
+      expect(ambientLight.intensity).toBe(0.45);
+
+      const keyLight = new THREE.DirectionalLight(
+        THEME_LIGHTING.midnight.key.color,
+        THEME_LIGHTING.midnight.key.intensity
+      );
+      keyLight.position.set(...THEME_LIGHTING.midnight.key.position);
+      expect(keyLight.color.getHexString().toLowerCase()).toBe('fff6e8');
+      expect(keyLight.position.x).toBe(-3);
+      expect(keyLight.position.y).toBe(4);
+      expect(keyLight.position.z).toBe(3.5);
     });
   });
 
