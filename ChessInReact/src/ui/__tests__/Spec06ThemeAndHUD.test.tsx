@@ -302,7 +302,7 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       expect(screen.getByText(/Fim de Jogo/i)).toBeDefined();
     });
 
-    it('supports progressive enhancement from 2D vector fallback to 3D showcase', async () => {
+    it('renders Suspense fallback during initial lazy chunk load and transitions from off to eager', async () => {
       const { rerender } = render(
         <GameHub
           onStartBotMatch={vi.fn()}
@@ -318,14 +318,68 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
         />
       );
 
-      // Verify 2D vector fallback is rendered immediately
-      const fallbackContainer = document.getElementById('chess-piece-showcase-fallback-container');
-      expect(fallbackContainer).not.toBeNull();
+      // 1. In "off" mode: interactive fallback trigger is present, lazy 3D showcase is NOT mounted
+      const outerContainer = document.getElementById('chess-piece-showcase-container');
+      expect(outerContainer?.getAttribute('data-3d-state')).toBe('inactive');
+      expect(screen.getByTestId('showcase-fallback-trigger')).toBeDefined();
       expect(document.getElementById('chess-piece-fallback-svg')).not.toBeNull();
+      expect(screen.queryByTestId('chess-piece-showcase')).toBeNull();
 
-      // Trigger 3D activation via progressive3DMode="eager"
-      await act(async () => {
-        rerender(
+      // 2. Transition prop from "off" to "eager"
+      rerender(
+        <GameHub
+          onStartBotMatch={vi.fn()}
+          onStartLocalMatch={vi.fn()}
+          onResumeMatch={vi.fn()}
+          hasActiveMatch={false}
+          turnNumber={1}
+          botEnabled={true}
+          botDifficulty={3}
+          onSelectDifficulty={vi.fn()}
+          onOpenThemeModal={vi.fn()}
+          progressive3DMode="eager"
+        />
+      );
+
+      expect(outerContainer?.getAttribute('data-3d-state')).toBe('active');
+      expect(screen.queryByTestId('showcase-fallback-trigger')).toBeNull();
+
+      // Synchronously while React.lazy dynamic import is pending on first load, Suspense fallback MUST be rendered
+      expect(screen.getByTestId('showcase-suspense-fallback')).toBeDefined();
+      expect(screen.queryByTestId('chess-piece-showcase')).toBeNull();
+
+      // 3. Once async lazy chunk resolves, actual ChessPieceShowcase mounts and Suspense fallback unmounts
+      const mountedShowcase = await screen.findByTestId('chess-piece-showcase');
+      expect(mountedShowcase).toBeDefined();
+      expect(screen.queryByTestId('showcase-suspense-fallback')).toBeNull();
+      expect(document.getElementById('showcase-btn-finish-brass')).not.toBeNull();
+
+      // 4. Transitioning back to "off" unmounts the 3D showcase and restores the 2D fallback
+      rerender(
+        <GameHub
+          onStartBotMatch={vi.fn()}
+          onStartLocalMatch={vi.fn()}
+          onResumeMatch={vi.fn()}
+          hasActiveMatch={false}
+          turnNumber={1}
+          botEnabled={true}
+          botDifficulty={3}
+          onSelectDifficulty={vi.fn()}
+          onOpenThemeModal={vi.fn()}
+          progressive3DMode="off"
+        />
+      );
+      expect(outerContainer?.getAttribute('data-3d-state')).toBe('inactive');
+      expect(screen.queryByTestId('chess-piece-showcase')).toBeNull();
+      expect(screen.getByTestId('showcase-fallback-trigger')).toBeDefined();
+    });
+
+    it('mounts 3D showcase immediately when progressive3DMode="eager" on initial mount', async () => {
+      const requestIdleSpy = vi.fn();
+      (window as unknown as Record<string, unknown>).requestIdleCallback = requestIdleSpy;
+
+      try {
+        render(
           <GameHub
             onStartBotMatch={vi.fn()}
             onStartLocalMatch={vi.fn()}
@@ -339,11 +393,229 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
             progressive3DMode="eager"
           />
         );
-      });
 
-      // After eager activation, the 3D showcase container is present
-      const showcaseContainer = document.getElementById('chess-piece-showcase-container');
-      expect(showcaseContainer).not.toBeNull();
+        expect(requestIdleSpy).not.toHaveBeenCalled();
+        expect(screen.queryByTestId('showcase-fallback-trigger')).toBeNull();
+
+        const mountedShowcase = await screen.findByTestId('chess-piece-showcase');
+        expect(mountedShowcase).toBeDefined();
+        expect(document.getElementById('showcase-btn-finish-obsidian')).not.toBeNull();
+      } finally {
+        delete (window as unknown as Record<string, unknown>).requestIdleCallback;
+      }
+    });
+
+    it('schedules requestIdleCallback in "idle" mode, activates after callback fires, and cancels on unmount', async () => {
+      let capturedCallback: (() => void) | null = null;
+      const requestIdleMock = vi.fn((cb: () => void) => {
+        capturedCallback = cb;
+        return 77;
+      });
+      const cancelIdleMock = vi.fn();
+
+      (window as unknown as Record<string, unknown>).requestIdleCallback = requestIdleMock;
+      (window as unknown as Record<string, unknown>).cancelIdleCallback = cancelIdleMock;
+
+      try {
+        const { unmount } = render(
+          <GameHub
+            onStartBotMatch={vi.fn()}
+            onStartLocalMatch={vi.fn()}
+            onResumeMatch={vi.fn()}
+            hasActiveMatch={false}
+            turnNumber={1}
+            botEnabled={true}
+            botDifficulty={3}
+            onSelectDifficulty={vi.fn()}
+            onOpenThemeModal={vi.fn()}
+            progressive3DMode="idle"
+          />
+        );
+
+        // Before idle callback: 2D fallback trigger is active, 3D showcase is NOT mounted
+        expect(requestIdleMock).toHaveBeenCalledTimes(1);
+        expect(requestIdleMock).toHaveBeenCalledWith(expect.any(Function), { timeout: 1500 });
+        expect(screen.getByTestId('showcase-fallback-trigger')).toBeDefined();
+        expect(screen.queryByTestId('chess-piece-showcase')).toBeNull();
+
+        // Fire the deterministic idle callback
+        await act(async () => {
+          capturedCallback?.();
+        });
+
+        // After idle callback: 3D showcase is mounted and 2D trigger is removed
+        const mountedShowcase = await screen.findByTestId('chess-piece-showcase');
+        expect(mountedShowcase).toBeDefined();
+        expect(screen.queryByTestId('showcase-fallback-trigger')).toBeNull();
+
+        unmount();
+      } finally {
+        delete (window as unknown as Record<string, unknown>).requestIdleCallback;
+        delete (window as unknown as Record<string, unknown>).cancelIdleCallback;
+      }
+    });
+
+    it('cancels pending requestIdleCallback on unmount and ignores late callback execution', () => {
+      let capturedCallback: (() => void) | null = null;
+      const requestIdleMock = vi.fn((cb: () => void) => {
+        capturedCallback = cb;
+        return 99;
+      });
+      const cancelIdleMock = vi.fn();
+
+      (window as unknown as Record<string, unknown>).requestIdleCallback = requestIdleMock;
+      (window as unknown as Record<string, unknown>).cancelIdleCallback = cancelIdleMock;
+
+      try {
+        const { unmount } = render(
+          <GameHub
+            onStartBotMatch={vi.fn()}
+            onStartLocalMatch={vi.fn()}
+            onResumeMatch={vi.fn()}
+            hasActiveMatch={false}
+            turnNumber={1}
+            botEnabled={true}
+            botDifficulty={3}
+            onSelectDifficulty={vi.fn()}
+            onOpenThemeModal={vi.fn()}
+            progressive3DMode="idle"
+          />
+        );
+
+        expect(requestIdleMock).toHaveBeenCalledTimes(1);
+        expect(cancelIdleMock).not.toHaveBeenCalled();
+
+        // Unmount before callback fires
+        unmount();
+        expect(cancelIdleMock).toHaveBeenCalledWith(99);
+
+        // Invoking callback after unmount must be a safe no-op
+        expect(() => capturedCallback?.()).not.toThrow();
+      } finally {
+        delete (window as unknown as Record<string, unknown>).requestIdleCallback;
+        delete (window as unknown as Record<string, unknown>).cancelIdleCallback;
+      }
+    });
+
+    it('strictly blocks 3D activation in "off" mode across hover, click, touch, focus, and keyboard', async () => {
+      const user = userEvent.setup();
+      const requestIdleMock = vi.fn();
+      (window as unknown as Record<string, unknown>).requestIdleCallback = requestIdleMock;
+
+      try {
+        render(
+          <GameHub
+            onStartBotMatch={vi.fn()}
+            onStartLocalMatch={vi.fn()}
+            onResumeMatch={vi.fn()}
+            hasActiveMatch={false}
+            turnNumber={1}
+            botEnabled={true}
+            botDifficulty={3}
+            onSelectDifficulty={vi.fn()}
+            onOpenThemeModal={vi.fn()}
+            progressive3DMode="off"
+          />
+        );
+
+        const outerContainer = document.getElementById('chess-piece-showcase-container')!;
+        const trigger = screen.getByTestId('showcase-fallback-trigger');
+
+        expect(requestIdleMock).not.toHaveBeenCalled();
+        expect(trigger.getAttribute('aria-disabled')).toBe('true');
+
+        // Attempt hover, touch, focus, click, Enter, and Space
+        fireEvent.mouseEnter(outerContainer);
+        fireEvent.touchStart(outerContainer);
+        trigger.focus();
+        fireEvent.focus(trigger);
+        fireEvent.click(trigger);
+        fireEvent.keyDown(trigger, { key: 'Enter' });
+        fireEvent.keyDown(trigger, { key: ' ' });
+        await user.click(trigger);
+        await user.keyboard('{Enter} ');
+
+        // 3D showcase must remain completely unmounted
+        expect(outerContainer.getAttribute('data-3d-state')).toBe('inactive');
+        expect(screen.queryByTestId('chess-piece-showcase')).toBeNull();
+        expect(screen.getByTestId('showcase-fallback-trigger')).toBeDefined();
+      } finally {
+        delete (window as unknown as Record<string, unknown>).requestIdleCallback;
+      }
+    });
+
+    it('supports accessible keyboard activation via Enter and Space in "idle" mode without activating merely on focus', async () => {
+      const requestIdleMock = vi.fn(() => 101);
+      const cancelIdleMock = vi.fn();
+      (window as unknown as Record<string, unknown>).requestIdleCallback = requestIdleMock;
+      (window as unknown as Record<string, unknown>).cancelIdleCallback = cancelIdleMock;
+
+      try {
+        // 1. Test focus + non-activation keys + Enter key activation
+        const { unmount } = render(
+          <GameHub
+            onStartBotMatch={vi.fn()}
+            onStartLocalMatch={vi.fn()}
+            onResumeMatch={vi.fn()}
+            hasActiveMatch={false}
+            turnNumber={1}
+            botEnabled={true}
+            botDifficulty={3}
+            onSelectDifficulty={vi.fn()}
+            onOpenThemeModal={vi.fn()}
+            progressive3DMode="idle"
+          />
+        );
+
+        const trigger = screen.getByRole('button', {
+          name: /Ativar mostruário 3D interativo do Cavalo Staunton/i,
+        });
+        expect(trigger).toBeDefined();
+        expect(trigger.getAttribute('aria-disabled')).toBe('false');
+
+        // Focusing or pressing unrelated keys MUST NOT prematurely activate 3D
+        trigger.focus();
+        expect(document.activeElement).toBe(trigger);
+        fireEvent.keyDown(trigger, { key: 'Tab' });
+        fireEvent.keyDown(trigger, { key: 'Escape' });
+        fireEvent.keyDown(trigger, { key: 'a' });
+        expect(screen.queryByTestId('chess-piece-showcase')).toBeNull();
+
+        // Pressing Enter activates 3D and cancels pending idle callback
+        await act(async () => {
+          fireEvent.keyDown(trigger, { key: 'Enter' });
+        });
+        expect(await screen.findByTestId('chess-piece-showcase')).toBeDefined();
+        expect(cancelIdleMock).toHaveBeenCalledWith(101);
+        unmount();
+
+        // 2. Test Space key activation
+        render(
+          <GameHub
+            onStartBotMatch={vi.fn()}
+            onStartLocalMatch={vi.fn()}
+            onResumeMatch={vi.fn()}
+            hasActiveMatch={false}
+            turnNumber={1}
+            botEnabled={true}
+            botDifficulty={3}
+            onSelectDifficulty={vi.fn()}
+            onOpenThemeModal={vi.fn()}
+            progressive3DMode="idle"
+          />
+        );
+
+        const triggerSpace = screen.getByRole('button', {
+          name: /Ativar mostruário 3D interativo do Cavalo Staunton/i,
+        });
+        await act(async () => {
+          fireEvent.keyDown(triggerSpace, { key: ' ' });
+        });
+        expect(await screen.findByTestId('chess-piece-showcase')).toBeDefined();
+      } finally {
+        delete (window as unknown as Record<string, unknown>).requestIdleCallback;
+        delete (window as unknown as Record<string, unknown>).cancelIdleCallback;
+      }
     });
   });
 
@@ -1284,10 +1556,11 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
   });
 
   describe('Favicon & Platform Identity Verification', () => {
-    it('verifies that index.html contains /favicon.svg and no obsolete /vite.svg', () => {
+    it('verifies that index.html uses lang="pt-BR", contains /favicon.svg, and has no obsolete /vite.svg', () => {
       const indexPath = path.resolve(__dirname, '../../../index.html');
       const content = fs.readFileSync(indexPath, 'utf-8');
 
+      expect(content).toContain('<html lang="pt-BR">');
       expect(content).toContain('/favicon.svg');
       expect(content).not.toContain('/vite.svg');
       expect(content).toContain('ChessInReact');

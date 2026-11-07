@@ -47,18 +47,28 @@ export const GameHub: React.FC<IGameHubProps> = ({
   onOpenThemeModal,
   progressive3DMode = 'idle',
 }) => {
-  const isTestEnv = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
-  const effectiveMode = isTestEnv && progressive3DMode === 'idle' ? 'off' : progressive3DMode;
-
-  const [is3DActive, setIs3DActive] = React.useState<boolean>(effectiveMode === 'eager');
+  const [is3DActive, setIs3DActive] = React.useState<boolean>(progressive3DMode === 'eager');
 
   React.useEffect(() => {
-    if (effectiveMode !== 'idle') return;
-    if (typeof window === 'undefined') return;
+    if (progressive3DMode === 'eager') {
+      setIs3DActive(true);
+      return;
+    }
+    if (progressive3DMode === 'off') {
+      setIs3DActive(false);
+      return;
+    }
+    if (is3DActive || typeof window === 'undefined') return;
 
     let cancelled = false;
-    if ('requestIdleCallback' in window) {
-      const handle = (window as unknown as { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback(
+    type IdleWindow = Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    const win = window as IdleWindow;
+
+    if (typeof win.requestIdleCallback === 'function') {
+      const handle = win.requestIdleCallback(
         () => {
           if (!cancelled) setIs3DActive(true);
         },
@@ -66,24 +76,36 @@ export const GameHub: React.FC<IGameHubProps> = ({
       );
       return () => {
         cancelled = true;
-        (window as unknown as { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(handle);
-      };
-    } else {
-      const timer = setTimeout(() => {
-        if (!cancelled) setIs3DActive(true);
-      }, 1000);
-      return () => {
-        cancelled = true;
-        clearTimeout(timer);
+        win.cancelIdleCallback?.(handle);
       };
     }
-  }, [effectiveMode]);
+
+    const timer = window.setTimeout(() => {
+      if (!cancelled) setIs3DActive(true);
+    }, 1000);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [progressive3DMode, is3DActive]);
 
   const handleActivate3D = React.useCallback(() => {
-    if (!is3DActive) {
-      setIs3DActive(true);
-    }
-  }, [is3DActive]);
+    if (progressive3DMode !== 'idle') return;
+    setIs3DActive((prev) => (prev ? prev : true));
+  }, [progressive3DMode]);
+
+  const handleFallbackKeyDown = React.useCallback(
+    (e: React.KeyboardEvent<HTMLButtonElement>) => {
+      if (progressive3DMode !== 'idle') return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleActivate3D();
+      }
+    },
+    [progressive3DMode, handleActivate3D]
+  );
+
+  const shouldRender3D = progressive3DMode !== 'off' && (progressive3DMode === 'eager' || is3DActive);
 
   const isMatchInProgress = hasActiveMatch && !isGameOver;
   const isMatchConcluded = hasActiveMatch && isGameOver;
@@ -305,16 +327,18 @@ export const GameHub: React.FC<IGameHubProps> = ({
         {/* Right Column: Progressive 3D Piece Showcase */}
         <div
           id="chess-piece-showcase-container"
-          onMouseEnter={handleActivate3D}
-          onTouchStart={handleActivate3D}
-          onFocus={handleActivate3D}
+          data-3d-state={shouldRender3D ? 'active' : 'inactive'}
+          data-3d-mode={progressive3DMode}
+          onMouseEnter={progressive3DMode === 'idle' ? handleActivate3D : undefined}
+          onTouchStart={progressive3DMode === 'idle' ? handleActivate3D : undefined}
           style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1, width: '100%', minHeight: '260px' }}
         >
-          {is3DActive ? (
+          {shouldRender3D ? (
             <React.Suspense
               fallback={
                 <div
-                  id="chess-piece-showcase-fallback-container"
+                  id="chess-piece-showcase-suspense-fallback"
+                  data-testid="showcase-suspense-fallback"
                   style={{
                     width: '100%',
                     maxWidth: '420px',
@@ -335,27 +359,35 @@ export const GameHub: React.FC<IGameHubProps> = ({
               <ChessPieceShowcase initialFinish="antique-brass" />
             </React.Suspense>
           ) : (
-            <div
+            <button
+              type="button"
               id="chess-piece-showcase-fallback-container"
+              data-testid="showcase-fallback-trigger"
+              aria-disabled={progressive3DMode === 'off'}
+              aria-label={
+                progressive3DMode === 'off'
+                  ? 'Mostruário da peça Cavalo Staunton em 2D'
+                  : 'Ativar mostruário 3D interativo do Cavalo Staunton'
+              }
+              onClick={handleActivate3D}
+              onKeyDown={handleFallbackKeyDown}
               style={{
                 width: '100%',
                 maxWidth: '420px',
                 height: '260px',
                 minHeight: '260px',
+                padding: 0,
                 borderRadius: 'var(--radius-xl, 1.25rem)',
                 border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
                 background: 'radial-gradient(circle at 50% 35%, rgba(196, 167, 125, 0.12), rgba(0, 0, 0, 0.4) 75%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: 'pointer',
+                cursor: progressive3DMode === 'off' ? 'default' : 'pointer',
               }}
-              onClick={handleActivate3D}
-              role="region"
-              aria-label="Modelo de Peça Editorial - Toque para ativar modelo 3D interativo"
             >
               <ShowcaseFallback finish="antique-brass" />
-            </div>
+            </button>
           )}
         </div>
       </section>
