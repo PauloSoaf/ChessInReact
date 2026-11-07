@@ -9,6 +9,7 @@ import { UIThemeId } from '../../theme/types';
 export interface IChessPieceShowcaseProps {
   initialFinish?: KnightMaterialFinish;
   theme?: UIThemeId;
+  autoFocusFirstControl?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -62,6 +63,7 @@ const THEME_GRADIENTS: Record<UIThemeId, string> = {
 export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
   initialFinish = 'antique-brass',
   theme: propTheme,
+  autoFocusFirstControl = false,
   className = '',
   style,
 }) => {
@@ -78,6 +80,13 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
   const recoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const firstControlRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (autoFocusFirstControl && firstControlRef.current) {
+      firstControlRef.current.focus();
+    }
+  }, [autoFocusFirstControl]);
 
   useEffect(() => {
     setHasWebGL(checkWebGLSupport());
@@ -342,6 +351,7 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
         </span>
 
         <button
+          ref={firstControlRef}
           id="showcase-btn-finish-brass"
           type="button"
           aria-label="Acabamento Latão Envelhecido"
@@ -357,7 +367,6 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
             cursor: 'pointer',
             padding: 0,
             transition: 'all var(--transition-fast)',
-            outline: 'none',
           }}
         />
 
@@ -377,7 +386,6 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
             cursor: 'pointer',
             padding: 0,
             transition: 'all var(--transition-fast)',
-            outline: 'none',
           }}
         />
 
@@ -397,7 +405,6 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
             cursor: 'pointer',
             padding: 0,
             transition: 'all var(--transition-fast)',
-            outline: 'none',
           }}
         />
       </div>

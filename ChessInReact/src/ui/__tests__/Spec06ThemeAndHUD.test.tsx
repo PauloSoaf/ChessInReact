@@ -318,10 +318,11 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
         />
       );
 
-      // 1. In "off" mode: interactive fallback trigger is present, lazy 3D showcase is NOT mounted
+      // 1. In "off" mode: static non-interactive fallback is present, lazy 3D showcase is NOT mounted
       const outerContainer = document.getElementById('chess-piece-showcase-container');
       expect(outerContainer?.getAttribute('data-3d-state')).toBe('inactive');
-      expect(screen.getByTestId('showcase-fallback-trigger')).toBeDefined();
+      expect(screen.getByTestId('showcase-static-fallback')).toBeDefined();
+      expect(screen.queryByTestId('showcase-fallback-trigger')).toBeNull();
       expect(document.getElementById('chess-piece-fallback-svg')).not.toBeNull();
       expect(screen.queryByTestId('chess-piece-showcase')).toBeNull();
 
@@ -342,7 +343,7 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       );
 
       expect(outerContainer?.getAttribute('data-3d-state')).toBe('active');
-      expect(screen.queryByTestId('showcase-fallback-trigger')).toBeNull();
+      expect(screen.queryByTestId('showcase-static-fallback')).toBeNull();
 
       // Synchronously while React.lazy dynamic import is pending on first load, Suspense fallback MUST be rendered
       expect(screen.getByTestId('showcase-suspense-fallback')).toBeDefined();
@@ -354,7 +355,7 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       expect(screen.queryByTestId('showcase-suspense-fallback')).toBeNull();
       expect(document.getElementById('showcase-btn-finish-brass')).not.toBeNull();
 
-      // 4. Transitioning back to "off" unmounts the 3D showcase and restores the 2D fallback
+      // 4. Transitioning back to "off" unmounts the 3D showcase and restores the static 2D fallback
       rerender(
         <GameHub
           onStartBotMatch={vi.fn()}
@@ -371,7 +372,8 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       );
       expect(outerContainer?.getAttribute('data-3d-state')).toBe('inactive');
       expect(screen.queryByTestId('chess-piece-showcase')).toBeNull();
-      expect(screen.getByTestId('showcase-fallback-trigger')).toBeDefined();
+      expect(screen.getByTestId('showcase-static-fallback')).toBeDefined();
+      expect(screen.queryByTestId('showcase-fallback-trigger')).toBeNull();
     });
 
     it('mounts 3D showcase immediately when progressive3DMode="eager" on initial mount', async () => {
@@ -405,7 +407,7 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       }
     });
 
-    it('schedules requestIdleCallback in "idle" mode, activates after callback fires, and cancels on unmount', async () => {
+    it('schedules requestIdleCallback in "idle" mode, activates after callback fires without stealing focus, and cancels on unmount', async () => {
       let capturedCallback: (() => void) | null = null;
       const requestIdleMock = vi.fn((cb: () => void) => {
         capturedCallback = cb;
@@ -432,6 +434,11 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
           />
         );
 
+        // User focuses a hero button while browsing the page
+        const playBotBtn = document.getElementById('hub-hero-btn-play-bot')!;
+        playBotBtn.focus();
+        expect(document.activeElement).toBe(playBotBtn);
+
         // Before idle callback: 2D fallback trigger is active, 3D showcase is NOT mounted
         expect(requestIdleMock).toHaveBeenCalledTimes(1);
         expect(requestIdleMock).toHaveBeenCalledWith(expect.any(Function), { timeout: 1500 });
@@ -443,10 +450,11 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
           capturedCallback?.();
         });
 
-        // After idle callback: 3D showcase is mounted and 2D trigger is removed
+        // After idle callback: 3D showcase is mounted, 2D trigger is removed, and focus was NOT stolen
         const mountedShowcase = await screen.findByTestId('chess-piece-showcase');
         expect(mountedShowcase).toBeDefined();
         expect(screen.queryByTestId('showcase-fallback-trigger')).toBeNull();
+        expect(document.activeElement).toBe(playBotBtn);
 
         unmount();
       } finally {
@@ -497,7 +505,7 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       }
     });
 
-    it('strictly blocks 3D activation in "off" mode across hover, click, touch, focus, and keyboard', async () => {
+    it('renders non-interactive static SVG in "off" mode without focusable button and blocks all interactions', async () => {
       const user = userEvent.setup();
       const requestIdleMock = vi.fn();
       (window as unknown as Record<string, unknown>).requestIdleCallback = requestIdleMock;
@@ -519,39 +527,40 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
         );
 
         const outerContainer = document.getElementById('chess-piece-showcase-container')!;
-        const trigger = screen.getByTestId('showcase-fallback-trigger');
+        const staticFallback = screen.getByTestId('showcase-static-fallback');
 
+        // Must NOT render an interactive button in "off" mode
         expect(requestIdleMock).not.toHaveBeenCalled();
-        expect(trigger.getAttribute('aria-disabled')).toBe('true');
+        expect(screen.queryByTestId('showcase-fallback-trigger')).toBeNull();
+        expect(screen.queryByRole('button', { name: /Ativar mostruário 3D/i })).toBeNull();
+        expect(screen.getByRole('img', { name: /Mostruário da peça Cavalo Staunton em 2D/i })).toBeDefined();
 
-        // Attempt hover, touch, focus, click, Enter, and Space
+        // Attempt hover, touch, click, and keyboard events on the static container
         fireEvent.mouseEnter(outerContainer);
         fireEvent.touchStart(outerContainer);
-        trigger.focus();
-        fireEvent.focus(trigger);
-        fireEvent.click(trigger);
-        fireEvent.keyDown(trigger, { key: 'Enter' });
-        fireEvent.keyDown(trigger, { key: ' ' });
-        await user.click(trigger);
-        await user.keyboard('{Enter} ');
+        fireEvent.click(staticFallback);
+        fireEvent.keyDown(staticFallback, { key: 'Enter' });
+        fireEvent.keyDown(staticFallback, { key: ' ' });
+        await user.click(staticFallback);
 
         // 3D showcase must remain completely unmounted
         expect(outerContainer.getAttribute('data-3d-state')).toBe('inactive');
         expect(screen.queryByTestId('chess-piece-showcase')).toBeNull();
-        expect(screen.getByTestId('showcase-fallback-trigger')).toBeDefined();
+        expect(screen.getByTestId('showcase-static-fallback')).toBeDefined();
       } finally {
         delete (window as unknown as Record<string, unknown>).requestIdleCallback;
       }
     });
 
-    it('supports accessible keyboard activation via Enter and Space in "idle" mode without activating merely on focus', async () => {
+    it('preserves keyboard focus continuity via userEvent when activating 3D with Enter/Space and handles load errors safely', async () => {
+      const user = userEvent.setup();
       const requestIdleMock = vi.fn(() => 101);
       const cancelIdleMock = vi.fn();
       (window as unknown as Record<string, unknown>).requestIdleCallback = requestIdleMock;
       (window as unknown as Record<string, unknown>).cancelIdleCallback = cancelIdleMock;
 
       try {
-        // 1. Test focus + non-activation keys + Enter key activation
+        // 1. Test userEvent Tab -> Enter activation -> Focus transfer to first finish button -> Tab navigation
         const { unmount } = render(
           <GameHub
             onStartBotMatch={vi.fn()}
@@ -571,26 +580,34 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
           name: /Ativar mostruário 3D interativo do Cavalo Staunton/i,
         });
         expect(trigger).toBeDefined();
-        expect(trigger.getAttribute('aria-disabled')).toBe('false');
 
-        // Focusing or pressing unrelated keys MUST NOT prematurely activate 3D
+        // Focus trigger and verify non-activation keys do not activate 3D
         trigger.focus();
         expect(document.activeElement).toBe(trigger);
-        fireEvent.keyDown(trigger, { key: 'Tab' });
-        fireEvent.keyDown(trigger, { key: 'Escape' });
-        fireEvent.keyDown(trigger, { key: 'a' });
+        await user.keyboard('{Escape}a');
         expect(screen.queryByTestId('chess-piece-showcase')).toBeNull();
+        expect(document.activeElement).toBe(trigger);
 
-        // Pressing Enter activates 3D and cancels pending idle callback
-        await act(async () => {
-          fireEvent.keyDown(trigger, { key: 'Enter' });
-        });
+        // Activate via userEvent Enter key
+        await user.keyboard('{Enter}');
         expect(await screen.findByTestId('chess-piece-showcase')).toBeDefined();
         expect(cancelIdleMock).toHaveBeenCalledWith(101);
+
+        // Focus MUST be transferred to the first showcase control (#showcase-btn-finish-brass)
+        const brassBtn = document.getElementById('showcase-btn-finish-brass')!;
+        const obsidianBtn = document.getElementById('showcase-btn-finish-obsidian')!;
+        const ivoryBtn = document.getElementById('showcase-btn-finish-ivory')!;
+        expect(document.activeElement).toBe(brassBtn);
+
+        // Subsequent Tab presses navigate coherently through the showcase finish controls
+        await user.tab();
+        expect(document.activeElement).toBe(obsidianBtn);
+        await user.tab();
+        expect(document.activeElement).toBe(ivoryBtn);
         unmount();
 
-        // 2. Test Space key activation
-        render(
+        // 2. Test userEvent Space key activation and focus transfer
+        const { unmount: unmountSpace } = render(
           <GameHub
             onStartBotMatch={vi.fn()}
             onStartLocalMatch={vi.fn()}
@@ -608,10 +625,50 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
         const triggerSpace = screen.getByRole('button', {
           name: /Ativar mostruário 3D interativo do Cavalo Staunton/i,
         });
-        await act(async () => {
-          fireEvent.keyDown(triggerSpace, { key: ' ' });
-        });
+        triggerSpace.focus();
+        expect(document.activeElement).toBe(triggerSpace);
+
+        await user.keyboard(' ');
         expect(await screen.findByTestId('chess-piece-showcase')).toBeDefined();
+        expect(document.activeElement).toBe(document.getElementById('showcase-btn-finish-brass'));
+        unmountSpace();
+
+        // 3. Test error fallback focus preservation when showcase throws during mount
+        const originalMatchMedia = window.matchMedia;
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        window.matchMedia = vi.fn(() => {
+          throw new Error('Simulated showcase mount failure');
+        });
+
+        try {
+          render(
+            <GameHub
+              onStartBotMatch={vi.fn()}
+              onStartLocalMatch={vi.fn()}
+              onResumeMatch={vi.fn()}
+              hasActiveMatch={false}
+              turnNumber={1}
+              botEnabled={true}
+              botDifficulty={3}
+              onSelectDifficulty={vi.fn()}
+              onOpenThemeModal={vi.fn()}
+              progressive3DMode="idle"
+            />
+          );
+
+          const triggerErr = screen.getByRole('button', {
+            name: /Ativar mostruário 3D interativo do Cavalo Staunton/i,
+          });
+          triggerErr.focus();
+          await user.keyboard('{Enter}');
+
+          const errorFallback = await screen.findByTestId('showcase-error-fallback');
+          expect(errorFallback).toBeDefined();
+          expect(document.activeElement).toBe(errorFallback);
+        } finally {
+          window.matchMedia = originalMatchMedia;
+          consoleErrorSpy.mockRestore();
+        }
       } finally {
         delete (window as unknown as Record<string, unknown>).requestIdleCallback;
         delete (window as unknown as Record<string, unknown>).cancelIdleCallback;

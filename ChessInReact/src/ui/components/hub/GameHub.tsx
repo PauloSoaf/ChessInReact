@@ -7,6 +7,56 @@ const ChessPieceShowcase = React.lazy(() =>
   import('../showcase/ChessPieceShowcase').then((mod) => ({ default: mod.ChessPieceShowcase }))
 );
 
+class LazyShowcaseErrorBoundary extends React.Component<
+  { autoFocusOnError: boolean; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  private errorFallbackRef = React.createRef<HTMLDivElement>();
+
+  constructor(props: { autoFocusOnError: boolean; children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidUpdate(_prevProps: { autoFocusOnError: boolean }, prevState: { hasError: boolean }) {
+    if (!prevState.hasError && this.state.hasError && this.props.autoFocusOnError) {
+      this.errorFallbackRef.current?.focus();
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          ref={this.errorFallbackRef}
+          id="chess-piece-showcase-error-fallback"
+          data-testid="showcase-error-fallback"
+          tabIndex={this.props.autoFocusOnError ? -1 : undefined}
+          style={{
+            width: '100%',
+            maxWidth: '420px',
+            height: '260px',
+            minHeight: '260px',
+            borderRadius: 'var(--radius-xl, 1.25rem)',
+            border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+            background: 'radial-gradient(circle at 50% 35%, rgba(196, 167, 125, 0.12), rgba(0, 0, 0, 0.4) 75%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <ShowcaseFallback finish="antique-brass" title="Mostruário da peça Cavalo Staunton em 2D (Fallback)" />
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export interface IGameHubProps {
   onStartBotMatch: (difficulty: AIDifficultyLevel) => void;
   onStartLocalMatch: () => void;
@@ -48,6 +98,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
   progressive3DMode = 'idle',
 }) => {
   const [is3DActive, setIs3DActive] = React.useState<boolean>(progressive3DMode === 'eager');
+  const [keyboardActivated, setKeyboardActivated] = React.useState<boolean>(false);
 
   React.useEffect(() => {
     if (progressive3DMode === 'eager') {
@@ -56,6 +107,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
     }
     if (progressive3DMode === 'off') {
       setIs3DActive(false);
+      setKeyboardActivated(false);
       return;
     }
     if (is3DActive || typeof window === 'undefined') return;
@@ -99,6 +151,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
       if (progressive3DMode !== 'idle') return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
+        setKeyboardActivated(true);
         handleActivate3D();
       }
     },
@@ -334,41 +387,60 @@ export const GameHub: React.FC<IGameHubProps> = ({
           style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1, width: '100%', minHeight: '260px' }}
         >
           {shouldRender3D ? (
-            <React.Suspense
-              fallback={
-                <div
-                  id="chess-piece-showcase-suspense-fallback"
-                  data-testid="showcase-suspense-fallback"
-                  style={{
-                    width: '100%',
-                    maxWidth: '420px',
-                    height: '260px',
-                    minHeight: '260px',
-                    borderRadius: 'var(--radius-xl, 1.25rem)',
-                    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-                    background: 'radial-gradient(circle at 50% 35%, rgba(196, 167, 125, 0.12), rgba(0, 0, 0, 0.4) 75%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <ShowcaseFallback finish="antique-brass" />
-                </div>
-              }
+            <LazyShowcaseErrorBoundary autoFocusOnError={keyboardActivated}>
+              <React.Suspense
+                fallback={
+                  <div
+                    id="chess-piece-showcase-suspense-fallback"
+                    data-testid="showcase-suspense-fallback"
+                    style={{
+                      width: '100%',
+                      maxWidth: '420px',
+                      height: '260px',
+                      minHeight: '260px',
+                      borderRadius: 'var(--radius-xl, 1.25rem)',
+                      border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                      background: 'radial-gradient(circle at 50% 35%, rgba(196, 167, 125, 0.12), rgba(0, 0, 0, 0.4) 75%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <ShowcaseFallback finish="antique-brass" />
+                  </div>
+                }
+              >
+                <ChessPieceShowcase
+                  initialFinish="antique-brass"
+                  autoFocusFirstControl={keyboardActivated}
+                />
+              </React.Suspense>
+            </LazyShowcaseErrorBoundary>
+          ) : progressive3DMode === 'off' ? (
+            <div
+              id="chess-piece-showcase-fallback-container"
+              data-testid="showcase-static-fallback"
+              style={{
+                width: '100%',
+                maxWidth: '420px',
+                height: '260px',
+                minHeight: '260px',
+                borderRadius: 'var(--radius-xl, 1.25rem)',
+                border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                background: 'radial-gradient(circle at 50% 35%, rgba(196, 167, 125, 0.12), rgba(0, 0, 0, 0.4) 75%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
-              <ChessPieceShowcase initialFinish="antique-brass" />
-            </React.Suspense>
+              <ShowcaseFallback finish="antique-brass" title="Mostruário da peça Cavalo Staunton em 2D" />
+            </div>
           ) : (
             <button
               type="button"
               id="chess-piece-showcase-fallback-container"
               data-testid="showcase-fallback-trigger"
-              aria-disabled={progressive3DMode === 'off'}
-              aria-label={
-                progressive3DMode === 'off'
-                  ? 'Mostruário da peça Cavalo Staunton em 2D'
-                  : 'Ativar mostruário 3D interativo do Cavalo Staunton'
-              }
+              aria-label="Ativar mostruário 3D interativo do Cavalo Staunton"
               onClick={handleActivate3D}
               onKeyDown={handleFallbackKeyDown}
               style={{
@@ -383,7 +455,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: progressive3DMode === 'off' ? 'default' : 'pointer',
+                cursor: 'pointer',
               }}
             >
               <ShowcaseFallback finish="antique-brass" />
