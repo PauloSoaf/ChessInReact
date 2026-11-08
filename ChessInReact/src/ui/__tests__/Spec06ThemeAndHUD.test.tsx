@@ -323,7 +323,7 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       expect(outerContainer?.getAttribute('data-3d-state')).toBe('inactive');
       expect(screen.getByTestId('showcase-static-fallback')).toBeDefined();
       expect(screen.queryByTestId('showcase-fallback-trigger')).toBeNull();
-      expect(document.getElementById('chess-piece-fallback-svg')).not.toBeNull();
+      expect(screen.getByTestId('chess-piece-fallback-svg')).toBeDefined();
       expect(screen.queryByTestId('chess-piece-showcase')).toBeNull();
 
       // 2. Transition prop from "off" to "eager"
@@ -1812,8 +1812,12 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
         </div>
       );
 
-      const svgs = container.querySelectorAll('svg#chess-piece-fallback-svg');
+      const svgs = container.querySelectorAll('[data-testid="chess-piece-fallback-svg"]');
       expect(svgs.length).toBe(4);
+
+      // Verify all SVG element root IDs are 100% unique in DOM (no duplicate SVG IDs)
+      const svgIds = Array.from(svgs).map((s) => s.getAttribute('id') || '');
+      expect(new Set(svgIds).size).toBe(4);
 
       // Verify all linearGradient IDs are 100% unique in DOM
       const gradients = container.querySelectorAll('linearGradient');

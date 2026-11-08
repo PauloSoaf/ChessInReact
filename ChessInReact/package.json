@@ -9,6 +9,7 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "test": "vitest run",
+    "acceptance": "node scripts/runAcceptanceVerification.mjs",
     "bench": "node --loader ts-node/esm or vitest",
     "bench:memory": "node --expose-gc scripts/runMemoryBenchmark.js",
     "bench:perft": "node --expose-gc scripts/runPerftBenchmark.js",

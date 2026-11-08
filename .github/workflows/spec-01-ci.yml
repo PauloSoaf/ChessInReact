@@ -51,6 +51,9 @@ jobs:
       - name: Run Native Chromium Worker Smoke Test
         run: node scripts/runChromiumSmoke.js
 
+      - name: Run Real Browser UI & Gameplay Acceptance Verification
+        run: npm run acceptance
+
       - name: Run Isolated Procedural Grid Memory Benchmark
         run: npm run bench:memory
 

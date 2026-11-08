@@ -85,7 +85,8 @@ export const ShowcaseFallback: React.FC<IShowcaseFallbackProps> = ({
       />
 
       <svg
-        id="chess-piece-fallback-svg"
+        id={`chess-piece-fallback-svg-${reactId}`}
+        data-testid="chess-piece-fallback-svg"
         viewBox="0 0 140 160"
         width="162"
         height="185"

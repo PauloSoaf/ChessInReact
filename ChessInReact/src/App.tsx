@@ -198,7 +198,7 @@ const AppContent: React.FC = () => {
         currentView={currentView}
         onNavigate={navigateTo}
         onOpenThemeModal={() => setIsThemeModalOpen(true)}
-        isMatchActive={hasActiveMatch}
+        isMatchActive={currentView === 'GAME' || hasActiveMatch}
         turnNumber={turnNumber}
         activePlayer={activePlayer}
         isGameOver={isGameOver}
@@ -220,7 +220,7 @@ const AppContent: React.FC = () => {
           onOpenThemeModal={() => setIsThemeModalOpen(true)}
         />
       ) : (
-        <div className="match-arena-shell">
+        <div id="match-arena-shell" className="match-arena-shell" data-testid="match-arena-shell">
           <div className="match-arena-grid">
             {/* Left / Center Stage: Protagonist Chessboard + Evaluation Bar + Player Cards */}
             <div className="match-stage-column">

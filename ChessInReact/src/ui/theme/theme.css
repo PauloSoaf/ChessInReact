@@ -732,11 +732,28 @@ select:focus-visible,
 
 @media (max-width: 768px) {
   .top-nav-bar {
-    padding: 0.6rem 1rem !important;
+    padding: 0.5rem 0.75rem !important;
+  }
+
+  .top-nav-inner {
+    gap: 0.5rem !important;
   }
 
   .nav-brand-subtitle {
     display: none !important;
+  }
+
+  #nav-open-theme-customizer .nav-btn-text {
+    display: none !important;
+  }
+
+  #nav-open-theme-customizer {
+    padding: 0.42rem 0.65rem !important;
+  }
+
+  .nav-view-btn {
+    padding: 0.38rem 0.65rem !important;
+    font-size: 0.75rem !important;
   }
 
   .hub-shell {

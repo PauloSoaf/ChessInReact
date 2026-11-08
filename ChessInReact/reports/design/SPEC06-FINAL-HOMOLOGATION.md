@@ -130,14 +130,15 @@ export default defineConfig({
 
 ## 4. Resultados dos Quality Gates Locais
 
-Todos os 6 quality gates obrigatórios do `GEMINI.md` foram executados e aprovados:
+Todos os 6 quality gates obrigatórios do `GEMINI.md` e o novo runner integrado de aceite em navegador foram executados e aprovados:
 
 1. **`npx tsc --noEmit`**: 0 erros.
 2. **`npm run lint`**: 0 erros, 0 warnings (`--max-warnings 0`).
 3. **`npm run build`**: Compilado com sucesso (`index.css`: 15,43 kB min / 3,99 kB gzip; `ChessPieceShowcase`: 15,94 kB min / 4,85 kB gzip; `index.js`: 365,26 kB min / 107,38 kB gzip; `vendor-three`: 890,09 kB min / 239,28 kB gzip; aviso não-bloqueante de chunk > 500 kB para `vendor-three`).
-4. **`npx vitest run --coverage`**: 79 arquivos de teste aprovados, **650 testes aprovados** (incluindo os 60 testes da suíte `Spec06ThemeAndHUD.test.tsx`), 0 falhas, 0 pulados. Cobertura global de linhas de **80,81% no GitHub Actions CI** (80,92% no ambiente local), com cobertura de topologias $> 95\%$.
+4. **`npx vitest run --coverage`**: 79 arquivos de teste aprovados, **650 testes aprovados** (incluindo os 60 testes da suíte `Spec06ThemeAndHUD.test.tsx`), 0 falhas, 0 pulados. Cobertura global de linhas de **80,07% no GitHub Actions CI** (80,92% no ambiente local), com cobertura de topologias $> 95\%$.
 5. **`node scripts/runChromiumSmoke.js`**: Aprovado (`success: true`, `skipped: false`) em Chromium headless nativo.
-6. **`npm run bench:memory`**: Aprovado (`PASS`, Delta incremental de +15,83 MB dentro do limite estrito de $< 40\text{ MB}$, retenção de +0,12 MB, drift de 0,009 MB/ciclo, sem mascaramento de GC).
+6. **`npm run bench:memory`**: Aprovado (`PASS`, Delta incremental de +7,85 MB dentro do limite estrito de $< 40\text{ MB}$, retenção de +0,12 MB, drift de 0,009 MB/ciclo, sem mascaramento de GC).
+7. **`npm run acceptance` (`node scripts/runAcceptanceVerification.mjs`)**: Aprovado (`exit code 0`, sem mascaramento de falhas). Executado com asserções estritas em 5 viewports (360, 390, 768, 1024 e 1440 px, zero overflow e zero corte de elementos) e 10 fluxos interativos de partida (seleção de dificuldade com `role="radio"` e `aria-checked`, início de partida, lance humano e2 $\rightarrow$ e4, resposta autônoma do bot avançando para Turno 3, Desfazer, Refazer, Inversão de perspectiva, modal de temas dinâmico nos 3 temas, reinício de partida e integridade do mostruário).
 
 ---
 
