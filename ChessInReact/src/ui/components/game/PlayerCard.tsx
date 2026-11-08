@@ -4,192 +4,183 @@ import { PlayerId } from '../../../core/coordinates/types';
 export interface IPlayerCardProps {
   playerId: PlayerId;
   displayName: string;
+  subtitle?: string;
   isTurnActive: boolean;
   isThinking?: boolean;
   isBot?: boolean;
   difficultyLabel?: string;
-  capturedMaterialCount?: number;
+  capturedPieces?: string[];
 }
 
 export const PlayerCard: React.FC<IPlayerCardProps> = ({
   playerId,
   displayName,
+  subtitle,
   isTurnActive,
   isThinking = false,
   isBot = false,
   difficultyLabel,
-  capturedMaterialCount = 0,
 }) => {
   const isWhite = playerId === 'P1';
 
   return (
     <div
-      role="region"
-      aria-label={`Jogador ${displayName}, ${isWhite ? 'Brancas' : 'Pretas'}`}
+      data-testid={`player-card-${playerId}`}
       style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0.625rem 1.125rem',
-        backgroundColor: isTurnActive ? 'var(--bg-surface-elevated)' : 'var(--bg-card)',
+        padding: '0.65rem 1rem',
         borderRadius: 'var(--radius-md)',
-        border: isTurnActive
-          ? '1.5px solid var(--border-active)'
-          : '1px solid var(--border-subtle)',
-        boxShadow: isTurnActive ? 'var(--shadow-glow)' : 'var(--shadow-sm)',
+        backgroundColor: isTurnActive ? 'var(--bg-surface-elevated)' : 'var(--bg-card)',
+        border: isTurnActive ? '1.5px solid var(--border-active)' : '1px solid var(--border-subtle)',
+        boxShadow: isTurnActive ? 'var(--shadow-sm), var(--shadow-glow)' : 'var(--shadow-sm)',
         transition: 'all var(--transition-normal)',
-        position: 'relative',
-        overflow: 'hidden',
-        minHeight: '52px',
+        width: '100%',
+        gap: '0.75rem',
       }}
     >
-      {/* Active turn marker line */}
-      {isTurnActive && (
+      {/* Left: Player Emblem & Identity */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
         <div
           style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: '4px',
-            backgroundColor: 'var(--color-accent)',
-          }}
-        />
-      )}
-
-      {/* Identity */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
-        {/* Token Avatar */}
-        <div
-          style={{
-            width: '34px',
-            height: '34px',
+            width: '36px',
+            height: '36px',
             borderRadius: 'var(--radius-sm)',
-            backgroundColor: isWhite ? '#F4F1EB' : '#141A21',
-            color: isWhite ? '#141A21' : '#F4F1EB',
-            border: isWhite ? '1.5px solid #C4A77D' : '1.5px solid rgba(196,167,125,0.4)',
+            backgroundColor: isWhite ? '#F4F1EB' : '#141A20',
+            color: isWhite ? '#090D11' : '#F4F1EB',
+            border: isTurnActive
+              ? '2px solid var(--color-accent)'
+              : '1px solid var(--border-prominent)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.25)',
+            fontSize: '1.15rem',
+            fontWeight: 800,
+            boxShadow: 'var(--shadow-sm)',
             flexShrink: 0,
           }}
         >
-          {isBot ? (
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="11" width="18" height="10" rx="2" />
-              <circle cx="12" cy="5" r="2" />
-              <path d="M12 7v4M8 16h.01M16 16h.01" />
-            </svg>
-          ) : (
-            <span style={{ fontSize: '1.25rem', lineHeight: 1, fontFamily: 'serif' }}>
-              {isWhite ? '♔' : '♚'}
-            </span>
-          )}
+          {isBot ? '🤖' : isWhite ? '♔' : '♚'}
         </div>
 
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
             <span
               style={{
-                fontSize: '0.925rem',
-                fontFamily: 'var(--font-sans)',
                 fontWeight: 700,
+                fontSize: '0.9rem',
+                fontFamily: 'var(--font-display)',
                 color: 'var(--text-primary)',
+                letterSpacing: '-0.01em',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}
             >
               {displayName}
             </span>
-            <span
-              style={{
-                fontSize: '0.6875rem',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                padding: '0.125rem 0.45rem',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: isWhite ? 'var(--color-accent-subtle)' : 'rgba(168, 66, 66, 0.16)',
-                color: isWhite ? 'var(--color-accent)' : 'var(--color-danger)',
-                border: `1px solid ${isWhite ? 'var(--border-prominent)' : 'rgba(168, 66, 66, 0.35)'}`,
-              }}
-            >
-              {isWhite ? 'Brancas (P1)' : 'Pretas (P2)'}
-            </span>
-          </div>
 
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
-            {isBot && difficultyLabel ? (
-              <span>Motor IA: {difficultyLabel}</span>
-            ) : (
-              <span>{isTurnActive ? 'Sua vez de jogar' : 'Aguardando lance do oponente'}</span>
+            {difficultyLabel && (
+              <span
+                style={{
+                  fontSize: '0.66rem',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '0.1rem 0.45rem',
+                  borderRadius: 'var(--radius-full)',
+                  backgroundColor: 'var(--color-accent-subtle)',
+                  color: 'var(--color-accent)',
+                  border: '1px solid var(--border-prominent)',
+                }}
+              >
+                {difficultyLabel}
+              </span>
             )}
           </div>
+
+          <span
+            style={{
+              fontSize: '0.72rem',
+              color: 'var(--text-muted)',
+              fontFamily: 'var(--font-sans)',
+            }}
+          >
+            {subtitle ?? (isWhite ? 'Peças Brancas (P1)' : 'Peças Pretas (P2)')}
+          </span>
         </div>
       </div>
 
-      {/* Status indicator / Thinking State */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        {capturedMaterialCount > 0 && (
-          <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-secondary)' }}>
-            +{capturedMaterialCount}
-          </span>
-        )}
-
+      {/* Right: Turn / Thinking Status Pill */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
         {isThinking ? (
-          <span
-            className="pulse-turn"
+          <div
+            id="bot-thinking-indicator"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '0.35rem',
-              padding: '0.25rem 0.65rem',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '0.75rem',
+              gap: '0.45rem',
+              padding: '0.28rem 0.7rem',
+              borderRadius: 'var(--radius-full)',
+              backgroundColor: 'rgba(212, 155, 75, 0.14)',
+              border: '1px solid var(--color-warning)',
+              color: 'var(--color-warning)',
+              fontSize: '0.72rem',
               fontFamily: 'var(--font-mono)',
               fontWeight: 700,
-              backgroundColor: 'rgba(217, 160, 91, 0.16)',
-              color: 'var(--color-warning)',
-              border: '1px solid rgba(217, 160, 91, 0.35)',
             }}
           >
             <span
               style={{
-                width: '6px',
-                height: '6px',
+                width: '7px',
+                height: '7px',
                 borderRadius: '50%',
                 backgroundColor: 'var(--color-warning)',
-                boxShadow: '0 0 6px var(--color-warning)',
+                animation: 'pulseTurn 0.9s infinite',
               }}
             />
             <span>Calculando...</span>
-          </span>
+          </div>
         ) : isTurnActive ? (
-          <span
+          <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '0.35rem',
-              padding: '0.25rem 0.65rem',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '0.75rem',
+              gap: '0.42rem',
+              padding: '0.28rem 0.7rem',
+              borderRadius: 'var(--radius-full)',
+              backgroundColor: 'var(--color-accent-subtle)',
+              border: '1px solid var(--border-prominent)',
+              color: 'var(--color-accent)',
+              fontSize: '0.72rem',
               fontFamily: 'var(--font-mono)',
               fontWeight: 700,
-              backgroundColor: 'var(--color-accent-subtle)',
-              color: 'var(--color-accent)',
-              border: '1px solid var(--border-prominent)',
             }}
           >
             <span
               style={{
-                width: '6px',
-                height: '6px',
+                width: '7px',
+                height: '7px',
                 borderRadius: '50%',
                 backgroundColor: 'var(--color-accent)',
-                boxShadow: '0 0 6px var(--color-accent)',
+                boxShadow: '0 0 8px var(--color-accent)',
+                animation: 'pulseTurn 1.6s infinite',
               }}
             />
-            <span>Turno Ativo</span>
+            <span>Sua Vez</span>
+          </div>
+        ) : (
+          <span
+            style={{
+              fontSize: '0.72rem',
+              fontFamily: 'var(--font-mono)',
+              color: 'var(--text-muted)',
+              padding: '0.25rem 0.5rem',
+            }}
+          >
+            Aguardando
           </span>
-        ) : null}
+        )}
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import { UIThemeId } from '../../theme/types';
 
 export interface IChessPieceShowcaseProps {
   initialFinish?: KnightMaterialFinish;
+  height?: string | number;
   theme?: UIThemeId;
   autoFocusFirstControl?: boolean;
   className?: string;
@@ -55,13 +56,20 @@ function checkWebGLSupport(): boolean {
 export type WebGLContextStatus = 'available' | 'lost' | 'recovering' | 'fallback';
 
 const THEME_GRADIENTS: Record<UIThemeId, string> = {
-  midnight: 'radial-gradient(ellipse at center, rgba(196, 167, 125, 0.08) 0%, rgba(9, 13, 17, 0) 70%)',
-  ivory: 'radial-gradient(ellipse at center, rgba(30, 41, 59, 0.05) 0%, rgba(248, 250, 252, 0) 70%)',
-  synthwave: 'radial-gradient(ellipse at center, rgba(217, 70, 239, 0.12) 0%, rgba(13, 2, 28, 0) 70%)',
+  midnight: 'radial-gradient(ellipse at 50% 42%, rgba(196, 167, 125, 0.14) 0%, rgba(9, 13, 17, 0.65) 74%)',
+  ivory: 'radial-gradient(ellipse at 50% 42%, rgba(30, 41, 59, 0.07) 0%, rgba(236, 231, 220, 0.55) 74%)',
+  synthwave: 'radial-gradient(ellipse at 50% 42%, rgba(217, 70, 239, 0.18) 0%, rgba(8, 3, 18, 0.68) 74%)',
+};
+
+const FINISH_META: Record<KnightMaterialFinish, { label: string; subtitle: string; swatch: string }> = {
+  'antique-brass': { label: 'Latão', subtitle: 'Bronze Staunton', swatch: '#C4A77D' },
+  obsidian: { label: 'Obsidiana', subtitle: 'Ébano Polido', swatch: '#161C22' },
+  'ivory-marble': { label: 'Marfim', subtitle: 'Alabastro Clássico', swatch: '#F4F1EB' },
 };
 
 export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
   initialFinish = 'antique-brass',
+  height = '100%',
   theme: propTheme,
   autoFocusFirstControl = false,
   className = '',
@@ -100,7 +108,6 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
     }
   }, []);
 
-  // Track page visibility to suspend rendering in background tabs (RNF-14)
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const onVisibilityChange = () => {
@@ -118,7 +125,6 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
     if (recoveryTimerRef.current) {
       clearTimeout(recoveryTimerRef.current);
     }
-    // If context restoration is not received within 5 seconds, transition to fallback
     recoveryTimerRef.current = setTimeout(() => {
       console.warn('[ChessPieceShowcase] WebGL restoration timed out, transitioning to fallback');
       setContextStatus('fallback');
@@ -133,22 +139,22 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
       recoveryTimerRef.current = null;
     }
     setContextStatus('recovering');
-    // Increment remount key to recreate R3F Canvas and fresh Three.js state
     setRemountKey((prev) => prev + 1);
-    // Note: status 'available' is set strictly inside onCreated once R3F mounts the new context.
     recoveryTimerRef.current = setTimeout(() => {
       setContextStatus((curr) => (curr === 'recovering' ? 'fallback' : curr));
       recoveryTimerRef.current = null;
     }, 5000);
   }, []);
 
-  const detachListeners = useCallback((canvas: HTMLCanvasElement | null) => {
-    if (!canvas) return;
-    canvas.removeEventListener('webglcontextlost', handleContextLost);
-    canvas.removeEventListener('webglcontextrestored', handleContextRestored);
-  }, [handleContextLost, handleContextRestored]);
+  const detachListeners = useCallback(
+    (canvas: HTMLCanvasElement | null) => {
+      if (!canvas) return;
+      canvas.removeEventListener('webglcontextlost', handleContextLost);
+      canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+    },
+    [handleContextLost, handleContextRestored]
+  );
 
-  // Cleanup recovery timer and detach listeners symmetrically on unmount
   useEffect(() => {
     return () => {
       if (recoveryTimerRef.current) {
@@ -160,7 +166,6 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
     };
   }, [detachListeners]);
 
-  // Pause rendering when scrolled out of view
   useEffect(() => {
     if (!containerRef.current || typeof IntersectionObserver === 'undefined') return;
 
@@ -189,6 +194,7 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
   };
 
   const fallbackNode = <ShowcaseFallback finish={finish} />;
+  const activeMeta = FINISH_META[finish];
 
   return (
     <div
@@ -200,34 +206,103 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
       style={{
         position: 'relative',
         width: '100%',
-        height: '100%',
+        height,
         minHeight: '260px',
         maxHeight: '440px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: 'var(--radius-xl)',
+        justifyContent: 'space-between',
+        borderRadius: 'var(--radius-lg)',
+        border: '1px solid var(--border-prominent)',
         background: THEME_GRADIENTS[effectiveTheme] ?? THEME_GRADIENTS.midnight,
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), var(--shadow-md)',
+        overflow: 'hidden',
         userSelect: 'none',
         ...style,
       }}
     >
-      {/* 3D Canvas or 2D Vector Fallback */}
+      {/* Subtle Studio Orbital Ring */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          width: '74%',
+          aspectRatio: '1 / 1',
+          top: '9%',
+          borderRadius: '50%',
+          border: '1px solid var(--border-subtle)',
+          pointerEvents: 'none',
+          opacity: 0.55,
+        }}
+      />
+
+      {/* Top Studio Header Bar */}
       <div
         style={{
           width: '100%',
-          height: '100%',
-          position: 'relative',
+          padding: '0.75rem 0.95rem 0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          zIndex: 10,
+          pointerEvents: 'none',
+        }}
+      >
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.38rem',
+            padding: '0.2rem 0.58rem',
+            borderRadius: 'var(--radius-full)',
+            backgroundColor: 'var(--bg-surface-glass)',
+            border: '1px solid var(--border-subtle)',
+            fontSize: '0.64rem',
+            fontFamily: 'var(--font-mono)',
+            fontWeight: 700,
+            letterSpacing: '0.07em',
+            textTransform: 'uppercase',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <span
+            style={{
+              width: '6px',
+              height: '6px',
+              borderRadius: '50%',
+              backgroundColor: 'var(--color-accent)',
+            }}
+          />
+          <span>Staunton Atelier 3D</span>
+        </div>
+
+        <span
+          style={{
+            fontSize: '0.68rem',
+            fontFamily: 'var(--font-mono)',
+            fontWeight: 600,
+            color: 'var(--text-muted)',
+          }}
+        >
+          {activeMeta.subtitle}
+        </span>
+      </div>
+
+      {/* 3D Canvas or 2D Vector Fallback */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          zIndex: 1,
         }}
       >
         {hasWebGL ? (
           <ShowcaseErrorBoundary fallback={fallbackNode}>
             <Suspense fallback={fallbackNode}>
-              {/* Keep Canvas mounted in DOM so webglcontextrestored can fire on the canvas element */}
               <div
                 style={{
                   width: '100%',
@@ -242,7 +317,7 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
                   <Canvas
                     key={`showcase-canvas-${remountKey}`}
                     frameloop="demand"
-                    camera={{ position: [0, 0.4, 4.2], fov: 42 }}
+                    camera={{ position: [0, 0.45, 4.0], fov: 40 }}
                     dpr={[1, 1.5]}
                     gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
                     style={{ width: '100%', height: '100%', pointerEvents: 'auto', touchAction: 'none' }}
@@ -254,7 +329,6 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
                       canvasElementRef.current = canvas;
                       canvas.addEventListener('webglcontextlost', handleContextLost);
                       canvas.addEventListener('webglcontextrestored', handleContextRestored);
-                      // Succeeded WebGL context creation verified by R3F
                       setContextStatus('available');
                       if (recoveryTimerRef.current) {
                         clearTimeout(recoveryTimerRef.current);
@@ -271,7 +345,6 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
                 )}
               </div>
 
-              {/* Overlay Fallback or Recovery UI when context is not available */}
               {contextStatus !== 'available' && (
                 <div
                   style={{
@@ -292,14 +365,14 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
                       onClick={handleManualRetry}
                       style={{
                         position: 'absolute',
-                        top: '1rem',
-                        right: '1rem',
+                        top: '2.75rem',
+                        right: '0.95rem',
                         backgroundColor: 'var(--bg-surface-elevated)',
                         color: 'var(--text-secondary)',
                         border: '1px solid var(--border-subtle)',
                         borderRadius: 'var(--radius-sm)',
-                        padding: '0.35rem 0.65rem',
-                        fontSize: '0.75rem',
+                        padding: '0.32rem 0.6rem',
+                        fontSize: '0.72rem',
                         fontFamily: 'var(--font-sans)',
                         fontWeight: 600,
                         cursor: 'pointer',
@@ -320,34 +393,36 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
 
       {/* Floating Tactical Material Switcher Controls */}
       <div
+        role="group"
+        aria-label="Acabamento da peça"
         style={{
-          position: 'absolute',
-          bottom: '1rem',
-          display: 'flex',
+          position: 'relative',
+          marginBottom: '0.85rem',
+          display: 'inline-flex',
           alignItems: 'center',
-          gap: '0.4rem',
+          gap: '0.35rem',
           backgroundColor: 'var(--bg-surface-glass)',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-full)',
-          padding: '0.25rem 0.5rem',
+          padding: '0.26rem 0.55rem',
           boxShadow: 'var(--shadow-sm)',
           zIndex: 10,
         }}
       >
         <span
           style={{
-            fontSize: '0.6875rem',
-            fontFamily: 'var(--font-sans)',
-            fontWeight: 600,
+            fontSize: '0.66rem',
+            fontFamily: 'var(--font-mono)',
+            fontWeight: 700,
             color: 'var(--text-muted)',
-            marginRight: '0.25rem',
+            marginRight: '0.15rem',
             textTransform: 'uppercase',
             letterSpacing: '0.06em',
           }}
         >
-          Acabamento:
+          Material:
         </span>
 
         <button
@@ -355,58 +430,103 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
           id="showcase-btn-finish-brass"
           type="button"
           aria-label="Acabamento Latão Envelhecido"
+          aria-pressed={finish === 'antique-brass'}
           title="Latão Escovado"
           onClick={() => setFinish('antique-brass')}
+          className="ui-control"
           style={{
-            width: '18px',
-            height: '18px',
-            borderRadius: '50%',
-            backgroundColor: '#C4A77D',
-            border: finish === 'antique-brass' ? '2px solid var(--text-primary)' : '1px solid rgba(0,0,0,0.3)',
-            boxShadow: finish === 'antique-brass' ? '0 0 8px #C4A77D' : 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.3rem',
+            padding: '0.2rem 0.5rem',
+            borderRadius: 'var(--radius-full)',
+            backgroundColor: finish === 'antique-brass' ? 'var(--bg-surface-elevated)' : 'transparent',
+            border: finish === 'antique-brass' ? '1px solid var(--border-active)' : '1px solid transparent',
+            color: finish === 'antique-brass' ? 'var(--text-primary)' : 'var(--text-secondary)',
+            fontSize: '0.68rem',
+            fontWeight: finish === 'antique-brass' ? 700 : 500,
             cursor: 'pointer',
-            padding: 0,
-            transition: 'all var(--transition-fast)',
           }}
-        />
+        >
+          <span
+            style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: '50%',
+              backgroundColor: '#C4A77D',
+              border: '1px solid rgba(0,0,0,0.35)',
+            }}
+          />
+          <span>Latão</span>
+        </button>
 
         <button
           id="showcase-btn-finish-obsidian"
           type="button"
           aria-label="Acabamento Obsidiana Negra"
+          aria-pressed={finish === 'obsidian'}
           title="Obsidiana Negra"
           onClick={() => setFinish('obsidian')}
+          className="ui-control"
           style={{
-            width: '18px',
-            height: '18px',
-            borderRadius: '50%',
-            backgroundColor: '#161C22',
-            border: finish === 'obsidian' ? '2px solid var(--text-primary)' : '1px solid rgba(255,255,255,0.2)',
-            boxShadow: finish === 'obsidian' ? '0 0 8px rgba(255,255,255,0.4)' : 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.3rem',
+            padding: '0.2rem 0.5rem',
+            borderRadius: 'var(--radius-full)',
+            backgroundColor: finish === 'obsidian' ? 'var(--bg-surface-elevated)' : 'transparent',
+            border: finish === 'obsidian' ? '1px solid var(--border-active)' : '1px solid transparent',
+            color: finish === 'obsidian' ? 'var(--text-primary)' : 'var(--text-secondary)',
+            fontSize: '0.68rem',
+            fontWeight: finish === 'obsidian' ? 700 : 500,
             cursor: 'pointer',
-            padding: 0,
-            transition: 'all var(--transition-fast)',
           }}
-        />
+        >
+          <span
+            style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: '50%',
+              backgroundColor: '#161C22',
+              border: '1px solid rgba(255,255,255,0.28)',
+            }}
+          />
+          <span>Obsidiana</span>
+        </button>
 
         <button
           id="showcase-btn-finish-ivory"
           type="button"
           aria-label="Acabamento Mármore Marfim"
+          aria-pressed={finish === 'ivory-marble'}
           title="Mármore Marfim"
           onClick={() => setFinish('ivory-marble')}
+          className="ui-control"
           style={{
-            width: '18px',
-            height: '18px',
-            borderRadius: '50%',
-            backgroundColor: '#F4F1EB',
-            border: finish === 'ivory-marble' ? '2px solid var(--text-primary)' : '1px solid rgba(0,0,0,0.25)',
-            boxShadow: finish === 'ivory-marble' ? '0 0 8px #F4F1EB' : 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.3rem',
+            padding: '0.2rem 0.5rem',
+            borderRadius: 'var(--radius-full)',
+            backgroundColor: finish === 'ivory-marble' ? 'var(--bg-surface-elevated)' : 'transparent',
+            border: finish === 'ivory-marble' ? '1px solid var(--border-active)' : '1px solid transparent',
+            color: finish === 'ivory-marble' ? 'var(--text-primary)' : 'var(--text-secondary)',
+            fontSize: '0.68rem',
+            fontWeight: finish === 'ivory-marble' ? 700 : 500,
             cursor: 'pointer',
-            padding: 0,
-            transition: 'all var(--transition-fast)',
           }}
-        />
+        >
+          <span
+            style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: '50%',
+              backgroundColor: '#F4F1EB',
+              border: '1px solid rgba(0,0,0,0.3)',
+            }}
+          />
+          <span>Marfim</span>
+        </button>
       </div>
     </div>
   );

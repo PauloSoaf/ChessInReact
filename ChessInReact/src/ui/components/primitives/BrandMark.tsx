@@ -22,6 +22,7 @@ export const BrandMark: React.FC<IBrandMarkProps> = ({
 
   return (
     <div
+      className="brand-mark-root"
       onClick={onClick}
       style={{
         display: 'inline-flex',
@@ -33,6 +34,7 @@ export const BrandMark: React.FC<IBrandMarkProps> = ({
     >
       {/* Geometric Sculptural Knight Emblem */}
       <div
+        className="brand-mark-icon"
         style={{
           width: iconSize,
           height: iconSize,
@@ -62,6 +64,7 @@ export const BrandMark: React.FC<IBrandMarkProps> = ({
 
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         <span
+          className="brand-mark-title"
           style={{
             fontFamily: 'var(--font-display)',
             fontSize: titleSize,

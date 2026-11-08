@@ -165,7 +165,6 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
   };
 
   const handleSquareClick = (squareInfo: ISquareInfo) => {
-    // Block any selection or move dispatch if match already concluded, bot is thinking, disabled, or bot controls the turn
     if (
       domain.isGameOver ||
       domain.winnerId !== null ||
@@ -274,9 +273,11 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
       className="chess-board-grid"
       style={{
         display: 'grid',
+        width: '100%',
+        height: '100%',
         aspectRatio: '1 / 1',
-        gridTemplateColumns: `repeat(${boardSize}, 1fr)`,
-        gridTemplateRows: `repeat(${boardSize}, 1fr)`,
+        gridTemplateColumns: `repeat(${boardSize}, minmax(0, 1fr))`,
+        gridTemplateRows: `repeat(${boardSize}, minmax(0, 1fr))`,
         position: 'relative',
         userSelect: 'none',
       }}

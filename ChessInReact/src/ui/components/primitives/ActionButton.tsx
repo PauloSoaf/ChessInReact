@@ -64,9 +64,9 @@ export const ActionButton: React.FC<IActionButtonProps> = ({
         };
       case 'danger':
         return {
-          backgroundColor: 'rgba(168, 66, 66, 0.15)',
+          backgroundColor: 'var(--color-danger-bg)',
           color: 'var(--color-danger)',
-          border: '1px solid rgba(168, 66, 66, 0.35)',
+          border: '1px solid var(--color-danger-border)',
         };
       case 'primary':
       default:
@@ -74,14 +74,20 @@ export const ActionButton: React.FC<IActionButtonProps> = ({
           backgroundColor: 'var(--color-accent)',
           color: 'var(--text-inverse)',
           border: '1px solid var(--color-accent)',
-          boxShadow: 'var(--shadow-glow)',
+          boxShadow: 'var(--shadow-sm), var(--shadow-glow)',
         };
     }
   };
 
+  const combinedClassName = ['ui-btn', `ui-btn--${variant}`, rest.className]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <button
       disabled={disabled}
+      {...rest}
+      className={combinedClassName}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -96,12 +102,10 @@ export const ActionButton: React.FC<IActionButtonProps> = ({
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.5 : 1,
         width: fullWidth ? '100%' : 'auto',
-        transition: 'all var(--transition-fast)',
         userSelect: 'none',
         ...getVariantStyles(),
         ...style,
       }}
-      {...rest}
     >
       {leadingIcon && <span style={{ display: 'inline-flex', alignItems: 'center' }}>{leadingIcon}</span>}
       {children && <span>{children}</span>}

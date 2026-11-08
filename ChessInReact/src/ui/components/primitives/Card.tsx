@@ -44,17 +44,25 @@ export const Card: React.FC<ICardProps> = ({
     }
   };
 
+  const combinedClassName = [
+    'ui-card',
+    variant === 'interactive' ? 'ui-card--interactive' : '',
+    rest.className,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <div
+      {...rest}
+      className={combinedClassName}
       style={{
         borderRadius: 'var(--radius-lg)',
         padding: '1.5rem',
-        transition: 'all var(--transition-fast)',
         position: 'relative',
         ...getVariantStyles(),
         ...style,
       }}
-      {...rest}
     >
       {children}
     </div>

@@ -55,7 +55,7 @@ export const InteractiveKnightScene: React.FC<IInteractiveKnightSceneProps> = ({
     if (reducedMotion) {
       groupRef.current.rotation.y = baseRotationY;
       groupRef.current.rotation.x = 0;
-      groupRef.current.position.y = -0.15;
+      groupRef.current.position.y = -0.26;
       return;
     }
 
@@ -72,7 +72,7 @@ export const InteractiveKnightScene: React.FC<IInteractiveKnightSceneProps> = ({
 
     groupRef.current.rotation.y = nextY;
     groupRef.current.rotation.x = nextX;
-    groupRef.current.position.y = -0.15;
+    groupRef.current.position.y = -0.26;
 
     // In frameloop="demand", only schedule the next frame if still converging
     const deltaY = Math.abs(nextY - targetY);
@@ -85,8 +85,8 @@ export const InteractiveKnightScene: React.FC<IInteractiveKnightSceneProps> = ({
   return (
     <>
       <StudioEnvironment theme={theme} />
-      <group ref={groupRef} position={[0, -0.15, 0]}>
-        <ProceduralKnight finish={finish} scale={0.92} />
+      <group ref={groupRef} position={[0, -0.26, 0]}>
+        <ProceduralKnight finish={finish} scale={0.84} />
       </group>
     </>
   );

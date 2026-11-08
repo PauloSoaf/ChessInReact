@@ -78,11 +78,11 @@ export const PieceRenderer: React.FC<IPieceRendererProps> = ({
   const normVariant = variantId.toUpperCase();
   const isWhite = ownerId === 'P1';
 
-  // 1. Vector SVG rendering
+  // 1. Vector SVG rendering (Tournament Vector Set)
   if (pieceSet === 'tournament-vector') {
     const path = SVG_PIECE_PATHS[normVariant] ?? SVG_PIECE_PATHS.PAWN;
-    const fillColor = isWhite ? '#ffffff' : '#1e1b2e';
-    const strokeColor = isWhite ? '#38bdf8' : '#f43f5e';
+    const fillColor = isWhite ? '#FAF8F5' : '#18202A';
+    const strokeColor = isWhite ? '#1E293B' : '#D6C3A5';
 
     return (
       <svg
@@ -91,16 +91,14 @@ export const PieceRenderer: React.FC<IPieceRendererProps> = ({
         style={{
           width: size,
           height: size,
-          maxWidth: '85%',
-          maxHeight: '85%',
-          filter: isWhite
-            ? 'drop-shadow(0 2px 4px rgba(56, 189, 248, 0.4))'
-            : 'drop-shadow(0 2px 4px rgba(244, 63, 94, 0.4))',
+          maxWidth: '78%',
+          maxHeight: '78%',
+          filter: 'drop-shadow(0 2px 3px rgba(0, 0, 0, 0.38))',
           transition: 'transform 150ms ease-out',
         }}
         fill={fillColor}
         stroke={strokeColor}
-        strokeWidth="1.5"
+        strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
@@ -112,9 +110,9 @@ export const PieceRenderer: React.FC<IPieceRendererProps> = ({
   // 2. Authentic 16x16 Pixel Art rendering (8-Bit Retro Arcade)
   if (pieceSet === 'pixel-art') {
     const sprite = PIXEL_ART_SPRITES[normVariant] ?? PIXEL_ART_SPRITES.PAWN;
-    const outlineColor = isWhite ? '#0284c7' : '#881337';
-    const fillColor = isWhite ? '#e0f2fe' : '#ffe4e6';
-    const accentColor = isWhite ? '#38bdf8' : '#f43f5e';
+    const outlineColor = isWhite ? '#1E293B' : '#090D11';
+    const fillColor = isWhite ? '#F8FAFC' : '#334155';
+    const accentColor = isWhite ? '#CBD5E1' : '#C4A77D';
 
     return (
       <svg
@@ -124,12 +122,10 @@ export const PieceRenderer: React.FC<IPieceRendererProps> = ({
         style={{
           width: size,
           height: size,
-          maxWidth: '85%',
-          maxHeight: '85%',
+          maxWidth: '78%',
+          maxHeight: '78%',
           shapeRendering: 'crispEdges',
-          filter: isWhite
-            ? 'drop-shadow(0 2px 0 #0369a1)'
-            : 'drop-shadow(0 2px 0 #4c0519)',
+          filter: 'drop-shadow(0 2px 0 rgba(0, 0, 0, 0.45))',
           transition: 'transform 150ms ease-out',
         }}
       >
@@ -140,17 +136,18 @@ export const PieceRenderer: React.FC<IPieceRendererProps> = ({
     );
   }
 
-  // 3. Default: Neo Classic Unicode
+  // 3. Default: Neo Classic Unicode (Weighted Staunton Alabaster & Ebony)
   const glyph = UNICODE_GLYPHS[normVariant] ?? '♟';
   return (
     <span
       data-testid="neo-classic-piece"
       style={{
-        fontSize: '130%',
-        color: isWhite ? '#ffffff' : '#fda4af',
+        fontSize: '115%',
+        color: isWhite ? '#FAF8F5' : '#161D26',
+        WebkitTextStroke: isWhite ? '0.6px #141A20' : '0.5px rgba(244, 241, 235, 0.65)',
         textShadow: isWhite
-          ? '0 2px 6px rgba(56, 189, 248, 0.6), 0 1px 2px rgba(0,0,0,0.8)'
-          : '0 2px 6px rgba(244, 63, 94, 0.7), 0 1px 2px rgba(0,0,0,0.9)',
+          ? '0 2px 4px rgba(0, 0, 0, 0.65), 0 0 1px rgba(0, 0, 0, 0.9)'
+          : '0 2px 4px rgba(0, 0, 0, 0.55), 0 0 2px rgba(244, 241, 235, 0.35)',
         userSelect: 'none',
         lineHeight: 1,
         transition: 'transform 150ms ease-out',

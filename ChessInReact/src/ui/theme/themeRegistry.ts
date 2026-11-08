@@ -11,23 +11,23 @@ export const UI_THEMES: Record<UIThemeId, IUIThemeDefinition> = {
   midnight: {
     id: 'midnight',
     name: 'Midnight Slate',
-    description: 'Modo escuro profissional com superfícies de obsidiana e acentos ciano elétrico.',
+    description: 'Ateliê escuro em obsidiana profunda, ardósia arquitetônica e acentos em latão envelhecido.',
     category: 'DARK',
-    previewColors: ['#0a0b0e', '#161a23', '#38bdf8'],
+    previewColors: ['#090D11', '#161C20', '#C4A77D'],
   },
   ivory: {
     id: 'ivory',
     name: 'Warm Ivory',
-    description: 'Interface clara minimalista com superfícies alabastro e acentos quentes.',
+    description: 'Ambiente de estudo em papel editorial quente, tinta carvão e detalhes em bronze clássico.',
     category: 'LIGHT',
-    previewColors: ['#f8fafc', '#ffffff', '#f59e0b'],
+    previewColors: ['#F5F2EB', '#FFFFFF', '#9A6B26'],
   },
   synthwave: {
     id: 'synthwave',
     name: 'Neon Synthwave',
-    description: 'Estética cyberpunk vibrante com brilhos magenta e ciano sobre fundo ultra-escuro.',
+    description: 'Atmosfera noturna em índigo cósmico com acentos seletivos em magenta e ciano luminoso.',
     category: 'SPECIAL',
-    previewColors: ['#090414', '#170b2c', '#f43f5e'],
+    previewColors: ['#080312', '#1A0B33', '#D946EF'],
   },
 };
 

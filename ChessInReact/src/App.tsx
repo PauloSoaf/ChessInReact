@@ -39,6 +39,7 @@ const AppContent: React.FC = () => {
   const turnNumber = useTurnNumber();
   const revision = useGameStore((state) => state.domain.revision);
   const isGameOver = useGameStore((state) => state.domain.isGameOver);
+  const winnerId = useGameStore((state) => state.domain.winnerId);
   const entityCount = useGameStore((state) => Object.keys(state.domain.boardEntities).length);
   const hasActiveMatch = turnNumber > 1 || revision > 0;
 
@@ -97,13 +98,10 @@ const AppContent: React.FC = () => {
     if (isBotEnabled) {
       const currentActive = gameStore.getState().domain.activePlayer;
       if (currentActive === 'P2') {
-        // In bot's turn: undo the human move that initiated the deliberation
         undo();
       } else {
-        // In human's turn: undo full 2-ply round (bot move + human move)
         const undoneFirst = undo();
         if (undoneFirst) {
-          // If state reverts to bot's turn, undo once more so turn returns to the human
           if (gameStore.getState().domain.activePlayer === 'P2') {
             undo();
           }
@@ -117,10 +115,8 @@ const AppContent: React.FC = () => {
   const handleRedo = useCallback(() => {
     cancelSearch();
     if (isBotEnabled) {
-      // In human vs bot mode, redo restores a full 2-ply round (human move + bot move)
       const redoneFirst = redo();
       if (redoneFirst) {
-        // If state is at bot's turn, redo the bot move immediately as part of the same round
         if (gameStore.getState().domain.activePlayer === 'P2') {
           redo();
         }
@@ -153,7 +149,6 @@ const AppContent: React.FC = () => {
         return;
       }
 
-      // Avoid intercepting form inputs
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLSelectElement ||
@@ -181,9 +176,9 @@ const AppContent: React.FC = () => {
   }, [navigateTo]);
 
   const handleStartBotMatch = useCallback(
-    (level: AIDifficultyLevel) => {
+    (level: number) => {
       toggleBot(true);
-      setDifficulty(level);
+      setDifficulty(level as AIDifficultyLevel);
       handleReset();
       navigateTo('GAME');
     },
@@ -197,18 +192,8 @@ const AppContent: React.FC = () => {
   }, [toggleBot, handleReset, navigateTo]);
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        backgroundColor: 'var(--bg-canvas, var(--bg-app))',
-        color: 'var(--text-primary)',
-        fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        transition: 'background-color var(--transition-normal), color var(--transition-normal)',
-      }}
-    >
-      {/* Modern Responsive Top Navigation Bar */}
+    <div className="app-shell">
+      {/* Persistent Responsive Top Navigation Bar */}
       <TopNavBar
         currentView={currentView}
         onNavigate={navigateTo}
@@ -219,7 +204,7 @@ const AppContent: React.FC = () => {
         isGameOver={isGameOver}
       />
 
-      {/* Main Body */}
+      {/* Main Content Area */}
       {currentView === 'HUB' ? (
         <GameHub
           onStartBotMatch={handleStartBotMatch}
@@ -231,148 +216,171 @@ const AppContent: React.FC = () => {
           isGameOver={isGameOver}
           botEnabled={isBotEnabled}
           botDifficulty={difficulty}
-          onSelectDifficulty={setDifficulty}
+          onSelectDifficulty={(d) => setDifficulty(d as AIDifficultyLevel)}
           onOpenThemeModal={() => setIsThemeModalOpen(true)}
         />
       ) : (
-        <div
-          className="animate-fade-in"
-          style={{
-            maxWidth: '1080px',
-            width: '100%',
-            margin: '0 auto',
-            padding: 'clamp(1rem, 3vw, 2rem) clamp(0.75rem, 2.5vw, 1.5rem) clamp(2rem, 4vw, 4rem)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1.25rem',
-            alignItems: 'center',
-          }}
-        >
-          {/* Match HUD Subheader */}
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '620px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0.35rem 0.75rem',
-              fontSize: '0.8125rem',
-              fontFamily: 'var(--font-mono)',
-              color: 'var(--text-secondary)',
-              backgroundColor: 'var(--bg-card)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-md)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span>
-                Turno: <strong style={{ color: 'var(--text-primary)' }}>#{turnNumber}</strong>
-              </span>
-              <span style={{ opacity: 0.4 }}>•</span>
-              <span>
-                Rev: <strong style={{ color: 'var(--text-muted)' }}>{revision}</strong>
-              </span>
-              <span style={{ opacity: 0.4 }}>•</span>
-              <span>
-                Dim: <strong style={{ color: 'var(--text-primary)' }}>{boardSize}×{boardSize}</strong>
-              </span>
+        <div className="match-arena-shell">
+          <div className="match-arena-grid">
+            {/* Left / Center Stage: Protagonist Chessboard + Evaluation Bar + Player Cards */}
+            <div className="match-stage-column">
+              {/* Top Player Strip (Opponent - Black P2) */}
+              <div className="match-stage-player-wrap">
+                <PlayerCard
+                  playerId="P2"
+                  displayName={isBotEnabled ? 'Robô MCTS / Alpha-Beta' : 'Jogador 2'}
+                  subtitle={
+                    isBotEnabled
+                      ? 'Motor Assíncrono em Web Worker'
+                      : 'Controle Manual Local (Pass & Play)'
+                  }
+                  isTurnActive={!isGameOver && activePlayer === 'P2'}
+                  isThinking={isThinking}
+                  isBot={isBotEnabled}
+                  difficultyLabel={isBotEnabled ? DIFFICULTY_LABELS[difficulty] : undefined}
+                />
+              </div>
+
+              {/* Sculpted Board Bezel: Real-time Evaluation Bar + Protagonist Board */}
+              <div className="match-board-bezel" style={{ width: '100%', maxWidth: '604px' }}>
+                <div style={{ display: 'flex', flexShrink: 0, alignSelf: 'stretch' }}>
+                  <EvaluationBar evalScore={lastEval} />
+                </div>
+
+                <main
+                  style={{
+                    flex: 1,
+                    maxWidth: '548px',
+                    aspectRatio: '1 / 1',
+                    borderRadius: 'var(--radius-md)',
+                    overflow: 'hidden',
+                    boxShadow: 'var(--shadow-lg)',
+                    border: '2px solid var(--border-prominent)',
+                    backgroundColor: 'var(--bg-card)',
+                  }}
+                >
+                  <ChessBoard
+                    boardSize={boardSize}
+                    isBotThinking={isThinking}
+                    botPlayer={isBotEnabled ? 'P2' : undefined}
+                    disabled={isBotEnabled && activePlayer === 'P2'}
+                  />
+                </main>
+              </div>
+
+              {/* Bottom Player Strip (Human - White P1) */}
+              <div className="match-stage-player-wrap">
+                <PlayerCard
+                  playerId="P1"
+                  displayName="Você (Humano)"
+                  subtitle="Peças Brancas (P1) • Perspectiva Principal"
+                  isTurnActive={!isGameOver && activePlayer === 'P1'}
+                />
+              </div>
             </div>
 
-            {isGameOver && (
-              <span
-                style={{
-                  color: 'var(--color-danger)',
-                  fontWeight: 800,
-                  letterSpacing: '0.08em',
-                  padding: '0.2rem 0.65rem',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'rgba(248, 113, 113, 0.16)',
-                  border: '1px solid rgba(248, 113, 113, 0.35)',
-                }}
-              >
-                FIM DE JOGO
-              </span>
-            )}
-          </div>
+            {/* Right Sidebar: Match Telemetry & Tactical Controls Deck */}
+            <aside className="match-hud-sidebar" aria-label="Telemetria e Controles da Partida">
+              <div className="match-telemetry-card">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className="ui-btn ui-btn--ghost"
+                    onClick={() => navigateTo('HUB')}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-sm)',
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      padding: '0.3rem 0.65rem',
+                    }}
+                  >
+                    <span>←</span>
+                    <span>Voltar ao Hub</span>
+                  </button>
 
-          {/* Opponent Card (Black - P2) */}
-          <div style={{ width: '100%', maxWidth: '620px' }}>
-            <PlayerCard
-              playerId="P2"
-              displayName={isBotEnabled ? 'Robô MCTS / Alpha-Beta' : 'Jogador 2'}
-              isTurnActive={activePlayer === 'P2'}
-              isThinking={isThinking}
-              isBot={isBotEnabled}
-              difficultyLabel={isBotEnabled ? DIFFICULTY_LABELS[difficulty] : undefined}
-            />
-          </div>
+                  <span
+                    style={{
+                      fontSize: '0.68rem',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.07em',
+                      color: 'var(--color-accent)',
+                    }}
+                  >
+                    {isBotEnabled ? `Arena vs IA (${DIFFICULTY_LABELS[difficulty]})` : 'Arena Pass & Play'}
+                  </span>
+                </div>
 
-          {/* Central Arena: Evaluation Bar + Protagonist Chessboard (Pieces rendered upright) */}
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '620px',
-              display: 'flex',
-              alignItems: 'stretch',
-              justifyContent: 'center',
-              gap: 'clamp(0.4rem, 1.5vw, 0.875rem)',
-            }}
-          >
-            {/* Real-time Positional Evaluation Bar (Spec 06 RF-15) */}
-            <div style={{ display: 'flex', flexShrink: 0, alignSelf: 'stretch' }}>
-              <EvaluationBar evalScore={lastEval} />
-            </div>
+                {isGameOver && (
+                  <div
+                    role="status"
+                    style={{
+                      color: 'var(--color-danger)',
+                      fontWeight: 800,
+                      fontSize: '0.78rem',
+                      fontFamily: 'var(--font-mono)',
+                      letterSpacing: '0.06em',
+                      padding: '0.55rem 0.75rem',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: 'var(--color-danger-bg)',
+                      border: '1px solid var(--color-danger-border)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <span>FIM DE JOGO</span>
+                    <span>
+                      {winnerId
+                        ? `Vitória: ${winnerId === 'P1' ? 'Brancas' : 'Pretas'}`
+                        : 'Partida Encerrada'}
+                    </span>
+                  </div>
+                )}
 
-            {/* Chessboard Main Surface (No inverted CSS transform) */}
-            <main
-              style={{
-                flex: 1,
-                maxWidth: '560px',
-                aspectRatio: '1 / 1',
-                borderRadius: 'var(--radius-lg)',
-                overflow: 'hidden',
-                boxShadow: 'var(--shadow-lg), var(--shadow-glow)',
-                border: '2px solid var(--border-prominent)',
-                backgroundColor: 'var(--bg-card)',
-              }}
-            >
-              <ChessBoard
+                <div className="match-telemetry-grid">
+                  <div className="match-stat-cell">
+                    <span className="match-stat-label">Turno</span>
+                    <span className="match-stat-value">#{turnNumber}</span>
+                  </div>
+                  <div className="match-stat-cell">
+                    <span className="match-stat-label">Revisão</span>
+                    <span className="match-stat-value">R{revision}</span>
+                  </div>
+                  <div className="match-stat-cell">
+                    <span className="match-stat-label">Dimensão</span>
+                    <span className="match-stat-value">
+                      {boardSize}×{boardSize}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <GameControlsBar
+                isBotEnabled={isBotEnabled}
+                difficulty={difficulty}
+                isThinking={isThinking}
+                lastEval={lastEval}
                 boardSize={boardSize}
-                isBotThinking={isThinking}
-                botPlayer={isBotEnabled ? 'P2' : undefined}
-                disabled={isBotEnabled && activePlayer === 'P2'}
+                onToggleBot={toggleBot}
+                onSetDifficulty={setDifficulty}
+                onBoardSizeChange={handleBoardSizeChange}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
+                onReset={handleReset}
+                onOpenThemeModal={() => setIsThemeModalOpen(true)}
+                onFlipBoard={handleFlipBoard}
+                isBoardFlipped={isBoardFlipped}
               />
-            </main>
-          </div>
-
-          {/* Player Card (White - P1 / You) */}
-          <div style={{ width: '100%', maxWidth: '620px' }}>
-            <PlayerCard
-              playerId="P1"
-              displayName="Você (Humano)"
-              isTurnActive={activePlayer === 'P1'}
-            />
-          </div>
-
-          {/* Unified Controls Bar */}
-          <div style={{ width: '100%', maxWidth: '620px', marginTop: '0.25rem' }}>
-            <GameControlsBar
-              isBotEnabled={isBotEnabled}
-              difficulty={difficulty}
-              isThinking={isThinking}
-              lastEval={lastEval}
-              boardSize={boardSize}
-              onToggleBot={toggleBot}
-              onSetDifficulty={setDifficulty}
-              onBoardSizeChange={handleBoardSizeChange}
-              onUndo={handleUndo}
-              onRedo={handleRedo}
-              onReset={handleReset}
-              onOpenThemeModal={() => setIsThemeModalOpen(true)}
-              onFlipBoard={handleFlipBoard}
-              isBoardFlipped={isBoardFlipped}
-            />
+            </aside>
           </div>
         </div>
       )}

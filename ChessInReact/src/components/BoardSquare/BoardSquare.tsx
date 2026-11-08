@@ -33,22 +33,28 @@ const BoardSquare: React.FC<IBoardSquare> = ({
   const rowNumber = effY + 1;
   const coordAlgebraic = `${colLetter}${rowNumber}`;
 
-  const pieceNameMap: Record<string, string> = {
+  const pieceLabelMap: Record<string, string> = {
     PAWN: 'Peão',
+    ROOK: 'Torre',
     KNIGHT: 'Cavalo',
     BISHOP: 'Bispo',
-    ROOK: 'Torre',
-    QUEEN: 'Dama',
+    QUEEN: 'Rainha',
     KING: 'Rei',
   };
 
-  const friendlyPieceName = pieceNameMap[piece.name.toUpperCase()] ?? piece.name;
-  const friendlyColor = piece.color === 'white' ? 'Branco' : 'Preto';
-  const pieceDescription = isPiecePresent ? `${friendlyPieceName} ${friendlyColor}` : 'Vazia';
+  const piecePtName = isPiecePresent
+    ? `${pieceLabelMap[piece.name.toUpperCase()] ?? piece.name} ${piece.color === 'white' ? 'Branco' : 'Preto'}`
+    : 'vazia';
 
-  const accessibleLabel = `Casa ${coordAlgebraic}, ${pieceDescription}${isSelected ? ' (selecionada)' : ''}${
-    isMoveDestination ? ' (movimento legal disponível)' : ''
-  }${isCaptureDestination ? ' (captura legal disponível)' : ''}`;
+  const statusSuffix = isCaptureDestination
+    ? ', captura legal disponível'
+    : isMoveDestination
+    ? ', movimento legal disponível'
+    : isSelected
+    ? ', selecionada'
+    : '';
+
+  const accessibleLabel = `Casa ${coordAlgebraic}, ${piecePtName}${statusSuffix}`;
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -57,7 +63,7 @@ const BoardSquare: React.FC<IBoardSquare> = ({
       return;
     }
 
-    // Grid Arrow Key Navigation (WAI-ARIA Roving Navigation)
+    // Arrow Key Navigation (WAI-ARIA Roving Navigation)
     let dCol = 0;
     let dRow = 0;
     const boardSize = boardDisplay.length;
@@ -110,22 +116,25 @@ const BoardSquare: React.FC<IBoardSquare> = ({
       onFocus={() => onFocusSquare?.(squareInfo.column, squareInfo.row)}
       className="board-square"
       style={{
-        backgroundColor: `${backgroundColor}`,
-        fontSize: `${boardDisplay.length < 12 ? '200%' : 200 - boardDisplay.length * 5 + '%'}`,
+        backgroundColor: isSelected ? activeBoardColors.selectedSquare : `${backgroundColor}`,
+        fontSize: `${boardDisplay.length < 12 ? '175%' : 185 - boardDisplay.length * 5 + '%'}`,
         justifyContent: 'center',
         alignItems: 'center',
         display: 'flex',
         color: piece.color,
-        aspectRatio: 1 / 1,
-        width: `${boardDisplay.length < 12 ? '95%' : '100%'}`,
-        height: `${boardDisplay.length < 12 ? '95%' : '100%'}`,
+        aspectRatio: '1 / 1',
+        width: '100%',
+        height: '100%',
+        minWidth: 0,
+        minHeight: 0,
+        overflow: 'hidden',
         boxShadow: isSelected
-          ? 'inset 0 0 0 3px var(--border-active, #C4A77D), 0 0 12px var(--color-accent-glow)'
-          : 'none',
+          ? 'inset 0 0 0 2.5px var(--border-active, #C4A77D)'
+          : 'inset 0 0 0 0.5px rgba(0, 0, 0, 0.06)',
         cursor: 'pointer',
         position: 'relative',
         userSelect: 'none',
-        transition: 'background-color 150ms ease, box-shadow 150ms ease',
+        transition: 'background-color 140ms ease, box-shadow 140ms ease',
       }}
       onClick={() => handleClick(squareInfo, piece)}
       onKeyDown={handleKeyDown}
@@ -137,12 +146,12 @@ const BoardSquare: React.FC<IBoardSquare> = ({
           style={{
             position: 'absolute',
             top: '3px',
-            left: '4px',
+            left: '5px',
             fontSize: '0.6875rem',
             fontFamily: 'var(--font-mono)',
             fontWeight: 800,
             color: coordLabelColor,
-            opacity: 0.85,
+            opacity: 0.88,
             pointerEvents: 'none',
             lineHeight: 1,
           }}
@@ -157,12 +166,12 @@ const BoardSquare: React.FC<IBoardSquare> = ({
           style={{
             position: 'absolute',
             bottom: '3px',
-            right: '4px',
+            right: '5px',
             fontSize: '0.6875rem',
             fontFamily: 'var(--font-mono)',
             fontWeight: 800,
             color: coordLabelColor,
-            opacity: 0.85,
+            opacity: 0.88,
             pointerEvents: 'none',
             lineHeight: 1,
           }}
@@ -182,7 +191,7 @@ const BoardSquare: React.FC<IBoardSquare> = ({
             borderRadius: '50%',
             backgroundColor: activeBoardColors.legalMoveDot,
             pointerEvents: 'none',
-            boxShadow: '0 0 6px rgba(0,0,0,0.3)',
+            boxShadow: '0 0 8px rgba(0,0,0,0.32), inset 0 1px 1px rgba(255,255,255,0.28)',
           }}
         />
       )}
@@ -193,12 +202,12 @@ const BoardSquare: React.FC<IBoardSquare> = ({
           data-testid="legal-capture-ring"
           style={{
             position: 'absolute',
-            inset: '3px',
-            borderRadius: 'var(--radius-sm, 6px)',
+            inset: '4px',
+            borderRadius: '50%',
             border: `3px solid ${activeBoardColors.captureSquare}`,
-            backgroundColor: 'rgba(168, 66, 66, 0.18)',
+            backgroundColor: 'rgba(239, 68, 68, 0.14)',
             pointerEvents: 'none',
-            boxShadow: 'inset 0 0 8px rgba(168, 66, 66, 0.4)',
+            boxShadow: 'inset 0 0 10px rgba(239, 68, 68, 0.35)',
           }}
         />
       )}

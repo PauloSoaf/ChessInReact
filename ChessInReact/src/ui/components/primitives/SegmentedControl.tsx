@@ -75,6 +75,7 @@ export function SegmentedControl<T extends string | number>({
             id={`${idPrefix}-${opt.value}`}
             type="button"
             role="radio"
+            className="ui-control"
             tabIndex={isSelected ? 0 : -1}
             aria-checked={isSelected}
             onClick={() => onChange(opt.value)}
@@ -83,7 +84,7 @@ export function SegmentedControl<T extends string | number>({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.375rem',
-              padding: isSm ? '0.3rem 0.65rem' : '0.45rem 0.875rem',
+              padding: isSm ? '0.32rem 0.68rem' : '0.45rem 0.875rem',
               borderRadius: 'var(--radius-sm)',
               fontSize: isSm ? '0.75rem' : '0.8125rem',
               fontFamily: 'var(--font-sans)',
@@ -93,7 +94,6 @@ export function SegmentedControl<T extends string | number>({
               border: isSelected ? '1px solid var(--border-prominent)' : '1px solid transparent',
               boxShadow: isSelected ? 'var(--shadow-sm)' : 'none',
               cursor: 'pointer',
-              transition: 'all var(--transition-fast)',
               whiteSpace: 'nowrap',
             }}
           >
