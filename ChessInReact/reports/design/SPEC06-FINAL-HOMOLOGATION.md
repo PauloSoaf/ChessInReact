@@ -73,13 +73,13 @@ export default defineConfig({
 | Artefato Gerado | Tamanho Minificado | Tamanho Gzip | Observação Arquitetural |
 | :--- | :---: | :---: | :--- |
 | `dist/index.html` | 1,23 kB | 0,63 kB | Shell HTML inicial (`lang="pt-BR"`), monta `#root`. |
-| `dist/assets/index-*.css` | 15,43 kB | 3,99 kB | Tokens CSS ampliados e design system responsivo (abaixo do limite de 30 kB do RNF-03). |
+| `dist/assets/index-*.css` | 15,64 kB | 4,01 kB | Tokens CSS ampliados e design system responsivo (abaixo do limite de 30 kB do RNF-03). |
 | `dist/assets/ChessPieceShowcase-*.js` | 15,94 kB | 4,85 kB | Chunk assíncrono do showcase (`React.lazy`). |
 | `dist/assets/engineWorker-*.js` | 90,72 kB | — | Bundle dedicado do Web Worker (IA, Pathfinding, Procedural). |
-| `dist/assets/index-*.js` | 365,26 kB | 107,38 kB | Aplicação principal React, Core ECS, Zustand, HUD unificado e SVG fallback harmonizado. |
+| `dist/assets/index-*.js` | 365,37 kB | 107,46 kB | Aplicação principal React, Core ECS, Zustand, HUD unificado e SVG fallback harmonizado. |
 | `dist/assets/vendor-three-*.js` | 890,09 kB | 239,28 kB | Motor Three.js + React Three Fiber + Drei. |
 
-- **Advertência de Build Conhecida:** O Rollup/Vite emite o aviso não-bloqueante `(!) Some chunks are larger than 500 kB after minification` devido ao tamanho intrínseco da biblioteca `three` + `@react-three` agrupada em `vendor-three` (890,06 kB minificado / 239,27 kB gzip).
+- **Advertência de Build Conhecida:** O Rollup/Vite emite o aviso não-bloqueante `(!) Some chunks are larger than 500 kB after minification` devido ao tamanho intrínseco da biblioteca `three` + `@react-three` agrupada em `vendor-three` (890,09 kB minificado / 239,28 kB gzip).
 - **Comportamento de Carregamento:** Como `index.html` contém apenas `<div id="root"></div>`, o SVG de fallback (`ShowcaseFallback`) é renderizado no cliente após o download e inicialização do bundle principal React (`index-*.js`). O carregamento dos chunks `ChessPieceShowcase-*.js` e `vendor-three-*.js` é adiado até que `shouldRender3D` se torne verdadeiro (por `requestIdleCallback` ou interação no modo `idle`). Métricas de Web Vitals (FCP, LCP, INP) e taxa de quadros em GPU física (FPS) **não foram medidas por telemetria de navegador** neste ambiente de CI e, portanto, não são declaradas como verificadas.
 
 ---
@@ -112,7 +112,7 @@ export default defineConfig({
 | :--- | :--- | :---: | :--- |
 | **RNF-01** | Taxa de Quadros Imune a Abertura de Menus ($\ge 60$ FPS) | **DEFERRED (GPU)** | O showcase usa `frameloop="demand"`, porém a medição de FPS em GPU real durante abertura de menus não é executada no ambiente headless/CI. |
 | **RNF-02** | Latência de Resposta de Clique e Seleção ($< 16$ ms) | **PARTIAL** | Seleção 2D é síncrona via Zustand, mas a medição formal de frame-time $< 16\text{ ms}$ com raycasting 3D depende da Spec 07 e browser real. |
-| **RNF-03** | Peso do Bundle de Estilos CSS ($\le 30$ KB gzip) | **VERIFIED** | Bundle CSS de produção compilado com **15,43 kB** minificado (**3,99 kB gzip**), muito abaixo do teto de 30 kB. |
+| **RNF-03** | Peso do Bundle de Estilos CSS ($\le 30$ KB gzip) | **VERIFIED** | Bundle CSS de produção compilado com **15,64 kB** minificado (**4,01 kB gzip**), muito abaixo do teto de 30 kB. |
 | **RNF-04** | Conformidade de Acessibilidade Visual (WCAG AA $\ge 4.5:1$) | **VERIFIED** | Contrastes de texto $\ge 4.5:1$ nos 3 temas, `:focus-visible` global de 2 px (`outline: 2px solid var(--border-active)`), `.board-square:focus-visible` de 3 px, focus trap no modal, roving tabindex $N \times N$ no tabuleiro e continuidade de foco por teclado no showcase testados em `Spec06ThemeAndHUD.test.tsx`. |
 | **RNF-05** | Responsividade Extrema de Layout (360 px a 3840 px) | **VERIFIED** | Grids fluidos com `minmax(min(100%, 300px), 1fr)` e `clamp(...)` sem `overflow-x: hidden` mascarando cortes. |
 | **RNF-06** | Integridade Absoluta do Código do NutriOpus | **VERIFIED** | Nenhum arquivo externo do NutriOpus foi modificado; arquitetura isolada conforme ADR-004. |
@@ -134,11 +134,13 @@ Todos os 6 quality gates obrigatórios do `GEMINI.md` e o novo runner integrado 
 
 1. **`npx tsc --noEmit`**: 0 erros.
 2. **`npm run lint`**: 0 erros, 0 warnings (`--max-warnings 0`).
-3. **`npm run build`**: Compilado com sucesso (`index.css`: 15,43 kB min / 3,99 kB gzip; `ChessPieceShowcase`: 15,94 kB min / 4,85 kB gzip; `index.js`: 365,26 kB min / 107,38 kB gzip; `vendor-three`: 890,09 kB min / 239,28 kB gzip; aviso não-bloqueante de chunk > 500 kB para `vendor-three`).
-4. **`npx vitest run --coverage`**: 79 arquivos de teste aprovados, **650 testes aprovados** (incluindo os 60 testes da suíte `Spec06ThemeAndHUD.test.tsx`), 0 falhas, 0 pulados. Cobertura global de linhas de **80,07% no GitHub Actions CI** (80,92% no ambiente local), com cobertura de topologias $> 95\%$.
+3. **`npm run build`**: Compilado com sucesso (`index.css`: 15,64 kB min / 4,01 kB gzip; `ChessPieceShowcase`: 15,94 kB min / 4,85 kB gzip; `index.js`: 365,37 kB min / 107,46 kB gzip; `vendor-three`: 890,09 kB min / 239,28 kB gzip; aviso não-bloqueante de chunk > 500 kB para `vendor-three`).
+4. **`npx vitest run --coverage`**: 79 arquivos de teste aprovados, **650 testes aprovados** (incluindo os 60 testes da suíte `Spec06ThemeAndHUD.test.tsx`), 0 falhas, 0 pulados. Cobertura global no GitHub Actions CI de **79,32% de linhas** e **84,10% de branches** (80,92% de linhas no ambiente local), com cobertura de topologias $> 95\%$.
 5. **`node scripts/runChromiumSmoke.js`**: Aprovado (`success: true`, `skipped: false`) em Chromium headless nativo.
-6. **`npm run bench:memory`**: Aprovado (`PASS`, Delta incremental de +7,85 MB dentro do limite estrito de $< 40\text{ MB}$, retenção de +0,12 MB, drift de 0,009 MB/ciclo, sem mascaramento de GC).
-7. **`npm run acceptance` (`node scripts/runAcceptanceVerification.mjs`)**: Aprovado (`exit code 0`, sem mascaramento de falhas). Executado com asserções estritas em 5 viewports (360, 390, 768, 1024 e 1440 px, zero overflow e zero corte de elementos) e 10 fluxos interativos de partida (seleção de dificuldade com `role="radio"` e `aria-checked`, início de partida, lance humano e2 $\rightarrow$ e4, resposta autônoma do bot avançando para Turno 3, Desfazer, Refazer, Inversão de perspectiva, modal de temas dinâmico nos 3 temas, reinício de partida e integridade do mostruário).
+6. **`npm run bench:memory`**: Aprovado (`PASS`, Delta incremental de +2,36 MB a +7,85 MB dentro do limite estrito de $< 40\text{ MB}$, retenção de +0,12 MB, drift de 0,009 MB/ciclo, sem mascaramento de GC).
+7. **`npm run acceptance` (`node scripts/runAcceptanceVerification.mjs`)**: Aprovado (`exit code 0`, sem mascaramento de falhas). Executado com asserções estritas em 5 viewports (360, 390, 768, 1024 e 1440 px, zero overflow e zero corte de elementos horizontais) e 10 fluxos interativos de partida (seleção de dificuldade com `role="radio"` e `aria-checked`, início de partida, lance humano e2 $\rightarrow$ e4, resposta autônoma do bot avançando para Turno 3, Desfazer, Refazer, Inversão de perspectiva, modal de temas dinâmico nos 3 temas, reinício de partida e integridade do mostruário).
+   - *Nota Técnica de Responsividade*: O runner comprova formalmente que nenhum elemento ultrapassa a largura da viewport (`scrollWidth <= innerWidth`). A confirmação estética de ausência de sobreposições visuais verticais ou problemas de legibilidade é delegada à inspeção visual humana.
+   - *Nota Técnica de Mostruário 3D*: No ambiente Chromium headless do CI, o Canvas 3D Three.js é ativado com sucesso (`data-3d-state="available"`). A qualidade gráfica da renderização PBR e a simulação de fallback sem WebGL permanecem cobertas por testes unitários e inspeção visual prévia à SPEC07.
 
 ---
 
