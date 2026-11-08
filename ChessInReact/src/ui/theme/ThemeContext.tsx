@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import {
   BoardThemeId,
+  BoardViewMode,
   DEFAULT_THEME_PREFERENCES,
   IBoardThemeDefinition,
   IUIThemeDefinition,
@@ -15,11 +16,13 @@ interface IThemeContextValue {
   uiTheme: UIThemeId;
   boardTheme: BoardThemeId;
   pieceSet: PieceSetId;
+  boardViewMode: BoardViewMode;
   activeUIColors: IUIThemeDefinition;
   activeBoardColors: IBoardThemeDefinition;
   setUITheme: (id: UIThemeId) => void;
   setBoardTheme: (id: BoardThemeId) => void;
   setPieceSet: (id: PieceSetId) => void;
+  setBoardViewMode: (mode: BoardViewMode) => void;
   updatePreferences: (partial: Partial<IUserThemePreferences>) => void;
 }
 
@@ -78,6 +81,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     updatePreferences({ pieceSet: id });
   }, [updatePreferences]);
 
+  const setBoardViewMode = useCallback((mode: BoardViewMode) => {
+    updatePreferences({ boardViewMode: mode });
+  }, [updatePreferences]);
+
   const activeUIColors = useMemo(
     () => UI_THEMES[preferences.uiTheme] ?? UI_THEMES.midnight,
     [preferences.uiTheme]
@@ -94,11 +101,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       uiTheme: preferences.uiTheme,
       boardTheme: preferences.boardTheme,
       pieceSet: preferences.pieceSet,
+      boardViewMode: preferences.boardViewMode ?? '2D',
       activeUIColors,
       activeBoardColors,
       setUITheme,
       setBoardTheme,
       setPieceSet,
+      setBoardViewMode,
       updatePreferences,
     }),
     [
@@ -108,6 +117,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setUITheme,
       setBoardTheme,
       setPieceSet,
+      setBoardViewMode,
       updatePreferences,
     ]
   );
@@ -125,11 +135,13 @@ export function useTheme(): IThemeContextValue {
       uiTheme: DEFAULT_THEME_PREFERENCES.uiTheme,
       boardTheme: DEFAULT_THEME_PREFERENCES.boardTheme,
       pieceSet: DEFAULT_THEME_PREFERENCES.pieceSet,
+      boardViewMode: DEFAULT_THEME_PREFERENCES.boardViewMode,
       activeUIColors: UI_THEMES.midnight,
       activeBoardColors: BOARD_THEMES['slate-emerald'],
       setUITheme: () => {},
       setBoardTheme: () => {},
       setPieceSet: () => {},
+      setBoardViewMode: () => {},
       updatePreferences: () => {},
     };
   }

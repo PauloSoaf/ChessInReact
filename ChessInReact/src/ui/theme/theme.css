@@ -743,6 +743,14 @@ select:focus-visible,
     display: none !important;
   }
 
+  #nav-quick-view-mode-toggle .nav-btn-text {
+    display: none !important;
+  }
+
+  #nav-quick-view-mode-toggle {
+    padding: 0.42rem 0.55rem !important;
+  }
+
   #nav-open-theme-customizer .nav-btn-text {
     display: none !important;
   }

@@ -27,7 +27,7 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
   activePlayer = 'P1',
   isGameOver = false,
 }) => {
-  const { uiTheme, setUITheme } = useTheme();
+  const { uiTheme, setUITheme, boardViewMode, setBoardViewMode } = useTheme();
 
   const toggleQuickTheme = () => {
     if (uiTheme === 'midnight') setUITheme('ivory');
@@ -164,6 +164,36 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
               )}
             </button>
           </div>
+
+          {/* Quick 2D / 3D Board View Mode Toggle */}
+          <button
+            id="nav-quick-view-mode-toggle"
+            type="button"
+            className="ui-btn"
+            onClick={() => setBoardViewMode(boardViewMode === '3D' ? '2D' : '3D')}
+            title={`Modo do tabuleiro: ${boardViewMode}. Clique para alternar para ${boardViewMode === '3D' ? '2D Clássico' : '3D WebGL'}.`}
+            aria-label={`Modo do tabuleiro: ${boardViewMode}`}
+            style={{
+              padding: '0.45rem 0.65rem',
+              backgroundColor: boardViewMode === '3D' ? 'var(--color-accent)' : 'var(--bg-card)',
+              color: boardViewMode === '3D' ? '#ffffff' : 'var(--text-primary)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              fontSize: '0.75rem',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 700,
+              outline: 'none',
+              boxShadow: boardViewMode === '3D' ? '0 0 10px var(--color-accent-subtle)' : 'none',
+              transition: 'all var(--transition-fast)',
+            }}
+          >
+            <span style={{ fontSize: '0.85rem' }}>{boardViewMode === '3D' ? '🎲' : '📐'}</span>
+            <span className="nav-btn-text">{boardViewMode === '3D' ? '3D WebGL' : '2D Vetorial'}</span>
+          </button>
 
           {/* Quick Theme Toggle */}
           <button

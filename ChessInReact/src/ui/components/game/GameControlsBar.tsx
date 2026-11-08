@@ -18,6 +18,8 @@ export interface IGameControlsBarProps {
   onOpenThemeModal: () => void;
   onFlipBoard?: () => void;
   isBoardFlipped?: boolean;
+  boardViewMode?: '2D' | '3D';
+  onToggleBoardViewMode?: (mode: '2D' | '3D') => void;
 }
 
 export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
@@ -34,6 +36,8 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
   onOpenThemeModal,
   onFlipBoard,
   isBoardFlipped = false,
+  boardViewMode = '2D',
+  onToggleBoardViewMode,
 }) => {
   const formattedEval =
     lastEval !== null ? `${lastEval > 0 ? '+' : ''}${(lastEval / 100).toFixed(2)}` : '0.00';
@@ -265,7 +269,56 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
             />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+            {onToggleBoardViewMode && (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  borderRadius: 'var(--radius-sm)',
+                  overflow: 'hidden',
+                  border: '1px solid var(--border-subtle)',
+                }}
+              >
+                <button
+                  id="board-view-mode-2d"
+                  type="button"
+                  onClick={() => onToggleBoardViewMode('2D')}
+                  title="Modo 2D Clássico / Vetorial (Spec 06)"
+                  style={{
+                    padding: '0.36rem 0.62rem',
+                    fontSize: '0.74rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    backgroundColor: boardViewMode === '2D' ? 'var(--color-accent)' : 'var(--bg-card)',
+                    color: boardViewMode === '2D' ? '#ffffff' : 'var(--text-secondary)',
+                    border: 'none',
+                    transition: 'all var(--transition-fast)',
+                  }}
+                >
+                  2D
+                </button>
+                <button
+                  id="board-view-mode-3d"
+                  type="button"
+                  onClick={() => onToggleBoardViewMode('3D')}
+                  title="Modo 3D WebGL / Three.js (Spec 07)"
+                  style={{
+                    padding: '0.36rem 0.62rem',
+                    fontSize: '0.74rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    backgroundColor: boardViewMode === '3D' ? 'var(--color-accent)' : 'var(--bg-card)',
+                    color: boardViewMode === '3D' ? '#ffffff' : 'var(--text-secondary)',
+                    border: 'none',
+                    borderLeft: '1px solid var(--border-subtle)',
+                    transition: 'all var(--transition-fast)',
+                  }}
+                >
+                  3D WebGL
+                </button>
+              </div>
+            )}
+
             {onFlipBoard && (
               <button
                 id="bot-flip-board-button"

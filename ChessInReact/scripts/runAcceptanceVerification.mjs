@@ -133,7 +133,18 @@ try {
     return res.result?.value;
   };
 
-  await sleep(1500);
+  // Wait up to 15s for initial app mount (accommodates Vite first-load dependency pre-bundling)
+  let initialMount = false;
+  for (let i = 0; i < 30; i++) {
+    const ready = await evaluate(`!!(document.getElementById('game-hub') || document.getElementById('match-arena-shell'))`);
+    if (ready) {
+      initialMount = true;
+      break;
+    }
+    await sleep(500);
+  }
+  assert(initialMount, 'Application failed to mount initial UI within 15 seconds');
+  await sleep(500);
 
   // =========================================================================
   // 1. Viewport & Responsiveness Verification (360px, 390px, 768px, 1024px, 1440px)

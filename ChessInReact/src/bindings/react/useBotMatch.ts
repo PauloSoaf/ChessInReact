@@ -79,6 +79,12 @@ export function useBotMatch(options?: IBotMatchControllerOptions) {
     setIsBotEnabled(enabled);
     if (controllerRef.current) {
       controllerRef.current.setEnabled(enabled);
+      if (enabled) {
+        const domain = gameStore.getState().domain;
+        if (!domain.isGameOver && domain.activePlayer === controllerRef.current.getBotPlayer()) {
+          controllerRef.current.checkAndTriggerBotTurn();
+        }
+      }
     }
   }, []);
 

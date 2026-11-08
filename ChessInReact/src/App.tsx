@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import ChessBoard from './components/ChessBoard/ChessBoard';
+import { ChessBoard3D } from './rendering/ChessBoard3D';
 import { useActivePlayer, useGameActions, useGameStore, useTurnNumber } from './bindings/react/useGameStore';
 import { useBotMatch } from './bindings/react/useBotMatch';
 import { AIDifficultyLevel } from './workers/ai/interfaces/IAIEngineContracts';
@@ -247,25 +248,35 @@ const AppContent: React.FC = () => {
                   <EvaluationBar evalScore={lastEval} />
                 </div>
 
-                <main
-                  style={{
-                    flex: 1,
-                    maxWidth: '548px',
-                    aspectRatio: '1 / 1',
-                    borderRadius: 'var(--radius-md)',
-                    overflow: 'hidden',
-                    boxShadow: 'var(--shadow-lg)',
-                    border: '2px solid var(--border-prominent)',
-                    backgroundColor: 'var(--bg-card)',
-                  }}
-                >
-                  <ChessBoard
+                {preferences.boardViewMode === '3D' ? (
+                  <ChessBoard3D
                     boardSize={boardSize}
                     isBotThinking={isThinking}
                     botPlayer={isBotEnabled ? 'P2' : undefined}
                     disabled={isBotEnabled && activePlayer === 'P2'}
+                    isFlipped={isBoardFlipped}
                   />
-                </main>
+                ) : (
+                  <main
+                    style={{
+                      flex: 1,
+                      maxWidth: '548px',
+                      aspectRatio: '1 / 1',
+                      borderRadius: 'var(--radius-md)',
+                      overflow: 'hidden',
+                      boxShadow: 'var(--shadow-lg)',
+                      border: '2px solid var(--border-prominent)',
+                      backgroundColor: 'var(--bg-card)',
+                    }}
+                  >
+                    <ChessBoard
+                      boardSize={boardSize}
+                      isBotThinking={isThinking}
+                      botPlayer={isBotEnabled ? 'P2' : undefined}
+                      disabled={isBotEnabled && activePlayer === 'P2'}
+                    />
+                  </main>
+                )}
               </div>
 
               {/* Bottom Player Strip (Human - White P1) */}
@@ -381,6 +392,8 @@ const AppContent: React.FC = () => {
                 onOpenThemeModal={() => setIsThemeModalOpen(true)}
                 onFlipBoard={handleFlipBoard}
                 isBoardFlipped={isBoardFlipped}
+                boardViewMode={preferences.boardViewMode ?? '2D'}
+                onToggleBoardViewMode={(mode) => updatePreferences({ boardViewMode: mode })}
               />
             </aside>
           </div>

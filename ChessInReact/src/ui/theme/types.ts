@@ -5,6 +5,7 @@
 export type UIThemeId = 'midnight' | 'ivory' | 'synthwave';
 export type BoardThemeId = 'slate-emerald' | 'classic-wood' | 'carbon-cyber';
 export type PieceSetId = 'neo-classic' | 'tournament-vector' | 'pixel-art';
+export type BoardViewMode = '2D' | '3D';
 
 export interface IUIThemeDefinition {
   id: UIThemeId;
@@ -38,6 +39,7 @@ export interface IUserThemePreferences {
   uiTheme: UIThemeId;
   boardTheme: BoardThemeId;
   pieceSet: PieceSetId;
+  boardViewMode: BoardViewMode;
   showLegalMoves: boolean;
   showCoordinates: boolean;
   soundEnabled: boolean;
@@ -48,6 +50,7 @@ export const DEFAULT_THEME_PREFERENCES: IUserThemePreferences = {
   uiTheme: 'midnight',
   boardTheme: 'slate-emerald',
   pieceSet: 'neo-classic',
+  boardViewMode: '2D',
   showLegalMoves: true,
   showCoordinates: true,
   soundEnabled: true,

@@ -406,6 +406,95 @@ export const ThemeCustomizerModal: React.FC<IThemeCustomizerModalProps> = ({ isO
             </label>
           </div>
         </div>
+
+        {/* Category 5: Board Render Mode (Spec 06 vs Spec 07) */}
+        <div>
+          <div
+            style={{
+              fontSize: '0.8125rem',
+              fontFamily: 'var(--font-sans)',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: 'var(--color-accent)',
+              marginBottom: '0.875rem',
+            }}
+          >
+            5. Modo de Renderização do Tabuleiro
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '0.875rem',
+            }}
+          >
+            <button
+              id="theme-modal-board-mode-2d"
+              type="button"
+              onClick={() => updatePreferences({ boardViewMode: '2D' })}
+              style={{
+                padding: '1rem',
+                borderRadius: 'var(--radius-md)',
+                border: preferences.boardViewMode === '2D' ? '2px solid var(--border-active)' : '1px solid var(--border-subtle)',
+                backgroundColor: preferences.boardViewMode === '2D' ? 'var(--bg-surface-elevated)' : 'var(--bg-card)',
+                boxShadow: preferences.boardViewMode === '2D' ? 'var(--shadow-glow)' : 'var(--shadow-sm)',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+                textAlign: 'left',
+                transition: 'all var(--transition-fast)',
+                outline: 'none',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 700, fontSize: '0.925rem', color: 'var(--text-primary)' }}>
+                  2D Clássico / Vetorial
+                </span>
+                {preferences.boardViewMode === '2D' && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-accent)', fontWeight: 800 }}>✓</span>
+                )}
+              </div>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
+                Renderização nativa DOM/SVG com foco em precisão, leveza e contraste clínico (Spec 06).
+              </p>
+            </button>
+
+            <button
+              id="theme-modal-board-mode-3d"
+              type="button"
+              onClick={() => updatePreferences({ boardViewMode: '3D' })}
+              style={{
+                padding: '1rem',
+                borderRadius: 'var(--radius-md)',
+                border: preferences.boardViewMode === '3D' ? '2px solid var(--border-active)' : '1px solid var(--border-subtle)',
+                backgroundColor: preferences.boardViewMode === '3D' ? 'var(--bg-surface-elevated)' : 'var(--bg-card)',
+                boxShadow: preferences.boardViewMode === '3D' ? 'var(--shadow-glow)' : 'var(--shadow-sm)',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+                textAlign: 'left',
+                transition: 'all var(--transition-fast)',
+                outline: 'none',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 700, fontSize: '0.925rem', color: 'var(--text-primary)' }}>
+                  3D WebGL Realtime (Spec 07)
+                </span>
+                {preferences.boardViewMode === '3D' && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-accent)', fontWeight: 800 }}>✓</span>
+                )}
+              </div>
+              <p style={{ fontSize: '0.775rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
+                Renderização tridimensional imersiva com iluminação PBR, sombras dinâmicas e OrbitControls (Spec 07).
+              </p>
+            </button>
+          </div>
+        </div>
       </div>
     </ModalShell>
   );
