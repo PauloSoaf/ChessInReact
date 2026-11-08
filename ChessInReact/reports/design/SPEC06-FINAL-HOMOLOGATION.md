@@ -112,7 +112,7 @@ export default defineConfig({
 | :--- | :--- | :---: | :--- |
 | **RNF-01** | Taxa de Quadros Imune a Abertura de Menus ($\ge 60$ FPS) | **DEFERRED (GPU)** | O showcase usa `frameloop="demand"`, porém a medição de FPS em GPU real durante abertura de menus não é executada no ambiente headless/CI. |
 | **RNF-02** | Latência de Resposta de Clique e Seleção ($< 16$ ms) | **PARTIAL** | Seleção 2D é síncrona via Zustand, mas a medição formal de frame-time $< 16\text{ ms}$ com raycasting 3D depende da Spec 07 e browser real. |
-| **RNF-03** | Peso do Bundle de Estilos CSS ($\le 30$ KB gzip) | **VERIFIED** | Bundle CSS de produção compilado com **5,14 kB** minificado (**1,81 kB gzip**), muito abaixo do teto de 30 kB. |
+| **RNF-03** | Peso do Bundle de Estilos CSS ($\le 30$ KB gzip) | **VERIFIED** | Bundle CSS de produção compilado com **15,43 kB** minificado (**3,99 kB gzip**), muito abaixo do teto de 30 kB. |
 | **RNF-04** | Conformidade de Acessibilidade Visual (WCAG AA $\ge 4.5:1$) | **VERIFIED** | Contrastes de texto $\ge 4.5:1$ nos 3 temas, `:focus-visible` global de 2 px (`outline: 2px solid var(--border-active)`), `.board-square:focus-visible` de 3 px, focus trap no modal, roving tabindex $N \times N$ no tabuleiro e continuidade de foco por teclado no showcase testados em `Spec06ThemeAndHUD.test.tsx`. |
 | **RNF-05** | Responsividade Extrema de Layout (360 px a 3840 px) | **VERIFIED** | Grids fluidos com `minmax(min(100%, 300px), 1fr)` e `clamp(...)` sem `overflow-x: hidden` mascarando cortes. |
 | **RNF-06** | Integridade Absoluta do Código do NutriOpus | **VERIFIED** | Nenhum arquivo externo do NutriOpus foi modificado; arquitetura isolada conforme ADR-004. |
@@ -122,7 +122,7 @@ export default defineConfig({
 | **RNF-10** | Tempo de Transição de Câmera ($\le 800$ ms) | **DEFERRED (SPEC 07)** | Depende do `CameraRig` 3D da Spec 07. |
 | **RNF-11** | Compatibilidade com Navegadores e Fallback sem WebGL | **PARTIAL** | Detecção de suporte WebGL, ErrorBoundary, listeners de `webglcontextlost`/`webglcontextrestored` e fallback vetorial 2D (`ShowcaseFallback.tsx`) verificados em JSDOM e Chromium headless (`runChromiumSmoke.js`); não há execução automatizada de suíte cross-browser em Firefox, Safari e Edge no CI. |
 | **RNF-12** | Tolerância a Redimensionamento de Janela ($< 16$ ms) | **PARTIAL** | Layout CSS responsivo e Canvas fluido adaptam-se ao resize; telemetria de tempo de recalibração $< 16\text{ ms}$ em GPU não medida em CI. |
-| **RNF-13** | Cobertura de Testes de Componentes UI ($> 85\%$) | **VERIFIED** | 53 testes em `Spec06ThemeAndHUD.test.tsx`; cobertura de linhas superior a 91% nos pacotes `ui/components/game` (98,54%), `ui/components/hub` (>93%), `ui/components/navigation` (98,18%), `ui/components/pieces` (100%), `ui/components/primitives` (91,58%) e `ui/theme` (98,59%). |
+| **RNF-13** | Cobertura de Testes de Componentes UI ($> 85\%$) | **VERIFIED** | 60 testes na suíte dedicada `Spec06ThemeAndHUD.test.tsx` (650 testes aprovados no total da aplicação); cobertura de linhas dos pacotes UI superior a 90%: `ui/components/game` (99,06%), `ui/components/hub` (99,75%), `ui/components/navigation` (99,84%), `ui/components/pieces` (100%), `ui/components/primitives` (95,25%) e `ui/theme` (98,59%). |
 | **RNF-14** | Economia de Consumo Energético em Segundo Plano | **VERIFIED** | Renderização sob demanda (`frameloop="demand"`), pausa por `visibilitychange` quando a aba está oculta e pausa por `IntersectionObserver` quando fora da viewport. |
 | **RNF-15** | Feedback Háptico em Dispositivos Móveis (`navigator.vibrate`) | **DEFERRED (SPEC 07/04)** | A ser integrado nos eventos de captura e xeque em dispositivos móveis. |
 
@@ -134,8 +134,8 @@ Todos os 6 quality gates obrigatórios do `GEMINI.md` foram executados e aprovad
 
 1. **`npx tsc --noEmit`**: 0 erros.
 2. **`npm run lint`**: 0 erros, 0 warnings (`--max-warnings 0`).
-3. **`npm run build`**: Compilado com sucesso (`index.css`: 3,99 kB gzip; `ChessPieceShowcase`: 4,85 kB gzip; `index.js`: 107,38 kB gzip; `vendor-three`: 239,28 kB gzip; aviso não-bloqueante de chunk > 500 kB para `vendor-three`).
-4. **`npx vitest run --coverage`**: 79 arquivos de teste aprovados, **649 testes aprovados** (incluindo os 59 testes da suíte `Spec06ThemeAndHUD.test.tsx`), 0 falhas, 0 pulados. Cobertura global de linhas de **80,92%**, com cobertura de topologias $> 95\%$.
+3. **`npm run build`**: Compilado com sucesso (`index.css`: 15,43 kB min / 3,99 kB gzip; `ChessPieceShowcase`: 15,94 kB min / 4,85 kB gzip; `index.js`: 365,26 kB min / 107,38 kB gzip; `vendor-three`: 890,09 kB min / 239,28 kB gzip; aviso não-bloqueante de chunk > 500 kB para `vendor-three`).
+4. **`npx vitest run --coverage`**: 79 arquivos de teste aprovados, **650 testes aprovados** (incluindo os 60 testes da suíte `Spec06ThemeAndHUD.test.tsx`), 0 falhas, 0 pulados. Cobertura global de linhas de **80,81% no GitHub Actions CI** (80,92% no ambiente local), com cobertura de topologias $> 95\%$.
 5. **`node scripts/runChromiumSmoke.js`**: Aprovado (`success: true`, `skipped: false`) em Chromium headless nativo.
 6. **`npm run bench:memory`**: Aprovado (`PASS`, Delta incremental de +15,83 MB dentro do limite estrito de $< 40\text{ MB}$, retenção de +0,12 MB, drift de 0,009 MB/ciclo, sem mascaramento de GC).
 

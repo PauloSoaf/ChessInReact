@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { KnightMaterialFinish } from './types';
 
 export interface IShowcaseFallbackProps {
@@ -9,10 +9,14 @@ export interface IShowcaseFallbackProps {
  * Editorial SVG Studio Fallback for the Staunton Knight Showcase.
  * Provides zero-WebGL vector sculpture with calibrated studio gradients and pedestal framing
  * matching the coaxial 3D Lathe/Extrude Staunton Knight.
+ * Uses React useId() to guarantee collision-free SVG gradient IDs across simultaneous mounts.
  */
 export const ShowcaseFallback: React.FC<IShowcaseFallbackProps> = ({
   finish = 'antique-brass',
 }) => {
+  const reactId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  const gradientId = `knight-grad-${finish}-${reactId}`;
+
   const getStopColors = () => {
     switch (finish) {
       case 'obsidian':
@@ -93,7 +97,7 @@ export const ShowcaseFallback: React.FC<IShowcaseFallbackProps> = ({
       >
         <title>{`Cavalo Staunton - ${finish}`}</title>
         <defs>
-          <linearGradient id={`knight-grad-${finish}`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor={colors.start} />
             <stop offset="52%" stopColor={colors.mid} />
             <stop offset="100%" stopColor={colors.end} />
@@ -131,7 +135,7 @@ export const ShowcaseFallback: React.FC<IShowcaseFallbackProps> = ({
           width="74"
           height="10"
           rx="5"
-          fill={`url(#knight-grad-${finish})`}
+          fill={`url(#${gradientId})`}
           stroke={colors.stroke}
           strokeWidth="0.9"
         />
@@ -147,7 +151,7 @@ export const ShowcaseFallback: React.FC<IShowcaseFallbackProps> = ({
         />
         <path
           d="M41 125 C43 116, 97 116, 99 125 Z"
-          fill={`url(#knight-grad-${finish})`}
+          fill={`url(#${gradientId})`}
           stroke={colors.stroke}
           strokeWidth="0.9"
         />
@@ -171,7 +175,7 @@ export const ShowcaseFallback: React.FC<IShowcaseFallbackProps> = ({
         />
         <path
           d="M55 32 L60 18 L66 30 Z"
-          fill={`url(#knight-grad-${finish})`}
+          fill={`url(#${gradientId})`}
           stroke={colors.stroke}
           strokeWidth="0.9"
         />
@@ -189,7 +193,7 @@ export const ShowcaseFallback: React.FC<IShowcaseFallbackProps> = ({
              C69 69, 67 74, 72 80
              C83 89, 88 99, 86 112
              Z"
-          fill={`url(#knight-grad-${finish})`}
+          fill={`url(#${gradientId})`}
           stroke={colors.stroke}
           strokeWidth="1.2"
           strokeLinejoin="round"

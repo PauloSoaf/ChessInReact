@@ -1750,7 +1750,7 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       expect(document.documentElement.classList.contains('theme-midnight')).toBe(true);
     });
 
-    it('renders all 6 chess pieces across all 3 piece sets with distinct silhouettes for White and Black', () => {
+    it('verifies structural geometric differentiation across all 6 chess pieces and distinct White/Black palettes across all 3 sets', () => {
       const pieceTypes = ['KING', 'QUEEN', 'ROOK', 'BISHOP', 'KNIGHT', 'PAWN'] as const;
       const sets: Array<'neo-classic' | 'tournament-vector' | 'pixel-art'> = [
         'neo-classic',
@@ -1759,25 +1759,89 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       ];
 
       for (const pieceSetId of sets) {
+        const bodyPaths: string[] = [];
+
         for (const pieceType of pieceTypes) {
           const { container: whiteContainer, unmount: unmountWhite } = render(
             <PieceRenderer variantId={pieceType} ownerId="P1" pieceSet={pieceSetId} />
           );
-          expect(whiteContainer.firstChild).not.toBeNull();
-          if (pieceSetId !== 'neo-classic') {
-            const svg = whiteContainer.querySelector('svg');
-            expect(svg).not.toBeNull();
-            expect(svg?.querySelector('title')?.textContent).toBeTruthy();
-          }
-          unmountWhite();
+          const svgWhite = whiteContainer.querySelector('svg');
+          expect(svgWhite).not.toBeNull();
+          const firstPathWhite = svgWhite?.querySelector('path')?.getAttribute('d') || '';
+          expect(firstPathWhite).toBeTruthy();
+          bodyPaths.push(firstPathWhite);
 
           const { container: blackContainer, unmount: unmountBlack } = render(
             <PieceRenderer variantId={pieceType} ownerId="P2" pieceSet={pieceSetId} />
           );
-          expect(blackContainer.firstChild).not.toBeNull();
+          const svgBlack = blackContainer.querySelector('svg');
+          expect(svgBlack).not.toBeNull();
+
+          // Verify White and Black have distinct styling/fills
+          if (pieceSetId === 'tournament-vector') {
+            expect(svgWhite?.getAttribute('fill')).toBe('#FAF8F5');
+            expect(svgBlack?.getAttribute('fill')).toBe('#161E29');
+          } else if (pieceSetId === 'neo-classic') {
+            expect(svgWhite?.getAttribute('fill')).toBe('#FAF8F4');
+            expect(svgBlack?.getAttribute('fill')).toBe('#141B24');
+          } else if (pieceSetId === 'pixel-art') {
+            const fillPathWhite = svgWhite?.querySelectorAll('path')[1]?.getAttribute('fill');
+            const fillPathBlack = svgBlack?.querySelectorAll('path')[1]?.getAttribute('fill');
+            expect(fillPathWhite).toBe('#F8FAFC');
+            expect(fillPathBlack).toBe('#334155');
+          }
+
+          unmountWhite();
           unmountBlack();
         }
+
+        // Structural uniqueness proof: each set provides 6 mutually distinct piece geometries
+        const uniquePaths = new Set(bodyPaths);
+        expect(uniquePaths.size).toBe(6);
       }
+    });
+
+    it('verifies ShowcaseFallback SVG studio palette, valid geometry, and collision-free gradient IDs across simultaneous mounts', () => {
+      // Mount 4 instances simultaneously: 2 brass, 1 obsidian, 1 ivory
+      const { container, unmount } = render(
+        <div>
+          <ShowcaseFallback finish="antique-brass" />
+          <ShowcaseFallback finish="antique-brass" />
+          <ShowcaseFallback finish="obsidian" />
+          <ShowcaseFallback finish="ivory-marble" />
+        </div>
+      );
+
+      const svgs = container.querySelectorAll('svg#chess-piece-fallback-svg');
+      expect(svgs.length).toBe(4);
+
+      // Verify all linearGradient IDs are 100% unique in DOM
+      const gradients = container.querySelectorAll('linearGradient');
+      expect(gradients.length).toBe(4);
+      const gradientIds = Array.from(gradients).map((g) => g.getAttribute('id') || '');
+      expect(new Set(gradientIds).size).toBe(4);
+
+      // Verify each SVG's elements reference its own local unique gradient ID
+      svgs.forEach((svg, idx) => {
+        const localGradId = gradientIds[idx];
+        const rect = svg.querySelector('rect');
+        expect(rect?.getAttribute('fill')).toBe(`url(#${localGradId})`);
+      });
+
+      // Verify finish-specific calibrated stop colors
+      const brassStops = Array.from(gradients[0].querySelectorAll('stop')).map((s) => s.getAttribute('stop-color'));
+      expect(brassStops[0]).toBe('#E6CFA8');
+      expect(brassStops[2]).toBe('#7A613E');
+
+      const obsidianStops = Array.from(gradients[2].querySelectorAll('stop')).map((s) => s.getAttribute('stop-color'));
+      expect(obsidianStops[0]).toBe('#2D3744');
+      expect(obsidianStops[2]).toBe('#090D11');
+
+      const ivoryStops = Array.from(gradients[3].querySelectorAll('stop')).map((s) => s.getAttribute('stop-color'));
+      expect(ivoryStops[0]).toBe('#FFFFFF');
+      expect(ivoryStops[2]).toBe('#D5CFC2');
+
+      unmount();
     });
 
     it('harmonizes 2D ShowcaseFallback SVG with coaxial 3D Staunton knight across all 3 finishes', () => {
