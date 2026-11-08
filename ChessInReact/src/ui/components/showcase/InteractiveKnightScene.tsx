@@ -19,8 +19,9 @@ export const InteractiveKnightScene: React.FC<IInteractiveKnightSceneProps> = ({
   const groupRef = useRef<THREE.Group>(null);
   const { pointer, invalidate, gl } = useThree();
 
-  // Baseline 3/4 beauty profile angle (approx 35 degrees)
-  const baseRotationY = 0.55;
+  // Baseline 3/4 sculptural beauty angle (~31 deg yaw, slight 3.5 deg forward pitch)
+  const baseRotationY = 0.54;
+  const baseRotationX = 0.06;
 
   // Invalidate immediately on finish or theme change or mount
   React.useEffect(() => {
@@ -54,14 +55,14 @@ export const InteractiveKnightScene: React.FC<IInteractiveKnightSceneProps> = ({
 
     if (reducedMotion) {
       groupRef.current.rotation.y = baseRotationY;
-      groupRef.current.rotation.x = 0;
-      groupRef.current.position.y = -0.26;
+      groupRef.current.rotation.x = baseRotationX;
+      groupRef.current.position.y = 0.15;
       return;
     }
 
     // 1. Interactive Pointer Tilt (Smooth Lerp dampened by delta)
     const targetY = baseRotationY + pointer.x * 0.45;
-    const targetX = -pointer.y * 0.22;
+    const targetX = baseRotationX - pointer.y * 0.22;
 
     const lerpSpeed = Math.min(delta * 5.0, 1);
     const currentY = groupRef.current.rotation.y;
@@ -72,7 +73,7 @@ export const InteractiveKnightScene: React.FC<IInteractiveKnightSceneProps> = ({
 
     groupRef.current.rotation.y = nextY;
     groupRef.current.rotation.x = nextX;
-    groupRef.current.position.y = -0.26;
+    groupRef.current.position.y = 0.15;
 
     // In frameloop="demand", only schedule the next frame if still converging
     const deltaY = Math.abs(nextY - targetY);
@@ -85,8 +86,12 @@ export const InteractiveKnightScene: React.FC<IInteractiveKnightSceneProps> = ({
   return (
     <>
       <StudioEnvironment theme={theme} />
-      <group ref={groupRef} position={[0, -0.26, 0]}>
-        <ProceduralKnight finish={finish} scale={0.84} />
+      <group
+        ref={groupRef}
+        position={[0, 0.15, 0]}
+        rotation={[baseRotationX, baseRotationY, 0]}
+      >
+        <ProceduralKnight finish={finish} scale={0.72} />
       </group>
     </>
   );

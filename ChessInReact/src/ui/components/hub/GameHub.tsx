@@ -411,7 +411,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                     right: '1rem',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
+                    justifyContent: 'center',
                     pointerEvents: 'none',
                   }}
                 >
@@ -423,8 +423,8 @@ export const GameHub: React.FC<IGameHubProps> = ({
                       letterSpacing: '0.06em',
                       color: 'var(--text-secondary)',
                       backgroundColor: 'var(--bg-surface-glass)',
-                      padding: '0.26rem 0.6rem',
-                      borderRadius: 'var(--radius-sm)',
+                      padding: '0.28rem 0.75rem',
+                      borderRadius: 'var(--radius-full)',
                       border: '1px solid var(--border-subtle)',
                     }}
                   >

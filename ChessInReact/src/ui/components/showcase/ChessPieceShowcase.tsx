@@ -317,7 +317,7 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
                   <Canvas
                     key={`showcase-canvas-${remountKey}`}
                     frameloop="demand"
-                    camera={{ position: [0, 0.45, 4.0], fov: 40 }}
+                    camera={{ position: [0, 0.16, 4.15], fov: 38 }}
                     dpr={[1, 1.5]}
                     gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
                     style={{ width: '100%', height: '100%', pointerEvents: 'auto', touchAction: 'none' }}

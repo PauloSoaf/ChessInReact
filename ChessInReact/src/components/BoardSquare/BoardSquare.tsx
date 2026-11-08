@@ -145,15 +145,16 @@ const BoardSquare: React.FC<IBoardSquare> = ({
           data-testid="coordinate-rank"
           style={{
             position: 'absolute',
-            top: '3px',
-            left: '5px',
-            fontSize: '0.6875rem',
+            top: '2px',
+            left: '3.5px',
+            fontSize: '0.58rem',
             fontFamily: 'var(--font-mono)',
             fontWeight: 800,
             color: coordLabelColor,
-            opacity: 0.88,
+            opacity: 0.85,
             pointerEvents: 'none',
             lineHeight: 1,
+            zIndex: 2,
           }}
         >
           {rankLabel}
@@ -165,15 +166,16 @@ const BoardSquare: React.FC<IBoardSquare> = ({
           data-testid="coordinate-file"
           style={{
             position: 'absolute',
-            bottom: '3px',
-            right: '5px',
-            fontSize: '0.6875rem',
+            bottom: '2px',
+            right: '3.5px',
+            fontSize: '0.58rem',
             fontFamily: 'var(--font-mono)',
             fontWeight: 800,
             color: coordLabelColor,
-            opacity: 0.88,
+            opacity: 0.85,
             pointerEvents: 'none',
             lineHeight: 1,
+            zIndex: 2,
           }}
         >
           {fileLabel}
