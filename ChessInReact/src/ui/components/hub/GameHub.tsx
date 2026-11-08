@@ -80,14 +80,44 @@ const DIFFICULTY_META: {
   level: number;
   name: string;
   desc: string;
-  elo: string;
-  depthTag: string;
+  profile: string;
+  cadence: string;
 }[] = [
-  { level: 1, name: 'Iniciante', desc: 'Exploração rápida com lances acessíveis.', elo: '~800 ELO', depthTag: '120 sims' },
-  { level: 2, name: 'Casual', desc: 'Equilíbrio tático para partidas dinâmicas.', elo: '~1200 ELO', depthTag: '300 sims' },
-  { level: 3, name: 'Tático', desc: 'Cálculo sólido de médio alcance via MCTS.', elo: '~1600 ELO', depthTag: '650 sims' },
-  { level: 4, name: 'Mestre', desc: 'Busca profunda em árvore com alta precisão.', elo: '~2000 ELO', depthTag: '1.2k sims' },
-  { level: 5, name: 'Grande Mestre', desc: 'Força máxima do motor paralelo em Web Worker.', elo: '2400+ ELO', depthTag: '2.5k sims' },
+  {
+    level: 1,
+    name: 'Iniciante',
+    desc: 'Ideal para praticar movimentos fundamentais, capturas e desenvolvimento inicial.',
+    profile: 'Treino Base',
+    cadence: 'Ritmo Acessível',
+  },
+  {
+    level: 2,
+    name: 'Casual',
+    desc: 'Transições fluidas para partidas recreativas e consolidação tática.',
+    profile: 'Jogo Equilibrado',
+    cadence: 'Ritmo Dinâmico',
+  },
+  {
+    level: 3,
+    name: 'Tático',
+    desc: 'Explora peças desprotegidas e exige atenção constante na defesa.',
+    profile: 'Intermediário',
+    cadence: 'Combinações Ativas',
+  },
+  {
+    level: 4,
+    name: 'Forte',
+    desc: 'Pressão posicional contínua no meio-jogo e coordenação precisa de peças.',
+    profile: 'Avançado',
+    cadence: 'Cálculo Profundo',
+  },
+  {
+    level: 5,
+    name: 'Mestre',
+    desc: 'Leitura tática exigente para jogadores que buscam partidas de alto rigor.',
+    profile: 'Desafio Máximo',
+    cadence: 'Rigor Competitivo',
+  },
 ];
 
 export const GameHub: React.FC<IGameHubProps> = ({
@@ -206,20 +236,21 @@ export const GameHub: React.FC<IGameHubProps> = ({
             </div>
 
             <h1 className="hub-hero-title">
-              Precisão Tática &amp;{' '}
+              Domínio Tático &amp;{' '}
               <span
                 style={{
                   color: 'var(--color-accent)',
                   display: 'inline-block',
                 }}
               >
-                Arquitetura Reativa
+                Estudo de Partida
               </span>
             </h1>
 
             <p className="hub-hero-lead">
-              Motor determinístico com busca MCTS assíncrona em Web Worker, validação formal de
-              regras e ateliê visual personalizável em três atmosferas editoriais.
+              Pratique contra cinco níveis de desafio ou dispute partidas presenciais no mesmo
+              dispositivo, com avaliação posicional, revisão livre de jogadas e três atmosferas
+              visuais.
             </p>
 
             {/* Primary & Secondary Hero Actions */}
@@ -302,18 +333,18 @@ export const GameHub: React.FC<IGameHubProps> = ({
               </ActionButton>
             </div>
 
-            {/* Technical Architecture Strip */}
+            {/* Player Experience Highlights Strip */}
             <div className="hub-specs-strip">
               <div className="hub-spec-item">
-                <span className="hub-spec-value">Web Worker MCTS</span>
-                <span className="hub-spec-label">Cálculo isolado 60 FPS</span>
+                <span className="hub-spec-value">5 Níveis de Desafio</span>
+                <span className="hub-spec-label">Do treino iniciante ao rigor tático</span>
               </div>
               <div className="hub-spec-item">
-                <span className="hub-spec-value">ECS + Zustand</span>
-                <span className="hub-spec-label">Histórico Undo/Redo O(1)</span>
+                <span className="hub-spec-value">Revisão de Lances</span>
+                <span className="hub-spec-label">Desfazer, refazer e avaliação da posição</span>
               </div>
               <div className="hub-spec-item">
-                <span className="hub-spec-value">3 Atmosferas + 3D</span>
+                <span className="hub-spec-value">3 Atmosferas Visuais</span>
                 <span className="hub-spec-label">Midnight, Ivory &amp; Synthwave</span>
               </div>
             </div>
@@ -521,7 +552,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                       Partida contra Robô (IA)
                     </h3>
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                      Motor MCTS Assíncrono • Barra de Avaliação Centipawn
+                      5 Níveis de Desafio • Avaliação Posicional ao Vivo
                     </span>
                   </div>
                 </div>
@@ -539,13 +570,13 @@ export const GameHub: React.FC<IGameHubProps> = ({
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {activeDiff.elo}
+                  {activeDiff.profile}
                 </span>
               </div>
 
               <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.58 }}>
-                Enfrente o motor de busca em árvore Monte Carlo com simulação dedicada fora da thread
-                principal, avaliação em tempo real e cinco patamares de profundidade.
+                Escolha o nível do adversário para estudo de aberturas, treino tático ou partidas
+                completas com leitura contínua de vantagem no tabuleiro.
               </p>
 
               {/* Difficulty Selector Panel */}
@@ -573,7 +604,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                       border: '1px solid var(--border-subtle)',
                     }}
                   >
-                    Nível {botDifficulty}/5 • {activeDiff.depthTag}
+                    Nível {botDifficulty}/5 • {activeDiff.cadence}
                   </span>
                 </div>
 
@@ -683,7 +714,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                       Duelo Local (Pass &amp; Play)
                     </h3>
                     <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                      2 Jogadores • Estudo Tático &amp; Tabuleiro Reversível
+                      2 Jogadores • Partida Presencial &amp; Estudo Livre
                     </span>
                   </div>
                 </div>
@@ -701,23 +732,23 @@ export const GameHub: React.FC<IGameHubProps> = ({
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  PvP Local
+                  2 Jogadores
                 </span>
               </div>
 
               <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.58 }}>
                 Dispute partidas presenciais ou conduza análises livres com inversão instantânea de
-                perspectiva, histórico completo de movimentos e dimensões configuráveis até 16×16.
+                perspectiva, histórico de movimentos e tabuleiros configuráveis de 4×4 a 16×16.
               </p>
 
               {/* Feature Grid for Pass & Play */}
               <div className="hub-feature-grid">
                 <div className="hub-feature-pill">
                   <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    Undo / Redo Ilimitado
+                    Desfazer &amp; Refazer
                   </span>
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    Reversão determinística de lances
+                    Revise jogadas e teste linhas alternativas
                   </span>
                 </div>
                 <div className="hub-feature-pill">
@@ -725,23 +756,23 @@ export const GameHub: React.FC<IGameHubProps> = ({
                     Inversão de Tabuleiro
                   </span>
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    Rotação lógica sem distorção
+                    Alterne a visão entre Brancas e Pretas
                   </span>
                 </div>
                 <div className="hub-feature-pill">
                   <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    Escala 3×3 a 16×16
+                    Grade 4×4 a 16×16
                   </span>
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    Topologia quadrada adaptativa
+                    Do clássico 8×8 a tabuleiros expandidos
                   </span>
                 </div>
                 <div className="hub-feature-pill">
                   <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    Assistência Visual
+                    Guias de Movimento
                   </span>
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    Destinos legais e capturas claras
+                    Destaque de casas legais e capturas
                   </span>
                 </div>
               </div>

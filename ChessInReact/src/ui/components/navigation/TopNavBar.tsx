@@ -46,7 +46,7 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.15rem' }}>
           <BrandMark
             size="md"
-            subtitleText="Editorial Chess Atelier"
+            subtitleText="Ateliê de Xadrez"
             onClick={() => onNavigate('HUB')}
           />
 
@@ -83,7 +83,7 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
                   animation: isGameOver ? 'none' : 'pulseTurn 2s infinite',
                 }}
               />
-              <span style={{ color: 'var(--text-primary)' }}>Turn #{turnNumber}</span>
+              <span style={{ color: 'var(--text-primary)' }}>Turno #{turnNumber}</span>
               <span style={{ opacity: 0.45 }}>•</span>
               <span
                 style={{
@@ -91,7 +91,7 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
                   fontWeight: 700,
                 }}
               >
-                {activePlayer === 'P1' ? 'White' : 'Black'}
+                {activePlayer === 'P1' ? 'Brancas' : 'Pretas'}
               </span>
             </div>
           )}

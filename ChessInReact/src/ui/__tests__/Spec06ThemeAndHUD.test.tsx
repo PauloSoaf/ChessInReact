@@ -203,7 +203,7 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       );
 
       expect(screen.getByText('ChessInReact')).toBeDefined();
-      expect(screen.getByText(/Turn #/i)).toBeDefined();
+      expect(screen.getByText(/Turno #/i)).toBeDefined();
 
       const hubBtn = screen.getByRole('button', { name: /Game Hub/i });
       fireEvent.click(hubBtn);
@@ -748,15 +748,15 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       fireEvent.click(checkbox);
       expect(onToggleBot).toHaveBeenCalledWith(false);
 
-      const undoBtn = screen.getByRole('button', { name: /Undo/i });
+      const undoBtn = screen.getByRole('button', { name: /Desfazer/i });
       fireEvent.click(undoBtn);
       expect(onUndo).toHaveBeenCalled();
 
-      const redoBtn = screen.getByRole('button', { name: /Redo/i });
+      const redoBtn = screen.getByRole('button', { name: /Refazer/i });
       fireEvent.click(redoBtn);
       expect(onRedo).toHaveBeenCalled();
 
-      const resetBtn = screen.getByRole('button', { name: /Reset Match/i });
+      const resetBtn = screen.getByRole('button', { name: /Reiniciar Partida/i });
       fireEvent.click(resetBtn);
       expect(onReset).toHaveBeenCalled();
     });
@@ -1624,6 +1624,191 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
 
       const faviconPath = path.resolve(__dirname, '../../../public/favicon.svg');
       expect(fs.existsSync(faviconPath)).toBe(true);
+    });
+  });
+
+  describe('Spec 06 Product UX & Visual Polish Verification (POLISH-02)', () => {
+    it('renders player-focused GameHub copy without internal architecture jargon or unverified ELO claims', async () => {
+      let container!: HTMLElement;
+      await act(async () => {
+        const rendered = render(
+          <GameHub
+            onStartBotMatch={vi.fn()}
+            onStartLocalMatch={vi.fn()}
+            onResumeMatch={vi.fn()}
+            hasActiveMatch={false}
+            turnNumber={1}
+            botEnabled={true}
+            botDifficulty={3}
+            onSelectDifficulty={vi.fn()}
+            onOpenThemeModal={vi.fn()}
+          />
+        );
+        container = rendered.container;
+      });
+
+      const text = container.textContent || '';
+
+      // Player-centered highlights are present
+      expect(text).toContain('Domínio Tático');
+      expect(text).toContain('5 Níveis de Desafio');
+      expect(text).toContain('Revisão de Lances');
+      expect(text).toContain('3 Atmosferas Visuais');
+      expect(text).toContain('Desfazer & Refazer');
+      expect(text).toContain('Inversão de Tabuleiro');
+
+      // Internal architecture jargon and uncalibrated ELO/sims claims are absent
+      expect(text).not.toContain('ECS + Zustand');
+      expect(text).not.toContain('Undo/Redo O(1)');
+      expect(text).not.toContain('Web Worker MCTS');
+      expect(text).not.toContain('Cálculo isolado 60 FPS');
+      expect(text).not.toContain('Arquitetura Reativa');
+      expect(text).not.toContain('ELO');
+      expect(text).not.toContain('sims');
+    });
+
+    it('unifies HUD and match controls in Portuguese and replaces internal Revision R0 with player turn info', async () => {
+      let container!: HTMLElement;
+      await act(async () => {
+        const rendered = render(<App />);
+        container = rendered.container;
+      });
+
+      const gameTabBtn = document.getElementById('nav-btn-game');
+      if (gameTabBtn) {
+        fireEvent.click(gameTabBtn);
+      }
+
+      const text = container.textContent || '';
+
+      // Player-oriented telemetry and Portuguese controls
+      expect(text).toContain('Turno');
+      expect(text).toContain('Vez de Jogar');
+      expect(text).toContain('Brancas');
+      expect(text).toContain('Tabuleiro');
+      expect(text).toContain('8×8');
+
+      // Internal state revision counter and mixed English buttons must not leak into HUD
+      expect(text).not.toContain('Revisão');
+      expect(text).not.toContain('R0');
+
+      expect(screen.getByRole('button', { name: /Desfazer/i })).toBeDefined();
+      expect(screen.getByRole('button', { name: /Refazer/i })).toBeDefined();
+      expect(screen.getByRole('button', { name: /Reiniciar Partida/i })).toBeDefined();
+      expect(screen.queryByRole('button', { name: /^Undo$/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /^Redo$/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /Reset Match/i })).toBeNull();
+    });
+
+    it('renders TopNavBar with Portuguese turn indicator for both Brancas and Pretas and cycles quick theme toggle', () => {
+      const { container, rerender } = render(
+        <ThemeProvider>
+          <TopNavBar
+            currentView="GAME"
+            onNavigate={vi.fn()}
+            onOpenThemeModal={vi.fn()}
+            isMatchActive={true}
+            turnNumber={5}
+            activePlayer="P1"
+          />
+        </ThemeProvider>
+      );
+
+      const statusPill = container.querySelector('.nav-status-pill');
+      expect(statusPill).not.toBeNull();
+      expect(statusPill?.textContent).toContain('Turno #5');
+      expect(statusPill?.textContent).toContain('Brancas');
+      expect(screen.getByText(/Ateliê de Xadrez/i)).toBeDefined();
+
+      rerender(
+        <ThemeProvider>
+          <TopNavBar
+            currentView="GAME"
+            onNavigate={vi.fn()}
+            onOpenThemeModal={vi.fn()}
+            isMatchActive={true}
+            turnNumber={6}
+            activePlayer="P2"
+          />
+        </ThemeProvider>
+      );
+
+      expect(container.querySelector('.nav-status-pill')?.textContent).toContain('Turno #6');
+      expect(container.querySelector('.nav-status-pill')?.textContent).toContain('Pretas');
+
+      const quickThemeBtn = document.getElementById('nav-quick-theme-toggle')!;
+      expect(quickThemeBtn).not.toBeNull();
+      expect(document.documentElement.classList.contains('theme-midnight')).toBe(true);
+
+      fireEvent.click(quickThemeBtn);
+      expect(document.documentElement.classList.contains('theme-ivory')).toBe(true);
+
+      fireEvent.click(quickThemeBtn);
+      expect(document.documentElement.classList.contains('theme-synthwave')).toBe(true);
+
+      fireEvent.click(quickThemeBtn);
+      expect(document.documentElement.classList.contains('theme-midnight')).toBe(true);
+    });
+
+    it('renders all 6 chess pieces across all 3 piece sets with distinct silhouettes for White and Black', () => {
+      const pieceTypes = ['KING', 'QUEEN', 'ROOK', 'BISHOP', 'KNIGHT', 'PAWN'] as const;
+      const sets: Array<'neo-classic' | 'tournament-vector' | 'pixel-art'> = [
+        'neo-classic',
+        'tournament-vector',
+        'pixel-art',
+      ];
+
+      for (const pieceSetId of sets) {
+        for (const pieceType of pieceTypes) {
+          const { container: whiteContainer, unmount: unmountWhite } = render(
+            <PieceRenderer variantId={pieceType} ownerId="P1" pieceSet={pieceSetId} />
+          );
+          expect(whiteContainer.firstChild).not.toBeNull();
+          if (pieceSetId !== 'neo-classic') {
+            const svg = whiteContainer.querySelector('svg');
+            expect(svg).not.toBeNull();
+            expect(svg?.querySelector('title')?.textContent).toBeTruthy();
+          }
+          unmountWhite();
+
+          const { container: blackContainer, unmount: unmountBlack } = render(
+            <PieceRenderer variantId={pieceType} ownerId="P2" pieceSet={pieceSetId} />
+          );
+          expect(blackContainer.firstChild).not.toBeNull();
+          unmountBlack();
+        }
+      }
+    });
+
+    it('harmonizes 2D ShowcaseFallback SVG with coaxial 3D Staunton knight across all 3 finishes', () => {
+      const finishes: Array<'antique-brass' | 'obsidian' | 'ivory-marble'> = [
+        'antique-brass',
+        'obsidian',
+        'ivory-marble',
+      ];
+
+      for (const finish of finishes) {
+        const { container, unmount } = render(<ShowcaseFallback finish={finish} />);
+        const wrapper = screen.getByTestId('showcase-fallback-vector');
+        expect(wrapper.getAttribute('aria-label')).toContain(finish);
+        const svg = container.querySelector('svg');
+        expect(svg).not.toBeNull();
+        expect(svg?.querySelector('title')?.textContent).toContain(finish);
+        // Includes coaxial orbital ring, pedestal base elements, twin ears, and eye
+        expect(svg?.querySelectorAll('ellipse, circle').length).toBeGreaterThanOrEqual(3);
+        expect(svg?.querySelectorAll('path').length).toBeGreaterThanOrEqual(5);
+        unmount();
+      }
+    });
+
+    it('ensures theme.css does not mask horizontal overflow with overflow-x: hidden on html or body', () => {
+      const cssPath = path.resolve(__dirname, '../theme/theme.css');
+      const cssContent = fs.readFileSync(cssPath, 'utf-8');
+
+      // Extract html, body rule block and verify overflow-x: hidden is not used
+      const htmlBodyMatch = cssContent.match(/html,\s*body\s*\{[^}]*\}/);
+      expect(htmlBodyMatch).not.toBeNull();
+      expect(htmlBodyMatch![0]).not.toContain('overflow-x: hidden');
     });
   });
 });

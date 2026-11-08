@@ -83,7 +83,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
             type="button"
             variant="secondary"
             size="sm"
-            aria-label="Undo"
+            aria-label="Desfazer"
             onClick={onUndo}
             leadingIcon={
               <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -91,7 +91,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
               </svg>
             }
           >
-            Undo
+            Desfazer
           </ActionButton>
 
           <ActionButton
@@ -99,7 +99,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
             type="button"
             variant="secondary"
             size="sm"
-            aria-label="Redo"
+            aria-label="Refazer"
             onClick={onRedo}
             leadingIcon={
               <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -107,14 +107,14 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
               </svg>
             }
           >
-            Redo
+            Refazer
           </ActionButton>
         </div>
       </div>
 
       <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)' }} />
 
-      {/* Section 2: AI Engine Configuration (MCTS Worker) */}
+      {/* Section 2: AI Opponent Configuration */}
       <div
         style={{
           display: 'flex',
@@ -153,7 +153,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
                 borderRadius: 'var(--radius-xs)',
               }}
             />
-            <span>Oponente IA (Pretas - P2)</span>
+            <span>Oponente IA (Pretas)</span>
           </label>
 
           <span
@@ -168,7 +168,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
               border: '1px solid var(--border-subtle)',
             }}
           >
-            {isBotEnabled ? `CP ${formattedEval}` : 'Pass & Play'}
+            {isBotEnabled ? `Aval: ${formattedEval}` : '2 Jogadores'}
           </span>
         </div>
 
@@ -203,11 +203,11 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
               outline: 'none',
             }}
           >
-            <option value={1}>D1 — Iniciante (1 ply)</option>
-            <option value={2}>D2 — Casual (2 plies)</option>
-            <option value={3}>D3 — Intermediário (3 plies)</option>
-            <option value={4}>D4 — Avançado (4 plies)</option>
-            <option value={5}>D5 — Mestre (5+ plies)</option>
+            <option value={1}>N1 — Iniciante</option>
+            <option value={2}>N2 — Casual</option>
+            <option value={3}>N3 — Tático</option>
+            <option value={4}>N4 — Forte</option>
+            <option value={5}>N5 — Mestre</option>
           </select>
         </div>
       </div>
@@ -339,7 +339,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
           type="button"
           variant="danger"
           size="sm"
-          aria-label="Reset Match"
+          aria-label="Reiniciar Partida"
           onClick={onReset}
           leadingIcon={
             <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -347,7 +347,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
             </svg>
           }
         >
-          Reset Match
+          Reiniciar Partida
         </ActionButton>
       </div>
     </Card>

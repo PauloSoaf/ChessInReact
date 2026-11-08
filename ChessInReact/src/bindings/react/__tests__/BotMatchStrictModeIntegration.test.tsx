@@ -155,8 +155,8 @@ describe('Spec 05 React.StrictMode Human vs Bot Autonomous Match Integration Sui
       { timeout: 3000 }
     );
 
-    // Click Undo
-    const undoButton = screen.getByRole('button', { name: /Undo/i });
+    // Click Undo (Desfazer)
+    const undoButton = screen.getByRole('button', { name: /Desfazer/i });
     fireEvent.click(undoButton);
 
     // Must undo full round: turn returns to Turn 1 (White's turn) without triggering Black
@@ -198,7 +198,7 @@ describe('Spec 05 React.StrictMode Human vs Bot Autonomous Match Integration Sui
     fireEvent.click(screen.getByTestId('square-4,3'));
 
     // Reset match
-    const resetButton = screen.getByRole('button', { name: /Reset Match/i });
+    const resetButton = screen.getByRole('button', { name: /Reiniciar Partida/i });
     fireEvent.click(resetButton);
 
     expect(gameStore.getState().domain.activePlayer).toBe('P1');
@@ -237,7 +237,7 @@ describe('Spec 05 React.StrictMode Human vs Bot Autonomous Match Integration Sui
     expect(botRespondedPieceId).toBeDefined();
 
     // 2. Click Undo: rolls back full 2-ply round to Turn 1 (White's turn)
-    const undoButton = screen.getByRole('button', { name: /Undo/i });
+    const undoButton = screen.getByRole('button', { name: /Desfazer/i });
     fireEvent.click(undoButton);
 
     expect(gameStore.getState().domain.activePlayer).toBe('P1');
@@ -246,7 +246,7 @@ describe('Spec 05 React.StrictMode Human vs Bot Autonomous Match Integration Sui
     expect(screen.getByTestId('square-4,3').textContent).not.toContain('♟');
 
     // 3. Click Redo: restores full 2-ply round to Turn 3 (White's turn) with bot's exact previous move
-    const redoButton = screen.getByRole('button', { name: /Redo/i });
+    const redoButton = screen.getByRole('button', { name: /Refazer/i });
     fireEvent.click(redoButton);
 
     expect(gameStore.getState().domain.activePlayer).toBe('P1');
@@ -303,8 +303,8 @@ describe('Spec 05 React.StrictMode Human vs Bot Autonomous Match Integration Sui
       { timeout: 3000 }
     );
 
-    const undoButton = screen.getByRole('button', { name: /Undo/i });
-    const redoButton = screen.getByRole('button', { name: /Redo/i });
+    const undoButton = screen.getByRole('button', { name: /Desfazer/i });
+    const redoButton = screen.getByRole('button', { name: /Refazer/i });
 
     // Undo Round 2
     fireEvent.click(undoButton);

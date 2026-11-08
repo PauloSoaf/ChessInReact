@@ -7,7 +7,8 @@ export interface IShowcaseFallbackProps {
 
 /**
  * Editorial SVG Studio Fallback for the Staunton Knight Showcase.
- * Provides zero-WebGL vector sculpture with calibrated studio gradients and pedestal framing.
+ * Provides zero-WebGL vector sculpture with calibrated studio gradients and pedestal framing
+ * matching the coaxial 3D Lathe/Extrude Staunton Knight.
  */
 export const ShowcaseFallback: React.FC<IShowcaseFallbackProps> = ({
   finish = 'antique-brass',
@@ -19,25 +20,28 @@ export const ShowcaseFallback: React.FC<IShowcaseFallbackProps> = ({
           start: '#2D3744',
           mid: '#161C24',
           end: '#090D11',
-          stroke: '#C4A77D',
-          rim: 'rgba(196, 167, 125, 0.25)',
+          stroke: '#C8AB82',
+          collar: '#C8AB82',
+          rim: 'rgba(200, 171, 130, 0.24)',
         };
       case 'ivory-marble':
         return {
           start: '#FFFFFF',
-          mid: '#EFECE4',
+          mid: '#F3EFE6',
           end: '#D5CFC2',
           stroke: '#9A6B26',
-          rim: 'rgba(154, 107, 38, 0.22)',
+          collar: '#9A6B26',
+          rim: 'rgba(154, 107, 38, 0.2)',
         };
       case 'antique-brass':
       default:
         return {
           start: '#E6CFA8',
-          mid: '#C4A77D',
+          mid: '#C8AB82',
           end: '#7A613E',
           stroke: '#F4F1EB',
-          rim: 'rgba(196, 167, 125, 0.28)',
+          collar: '#18202A',
+          rim: 'rgba(200, 171, 130, 0.28)',
         };
     }
   };
@@ -47,8 +51,9 @@ export const ShowcaseFallback: React.FC<IShowcaseFallbackProps> = ({
   return (
     <div
       data-testid="showcase-fallback-vector"
+      data-finish={finish}
       role="img"
-      aria-label="Mostruário da peça Cavalo Staunton em 2D"
+      aria-label={`Mostruário da peça Cavalo Staunton em 2D (${finish})`}
       style={{
         width: '100%',
         height: '100%',
@@ -78,14 +83,15 @@ export const ShowcaseFallback: React.FC<IShowcaseFallbackProps> = ({
       <svg
         id="chess-piece-fallback-svg"
         viewBox="0 0 140 160"
-        width="156"
-        height="178"
+        width="162"
+        height="185"
         style={{
           filter: 'drop-shadow(0 18px 28px rgba(0, 0, 0, 0.48))',
           position: 'relative',
           zIndex: 1,
         }}
       >
+        <title>{`Cavalo Staunton - ${finish}`}</title>
         <defs>
           <linearGradient id={`knight-grad-${finish}`} x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor={colors.start} />
@@ -94,49 +100,94 @@ export const ShowcaseFallback: React.FC<IShowcaseFallbackProps> = ({
           </linearGradient>
         </defs>
 
-        {/* Studio Plinth Shadow */}
-        <ellipse cx="70" cy="144" rx="46" ry="7" fill="rgba(0,0,0,0.35)" />
+        {/* Studio Orbital Ring */}
+        <circle
+          cx="70"
+          cy="78"
+          r="58"
+          fill="none"
+          stroke={colors.stroke}
+          strokeOpacity="0.14"
+          strokeWidth="1"
+        />
 
-        {/* Pedestal Base & Collar */}
+        {/* Studio Plinth Shadow & Outer Ring */}
+        <ellipse cx="70" cy="142" rx="46" ry="7" fill="rgba(0,0,0,0.38)" />
+        <ellipse
+          cx="70"
+          cy="141"
+          rx="42"
+          ry="5.5"
+          fill="none"
+          stroke={colors.collar}
+          strokeOpacity="0.65"
+          strokeWidth="1.2"
+        />
+
+        {/* Turned Pedestal Base & Championship Collars */}
         <rect
-          x="32"
-          y="130"
-          width="76"
-          height="11"
-          rx="4"
+          x="33"
+          y="129"
+          width="74"
+          height="10"
+          rx="5"
           fill={`url(#knight-grad-${finish})`}
           stroke={colors.stroke}
           strokeWidth="0.9"
         />
+        <rect
+          x="38"
+          y="125"
+          width="64"
+          height="4"
+          rx="2"
+          fill={colors.collar}
+          stroke={colors.stroke}
+          strokeWidth="0.6"
+        />
         <path
-          d="M38 130 C38 121, 102 121, 102 130 Z"
+          d="M41 125 C43 116, 97 116, 99 125 Z"
           fill={`url(#knight-grad-${finish})`}
           stroke={colors.stroke}
           strokeWidth="0.9"
         />
         <rect
-          x="43"
-          y="116"
-          width="54"
-          height="5"
-          rx="2.5"
-          fill={colors.stroke}
-          fillOpacity="0.65"
+          x="44"
+          y="112"
+          width="52"
+          height="4.5"
+          rx="2.2"
+          fill={colors.collar}
+          stroke={colors.stroke}
+          strokeWidth="0.7"
         />
 
-        {/* Staunton Knight Sculptural Silhouette */}
+        {/* Twin Ears (Back & Front) */}
         <path
-          d="M47 116
-             C40 94, 41 66, 51 44
-             L54 32
-             L62 20
-             L68 31
-             C79 34, 92 43, 102 53
-             L113 62
-             C116 66, 114 73, 108 75
-             L90 79
-             C81 80, 77 85, 79 93
-             C86 101, 88 109, 87 116
+          d="M60 30 L64 17 L69 29 Z"
+          fill={colors.end}
+          stroke={colors.stroke}
+          strokeWidth="0.8"
+        />
+        <path
+          d="M55 32 L60 18 L66 30 Z"
+          fill={`url(#knight-grad-${finish})`}
+          stroke={colors.stroke}
+          strokeWidth="0.9"
+        />
+
+        {/* Staunton Knight Coaxial Sculptural Silhouette */}
+        <path
+          d="M47 112
+             C38 90, 39 62, 51 39
+             C55 31, 61 27, 68 28
+             C79 31, 92 43, 102 55
+             C108 61, 111 66, 109 71
+             C107 75, 101 77, 94 76
+             L87 74
+             C82 77, 77 77, 73 72
+             C69 69, 67 74, 72 80
+             C83 89, 88 99, 86 112
              Z"
           fill={`url(#knight-grad-${finish})`}
           stroke={colors.stroke}
@@ -144,16 +195,16 @@ export const ShowcaseFallback: React.FC<IShowcaseFallbackProps> = ({
           strokeLinejoin="round"
         />
 
-        {/* Sculptural Mane Crease & Eye Detail */}
+        {/* Carved Dorsal Mane Spine & Eye Detail */}
         <path
-          d="M55 44 C50 64, 50 86, 55 108"
+          d="M52 44 C44 64, 44 86, 51 107"
           fill="none"
           stroke={colors.stroke}
-          strokeWidth="0.8"
-          strokeOpacity="0.45"
+          strokeWidth="1.1"
+          strokeOpacity="0.5"
           strokeLinecap="round"
         />
-        <circle cx="80" cy="49" r="2.4" fill="#090D11" stroke={colors.stroke} strokeWidth="0.6" />
+        <circle cx="80" cy="48" r="2.4" fill="#090D11" stroke={colors.stroke} strokeWidth="0.6" />
       </svg>
     </div>
   );

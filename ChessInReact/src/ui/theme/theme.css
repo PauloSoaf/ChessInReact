@@ -194,7 +194,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
   transition: background-color var(--transition-normal), color var(--transition-normal);
   min-height: 100vh;
-  overflow-x: hidden;
 }
 
 #root {
@@ -833,6 +832,17 @@ select:focus-visible,
   .hub-hero-card {
     padding: 1.25rem 1rem;
     border-radius: var(--radius-lg);
+  }
+
+  .hub-cta-row {
+    width: 100%;
+  }
+
+  .hub-cta-row > button {
+    width: 100% !important;
+    max-width: 100% !important;
+    white-space: normal !important;
+    text-align: center;
   }
 
   .hub-hero-stage {

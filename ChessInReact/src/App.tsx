@@ -15,11 +15,11 @@ import { GameControlsBar } from './ui/components/game/GameControlsBar';
 import './ui/theme/theme.css';
 
 const DIFFICULTY_LABELS: Record<AIDifficultyLevel, string> = {
-  1: 'Iniciante (D1)',
-  2: 'Casual (D2)',
-  3: 'Intermediário (D3)',
-  4: 'Avançado (D4)',
-  5: 'Mestre (D5)',
+  1: 'Iniciante (N1)',
+  2: 'Casual (N2)',
+  3: 'Tático (N3)',
+  4: 'Forte (N4)',
+  5: 'Mestre (N5)',
 };
 
 const AppContent: React.FC = () => {
@@ -228,11 +228,11 @@ const AppContent: React.FC = () => {
               <div className="match-stage-player-wrap">
                 <PlayerCard
                   playerId="P2"
-                  displayName={isBotEnabled ? 'Robô MCTS / Alpha-Beta' : 'Jogador 2'}
+                  displayName={isBotEnabled ? 'Oponente IA' : 'Jogador 2 (Pretas)'}
                   subtitle={
                     isBotEnabled
-                      ? 'Motor Assíncrono em Web Worker'
-                      : 'Controle Manual Local (Pass & Play)'
+                      ? 'Peças Pretas • Inteligência Artificial'
+                      : 'Peças Pretas • Controle Manual Local'
                   }
                   isTurnActive={!isGameOver && activePlayer === 'P2'}
                   isThinking={isThinking}
@@ -272,15 +272,15 @@ const AppContent: React.FC = () => {
               <div className="match-stage-player-wrap">
                 <PlayerCard
                   playerId="P1"
-                  displayName="Você (Humano)"
-                  subtitle="Peças Brancas (P1) • Perspectiva Principal"
+                  displayName="Você (Brancas)"
+                  subtitle="Peças Brancas • Perspectiva Principal"
                   isTurnActive={!isGameOver && activePlayer === 'P1'}
                 />
               </div>
             </div>
 
-            {/* Right Sidebar: Match Telemetry & Tactical Controls Deck */}
-            <aside className="match-hud-sidebar" aria-label="Telemetria e Controles da Partida">
+            {/* Right Sidebar: Match Status & Tactical Controls Deck */}
+            <aside className="match-hud-sidebar" aria-label="Estado e Controles da Partida">
               <div className="match-telemetry-card">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                   <button
@@ -315,7 +315,7 @@ const AppContent: React.FC = () => {
                       color: 'var(--color-accent)',
                     }}
                   >
-                    {isBotEnabled ? `Arena vs IA (${DIFFICULTY_LABELS[difficulty]})` : 'Arena Pass & Play'}
+                    {isBotEnabled ? `Partida vs IA (${DIFFICULTY_LABELS[difficulty]})` : 'Duelo Local'}
                   </span>
                 </div>
 
@@ -352,11 +352,13 @@ const AppContent: React.FC = () => {
                     <span className="match-stat-value">#{turnNumber}</span>
                   </div>
                   <div className="match-stat-cell">
-                    <span className="match-stat-label">Revisão</span>
-                    <span className="match-stat-value">R{revision}</span>
+                    <span className="match-stat-label">Vez de Jogar</span>
+                    <span className="match-stat-value">
+                      {isGameOver ? 'Encerrada' : activePlayer === 'P1' ? 'Brancas' : 'Pretas'}
+                    </span>
                   </div>
                   <div className="match-stat-cell">
-                    <span className="match-stat-label">Dimensão</span>
+                    <span className="match-stat-label">Tabuleiro</span>
                     <span className="match-stat-value">
                       {boardSize}×{boardSize}
                     </span>

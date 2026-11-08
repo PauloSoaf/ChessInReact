@@ -73,11 +73,11 @@ export default defineConfig({
 | Artefato Gerado | Tamanho Minificado | Tamanho Gzip | Observação Arquitetural |
 | :--- | :---: | :---: | :--- |
 | `dist/index.html` | 1,23 kB | 0,63 kB | Shell HTML inicial (`lang="pt-BR"`), monta `#root`. |
-| `dist/assets/index-*.css` | 5,14 kB | 1,81 kB | Tokens CSS dos 3 temas (abaixo do limite de 30 kB do RNF-03). |
-| `dist/assets/ChessPieceShowcase-*.js` | 11,77 kB | 3,99 kB | Chunk assíncrono do showcase (`React.lazy`). |
+| `dist/assets/index-*.css` | 15,43 kB | 3,99 kB | Tokens CSS ampliados e design system responsivo (abaixo do limite de 30 kB do RNF-03). |
+| `dist/assets/ChessPieceShowcase-*.js` | 15,94 kB | 4,85 kB | Chunk assíncrono do showcase (`React.lazy`). |
 | `dist/assets/engineWorker-*.js` | 90,72 kB | — | Bundle dedicado do Web Worker (IA, Pathfinding, Procedural). |
-| `dist/assets/index-*.js` | 358,40 kB | 104,38 kB | Aplicação principal React, Core ECS, Zustand, HUD e SVG fallback. |
-| `dist/assets/vendor-three-*.js` | 890,06 kB | 239,27 kB | Motor Three.js + React Three Fiber + Drei. |
+| `dist/assets/index-*.js` | 365,26 kB | 107,38 kB | Aplicação principal React, Core ECS, Zustand, HUD unificado e SVG fallback harmonizado. |
+| `dist/assets/vendor-three-*.js` | 890,09 kB | 239,28 kB | Motor Three.js + React Three Fiber + Drei. |
 
 - **Advertência de Build Conhecida:** O Rollup/Vite emite o aviso não-bloqueante `(!) Some chunks are larger than 500 kB after minification` devido ao tamanho intrínseco da biblioteca `three` + `@react-three` agrupada em `vendor-three` (890,06 kB minificado / 239,27 kB gzip).
 - **Comportamento de Carregamento:** Como `index.html` contém apenas `<div id="root"></div>`, o SVG de fallback (`ShowcaseFallback`) é renderizado no cliente após o download e inicialização do bundle principal React (`index-*.js`). O carregamento dos chunks `ChessPieceShowcase-*.js` e `vendor-three-*.js` é adiado até que `shouldRender3D` se torne verdadeiro (por `requestIdleCallback` ou interação no modo `idle`). Métricas de Web Vitals (FCP, LCP, INP) e taxa de quadros em GPU física (FPS) **não foram medidas por telemetria de navegador** neste ambiente de CI e, portanto, não são declaradas como verificadas.
@@ -134,10 +134,10 @@ Todos os 6 quality gates obrigatórios do `GEMINI.md` foram executados e aprovad
 
 1. **`npx tsc --noEmit`**: 0 erros.
 2. **`npm run lint`**: 0 erros, 0 warnings (`--max-warnings 0`).
-3. **`npm run build`**: Compilado com sucesso (`index.css`: 1,81 kB gzip; `ChessPieceShowcase`: 3,95 kB gzip; `index.js`: 103,92 kB gzip; `vendor-three`: 239,27 kB gzip; aviso não-bloqueante de chunk > 500 kB para `vendor-three`).
-4. **`npx vitest run`**: 79 arquivos de teste aprovados, **643 testes aprovados** (incluindo os 53 testes da suíte `Spec06ThemeAndHUD.test.tsx`), 0 falhas, 0 pulados. Cobertura de topologias $> 95\%$.
+3. **`npm run build`**: Compilado com sucesso (`index.css`: 3,99 kB gzip; `ChessPieceShowcase`: 4,85 kB gzip; `index.js`: 107,38 kB gzip; `vendor-three`: 239,28 kB gzip; aviso não-bloqueante de chunk > 500 kB para `vendor-three`).
+4. **`npx vitest run --coverage`**: 79 arquivos de teste aprovados, **649 testes aprovados** (incluindo os 59 testes da suíte `Spec06ThemeAndHUD.test.tsx`), 0 falhas, 0 pulados. Cobertura global de linhas de **80,92%**, com cobertura de topologias $> 95\%$.
 5. **`node scripts/runChromiumSmoke.js`**: Aprovado (`success: true`, `skipped: false`) em Chromium headless nativo.
-6. **`npm run bench:memory`**: Aprovado (`PASS`, Delta incremental dentro do limite de $< 40\text{ MB}$, sem mascaramento de GC).
+6. **`npm run bench:memory`**: Aprovado (`PASS`, Delta incremental de +15,83 MB dentro do limite estrito de $< 40\text{ MB}$, retenção de +0,12 MB, drift de 0,009 MB/ciclo, sem mascaramento de GC).
 
 ---
 
