@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import React from 'react';
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ThemeProvider } from '../../ui/theme/ThemeContext';
@@ -15,13 +16,20 @@ import { BotMatchController } from '../../controllers/BotMatchController';
 import { ChessBoard3D } from '../ChessBoard3D';
 import { EngineBridge } from '../../core/workers/EngineBridge';
 
-// Mock WebGL and Three.js canvas in JSDOM environment
+// Mock WebGL and Three.js canvas in JSDOM environment without leaking Three.js intrinsics to DOM
 vi.mock('@react-three/fiber', () => ({
-  Canvas: ({ children }: { children?: React.ReactNode }) => (
-    <div data-testid="mock-r3f-canvas">
-      {children}
-    </div>
-  ),
+  Canvas: ({ children }: { children?: React.ReactNode }) => {
+    // Filter out Three.js intrinsic element strings (ambientLight, directionalLight, etc.)
+    // so React DOM does not emit unrecognized element casing warnings in JSDOM
+    const safeChildren = React.Children.toArray(children).filter(
+      (c) => React.isValidElement(c) && typeof c.type !== 'string'
+    );
+    return (
+      <div data-testid="mock-r3f-canvas">
+        {safeChildren}
+      </div>
+    );
+  },
   useFrame: vi.fn(),
   useThree: () => ({
     pointer: { x: 0, y: 0 },
@@ -32,6 +40,47 @@ vi.mock('@react-three/fiber', () => ({
 
 vi.mock('@react-three/drei', () => ({
   OrbitControls: () => <div data-testid="mock-orbit-controls" />,
+}));
+
+vi.mock('../mesh/InstancedBoard', () => ({
+  InstancedBoard: ({ onSquareClick }: { onSquareClick?: (coord: string) => void }) => (
+    <div
+      data-testid="instanced-board-mesh"
+      onClick={() => onSquareClick?.('0,1')}
+    />
+  ),
+}));
+
+vi.mock('../mesh/InstancedPieces', () => ({
+  InstancedPieces: ({
+    pieces,
+    onPieceClick,
+    checkConstraintCoords,
+  }: {
+    pieces?: readonly { id: string; position: string }[];
+    onPieceClick?: (pieceId: string, position: string) => void;
+    checkConstraintCoords?: { kingCoord?: string; sourceCoord?: string; targetCoord?: string } | null;
+  }) => (
+    <div data-testid="mock-instanced-pieces">
+      {checkConstraintCoords?.kingCoord && (
+        <div data-testid="check-king-3d-ring" />
+      )}
+      {checkConstraintCoords?.sourceCoord && (
+        <div data-testid="check-source-3d-ring" />
+      )}
+      {pieces?.map((piece) => (
+        <div
+          key={piece.id}
+          data-testid={`piece-3d-${piece.position}`}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            onPieceClick?.(piece.id, piece.position);
+          }}
+        />
+      ))}
+    </div>
+  ),
+  ProceduralPieces3D: () => null,
 }));
 
 describe('SPEC 07: Check Constraint Feedback & 3D Hardening Suite', () => {

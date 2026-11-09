@@ -141,9 +141,9 @@ export const InstancedBoard: React.FC<IInstancedBoardProps> = ({
   return (
     <instancedMesh
       ref={meshRef}
+      name="instanced-board-mesh"
       args={[undefined, undefined, totalCount]}
       receiveShadow
-      data-testid="instanced-board-mesh"
       onPointerDown={(e) => {
         e.stopPropagation();
         if (typeof e.instanceId === 'number') {

@@ -111,6 +111,22 @@ try {
   await sendCdp('Page.enable');
   await sendCdp('Runtime.enable');
 
+  ws.addEventListener('message', (ev) => {
+    try {
+      const msg = JSON.parse(ev.data);
+      if (msg.method === 'Runtime.consoleAPICalled') {
+        const text = msg.params.args?.map((a) => a.value ?? a.description ?? '').join(' ');
+        if (msg.params.type === 'error' || msg.params.type === 'warning' || text.includes('3D') || text.includes('WebGL')) {
+          console.log(`[BROWSER ${msg.params.type.toUpperCase()}] ${text}`);
+        }
+      } else if (msg.method === 'Runtime.exceptionThrown') {
+        console.error('[BROWSER UNCAUGHT EXCEPTION]', msg.params.exceptionDetails?.text, msg.params.exceptionDetails?.exception?.description);
+      }
+    } catch {
+      // ignore
+    }
+  });
+
   const setViewport = async (width, height, mobile = false) => {
     await sendCdp('Emulation.setDeviceMetricsOverride', {
       width,
@@ -482,8 +498,166 @@ try {
     console.log(`✓ [FLOW 10: 3D SHOWCASE] Verified active 3D Three.js canvas mount (status=${showcaseCheck.status})`);
   }
 
+  // =========================================================================
+  // Flow 11: Real In-Browser Check Constraint & 3D Interactive Validation
+  // =========================================================================
+  console.log('--- 3. CHECK CONSTRAINT & 3D HARDENING IN-BROWSER ACCEPTANCE ---');
+
+  // 1. Navigate to game arena
+  await evaluate(`document.getElementById('nav-btn-game')?.click();`);
+  await sleep(400);
+
+  // 2. Disable bot so we can execute two-player moves deterministically in browser
+  await evaluate(`(() => {
+    const toggle = document.getElementById('bot-toggle-checkbox');
+    if (toggle && toggle.checked) toggle.click();
+  })()`);
+  await sleep(300);
+
+  // 3. Reset match to initial turn 1
+  await evaluate(`document.getElementById('bot-reset-button')?.click();`);
+  await sleep(400);
+
+  // 4. Execute moves 1. e4 e6 2. f4 Qh4+
+  // Move 1: White e2 (4,1) -> e4 (4,3)
+  await evaluate(`document.querySelector('[data-testid="square-4,1"]')?.click();`);
+  await sleep(200);
+  await evaluate(`document.querySelector('[data-testid="square-4,3"]')?.click();`);
+  await sleep(300);
+
+  // Move 2: Black e7 (4,6) -> e6 (4,5)
+  await evaluate(`document.querySelector('[data-testid="square-4,6"]')?.click();`);
+  await sleep(200);
+  await evaluate(`document.querySelector('[data-testid="square-4,5"]')?.click();`);
+  await sleep(300);
+
+  // Move 3: White f2 (5,1) -> f4 (5,3)
+  await evaluate(`document.querySelector('[data-testid="square-5,1"]')?.click();`);
+  await sleep(200);
+  await evaluate(`document.querySelector('[data-testid="square-5,3"]')?.click();`);
+  await sleep(300);
+
+  // Move 4: Black d8 (3,7) -> h4 (7,3) [Check to White King at e1!]
+  await evaluate(`document.querySelector('[data-testid="square-3,7"]')?.click();`);
+  await sleep(200);
+  await evaluate(`document.querySelector('[data-testid="square-7,3"]')?.click();`);
+  await sleep(400);
+
+  // 5. Verify Check state in 2D mode (PlayerCard displays "EM XEQUE" status badge):
+  const checkState2D = await evaluate(`(() => {
+    const playerCardCheck = document.querySelector('[data-testid="player-in-check-P1"]');
+    const hasCheckBadge = playerCardCheck?.textContent?.includes('EM XEQUE');
+    const statusText = document.querySelector('.nav-status-pill')?.textContent?.trim() || '';
+    const isWhiteTurn = statusText.includes('Brancas');
+    return { hasCheckBadge, isWhiteTurn };
+  })()`);
+  assert(checkState2D.hasCheckBadge, 'White PlayerCard missing "⚠️ EM XEQUE" status pill');
+  assert(checkState2D.isWhiteTurn, 'Active turn must be White (P1) under check');
+  console.log('✓ [FLOW 11: 2D CHECK VISUALS] Verified PlayerCard "EM XEQUE" status pill during active check');
+
+  // 6. Attempt illegal move with helpless pawn a2 (0,1):
+  await evaluate(`document.querySelector('[data-testid="square-0,1"]')?.click();`);
+  await sleep(250);
+
+  const bannerCheck = await evaluate(`(() => {
+    const banner = document.querySelector('[data-testid="check-constraint-banner"]');
+    const role = banner?.getAttribute('role');
+    const ariaLive = banner?.getAttribute('aria-live');
+    const text = banner?.textContent || '';
+    const pawnSquare = document.querySelector('[data-testid="square-0,1"]');
+    const isPawnRed = pawnSquare?.classList.contains('board-square--check-source-error');
+    const kingSquare = document.querySelector('[data-testid="square-4,0"]');
+    const isKingRed = kingSquare?.classList.contains('board-square--check-king-error');
+    return {
+      hasBanner: !!banner,
+      role,
+      ariaLive,
+      hasCheckText: text.includes('seu rei está em xeque') && text.includes('REI EM XEQUE'),
+      isPawnRed,
+      isKingRed,
+    };
+  })()`);
+  assert(bannerCheck.hasBanner, 'Check constraint banner failed to appear when clicking helpless piece');
+  assert(bannerCheck.role === 'status', `Check constraint banner must have role="status", found: ${bannerCheck.role}`);
+  assert(bannerCheck.ariaLive === 'polite', `Check constraint banner must have aria-live="polite", found: ${bannerCheck.ariaLive}`);
+  assert(bannerCheck.hasCheckText, 'Check constraint banner missing explanatory message');
+  assert(bannerCheck.isPawnRed, 'Helpless pawn square a2 (0,1) missing red highlight class board-square--check-source-error');
+  assert(bannerCheck.isKingRed, 'White King square e1 (4,0) missing red highlight class board-square--check-king-error');
+  console.log('✓ [FLOW 11: 2D CHECK FEEDBACK BANNER] Verified role="status", aria-live="polite", King red error, and source piece error highlight');
+
+  // 7. Resolve check with valid move: g2 (6,1) -> g3 (6,2)
+  await evaluate(`document.querySelector('[data-testid="square-6,1"]')?.click();`);
+  await sleep(200);
+  await evaluate(`document.querySelector('[data-testid="square-6,2"]')?.click();`);
+  await sleep(300);
+
+  const checkResolved = await evaluate(`(() => {
+    const banner = document.querySelector('[data-testid="check-constraint-banner"]');
+    const kingSquare = document.querySelector('[data-testid="square-4,0"]');
+    const isKingRed = kingSquare?.classList.contains('board-square--check-king-error');
+    return { bannerDismissed: !banner, isKingRed: !!isKingRed };
+  })()`);
+  assert(checkResolved.bannerDismissed, 'Check constraint banner was not dismissed after resolving check');
+  assert(!checkResolved.isKingRed, 'King red highlight was not removed after resolving check');
+  console.log('✓ [FLOW 11: CHECK RESOLUTION] Verified banner dismissal and red highlight removal after legal interposition move');
+
+  // 8. Switch to 3D WebGL mode in real Chromium
+  const clickResult = await evaluate(`(() => {
+    const btn = document.getElementById('board-view-mode-3d');
+    if (!btn) return { error: 'Button #board-view-mode-3d not found in DOM' };
+    btn.click();
+    btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    return { success: true };
+  })()`);
+  assert(!clickResult?.error, clickResult?.error);
+
+  let webgl3DCheck = null;
+  for (let attempt = 0; attempt < 25; attempt++) {
+    await sleep(200);
+    webgl3DCheck = await evaluate(`(() => {
+      const container3D = document.querySelector('[data-testid="chess-board-3d-container"]');
+      const canvas = container3D?.querySelector('canvas');
+      const loading = document.querySelector('[data-testid="chess-board-3d-loading"]');
+      const board2D = document.querySelector('[data-testid="chess-board"]');
+      if (!canvas) {
+        return {
+          retry: true,
+          hasContainer: !!container3D,
+          isLoading: !!loading,
+          hasBoard2D: !!board2D,
+          storedPreferences: localStorage.getItem('chess_in_react_theme_preferences'),
+        };
+      }
+      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      const isContextValid = gl && !gl.isContextLost();
+      const width = canvas.width;
+      const height = canvas.height;
+      return { hasCanvas: true, isContextValid: !!isContextValid, width, height };
+    })()`);
+    if (webgl3DCheck?.hasCanvas) break;
+  }
+
+  assert(webgl3DCheck?.hasCanvas, `3D WebGL <canvas> not mounted in arena (state: ${JSON.stringify(webgl3DCheck)})`);
+  assert(webgl3DCheck.isContextValid, 'Real WebGL context in Chromium is invalid or lost');
+  assert(webgl3DCheck.width > 0 && webgl3DCheck.height > 0, 'WebGL canvas dimension is zero');
+  console.log(`✓ [FLOW 11: REAL WEBGL 3D CANVAS] Native WebGL canvas mounted in Chromium (${webgl3DCheck.width}x${webgl3DCheck.height}, context=active)`);
+
+  // 9. Switch back to 2D: verify state is preserved
+  await evaluate(`document.getElementById('board-view-mode-2d')?.click();`);
+  await sleep(300);
+
+  const statePreserved = await evaluate(`(() => {
+    const board2D = document.querySelector('[data-testid="chess-board"]');
+    const sqG3 = document.querySelector('[data-testid="square-6,2"]');
+    const hasPawnOnG3 = !!sqG3?.querySelector('[data-testid$="-piece"], .piece-symbol');
+    return { hasBoard2D: !!board2D, hasPawnOnG3 };
+  })()`);
+  assert(statePreserved.hasBoard2D, 'Failed to revert to 2D board');
+  assert(statePreserved.hasPawnOnG3, 'State lost during 3D -> 2D transition: Pawn not on g3');
+  console.log('✓ [FLOW 11: 3D <-> 2D STATE PRESERVATION] Verified lossless state retention during roundtrip view switch');
+
   console.log('\n=============================================================================');
-  console.log('✓ [ACCEPTANCE VERIFICATION] ALL 10 MANDATORY BEHAVIORAL & RESPONSIVE SUITES PASSED STRICTLY');
+  console.log('✓ [ACCEPTANCE VERIFICATION] ALL 11 MANDATORY BEHAVIORAL & RESPONSIVE SUITES PASSED STRICTLY');
   console.log('=============================================================================\n');
 
   ws.close();

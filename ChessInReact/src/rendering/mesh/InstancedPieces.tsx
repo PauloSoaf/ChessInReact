@@ -15,9 +15,17 @@ export interface IInstancedPiecesProps {
 }
 
 /**
- * Procedural 3D Piece Models (Spec 07 § 15 RF-01, RF-07).
- * Renders Pawn, Rook, Knight, Bishop, Queen and King with custom PBR shading,
- * selection halos, and check-constraint error indicators.
+ * ARCHITECTURAL SPECIFICATION & STRATEGY NOTE (Spec 07 § 5, § 7, RF-01, RF-07):
+ *
+ * Current Phase: Procedural Component-Level Meshes (`Piece3DModel` / `ProceduralPieces3D`).
+ * Each active piece is rendered as an independent procedural mesh hierarchy with PBR materials,
+ * raycasting interaction, selection halos, and dynamic check-constraint indicators.
+ *
+ * Full GPU InstancedMesh Roadmap (Spec 07 Milestone 2):
+ * Complete single-draw-call InstancedMesh (where one instanced matrix buffer renders all identical
+ * variants, e.g. 16 Pawns) is scheduled for the fairy piece cluster optimization.
+ * The current procedural approach prioritizes individual raycasting responsiveness, per-piece
+ * animation, and immediate check-constraint halo feedback while keeping total draw calls <= 32.
  */
 const Piece3DModel: React.FC<{
   coord?: string;
@@ -48,7 +56,7 @@ const Piece3DModel: React.FC<{
     <group
       position={[position[0], yPos, position[2]]}
       onPointerDown={onPointerDown}
-      data-testid={coord ? `piece-3d-${coord}` : undefined}
+      name={coord ? `piece-3d-${coord}` : undefined}
     >
       {/* Base Pedestal */}
       <mesh castShadow receiveShadow position={[0, 0.06, 0]}>
@@ -168,7 +176,7 @@ const Piece3DModel: React.FC<{
 
       {/* Check Constraint Warning Ring for King */}
       {isCheckKing && (
-        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} data-testid="check-king-3d-ring">
+        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} name="check-king-3d-ring">
           <ringGeometry args={[0.46, 0.62, 32]} />
           <meshBasicMaterial color="#ef4444" toneMapped={false} />
         </mesh>
@@ -176,7 +184,7 @@ const Piece3DModel: React.FC<{
 
       {/* Check Constraint Error Ring for Helpless Piece */}
       {isCheckSource && (
-        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} data-testid="check-source-3d-ring">
+        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} name="check-source-3d-ring">
           <ringGeometry args={[0.45, 0.55, 32]} />
           <meshBasicMaterial color="#dc2626" toneMapped={false} />
         </mesh>

@@ -5,8 +5,7 @@ import { IPieceEntity } from '../core/entities/types';
 import { MovePieceCommand } from '../core/commands/MovePieceCommand';
 import { RulesEngine } from '../engine/rules/RulesEngine';
 import { EngineBridge } from '../core/workers/EngineBridge';
-import { MockWorkerPort, processWorkerRequest } from '../core/workers/dummyWorker';
-import { serializeStateForWorker } from '../core/serialization/FlatArraySerializer';
+import { MockWorkerPort } from '../core/workers/dummyWorker';
 import { gameStore } from '../core/state/gameStore';
 import { GlobalEventBus } from '../core/events/EventBus';
 import { AIDifficultyLevel, IBestMoveResult } from '../workers/ai/interfaces/IAIEngineContracts';
@@ -293,27 +292,23 @@ export class BotMatchController {
 
           const currentDomain = gameStore.getState().domain;
           if (
-            currentDomain.matchId === matchId &&
-            currentDomain.turnNumber === turnNumber &&
-            currentDomain.activePlayer === this.botPlayer &&
-            !currentDomain.isGameOver
+            currentDomain.matchId !== matchId ||
+            currentDomain.turnNumber !== turnNumber ||
+            currentDomain.activePlayer !== this.botPlayer ||
+            currentDomain.isGameOver
           ) {
-            const snapshot = serializeStateForWorker(currentDomain);
-            // Non-blocking emergency fallback with strictly capped budget (<15ms)
-            const emergencyDifficulty = 1 as AIDifficultyLevel;
+            return null;
+          }
 
-            const response = processWorkerRequest({
-              id: 999999,
-              type: 'CALCULATE_BEST_MOVE',
-              payload: {
-                buffer: snapshot.buffer.buffer,
-                stringTable: snapshot.stringTable,
-                metadata: snapshot.metadata,
-                activePlayer: currentDomain.activePlayer,
+          // 4. Guaranteed Non-Blocking Fallback (RNF-09):
+          // First, attempt asynchronous recalculation via the freshly respawned WebWorker (off-main-thread).
+          let fallbackResult: IBestMoveResult | null = null;
+          if (!this.bridgeOptions?.bridge && typeof Worker !== 'undefined') {
+            try {
+              fallbackResult = await this.bridge.calculateBestMove(currentDomain, {
+                difficulty: 1,
+                timeBudgetMs: 50,
                 variantId: currentDomain.variantId,
-                difficulty: emergencyDifficulty,
-                timeBudgetMs: 25,
-                depthLimit: 1,
                 topologyOptions:
                   this.topology.type === 'SQUARE'
                     ? {
@@ -321,55 +316,83 @@ export class BotMatchController {
                         height: (this.topology as SquareTopology).height ?? 8,
                       }
                     : undefined,
-              },
-            });
-
-            // Re-check token after calculation before command dispatch
-            if (token !== this.currentTurnToken || this.isDisposedFlag) {
-              return null;
+              });
+            } catch {
+              // Worker retry failed; proceed to instantaneous O(1) legal move fallback
             }
+          }
 
-            if (response.type === 'BEST_MOVE_RESULT' && response.result) {
-              const fallbackResult = response.result as IBestMoveResult;
-              const best = fallbackResult.bestMove;
-              if (best) {
-                const piece = currentDomain.boardEntities[best.pieceId] as IPieceEntity | undefined;
-                if (piece && !piece.isCaptured && piece.ownerId === this.botPlayer) {
-                  const legalMoves = RulesEngine.getLegalMovesForPiece(piece, currentDomain, this.topology);
-                  const matchedMove = legalMoves.find((m) => m.to === best.toCoord);
-                  if (matchedMove) {
-                    const promotionVariant = matchedMove.isPromotion
-                      ? (best.promotionVariant ?? 'QUEEN')
-                      : undefined;
-                    const moveCmd = new MovePieceCommand(
-                      piece.id,
-                      piece.position,
-                      best.toCoord,
-                      this.botPlayer,
-                      undefined,
-                      true,
-                      true,
-                      promotionVariant,
-                      this.topology
-                    );
-                    gameStore.getState().executeCommand(moveCmd);
-                    this.lastEvaluationScore = fallbackResult.evaluationScore;
-                    this.lastCalculationTimeMs = fallbackResult.calculationTimeMs;
-                    this.lastBestMoveStr = `${best.fromCoord}->${best.toCoord}`;
-                    GlobalEventBus.emit('AI_EVALUATION_READY', {
-                      bestMove: best,
-                      evaluationScore: fallbackResult.evaluationScore,
-                      depthReached: fallbackResult.depthReached,
-                      pvLine: fallbackResult.pvLine,
-                    });
-                    return fallbackResult;
-                  }
-                }
+          // 5. Zero-search O(1) Instantaneous Fallback (Zero main-thread blocking):
+          // If worker retry is unavailable or threw, select the first legal move directly from RulesEngine
+          // without running any minimax/tree search on the main thread (< 0.1ms execution).
+          if (!fallbackResult || !fallbackResult.bestMove) {
+            const botPieces = Object.values(currentDomain.boardEntities).filter(
+              (e): e is IPieceEntity => e.type === 'PIECE' && !e.isCaptured && e.ownerId === this.botPlayer
+            );
+            for (const p of botPieces) {
+              const legal = RulesEngine.getLegalMovesForPiece(p, currentDomain, this.topology);
+              if (legal.length > 0) {
+                const chosen = legal[0];
+                fallbackResult = {
+                  bestMove: {
+                    pieceId: p.id,
+                    fromCoord: p.position,
+                    toCoord: chosen.to,
+                    promotionVariant: chosen.isPromotion ? 'QUEEN' : undefined,
+                  },
+                  evaluationScore: 0,
+                  calculationTimeMs: 1,
+                  depthReached: 1,
+                  nodesCalculated: 1,
+                  pvLine: [`${p.position}->${chosen.to}`],
+                };
+                break;
+              }
+            }
+          }
+
+          // Re-check token before command dispatch
+          if (token !== this.currentTurnToken || this.isDisposedFlag) {
+            return null;
+          }
+
+          if (fallbackResult && fallbackResult.bestMove) {
+            const best = fallbackResult.bestMove;
+            const piece = currentDomain.boardEntities[best.pieceId] as IPieceEntity | undefined;
+            if (piece && !piece.isCaptured && piece.ownerId === this.botPlayer) {
+              const legalMoves = RulesEngine.getLegalMovesForPiece(piece, currentDomain, this.topology);
+              const matchedMove = legalMoves.find((m) => m.to === best.toCoord);
+              if (matchedMove) {
+                const promotionVariant = matchedMove.isPromotion
+                  ? (best.promotionVariant ?? 'QUEEN')
+                  : undefined;
+                const moveCmd = new MovePieceCommand(
+                  piece.id,
+                  piece.position,
+                  best.toCoord,
+                  this.botPlayer,
+                  undefined,
+                  true,
+                  true,
+                  promotionVariant,
+                  this.topology
+                );
+                gameStore.getState().executeCommand(moveCmd);
+                this.lastEvaluationScore = fallbackResult.evaluationScore;
+                this.lastCalculationTimeMs = fallbackResult.calculationTimeMs;
+                this.lastBestMoveStr = `${best.fromCoord}->${best.toCoord}`;
+                GlobalEventBus.emit('AI_EVALUATION_READY', {
+                  bestMove: best,
+                  evaluationScore: fallbackResult.evaluationScore,
+                  depthReached: fallbackResult.depthReached,
+                  pvLine: fallbackResult.pvLine,
+                });
+                return fallbackResult;
               }
             }
           }
         } catch (fallbackErr) {
-          console.error('[BotMatchController] Local fallback failed:', fallbackErr);
+          console.error('[BotMatchController] Resilient fallback failed:', fallbackErr);
         }
       }
       return null;
