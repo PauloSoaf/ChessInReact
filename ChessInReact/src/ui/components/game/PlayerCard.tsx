@@ -10,6 +10,7 @@ export interface IPlayerCardProps {
   isBot?: boolean;
   difficultyLabel?: string;
   capturedPieces?: string[];
+  isInCheck?: boolean;
 }
 
 export const PlayerCard: React.FC<IPlayerCardProps> = ({
@@ -20,6 +21,7 @@ export const PlayerCard: React.FC<IPlayerCardProps> = ({
   isThinking = false,
   isBot = false,
   difficultyLabel,
+  isInCheck = false,
 }) => {
   const isWhite = playerId === 'P1';
 
@@ -113,6 +115,31 @@ export const PlayerCard: React.FC<IPlayerCardProps> = ({
 
       {/* Right: Turn / Thinking Status Pill */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+        {isInCheck && (
+          <div
+            data-testid={`player-in-check-${playerId}`}
+            className="player-card-check-pill"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              padding: '0.28rem 0.65rem',
+              borderRadius: 'var(--radius-full)',
+              backgroundColor: 'var(--color-danger-bg)',
+              border: '1.5px solid var(--color-danger)',
+              color: 'var(--color-danger)',
+              fontSize: '0.72rem',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 800,
+              boxShadow: '0 0 10px rgba(239, 68, 68, 0.35)',
+              animation: 'pulseCheck 1.2s infinite',
+            }}
+          >
+            <span>⚠️</span>
+            <span>EM XEQUE</span>
+          </div>
+        )}
+
         {isThinking ? (
           <div
             id="bot-thinking-indicator"

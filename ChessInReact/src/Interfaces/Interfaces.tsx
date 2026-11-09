@@ -10,6 +10,9 @@ export interface IBoardSquare {
   boardDisplay: IChessPiece[][];
   isMoveDestination?: boolean;
   isCaptureDestination?: boolean;
+  isCheckKingError?: boolean;
+  isCheckSourceError?: boolean;
+  isCheckTargetError?: boolean;
   rankLabel?: string;
   fileLabel?: string;
   tabIndex?: number;

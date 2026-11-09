@@ -10,6 +10,8 @@ import { SquareTopology } from '../../core/topology/SquareTopology';
 import { RulesEngine } from '../../engine/rules/RulesEngine';
 import { PlayerId } from '../../core/coordinates/types';
 import { useTheme } from '../../ui/theme/ThemeContext';
+import { CheckValidator } from '../../engine/rules/CheckValidator';
+import { IInvalidMoveFeedback, ITriggerFeedbackOptions, InvalidMoveReason } from '../../bindings/react/useMoveFeedback';
 
 export interface IChessBoardProps {
   boardSize?: number;
@@ -19,6 +21,9 @@ export interface IChessBoardProps {
   /** Optional legacy prop maintained for backward compatibility */
   boardDisplay?: IChessPiece[][];
   setBoardDisplay?: (newBoardDisplay: Array<IChessPiece>[]) => void;
+  invalidMoveFeedback?: IInvalidMoveFeedback | null;
+  onTriggerInvalidMove?: (reason: InvalidMoveReason, options: ITriggerFeedbackOptions) => void;
+  onClearInvalidMove?: () => void;
 }
 
 export const ChessBoard: React.FC<IChessBoardProps> = ({
@@ -26,6 +31,9 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
   isBotThinking = false,
   disabled = false,
   botPlayer,
+  invalidMoveFeedback,
+  onTriggerInvalidMove,
+  onClearInvalidMove,
 }) => {
   const { preferences, activeBoardColors } = useTheme();
   const isFlipped = Boolean(preferences.flipBoard);
@@ -202,6 +210,20 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
         clickedEntity.ownerId === domain.activePlayer &&
         !clickedEntity.isCaptured
       ) {
+        // If the king is in check and this piece cannot solve it, give feedback
+        const isKingInCheck = CheckValidator.isRoyalInCheck(domain.activePlayer, domain, topology);
+        const legalMoves = RulesEngine.getLegalMovesForPiece(clickedEntity, domain, topology);
+        if (isKingInCheck && legalMoves.length === 0) {
+          const king = CheckValidator.findRoyalPiece(domain.activePlayer, domain);
+          onTriggerInvalidMove?.('CHECK_CONSTRAINT', {
+            sourceCoord: clickedEntity.position,
+            kingCoord: king?.position,
+            message: 'Movimento inválido: seu rei está em xeque. Essa peça não pode se mover enquanto o rei estiver em xeque.',
+          });
+          return;
+        }
+
+        onClearInvalidMove?.();
         selectPiece(clickedEntity.id);
       }
       return;
@@ -212,12 +234,14 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
       | IPieceEntity
       | undefined;
     if (!activeSelected) {
+      onClearInvalidMove?.();
       selectPiece(null);
       return;
     }
 
     // Clicking the same piece deselects it
     if (activeSelected.id === clickedEntityId || activeSelected.position === clickedCoord) {
+      onClearInvalidMove?.();
       selectPiece(null);
       return;
     }
@@ -229,6 +253,19 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
       clickedEntity.ownerId === domain.activePlayer &&
       !clickedEntity.isCaptured
     ) {
+      const isKingInCheck = CheckValidator.isRoyalInCheck(domain.activePlayer, domain, topology);
+      const legalMoves = RulesEngine.getLegalMovesForPiece(clickedEntity, domain, topology);
+      if (isKingInCheck && legalMoves.length === 0) {
+        const king = CheckValidator.findRoyalPiece(domain.activePlayer, domain);
+        onTriggerInvalidMove?.('CHECK_CONSTRAINT', {
+          sourceCoord: clickedEntity.position,
+          kingCoord: king?.position,
+          message: 'Movimento inválido: seu rei está em xeque. Essa peça não pode se mover enquanto o rei estiver em xeque.',
+        });
+        return;
+      }
+
+      onClearInvalidMove?.();
       selectPiece(clickedEntity.id);
       return;
     }
@@ -238,15 +275,31 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
     const matchedMove = legalMoves.find((m) => m.to === clickedCoord);
 
     if (!matchedMove) {
-      console.warn(
-        `[RulesEngine] Move rejected: ${activeSelected.variantId} at ${activeSelected.position} cannot legally move to ${clickedCoord}.`
-      );
+      const isKingInCheck = CheckValidator.isRoyalInCheck(domain.activePlayer, domain, topology);
+      const king = CheckValidator.findRoyalPiece(domain.activePlayer, domain);
+
+      if (isKingInCheck) {
+        onTriggerInvalidMove?.('CHECK_CONSTRAINT', {
+          sourceCoord: activeSelected.position,
+          targetCoord: clickedCoord,
+          kingCoord: king?.position,
+          message: 'Movimento inválido: seu rei está em xeque. Resolva o xeque movendo o rei, capturando a ameaça ou bloqueando a linha.',
+        });
+      } else {
+        onTriggerInvalidMove?.('ILLEGAL_MOVE', {
+          sourceCoord: activeSelected.position,
+          targetCoord: clickedCoord,
+          message: 'Movimento não permitido pelas regras desta peça.',
+        });
+      }
+
       selectPiece(null);
       return;
     }
 
     // Dispatch MovePieceCommand through Core State Store with full rules validation
     try {
+      onClearInvalidMove?.();
       const promotionVariant = matchedMove.isPromotion ? 'QUEEN' : undefined;
       const moveCmd = new MovePieceCommand(
         activeSelected.id,
@@ -294,6 +347,10 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
           const isMoveDestination = legalMoveInfo !== undefined && !legalMoveInfo;
           const isCaptureDestination = legalMoveInfo !== undefined && legalMoveInfo;
 
+          const isCheckKingError = invalidMoveFeedback?.kingCoord === coordKey;
+          const isCheckSourceError = invalidMoveFeedback?.sourceCoord === coordKey;
+          const isCheckTargetError = invalidMoveFeedback?.targetCoord === coordKey;
+
           const rankLabel =
             preferences.showCoordinates && columnIndex === 0
               ? String(gameY + 1)
@@ -325,6 +382,9 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               handleClick={handleSquareClick}
               isMoveDestination={isMoveDestination}
               isCaptureDestination={isCaptureDestination}
+              isCheckKingError={isCheckKingError}
+              isCheckSourceError={isCheckSourceError}
+              isCheckTargetError={isCheckTargetError}
               rankLabel={rankLabel}
               fileLabel={fileLabel}
               tabIndex={isRovingActive ? 0 : -1}

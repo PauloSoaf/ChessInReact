@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
+import { useThree } from '@react-three/fiber';
 import { Caches } from '../optimization/MathCaches';
 
 export interface IInstancedBoardProps {
@@ -9,6 +10,11 @@ export interface IInstancedBoardProps {
   selectedCoord?: string | null;
   legalMoveCoords?: readonly string[];
   lastMoveCoords?: readonly string[];
+  checkConstraintCoords?: {
+    kingCoord?: string;
+    sourceCoord?: string;
+    targetCoord?: string;
+  } | null;
   onSquareClick?: (coord: string) => void;
 }
 
@@ -24,8 +30,10 @@ export const InstancedBoard: React.FC<IInstancedBoardProps> = ({
   selectedCoord,
   legalMoveCoords = [],
   lastMoveCoords = [],
+  checkConstraintCoords,
   onSquareClick,
 }) => {
+  const { invalidate } = useThree();
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const totalCount = boardSize * boardSize;
 
@@ -53,6 +61,9 @@ export const InstancedBoard: React.FC<IInstancedBoardProps> = ({
   const selectedCol = useMemo(() => new THREE.Color('#f59e0b'), []);
   const legalMoveCol = useMemo(() => new THREE.Color('#10b981'), []);
   const lastMoveCol = useMemo(() => new THREE.Color('#f97316'), []);
+  const checkKingCol = useMemo(() => new THREE.Color('#dc2626'), []);
+  const checkSourceCol = useMemo(() => new THREE.Color('#ef4444'), []);
+  const checkTargetCol = useMemo(() => new THREE.Color('#b91c1c'), []);
 
   const legalSet = useMemo(() => new Set(legalMoveCoords), [legalMoveCoords]);
   const lastMoveSet = useMemo(() => new Set(lastMoveCoords), [lastMoveCoords]);
@@ -84,7 +95,13 @@ export const InstancedBoard: React.FC<IInstancedBoardProps> = ({
       const isLight = (col + row) % 2 !== 0;
       let targetColor: THREE.Color;
 
-      if (selectedCoord === coord) {
+      if (checkConstraintCoords?.kingCoord === coord) {
+        targetColor = checkKingCol;
+      } else if (checkConstraintCoords?.sourceCoord === coord) {
+        targetColor = checkSourceCol;
+      } else if (checkConstraintCoords?.targetCoord === coord) {
+        targetColor = checkTargetCol;
+      } else if (selectedCoord === coord) {
         targetColor = selectedCol;
       } else if (legalSet.has(coord)) {
         targetColor = legalMoveCol;
@@ -101,6 +118,7 @@ export const InstancedBoard: React.FC<IInstancedBoardProps> = ({
     if (mesh.instanceColor) {
       mesh.instanceColor.needsUpdate = true;
     }
+    invalidate();
   }, [
     boardSize,
     totalCount,
@@ -110,9 +128,14 @@ export const InstancedBoard: React.FC<IInstancedBoardProps> = ({
     selectedCol,
     legalMoveCol,
     lastMoveCol,
+    checkKingCol,
+    checkSourceCol,
+    checkTargetCol,
     selectedCoord,
+    checkConstraintCoords,
     legalSet,
     lastMoveSet,
+    invalidate,
   ]);
 
   return (

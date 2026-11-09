@@ -274,17 +274,30 @@ export class BotMatchController {
         msg.includes('disposed') ||
         msg.includes('cancelled');
       if (!isExpectedAbort) {
-        console.warn('[BotMatchController] Worker calculation failed, executing local fallback:', err);
+        console.warn('[BotMatchController] Worker calculation failed, executing async resilient fallback:', err);
         try {
+          // 1. Yield to the event loop so the UI remains interactive (RNF-09)
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
+          // 2. Early abort check if state changed or search was cancelled during yield
+          if (token !== this.currentTurnToken || this.isDisposedFlag) {
+            return null;
+          }
+
+          // 3. Reset/recover the worker bridge for subsequent turns
+          this.bridge.cancelPendingSearches();
+
           const currentDomain = gameStore.getState().domain;
           if (
-            token === this.currentTurnToken &&
             currentDomain.matchId === matchId &&
             currentDomain.turnNumber === turnNumber &&
             currentDomain.activePlayer === this.botPlayer &&
             !currentDomain.isGameOver
           ) {
             const snapshot = serializeStateForWorker(currentDomain);
+            // Cap emergency fallback depth/budget to guarantee 0 UI freezing
+            const emergencyDifficulty = Math.min(this.difficulty, 2) as AIDifficultyLevel;
+
             const response = processWorkerRequest({
               id: 999999,
               type: 'CALCULATE_BEST_MOVE',
@@ -294,7 +307,9 @@ export class BotMatchController {
                 metadata: snapshot.metadata,
                 activePlayer: currentDomain.activePlayer,
                 variantId: currentDomain.variantId,
-                difficulty: this.difficulty,
+                difficulty: emergencyDifficulty,
+                timeBudgetMs: 50,
+                depthLimit: 2,
                 topologyOptions:
                   this.topology.type === 'SQUARE'
                     ? {
@@ -304,6 +319,11 @@ export class BotMatchController {
                     : undefined,
               },
             });
+
+            // Re-check token after calculation before command dispatch
+            if (token !== this.currentTurnToken || this.isDisposedFlag) {
+              return null;
+            }
 
             if (response.type === 'BEST_MOVE_RESULT' && response.result) {
               const fallbackResult = response.result as IBestMoveResult;

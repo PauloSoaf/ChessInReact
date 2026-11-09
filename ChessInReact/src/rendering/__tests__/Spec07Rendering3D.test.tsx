@@ -129,7 +129,7 @@ describe('Spec 07 3D WebGL Rendering & Board View Architecture Suite', () => {
   });
 
   describe('3. App Integration & Seamless 2D <-> 3D Board Transition', () => {
-    it('switches between 2D DOM/SVG board and 3D WebGL board in the Match Arena', () => {
+    it('switches between 2D DOM/SVG board and 3D WebGL board in the Match Arena', async () => {
       render(
         <ThemeProvider>
           <App />
@@ -144,8 +144,9 @@ describe('Spec 07 3D WebGL Rendering & Board View Architecture Suite', () => {
       const btn3D = screen.getByRole('button', { name: /3D WebGL/ });
       fireEvent.click(btn3D);
 
-      // Arena transitions to 3D WebGL Canvas
-      expect(screen.getByTestId('chess-board-3d-container')).toBeDefined();
+      // Arena transitions to 3D WebGL Canvas (await Suspense resolution)
+      const container3D = await screen.findByTestId('chess-board-3d-container');
+      expect(container3D).toBeDefined();
       expect(screen.getByTestId('mock-r3f-canvas')).toBeDefined();
       expect(screen.getByTestId('mock-orbit-controls')).toBeDefined();
       expect(screen.getByText('SPEC 07 WebGL 3D')).toBeDefined();

@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import ChessBoard from './components/ChessBoard/ChessBoard';
-import { ChessBoard3D } from './rendering/ChessBoard3D';
 import { useActivePlayer, useGameActions, useGameStore, useTurnNumber } from './bindings/react/useGameStore';
 import { useBotMatch } from './bindings/react/useBotMatch';
+import { useMoveFeedback } from './bindings/react/useMoveFeedback';
 import { AIDifficultyLevel } from './workers/ai/interfaces/IAIEngineContracts';
 import { bootstrapGame } from './core/bootstrap/GameInitializer';
 import { gameStore } from './core/state/gameStore';
@@ -13,7 +13,45 @@ import { GameHub } from './ui/components/hub/GameHub';
 import { PlayerCard } from './ui/components/game/PlayerCard';
 import { EvaluationBar } from './ui/components/game/EvaluationBar';
 import { GameControlsBar } from './ui/components/game/GameControlsBar';
+import { CheckValidator } from './engine/rules/CheckValidator';
+import { SquareTopology } from './core/topology/SquareTopology';
+import { isWebGLAvailable } from './rendering/ChessBoard3D';
 import './ui/theme/theme.css';
+
+// Lazy-loaded 3D WebGL Chessboard to preserve initial 2D bundle size (Spec 07 Priority 2)
+const LazyChessBoard3D = React.lazy(() =>
+  import('./rendering/ChessBoard3D').then((m) => ({ default: m.ChessBoard3D }))
+);
+
+/**
+ * Resilient Error Boundary for 3D WebGL scene failures or WebGL context loss (Spec 07 Priority 3).
+ * Seamlessly reverts to the 2D SVG board to prevent blank screens or game interruption.
+ */
+class ChessBoard3DErrorBoundary extends React.Component<
+  { onFallback: () => void; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { onFallback: () => void; children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.warn('[ChessBoard3D] WebGL mounting or context failure, reverting to 2D:', error);
+    this.props.onFallback();
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return null;
+    }
+    return this.props.children;
+  }
+}
 
 const DIFFICULTY_LABELS: Record<AIDifficultyLevel, string> = {
   1: 'Iniciante (N1)',
@@ -44,6 +82,28 @@ const AppContent: React.FC = () => {
   const entityCount = useGameStore((state) => Object.keys(state.domain.boardEntities).length);
   const hasActiveMatch = turnNumber > 1 || revision > 0;
 
+  const domain = useGameStore((state) => state.domain);
+  const topology = useMemo(
+    () => new SquareTopology({ width: boardSize, height: boardSize }),
+    [boardSize]
+  );
+
+  // Check state detection for White (P1) and Black (P2)
+  const isP1InCheck = useMemo(
+    () => CheckValidator.isRoyalInCheck('P1', domain, topology),
+    [domain, topology]
+  );
+  const isP2InCheck = useMemo(
+    () => CheckValidator.isRoyalInCheck('P2', domain, topology),
+    [domain, topology]
+  );
+
+  const {
+    feedback: invalidMoveFeedback,
+    triggerFeedback,
+    clearFeedback,
+  } = useMoveFeedback();
+
   const { undo, redo } = useGameActions();
 
   const {
@@ -59,6 +119,14 @@ const AppContent: React.FC = () => {
     botPlayer: 'P2',
     difficulty: 3,
   });
+
+  // Automatically fallback to 2D if WebGL is unavailable on device/browser (Spec 07 Priority 3)
+  useEffect(() => {
+    if (preferences.boardViewMode === '3D' && !isWebGLAvailable()) {
+      console.warn('[App] WebGL unavailable, automatically selecting 2D board mode.');
+      updatePreferences({ boardViewMode: '2D' });
+    }
+  }, [preferences.boardViewMode, updatePreferences]);
 
   // Initialize Core match on first mount (AUDIT-04 Single Source of Truth)
   useEffect(() => {
@@ -91,11 +159,13 @@ const AppContent: React.FC = () => {
 
   const handleReset = useCallback(() => {
     cancelSearch();
+    clearFeedback();
     bootstrapGame({ targetStore: gameStore });
-  }, [cancelSearch]);
+  }, [cancelSearch, clearFeedback]);
 
   const handleUndo = useCallback(() => {
     cancelSearch();
+    clearFeedback();
     if (isBotEnabled) {
       const currentActive = gameStore.getState().domain.activePlayer;
       if (currentActive === 'P2') {
@@ -111,10 +181,11 @@ const AppContent: React.FC = () => {
     } else {
       undo();
     }
-  }, [cancelSearch, isBotEnabled, undo]);
+  }, [cancelSearch, clearFeedback, isBotEnabled, undo]);
 
   const handleRedo = useCallback(() => {
     cancelSearch();
+    clearFeedback();
     if (isBotEnabled) {
       const redoneFirst = redo();
       if (redoneFirst) {
@@ -125,20 +196,22 @@ const AppContent: React.FC = () => {
     } else {
       redo();
     }
-  }, [cancelSearch, isBotEnabled, redo]);
+  }, [cancelSearch, clearFeedback, isBotEnabled, redo]);
 
   const handleBoardSizeChange = useCallback(
     (newSize: number) => {
       const clamped = Math.max(4, Math.min(16, newSize));
       setBoardSize(clamped);
       updateTopologySize(clamped);
+      clearFeedback();
     },
-    [updateTopologySize]
+    [updateTopologySize, clearFeedback]
   );
 
   const handleFlipBoard = useCallback(() => {
     updatePreferences({ flipBoard: !preferences.flipBoard });
-  }, [preferences.flipBoard, updatePreferences]);
+    clearFeedback();
+  }, [preferences.flipBoard, updatePreferences, clearFeedback]);
 
   // Global Keyboard Shortcuts (Strictly disabled when modal is open to avoid unintended rollbacks)
   useEffect(() => {
@@ -239,6 +312,7 @@ const AppContent: React.FC = () => {
                   isThinking={isThinking}
                   isBot={isBotEnabled}
                   difficultyLabel={isBotEnabled ? DIFFICULTY_LABELS[difficulty] : undefined}
+                  isInCheck={!isGameOver && isP2InCheck}
                 />
               </div>
 
@@ -249,13 +323,46 @@ const AppContent: React.FC = () => {
                 </div>
 
                 {preferences.boardViewMode === '3D' ? (
-                  <ChessBoard3D
-                    boardSize={boardSize}
-                    isBotThinking={isThinking}
-                    botPlayer={isBotEnabled ? 'P2' : undefined}
-                    disabled={isBotEnabled && activePlayer === 'P2'}
-                    isFlipped={isBoardFlipped}
-                  />
+                  <ChessBoard3DErrorBoundary
+                    onFallback={() => {
+                      updatePreferences({ boardViewMode: '2D' });
+                    }}
+                  >
+                    <React.Suspense
+                      fallback={
+                        <div
+                          data-testid="chess-board-3d-loading"
+                          style={{
+                            width: 'min(75vw, 520px)',
+                            height: 'min(75vw, 520px)',
+                            borderRadius: 'var(--radius-lg)',
+                            border: '2px solid var(--border-prominent)',
+                            backgroundColor: 'var(--bg-card)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--text-secondary)',
+                            fontSize: '0.82rem',
+                            fontFamily: 'var(--font-mono)',
+                          }}
+                        >
+                          Carregando Tabuleiro 3D WebGL...
+                        </div>
+                      }
+                    >
+                      <LazyChessBoard3D
+                        boardSize={boardSize}
+                        isBotThinking={isThinking}
+                        botPlayer={isBotEnabled ? 'P2' : undefined}
+                        disabled={isBotEnabled && activePlayer === 'P2'}
+                        isFlipped={isBoardFlipped}
+                        invalidMoveFeedback={invalidMoveFeedback}
+                        onTriggerInvalidMove={triggerFeedback}
+                        onClearInvalidMove={clearFeedback}
+                        onFallbackTo2D={() => updatePreferences({ boardViewMode: '2D' })}
+                      />
+                    </React.Suspense>
+                  </ChessBoard3DErrorBoundary>
                 ) : (
                   <main
                     style={{
@@ -274,6 +381,9 @@ const AppContent: React.FC = () => {
                       isBotThinking={isThinking}
                       botPlayer={isBotEnabled ? 'P2' : undefined}
                       disabled={isBotEnabled && activePlayer === 'P2'}
+                      invalidMoveFeedback={invalidMoveFeedback}
+                      onTriggerInvalidMove={triggerFeedback}
+                      onClearInvalidMove={clearFeedback}
                     />
                   </main>
                 )}
@@ -286,12 +396,69 @@ const AppContent: React.FC = () => {
                   displayName="Você (Brancas)"
                   subtitle="Peças Brancas • Perspectiva Principal"
                   isTurnActive={!isGameOver && activePlayer === 'P1'}
+                  isInCheck={!isGameOver && isP1InCheck}
                 />
               </div>
             </div>
 
             {/* Right Sidebar: Match Status & Tactical Controls Deck */}
             <aside className="match-hud-sidebar" aria-label="Estado e Controles da Partida">
+              {/* Check Constraint & Move Error Feedback Banner (US04-P06, SPEC07-CHECK-CONSTRAINT-FEEDBACK-01) */}
+              {invalidMoveFeedback && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  data-testid="check-constraint-banner"
+                  className={`check-constraint-banner ${
+                    invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
+                      ? 'check-constraint-banner--danger'
+                      : 'check-constraint-banner--warning'
+                  }`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '0.65rem',
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor:
+                      invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
+                        ? 'var(--color-danger-bg)'
+                        : 'rgba(212, 155, 75, 0.14)',
+                    border:
+                      invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
+                        ? '1.5px solid var(--color-danger)'
+                        : '1.5px solid var(--color-warning)',
+                    boxShadow:
+                      invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
+                        ? '0 4px 16px rgba(239, 68, 68, 0.22)'
+                        : '0 4px 16px rgba(212, 155, 75, 0.16)',
+                    animation: 'checkErrorShake 0.4s ease',
+                  }}
+                >
+                  <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>⚠️</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0 }}>
+                    <strong
+                      style={{
+                        fontSize: '0.78rem',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 800,
+                        color:
+                          invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
+                            ? 'var(--color-danger)'
+                            : 'var(--color-warning)',
+                      }}
+                    >
+                      {invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
+                        ? 'MOVIMENTO INVÁLIDO: REI EM XEQUE'
+                        : 'MOVIMENTO NÃO PERMITIDO'}
+                    </strong>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
+                      {invalidMoveFeedback.message}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               <div className="match-telemetry-card">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                   <button
@@ -393,7 +560,10 @@ const AppContent: React.FC = () => {
                 onFlipBoard={handleFlipBoard}
                 isBoardFlipped={isBoardFlipped}
                 boardViewMode={preferences.boardViewMode ?? '2D'}
-                onToggleBoardViewMode={(mode) => updatePreferences({ boardViewMode: mode })}
+                onToggleBoardViewMode={(mode) => {
+                  clearFeedback();
+                  updatePreferences({ boardViewMode: mode });
+                }}
               />
             </aside>
           </div>

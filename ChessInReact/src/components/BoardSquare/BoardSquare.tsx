@@ -13,6 +13,9 @@ const BoardSquare: React.FC<IBoardSquare> = ({
   testId,
   isMoveDestination,
   isCaptureDestination,
+  isCheckKingError,
+  isCheckSourceError,
+  isCheckTargetError,
   rankLabel,
   fileLabel,
   tabIndex,
@@ -46,7 +49,13 @@ const BoardSquare: React.FC<IBoardSquare> = ({
     ? `${pieceLabelMap[piece.name.toUpperCase()] ?? piece.name} ${piece.color === 'white' ? 'Branco' : 'Preto'}`
     : 'vazia';
 
-  const statusSuffix = isCaptureDestination
+  const statusSuffix = isCheckKingError
+    ? ', REI EM XEQUE! Movimento restrito'
+    : isCheckSourceError
+    ? ', peça não pode mover enquanto o rei estiver em xeque'
+    : isCheckTargetError
+    ? ', destino inválido por xeque'
+    : isCaptureDestination
     ? ', captura legal disponível'
     : isMoveDestination
     ? ', movimento legal disponível'
@@ -114,9 +123,23 @@ const BoardSquare: React.FC<IBoardSquare> = ({
       data-square-col={squareInfo.column}
       data-square-row={squareInfo.row}
       onFocus={() => onFocusSquare?.(squareInfo.column, squareInfo.row)}
-      className="board-square"
+      className={`board-square ${
+        isCheckKingError
+          ? 'board-square--check-king-error'
+          : isCheckSourceError
+          ? 'board-square--check-source-error'
+          : isCheckTargetError
+          ? 'board-square--check-target-error'
+          : ''
+      }`}
       style={{
-        backgroundColor: isSelected ? activeBoardColors.selectedSquare : `${backgroundColor}`,
+        backgroundColor: isCheckKingError
+          ? 'rgba(239, 68, 68, 0.42)'
+          : isCheckSourceError
+          ? 'rgba(239, 68, 68, 0.28)'
+          : isSelected
+          ? activeBoardColors.selectedSquare
+          : `${backgroundColor}`,
         fontSize: `${boardDisplay.length < 12 ? '175%' : 185 - boardDisplay.length * 5 + '%'}`,
         justifyContent: 'center',
         alignItems: 'center',
@@ -128,13 +151,24 @@ const BoardSquare: React.FC<IBoardSquare> = ({
         minWidth: 0,
         minHeight: 0,
         overflow: 'hidden',
-        boxShadow: isSelected
+        boxShadow: isCheckKingError
+          ? 'inset 0 0 0 3px #ef4444, 0 0 16px rgba(239, 68, 68, 0.65)'
+          : isCheckSourceError
+          ? 'inset 0 0 0 2.5px #ef4444, 0 0 10px rgba(239, 68, 68, 0.45)'
+          : isCheckTargetError
+          ? 'inset 0 0 0 2.5px #ef4444'
+          : isSelected
           ? 'inset 0 0 0 2.5px var(--border-active, #C4A77D)'
           : 'inset 0 0 0 0.5px rgba(0, 0, 0, 0.06)',
         cursor: 'pointer',
         position: 'relative',
         userSelect: 'none',
         transition: 'background-color 140ms ease, box-shadow 140ms ease',
+        animation: isCheckKingError
+          ? 'checkKingPulse 1.2s infinite'
+          : isCheckSourceError
+          ? 'checkErrorShake 0.4s ease'
+          : 'none',
       }}
       onClick={() => handleClick(squareInfo, piece)}
       onKeyDown={handleKeyDown}

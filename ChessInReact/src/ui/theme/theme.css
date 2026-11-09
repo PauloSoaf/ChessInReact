@@ -838,6 +838,14 @@ select:focus-visible,
     white-space: nowrap;
   }
 
+  #nav-quick-view-mode-toggle {
+    padding: 0.28rem 0.38rem !important;
+  }
+
+  #nav-quick-view-mode-toggle .nav-btn-text {
+    display: none !important;
+  }
+
   #nav-open-theme-customizer .nav-btn-text {
     display: none !important;
   }
@@ -892,6 +900,86 @@ select:focus-visible,
     gap: 0.35rem;
     border-radius: var(--radius-md);
   }
+}
+
+@media (max-width: 375px) {
+  .top-nav-bar {
+    padding: 0.35rem 0.35rem !important;
+  }
+
+  .top-nav-inner {
+    gap: 0.2rem !important;
+  }
+
+  .brand-mark-icon {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .brand-mark-title {
+    font-size: 0.72rem !important;
+  }
+
+  .top-nav-inner nav {
+    gap: 0.18rem !important;
+  }
+
+  .nav-view-btn {
+    padding: 0.25rem 0.3rem !important;
+    font-size: 0.64rem !important;
+  }
+
+  #nav-quick-view-mode-toggle,
+  #nav-quick-theme-toggle,
+  #nav-open-theme-customizer {
+    padding: 0.25rem 0.3rem !important;
+  }
+}
+
+/* Check Constraint Feedback & Animations (SPEC07-CHECK-CONSTRAINT-FEEDBACK-01) */
+@keyframes checkKingPulse {
+  0%, 100% {
+    box-shadow: inset 0 0 0 3px #ef4444, 0 0 16px rgba(239, 68, 68, 0.65);
+  }
+  50% {
+    box-shadow: inset 0 0 0 4px #dc2626, 0 0 24px rgba(220, 38, 38, 0.9);
+  }
+}
+
+@keyframes checkErrorShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-2.5px); }
+  40%, 80% { transform: translateX(2.5px); }
+}
+
+@keyframes pulseCheck {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.03);
+  }
+}
+
+.check-constraint-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.18);
+  animation: checkErrorShake 0.4s ease;
+  margin-bottom: 0.5rem;
+}
+
+.check-constraint-banner--warning {
+  background-color: rgba(212, 155, 75, 0.12);
+  border: 1px solid rgba(212, 155, 75, 0.35);
+  box-shadow: 0 4px 16px rgba(212, 155, 75, 0.15);
 }
 
 @media (prefers-reduced-motion: reduce) {

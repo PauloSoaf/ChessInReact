@@ -1,5 +1,5 @@
-import React, { useMemo, useCallback } from 'react';
-import { Canvas } from '@react-three/fiber';
+import React, { useMemo, useCallback, useEffect } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { useGameStore, useGameActions } from '../bindings/react/useGameStore';
 import { useTheme } from '../ui/theme/ThemeContext';
@@ -7,9 +7,11 @@ import { asCoordinateKey } from '../core/coordinates';
 import { IPieceEntity } from '../core/entities/types';
 import { SquareTopology } from '../core/topology/SquareTopology';
 import { RulesEngine } from '../engine/rules/RulesEngine';
+import { CheckValidator } from '../engine/rules/CheckValidator';
 import { MovePieceCommand } from '../core/commands/MovePieceCommand';
 import { InstancedBoard } from './mesh/InstancedBoard';
 import { InstancedPieces } from './mesh/InstancedPieces';
+import { IInvalidMoveFeedback, ITriggerFeedbackOptions, InvalidMoveReason } from '../bindings/react/useMoveFeedback';
 
 export interface IChessBoard3DProps {
   boardSize?: number;
@@ -17,12 +19,44 @@ export interface IChessBoard3DProps {
   botPlayer?: string;
   disabled?: boolean;
   isFlipped?: boolean;
+  invalidMoveFeedback?: IInvalidMoveFeedback | null;
+  onTriggerInvalidMove?: (reason: InvalidMoveReason, options: ITriggerFeedbackOptions) => void;
+  onClearInvalidMove?: () => void;
+  onFallbackTo2D?: () => void;
+}
+
+/**
+ * Checks if WebGL is available in the current environment (Spec 07 § 10.2).
+ */
+export function isWebGLAvailable(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const canvas = document.createElement('canvas');
+    return Boolean(
+      window.WebGLRenderingContext &&
+      (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Ensures on-demand frame invalidation whenever state revisions occur (Spec 07 Priority 4).
+ */
+function FrameInvalidator({ deps }: { deps: readonly unknown[] }) {
+  const { invalidate } = useThree();
+  useEffect(() => {
+    invalidate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return null;
 }
 
 /**
  * Spec 07: Interactive 3D WebGL Chessboard (RF-01, RF-07, RNF-01, RNF-02).
  * Implements real-time 3D board rendering with InstancedMesh, PBR lighting,
- * OrbitControls, and full integration with Core ECS and Rules Engine.
+ * OrbitControls, check-constraint error feedback, and Core ECS synchronisation.
  */
 export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
   boardSize = 8,
@@ -30,6 +64,10 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
   botPlayer,
   disabled = false,
   isFlipped = false,
+  invalidMoveFeedback,
+  onTriggerInvalidMove,
+  onClearInvalidMove,
+  onFallbackTo2D,
 }) => {
   const { preferences, activeBoardColors, uiTheme } = useTheme();
 
@@ -63,7 +101,17 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
     return moves.map((m) => m.to);
   }, [selectedPiece, domain, topology, preferences.showLegalMoves, disabled, botPlayer]);
 
-  // Handle square or piece click to select or move
+  // Check constraint coordinates for visual highlighting
+  const checkConstraintCoords = useMemo(() => {
+    if (!invalidMoveFeedback) return null;
+    return {
+      kingCoord: invalidMoveFeedback.kingCoord,
+      sourceCoord: invalidMoveFeedback.sourceCoord,
+      targetCoord: invalidMoveFeedback.targetCoord,
+    };
+  }, [invalidMoveFeedback]);
+
+  // Handle square or piece click to select or move with check-constraint feedback
   const handleSquareClick = useCallback(
     (coord: string) => {
       if (disabled || isBotThinking) return;
@@ -74,6 +122,20 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
       // Case 1: No piece currently selected
       if (!selectedPiece) {
         if (entityAtCoord && entityAtCoord.ownerId === domain.activePlayer) {
+          const isKingInCheck = CheckValidator.isRoyalInCheck(domain.activePlayer, domain, topology);
+          const legalMoves = RulesEngine.getLegalMovesForPiece(entityAtCoord, domain, topology);
+
+          if (isKingInCheck && legalMoves.length === 0) {
+            const king = CheckValidator.findRoyalPiece(domain.activePlayer, domain);
+            onTriggerInvalidMove?.('CHECK_CONSTRAINT', {
+              sourceCoord: entityAtCoord.position,
+              kingCoord: king?.position,
+              message: 'Movimento inválido: seu rei está em xeque. Essa peça não pode se mover enquanto o rei estiver em xeque.',
+            });
+            return;
+          }
+
+          onClearInvalidMove?.();
           selectPiece(entityAtCoord.id);
         }
         return;
@@ -81,12 +143,27 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
 
       // Case 2: Clicking the same selected piece cancels selection
       if (selectedPiece.position === coord || selectedPiece.id === entityAtCoord?.id) {
+        onClearInvalidMove?.();
         selectPiece(null);
         return;
       }
 
       // Case 3: Clicking another friendly piece switches selection
       if (entityAtCoord && entityAtCoord.ownerId === domain.activePlayer) {
+        const isKingInCheck = CheckValidator.isRoyalInCheck(domain.activePlayer, domain, topology);
+        const legalMoves = RulesEngine.getLegalMovesForPiece(entityAtCoord, domain, topology);
+
+        if (isKingInCheck && legalMoves.length === 0) {
+          const king = CheckValidator.findRoyalPiece(domain.activePlayer, domain);
+          onTriggerInvalidMove?.('CHECK_CONSTRAINT', {
+            sourceCoord: entityAtCoord.position,
+            kingCoord: king?.position,
+            message: 'Movimento inválido: seu rei está em xeque. Essa peça não pode se mover enquanto o rei estiver em xeque.',
+          });
+          return;
+        }
+
+        onClearInvalidMove?.();
         selectPiece(entityAtCoord.id);
         return;
       }
@@ -96,11 +173,30 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
       const matchedMove = legalMoves.find((m) => m.to === coord);
 
       if (!matchedMove) {
+        const isKingInCheck = CheckValidator.isRoyalInCheck(domain.activePlayer, domain, topology);
+        const king = CheckValidator.findRoyalPiece(domain.activePlayer, domain);
+
+        if (isKingInCheck) {
+          onTriggerInvalidMove?.('CHECK_CONSTRAINT', {
+            sourceCoord: selectedPiece.position,
+            targetCoord: coord,
+            kingCoord: king?.position,
+            message: 'Movimento inválido: seu rei está em xeque. Resolva o xeque movendo o rei, capturando a ameaça ou bloqueando a linha.',
+          });
+        } else {
+          onTriggerInvalidMove?.('ILLEGAL_MOVE', {
+            sourceCoord: selectedPiece.position,
+            targetCoord: coord,
+            message: 'Movimento não permitido pelas regras desta peça.',
+          });
+        }
+
         selectPiece(null);
         return;
       }
 
       try {
+        onClearInvalidMove?.();
         const promotionVariant = matchedMove.isPromotion ? 'QUEEN' : undefined;
         const moveCmd = new MovePieceCommand(
           selectedPiece.id,
@@ -130,6 +226,8 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
       domain,
       selectPiece,
       executeCommand,
+      onTriggerInvalidMove,
+      onClearInvalidMove,
     ]
   );
 
@@ -169,6 +267,18 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
         frameloop="demand"
         style={{ width: '100%', height: '100%' }}
       >
+        <FrameInvalidator
+          deps={[
+            domain.revision,
+            domain.turnNumber,
+            domain.activePlayer,
+            ui.selectedPieceId,
+            legalMoveCoords.length,
+            invalidMoveFeedback?.timestamp,
+            uiTheme,
+          ]}
+        />
+
         <OrbitControls
           enablePan={false}
           minDistance={4}
@@ -199,6 +309,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           darkColor={activeBoardColors.darkSquare}
           selectedCoord={selectedPiece?.position}
           legalMoveCoords={legalMoveCoords}
+          checkConstraintCoords={checkConstraintCoords}
           onSquareClick={handleSquareClick}
         />
 
@@ -207,17 +318,18 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           boardSize={boardSize}
           pieces={activePieces}
           selectedPieceId={ui.selectedPieceId}
+          checkConstraintCoords={checkConstraintCoords}
           onPieceClick={handlePieceClick}
         />
       </Canvas>
 
-      {/* Interactive 3D HUD Badge */}
+      {/* Interactive 3D HUD Badge & Safe 2D Fallback Button (Priority 3 & 8) */}
       <div
         style={{
           position: 'absolute',
           bottom: '0.65rem',
           right: '0.75rem',
-          backgroundColor: 'rgba(15, 23, 42, 0.75)',
+          backgroundColor: 'rgba(15, 23, 42, 0.85)',
           backdropFilter: 'blur(6px)',
           border: '1px solid var(--border-subtle)',
           padding: '0.2rem 0.55rem',
@@ -226,15 +338,36 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           fontFamily: 'var(--font-mono)',
           fontWeight: 700,
           color: 'var(--color-accent)',
-          pointerEvents: 'none',
           display: 'flex',
           alignItems: 'center',
-          gap: '0.35rem',
+          gap: '0.45rem',
+          zIndex: 10,
         }}
       >
         <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
         <span>SPEC 07 WebGL 3D</span>
+        {onFallbackTo2D && (
+          <button
+            type="button"
+            id="btn-fallback-2d-pill"
+            onClick={onFallbackTo2D}
+            title="Retornar ao tabuleiro 2D clássico"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              fontSize: '0.65rem',
+              padding: '0 0.2rem',
+              textDecoration: 'underline',
+            }}
+          >
+            [Retornar ao 2D]
+          </button>
+        )}
       </div>
     </div>
   );
 };
+
+export default ChessBoard3D;
