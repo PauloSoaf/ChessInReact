@@ -15,7 +15,7 @@ import { EvaluationBar } from './ui/components/game/EvaluationBar';
 import { GameControlsBar } from './ui/components/game/GameControlsBar';
 import { CheckValidator } from './engine/rules/CheckValidator';
 import { SquareTopology } from './core/topology/SquareTopology';
-import { isWebGLAvailable } from './rendering/ChessBoard3D';
+import { isWebGLAvailable } from './rendering/webglCapabilities';
 import './ui/theme/theme.css';
 
 // Lazy-loaded 3D WebGL Chessboard to preserve initial 2D bundle size (Spec 07 Priority 2)

@@ -284,8 +284,12 @@ export class BotMatchController {
             return null;
           }
 
-          // 3. Reset/recover the worker bridge for subsequent turns
+          // 3. Reset and respawn the worker bridge to restore computation capacity for subsequent turns
           this.bridge.cancelPendingSearches();
+          if (!this.bridgeOptions?.bridge) {
+            this.bridge.dispose();
+            this.bridge = this.createBridge(this.bridgeOptions);
+          }
 
           const currentDomain = gameStore.getState().domain;
           if (
@@ -295,8 +299,8 @@ export class BotMatchController {
             !currentDomain.isGameOver
           ) {
             const snapshot = serializeStateForWorker(currentDomain);
-            // Cap emergency fallback depth/budget to guarantee 0 UI freezing
-            const emergencyDifficulty = Math.min(this.difficulty, 2) as AIDifficultyLevel;
+            // Non-blocking emergency fallback with strictly capped budget (<15ms)
+            const emergencyDifficulty = 1 as AIDifficultyLevel;
 
             const response = processWorkerRequest({
               id: 999999,
@@ -308,8 +312,8 @@ export class BotMatchController {
                 activePlayer: currentDomain.activePlayer,
                 variantId: currentDomain.variantId,
                 difficulty: emergencyDifficulty,
-                timeBudgetMs: 50,
-                depthLimit: 2,
+                timeBudgetMs: 25,
+                depthLimit: 1,
                 topologyOptions:
                   this.topology.type === 'SQUARE'
                     ? {

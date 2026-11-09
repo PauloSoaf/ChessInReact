@@ -20,6 +20,7 @@ export interface IInstancedPiecesProps {
  * selection halos, and check-constraint error indicators.
  */
 const Piece3DModel: React.FC<{
+  coord?: string;
   type: string;
   isWhite: boolean;
   isSelected: boolean;
@@ -27,7 +28,7 @@ const Piece3DModel: React.FC<{
   isCheckSource?: boolean;
   position: [number, number, number];
   onPointerDown: (e: { stopPropagation: () => void }) => void;
-}> = ({ type, isWhite, isSelected, isCheckKing, isCheckSource, position, onPointerDown }) => {
+}> = ({ coord, type, isWhite, isSelected, isCheckKing, isCheckSource, position, onPointerDown }) => {
   const normType = type.toUpperCase();
 
   const bodyColor = isWhite ? '#f8fafc' : '#1e293b';
@@ -47,6 +48,7 @@ const Piece3DModel: React.FC<{
     <group
       position={[position[0], yPos, position[2]]}
       onPointerDown={onPointerDown}
+      data-testid={coord ? `piece-3d-${coord}` : undefined}
     >
       {/* Base Pedestal */}
       <mesh castShadow receiveShadow position={[0, 0.06, 0]}>
@@ -166,7 +168,7 @@ const Piece3DModel: React.FC<{
 
       {/* Check Constraint Warning Ring for King */}
       {isCheckKing && (
-        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} data-testid="check-king-3d-ring">
           <ringGeometry args={[0.46, 0.62, 32]} />
           <meshBasicMaterial color="#ef4444" toneMapped={false} />
         </mesh>
@@ -174,7 +176,7 @@ const Piece3DModel: React.FC<{
 
       {/* Check Constraint Error Ring for Helpless Piece */}
       {isCheckSource && (
-        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} data-testid="check-source-3d-ring">
           <ringGeometry args={[0.45, 0.55, 32]} />
           <meshBasicMaterial color="#dc2626" toneMapped={false} />
         </mesh>
@@ -217,6 +219,7 @@ export const InstancedPieces: React.FC<IInstancedPiecesProps> = ({
         return (
           <Piece3DModel
             key={piece.id}
+            coord={piece.position}
             type={piece.variantId ?? 'PAWN'}
             isWhite={isWhite}
             isSelected={isSelected}

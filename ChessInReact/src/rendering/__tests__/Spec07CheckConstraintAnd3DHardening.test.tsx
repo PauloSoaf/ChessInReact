@@ -12,12 +12,14 @@ import { MovePieceCommand } from '../../core/commands/MovePieceCommand';
 import { asCoordinateKey } from '../../core/coordinates';
 import { PlayerCard } from '../../ui/components/game/PlayerCard';
 import { BotMatchController } from '../../controllers/BotMatchController';
+import { ChessBoard3D } from '../ChessBoard3D';
+import { EngineBridge } from '../../core/workers/EngineBridge';
 
 // Mock WebGL and Three.js canvas in JSDOM environment
 vi.mock('@react-three/fiber', () => ({
-  Canvas: () => (
+  Canvas: ({ children }: { children?: React.ReactNode }) => (
     <div data-testid="mock-r3f-canvas">
-      <div data-testid="mock-orbit-controls" />
+      {children}
     </div>
   ),
   useFrame: vi.fn(),
@@ -54,6 +56,7 @@ describe('SPEC 07: Check Constraint Feedback & 3D Hardening Suite', () => {
 
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
   });
 
   describe('1. Check Constraint Visual & Textual Feedback (SPEC07-CHECK-CONSTRAINT-FEEDBACK-01)', () => {
@@ -72,43 +75,44 @@ describe('SPEC 07: Check Constraint Feedback & 3D Hardening Suite', () => {
       expect(checkPill.textContent).toContain('EM XEQUE');
     });
 
-    it('triggers CHECK_CONSTRAINT feedback banner and red highlights when king is in check and an illegal attempt is made', () => {
-      // Setup Scholar's Mate / Fool's Mate check situation where White King is directly in check
-      // Move 1. f2-f3 (White)
-      const pF2 = Object.values(gameStore.getState().domain.boardEntities).find(
-        (e): e is IPieceEntity => e.type === 'PIECE' && e.position === '5,1'
+    it('triggers CHECK_CONSTRAINT feedback banner and red highlights when king is in check and an illegal attempt is made (active game, isGameOver === false)', () => {
+      // Setup deterministic active check position (not checkmate)
+      // Move 1. e2-e4 (White)
+      const pE2 = Object.values(gameStore.getState().domain.boardEntities).find(
+        (e): e is IPieceEntity => e.type === 'PIECE' && e.position === '4,1'
       )!;
       gameStore.getState().executeCommand(
-        new MovePieceCommand(pF2.id, '5,1', asCoordinateKey('5,2'), 'P1', undefined, true, true, undefined, topology)
+        new MovePieceCommand(pE2.id, pE2.position, asCoordinateKey('4,3'), 'P1', undefined, true, true, undefined, topology)
       );
 
-      // Move 2. e7-e5 (Black)
+      // Move 2. e7-e6 (Black)
       const pE7 = Object.values(gameStore.getState().domain.boardEntities).find(
         (e): e is IPieceEntity => e.type === 'PIECE' && e.position === '4,6'
       )!;
       gameStore.getState().executeCommand(
-        new MovePieceCommand(pE7.id, '4,6', asCoordinateKey('4,4'), 'P2', undefined, true, true, undefined, topology)
+        new MovePieceCommand(pE7.id, pE7.position, asCoordinateKey('4,5'), 'P2', undefined, true, true, undefined, topology)
       );
 
-      // Move 3. g2-g4 (White)
-      const pG2 = Object.values(gameStore.getState().domain.boardEntities).find(
-        (e): e is IPieceEntity => e.type === 'PIECE' && e.position === '6,1'
+      // Move 3. f2-f4 (White)
+      const pF2 = Object.values(gameStore.getState().domain.boardEntities).find(
+        (e): e is IPieceEntity => e.type === 'PIECE' && e.position === '5,1'
       )!;
       gameStore.getState().executeCommand(
-        new MovePieceCommand(pG2.id, '6,1', asCoordinateKey('6,3'), 'P1', undefined, true, true, undefined, topology)
+        new MovePieceCommand(pF2.id, pF2.position, asCoordinateKey('5,3'), 'P1', undefined, true, true, undefined, topology)
       );
 
-      // Move 4. Qh4 check! (Black) - d8 to h4 (3,7 to 7,3)
+      // Move 4. Qd8-h4 check! (Black) - d8 to h4 (3,7 to 7,3)
       const qBlack = Object.values(gameStore.getState().domain.boardEntities).find(
         (e): e is IPieceEntity => e.type === 'PIECE' && e.position === '3,7'
       )!;
       gameStore.getState().executeCommand(
-        new MovePieceCommand(qBlack.id, '3,7', asCoordinateKey('7,3'), 'P2', undefined, true, true, undefined, topology)
+        new MovePieceCommand(qBlack.id, qBlack.position, asCoordinateKey('7,3'), 'P2', undefined, true, true, undefined, topology)
       );
 
-      // Confirm White King is in check
+      // Strict verification: King is in check, but game is actively in progress (isGameOver === false)
       const currentDomain = gameStore.getState().domain;
       expect(currentDomain.activePlayer).toBe('P1');
+      expect(currentDomain.isGameOver).toBe(false);
       expect(CheckValidator.isRoyalInCheck('P1', currentDomain, topology)).toBe(true);
 
       render(
@@ -121,7 +125,7 @@ describe('SPEC 07: Check Constraint Feedback & 3D Hardening Suite', () => {
       const squareA2 = screen.getByTestId('square-0,1');
       fireEvent.click(squareA2);
 
-      // Check-constraint banner must appear in HUD
+      // Check-constraint banner must appear in HUD with aria-live="polite" and role="status"
       const banner = screen.getByTestId('check-constraint-banner');
       expect(banner).toBeDefined();
       expect(banner.getAttribute('role')).toBe('status');
@@ -185,6 +189,72 @@ describe('SPEC 07: Check Constraint Feedback & 3D Hardening Suite', () => {
       // Banner is removed
       expect(screen.queryByTestId('check-constraint-banner')).toBeNull();
     });
+
+    it('validates 3D board interactive check-constraint trigger and halo feedback coordinates', () => {
+      // Put White King in check (1. e4 e6 2. f4 Qh4+)
+      const pE2 = Object.values(gameStore.getState().domain.boardEntities).find(
+        (e): e is IPieceEntity => e.type === 'PIECE' && e.position === '4,1'
+      )!;
+      gameStore.getState().executeCommand(
+        new MovePieceCommand(pE2.id, pE2.position, asCoordinateKey('4,3'), 'P1', undefined, true, true, undefined, topology)
+      );
+      const pE7 = Object.values(gameStore.getState().domain.boardEntities).find(
+        (e): e is IPieceEntity => e.type === 'PIECE' && e.position === '4,6'
+      )!;
+      gameStore.getState().executeCommand(
+        new MovePieceCommand(pE7.id, pE7.position, asCoordinateKey('4,5'), 'P2', undefined, true, true, undefined, topology)
+      );
+      const pF2 = Object.values(gameStore.getState().domain.boardEntities).find(
+        (e): e is IPieceEntity => e.type === 'PIECE' && e.position === '5,1'
+      )!;
+      gameStore.getState().executeCommand(
+        new MovePieceCommand(pF2.id, pF2.position, asCoordinateKey('5,3'), 'P1', undefined, true, true, undefined, topology)
+      );
+      const qBlack = Object.values(gameStore.getState().domain.boardEntities).find(
+        (e): e is IPieceEntity => e.type === 'PIECE' && e.position === '3,7'
+      )!;
+      gameStore.getState().executeCommand(
+        new MovePieceCommand(qBlack.id, qBlack.position, asCoordinateKey('7,3'), 'P2', undefined, true, true, undefined, topology)
+      );
+
+      const triggerInvalidMoveSpy = vi.fn();
+      const clearInvalidMoveSpy = vi.fn();
+
+      render(
+        <ThemeProvider>
+          <ChessBoard3D
+            boardSize={8}
+            onTriggerInvalidMove={triggerInvalidMoveSpy}
+            onClearInvalidMove={clearInvalidMoveSpy}
+            invalidMoveFeedback={{
+              reason: 'CHECK_CONSTRAINT',
+              message: 'Rei em xeque',
+              kingCoord: asCoordinateKey('4,0'),
+              sourceCoord: asCoordinateKey('0,1'),
+              timestamp: Date.now(),
+            }}
+          />
+        </ThemeProvider>
+      );
+
+      // Verify 3D container is rendered with fallback pill
+      const container3D = screen.getByTestId('chess-board-3d-container');
+      expect(container3D).toBeDefined();
+
+      // Verify 3D warning rings for king and source piece rendered by InstancedPieces
+      expect(screen.getByTestId('check-king-3d-ring')).toBeDefined();
+      expect(screen.getByTestId('check-source-3d-ring')).toBeDefined();
+
+      // Simulate clicking pawn a2 (0,1) through 3D piece mesh
+      const pawnA2Mesh = screen.getByTestId('piece-3d-0,1');
+      expect(pawnA2Mesh).toBeDefined();
+      fireEvent.pointerDown(pawnA2Mesh);
+
+      // Expect 3D check constraint callback invoked with proper reason
+      expect(triggerInvalidMoveSpy).toHaveBeenCalled();
+      const firstCallArgs = triggerInvalidMoveSpy.mock.calls[0];
+      expect(firstCallArgs[0]).toBe('CHECK_CONSTRAINT');
+    });
   });
 
   describe('2. 3D Hardening, Progressive Loading & Resilient AI Execution (SPEC07-3D-FOUNDATION-CORRECTION-01)', () => {
@@ -201,8 +271,9 @@ describe('SPEC 07: Check Constraint Feedback & 3D Hardening Suite', () => {
         fireEvent.click(btn3D);
       });
 
-      // 3D Canvas is active
-      expect(screen.getByTestId('chess-board-3d-container')).toBeDefined();
+      // 3D Canvas is active (await Suspense resolution)
+      const container3D = await screen.findByTestId('chess-board-3d-container');
+      expect(container3D).toBeDefined();
 
       // Switch back to 2D
       const btn2D = screen.getByRole('button', { name: /^2D$/ });
@@ -213,13 +284,21 @@ describe('SPEC 07: Check Constraint Feedback & 3D Hardening Suite', () => {
       expect(screen.getByTestId('chess-board')).toBeDefined();
     });
 
-    it('recovers asynchronously and dispatches move without freezing UI when worker fails', async () => {
-      // Mock worker error to test emergency fallback in BotMatchController
+    it('recovers gracefully from controlled Worker calculation rejection and executes non-blocking fallback', async () => {
+      // Mock worker error to test controlled rejection recovery in BotMatchController
+      const mockFailingBridge = {
+        calculateBestMove: vi.fn().mockRejectedValueOnce(new Error('Simulated WebWorker Failure (OOM / Thread Crash)')),
+        cancelPendingSearches: vi.fn(),
+        isDisposedBridge: vi.fn().mockReturnValue(false),
+        dispose: vi.fn(),
+      } as unknown as EngineBridge;
+
       const controller = new BotMatchController({
         botPlayer: 'P2',
         humanPlayer: 'P1',
         enabled: true,
         difficulty: 1,
+        bridge: mockFailingBridge,
       });
 
       // Make White move 1 (e2-e4) so it's bot's turn (P2)
@@ -227,20 +306,78 @@ describe('SPEC 07: Check Constraint Feedback & 3D Hardening Suite', () => {
         (e): e is IPieceEntity => e.type === 'PIECE' && e.position === '4,1'
       )!;
       gameStore.getState().executeCommand(
-        new MovePieceCommand(pE2.id, '4,1', asCoordinateKey('4,3'), 'P1', undefined, true, true, undefined, topology)
+        new MovePieceCommand(pE2.id, pE2.position, asCoordinateKey('4,3'), 'P1', undefined, true, true, undefined, topology)
       );
 
       expect(gameStore.getState().domain.activePlayer).toBe('P2');
 
-      // Trigger bot turn - even if worker fails internally, async fallback handles it
+      // Trigger bot turn - Worker REJECTS controlled error, resilient fallback executes
       const result = await controller.checkAndTriggerBotTurn();
+
+      // Assert error was caught and fallback delivered a valid move
+      expect(mockFailingBridge.calculateBestMove).toHaveBeenCalled();
+      expect(mockFailingBridge.cancelPendingSearches).toHaveBeenCalled();
       expect(result).not.toBeNull();
       expect(result?.bestMove).toBeDefined();
 
-      // Ensure bot advanced turn to P1 (White)
+      // Ensure bot advanced turn to P1 (White) preserving match state
       expect(gameStore.getState().domain.activePlayer).toBe('P1');
+      expect(gameStore.getState().domain.isGameOver).toBe(false);
+
+      controller.dispose();
+    });
+
+    it('cancels obsolete calculation when match is cancelled or turn changes during deliberation', async () => {
+      let resolveSearch!: (val: unknown) => void;
+      const deferredPromise = new Promise((res) => {
+        resolveSearch = res;
+      });
+
+      const mockSlowBridge = {
+        calculateBestMove: vi.fn().mockReturnValue(deferredPromise),
+        cancelPendingSearches: vi.fn(),
+        isDisposedBridge: vi.fn().mockReturnValue(false),
+        dispose: vi.fn(),
+      } as unknown as EngineBridge;
+
+      const controller = new BotMatchController({
+        botPlayer: 'P2',
+        humanPlayer: 'P1',
+        enabled: true,
+        difficulty: 1,
+        bridge: mockSlowBridge,
+      });
+
+      // Move e2-e4
+      const pE2 = Object.values(gameStore.getState().domain.boardEntities).find(
+        (e): e is IPieceEntity => e.type === 'PIECE' && e.position === '4,1'
+      )!;
+      gameStore.getState().executeCommand(
+        new MovePieceCommand(pE2.id, pE2.position, asCoordinateKey('4,3'), 'P1', undefined, true, true, undefined, topology)
+      );
+
+      // Start search
+      const botTurnPromise = controller.checkAndTriggerBotTurn();
+      expect(controller.getIsThinking()).toBe(true);
+
+      // Cancel deliberation mid-flight
+      controller.cancel();
+      expect(controller.getIsThinking()).toBe(false);
+      expect(mockSlowBridge.cancelPendingSearches).toHaveBeenCalled();
+
+      // Resolve background promise after cancellation
+      resolveSearch({
+        bestMove: { fromCoord: '4,6', toCoord: '4,4', pieceId: 'p2_pawn' },
+        evaluationScore: 0,
+        calculationTimeMs: 10,
+        depthReached: 1,
+      });
+
+      const outcome = await botTurnPromise;
+      // Stale calculation must be discarded
+      expect(outcome).toBeNull();
+
       controller.dispose();
     });
   });
 });
-

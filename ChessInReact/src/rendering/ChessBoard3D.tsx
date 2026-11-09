@@ -26,22 +26,6 @@ export interface IChessBoard3DProps {
 }
 
 /**
- * Checks if WebGL is available in the current environment (Spec 07 § 10.2).
- */
-export function isWebGLAvailable(): boolean {
-  if (typeof window === 'undefined') return false;
-  try {
-    const canvas = document.createElement('canvas');
-    return Boolean(
-      window.WebGLRenderingContext &&
-      (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
-    );
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Ensures on-demand frame invalidation whenever state revisions occur (Spec 07 Priority 4).
  */
 function FrameInvalidator({ deps }: { deps: readonly unknown[] }) {
