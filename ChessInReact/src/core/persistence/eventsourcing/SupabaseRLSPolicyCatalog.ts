@@ -29,10 +29,17 @@ export class SupabaseRLSPolicyCatalog {
   public static readonly POLICIES: readonly IRLSPolicyDefinition[] = [
     {
       tableName: 'User',
-      policyName: 'user_read_public',
+      policyName: 'user_read_own_private',
       command: 'SELECT',
-      usingExpression: 'true',
-      description: 'Allow public discovery of usernames and public profile avatars.',
+      usingExpression: 'auth.uid()::text = id',
+      description: 'Players may only read their own sensitive profile record including email (Spec 09 § 5, RF-11).',
+    },
+    {
+      tableName: 'User',
+      policyName: 'user_read_service_or_owner',
+      command: 'SELECT',
+      usingExpression: 'auth.role() = \'service_role\' OR auth.uid()::text = id',
+      description: 'Restricts direct User table SELECT to owner or service_role; public reads must use PublicUserProfile projection view (RF-11).',
     },
     {
       tableName: 'User',
@@ -121,6 +128,8 @@ export class SupabaseRLSPolicyCatalog {
       return `-- ${idx.rationale}\nCREATE ${unique}INDEX IF NOT EXISTS "${idx.indexName}" ON "${idx.tableName}" (${idx.columns.join(', ')});`;
     }).join('\n\n');
 
-    return `-- ====================================================================\n-- Supabase PostgreSQL Governance: Row Level Security & Indexes\n-- Spec 09 (RF-09, RF-11, RF-12)\n-- ====================================================================\n\n${rlsSql}\n\n${indexSql}\n`;
+    const viewSql = `-- Secure public projection view for user profiles hiding private email addresses (Spec 09 § 5, RF-11)\nCREATE OR REPLACE VIEW "PublicUserProfile" AS\n  SELECT id, username, "avatarUrl", "createdAt", "updatedAt"\n  FROM "User";\nGRANT SELECT ON "PublicUserProfile" TO anon, authenticated;`;
+
+    return `-- ====================================================================\n-- Supabase PostgreSQL Governance: Row Level Security & Indexes\n-- Spec 09 (RF-09, RF-11, RF-12)\n-- ====================================================================\n\n${rlsSql}\n\n${viewSql}\n\n${indexSql}\n`;
   }
 }

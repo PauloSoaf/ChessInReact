@@ -6,6 +6,17 @@ import { LobbyManager } from '../engine/LobbyManager';
 const TEST_SECRET = 'test-isolated-jwt-secret-do-not-use-in-prod-min-32-chars-long';
 
 describe('Spec 08 - MatchmakingQueueEngine (RF-01, RF-02, RF-03, RF-04, RF-05, RF-08, RF-12)', () => {
+  it('enforces mandatory JWT secret configuration and rejects insecure secrets (P1 Security)', () => {
+    // Missing secret
+    expect(() => new MatchmakingQueueEngine(undefined)).toThrowError(/Missing required JWT secret/);
+
+    // Short secret (< 32 chars)
+    expect(() => new MatchmakingQueueEngine('short-secret-123')).toThrowError(/Insecure JWT secret: minimum length is 32 characters/);
+
+    // Valid secret succeeds
+    expect(() => new MatchmakingQueueEngine(TEST_SECRET)).not.toThrow();
+  });
+
   it('creates tickets with unique ticketId and initial Elo configuration (RF-01)', () => {
     const engine = new MatchmakingQueueEngine(TEST_SECRET);
     const now = 1000000;

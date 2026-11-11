@@ -121,6 +121,65 @@ describe('Spec 09 PGN Event Sourcing & Replay Engine Suite (S09-RF01, S09-RF02, 
       replay.stepBackward();
       expect(replay.getCurrentIndex()).toBe(3);
     });
+
+    it('faithfully replays pure SAN tokens with minor pieces, castling, and promotions', () => {
+      // Italian Game opening + castling sequence:
+      // 1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. O-O Nf6
+      const italianPGN = `
+[Event "Italian Game Replay Test"]
+[Site "ChessInReact Engine"]
+[Date "2026.11.11"]
+[White "Player 1"]
+[Black "Player 2"]
+[Result "*"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. O-O Nf6 *
+      `;
+
+      const parsed = PGNParser.parse(italianPGN);
+      const replay = new ReplayEngine(parsed);
+
+      expect(replay.getTotalStates()).toBe(9); // Initial (0) + 8 plies = 9
+
+      // Turn 2 White: Nf3 (g1 -> f3, i.e. 6,0 -> 5,2)
+      const state3 = replay.getStateAtTurn(3);
+      expect(state3.occupancy[asCoordinateKey('6,0')]).toBeUndefined();
+      expect(state3.occupancy[asCoordinateKey('5,2')]).toBeDefined();
+
+      // Turn 4 White: O-O (White Kingside Castle)
+      // King moves from e1 (4,0) to g1 (6,0)
+      // Rook moves from h1 (7,0) to f1 (5,0)
+      const state7 = replay.getStateAtTurn(7);
+      expect(state7.occupancy[asCoordinateKey('4,0')]).toBeUndefined();
+      expect(state7.occupancy[asCoordinateKey('6,0')]).toBeDefined(); // King at g1
+      expect(state7.occupancy[asCoordinateKey('7,0')]).toBeUndefined();
+      expect(state7.occupancy[asCoordinateKey('5,0')]).toBeDefined(); // Rook at f1
+    });
+
+    it('resolves piece disambiguation (Nbd2 / R1e2 / exd5) without heuristic degradation', () => {
+      // Test knight disambiguation and pawn captures
+      const disambigPGN = `
+[Event "Disambiguation Test"]
+[Result "*"]
+
+1. e4 d5 2. exd5 Nf6 3. d4 Nbd7 *
+      `;
+
+      const parsed = PGNParser.parse(disambigPGN);
+      const replay = new ReplayEngine(parsed);
+
+      expect(replay.getTotalStates()).toBe(7);
+
+      // 2. exd5: pawn from e4 (4,3) captures at d5 (3,4)
+      const state3 = replay.getStateAtTurn(3);
+      expect(state3.occupancy[asCoordinateKey('4,3')]).toBeUndefined();
+      expect(state3.occupancy[asCoordinateKey('3,4')]).toBeDefined();
+
+      // 3... Nbd7: knight from b8 (1,7) moves to d7 (3,6)
+      const state6 = replay.getStateAtTurn(6);
+      expect(state6.occupancy[asCoordinateKey('1,7')]).toBeUndefined();
+      expect(state6.occupancy[asCoordinateKey('3,6')]).toBeDefined();
+    });
   });
 
   describe('4. PGNStorage Local Persistence (Spec 09 § 1, RF-01)', () => {

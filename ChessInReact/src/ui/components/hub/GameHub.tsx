@@ -5,6 +5,10 @@ import { SegmentedControl } from '../primitives/SegmentedControl';
 import { StatusIndicator } from '../primitives/StatusIndicator';
 import { ShowcaseFallback } from '../showcase/ShowcaseFallback';
 import { useTheme } from '../../theme/ThemeContext';
+import {
+  AcademyStudyEngine,
+  StudyCategory,
+} from '../../../analysis/study/AcademyStudyEngine';
 
 const LazyChessPieceShowcase = React.lazy(() =>
   import('../showcase/ChessPieceShowcase').then((m) => ({
@@ -74,6 +78,7 @@ export interface IGameHubProps {
   onSelectDifficulty: (d: number) => void;
   onOpenThemeModal: () => void;
   progressive3DMode?: Progressive3DMode;
+  onLaunchMinigame?: (minigameId: string) => void;
 }
 
 const DIFFICULTY_META: {
@@ -120,6 +125,72 @@ const DIFFICULTY_META: {
   },
 ];
 
+const MINIGAMES_CATALOG = [
+  {
+    id: 'spell_chess',
+    title: 'Spell Chess (Xadrez dos Feitiços)',
+    badge: 'Spec 12 Arcano',
+    accentColor: '#9333ea',
+    icon: '🧙‍♂️',
+    desc: 'Cartas arcanas de magia com mana compartilhado: Congelamento em área (Freeze), Salto sobre peças (Jump), Camuflagem furtiva e Portais dimensionais.',
+    features: ['Deck de Feitiços & Mana', 'Topologia Clássica & Hexagonal', 'Cartas Colecionáveis'],
+  },
+  {
+    id: 'duck_chess',
+    title: 'Duck Chess (Xadrez do Pato)',
+    badge: 'Variante Popular',
+    accentColor: '#eab308',
+    icon: '🦆',
+    desc: 'Um pato de borracha neutro bloqueia uma casa após cada lance. O pato não pode ser capturado e impede a passagem de ambas as cores.',
+    features: ['Pato Neutro Móvel', 'Sem Regra de Xeque Tradicional', 'Bloqueio Tático Total'],
+  },
+  {
+    id: 'bughouse',
+    title: 'Bughouse (Xadrez Duplo 2v2)',
+    badge: 'Multiplayer em Duplas',
+    accentColor: '#06b6d4',
+    icon: '👯',
+    desc: 'Disputa cooperativa em 2 tabuleiros paralelos. Peças capturadas pelo seu parceiro vão direto para o seu bolso de drops no tabuleiro vizinho.',
+    features: ['Dois Tabuleiros Gêmeos', 'Repasse Imediato de Peças', 'Salas Síncronas Colyseus'],
+  },
+  {
+    id: 'puzzle_rush',
+    title: 'Puzzle Rush & Sobrevivência',
+    badge: 'Treino Tático',
+    accentColor: '#ef4444',
+    icon: '⚡',
+    desc: 'Resolva o maior número de combinações táticas e problemas de mate contra o relógio em 3 ou 5 minutos antes de esgotar suas 3 vidas.',
+    features: ['Modo 3 Minutos & 5 Minutos', 'Modo Sobrevivência Sem Limite', 'Banco de 100k Puzzles'],
+  },
+  {
+    id: 'fog_of_war',
+    title: 'Fog of War (Névoa de Guerra)',
+    badge: 'Informação Oculta',
+    accentColor: '#64748b',
+    icon: '🌫️',
+    desc: 'Visão tática restrita: veja apenas as casas e peças dentro do raio de visão e ataque dos seus guerreiros. Surpreenda o adversário no escuro!',
+    features: ['Campo de Visão Dinâmico', 'Emboscadas & Furtividade', 'Desafio Estratégico'],
+  },
+  {
+    id: 'atomic',
+    title: 'Atomic Chess (Xadrez Atômico)',
+    badge: 'Detonação Caótica',
+    accentColor: '#f97316',
+    icon: '💥',
+    desc: 'Cada captura explode em uma detonação de 3×3 casas, destruindo a peça capturada, a peça agressora e todas as peças adjacentes não-peões.',
+    features: ['Explosões de Raio 1', 'Destruição em Cadeia', 'Risco Extremo ao Rei'],
+  },
+  {
+    id: 'antichess',
+    title: 'Antichess (Losing Chess)',
+    badge: 'Objetivo Invertido',
+    accentColor: '#10b981',
+    icon: '🔄',
+    desc: 'O objetivo é perder todas as suas peças ou ficar sem movimentos legais! Capturas são estritamente obrigatórias quando disponíveis.',
+    features: ['Capturas Forçadas', 'Sem Xeque nem Roque', 'Vitória por Desarmamento'],
+  },
+];
+
 export const GameHub: React.FC<IGameHubProps> = ({
   onStartBotMatch,
   onStartLocalMatch,
@@ -133,6 +204,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
   onSelectDifficulty,
   onOpenThemeModal,
   progressive3DMode,
+  onLaunchMinigame,
 }) => {
   const { uiTheme, boardViewMode, setBoardViewMode } = useTheme();
   const activeDiff = DIFFICULTY_META.find((d) => d.level === botDifficulty) ?? DIFFICULTY_META[2];
@@ -143,6 +215,16 @@ export const GameHub: React.FC<IGameHubProps> = ({
 
   const [is3DActive, setIs3DActive] = React.useState<boolean>(() => effectiveMode === 'eager');
   const [keyboardActivated, setKeyboardActivated] = React.useState<boolean>(false);
+  const [activeHubTab, setActiveHubTab] = React.useState<'CLASSIC' | 'MINIGAMES' | 'ACADEMY'>('CLASSIC');
+  const [academyCategory, setAcademyCategory] = React.useState<StudyCategory | 'ALL'>('ALL');
+  const [revealedHints, setRevealedHints] = React.useState<Record<string, boolean>>({});
+  const [exerciseAnswers, setExerciseAnswers] = React.useState<Record<string, string>>({});
+  const [exerciseFeedback, setExerciseFeedback] = React.useState<
+    Record<string, { isCorrect: boolean; message: string }>
+  >({});
+  const [academyStats, setAcademyStats] = React.useState(() =>
+    AcademyStudyEngine.getAcademyStats()
+  );
   const showcaseStageRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
@@ -497,15 +579,101 @@ export const GameHub: React.FC<IGameHubProps> = ({
                 letterSpacing: '-0.025em',
               }}
             >
-              Modos de Jogo &amp; Arena Tática
+              {activeHubTab === 'CLASSIC'
+                ? 'Modos Clássicos & Arena Tática'
+                : activeHubTab === 'MINIGAMES'
+                ? 'Central de Minijogos & Modos Alternativos'
+                : 'Área de Estudos & Academia Tática'}
             </h2>
           </div>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Configure a força da inteligência artificial ou dispute localmente no mesmo dispositivo
-          </span>
+
+          {/* Section Navigation Tabs: Classic | Minigames | Academy */}
+          <div
+            role="tablist"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              padding: '0.28rem',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--bg-sunken)',
+              border: '1px solid var(--border-prominent)',
+              flexWrap: 'wrap',
+            }}
+          >
+            <button
+              id="hub-tab-classic"
+              type="button"
+              role="tab"
+              aria-selected={activeHubTab === 'CLASSIC'}
+              onClick={() => setActiveHubTab('CLASSIC')}
+              style={{
+                padding: '0.4rem 0.8rem',
+                fontSize: '0.78rem',
+                fontFamily: 'var(--font-sans)',
+                fontWeight: 700,
+                cursor: 'pointer',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor:
+                  activeHubTab === 'CLASSIC' ? 'var(--color-accent)' : 'transparent',
+                color: activeHubTab === 'CLASSIC' ? '#ffffff' : 'var(--text-secondary)',
+                border: 'none',
+                transition: 'all var(--transition-fast)',
+              }}
+            >
+              ♟️ Clássico (2)
+            </button>
+
+            <button
+              id="hub-tab-minigames"
+              type="button"
+              role="tab"
+              aria-selected={activeHubTab === 'MINIGAMES'}
+              onClick={() => setActiveHubTab('MINIGAMES')}
+              style={{
+                padding: '0.4rem 0.8rem',
+                fontSize: '0.78rem',
+                fontFamily: 'var(--font-sans)',
+                fontWeight: 700,
+                cursor: 'pointer',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor:
+                  activeHubTab === 'MINIGAMES' ? 'var(--color-accent)' : 'transparent',
+                color: activeHubTab === 'MINIGAMES' ? '#ffffff' : 'var(--text-secondary)',
+                border: 'none',
+                transition: 'all var(--transition-fast)',
+              }}
+            >
+              🧙‍♂️ Minijogos (7)
+            </button>
+
+            <button
+              id="hub-tab-academy"
+              type="button"
+              role="tab"
+              aria-selected={activeHubTab === 'ACADEMY'}
+              onClick={() => setActiveHubTab('ACADEMY')}
+              style={{
+                padding: '0.4rem 0.8rem',
+                fontSize: '0.78rem',
+                fontFamily: 'var(--font-sans)',
+                fontWeight: 700,
+                cursor: 'pointer',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor:
+                  activeHubTab === 'ACADEMY' ? 'var(--color-accent)' : 'transparent',
+                color: activeHubTab === 'ACADEMY' ? '#ffffff' : 'var(--text-secondary)',
+                border: 'none',
+                transition: 'all var(--transition-fast)',
+              }}
+            >
+              🎓 Academia &amp; Estudo
+            </button>
+          </div>
         </div>
 
-        <div className="hub-modes-grid">
+        {activeHubTab === 'CLASSIC' && (
+          <div className="hub-modes-grid">
           {/* Card 1: AI Bot Match */}
           <Card
             id="card-mode-bot"
@@ -882,7 +1050,423 @@ export const GameHub: React.FC<IGameHubProps> = ({
             )}
           </Card>
         </div>
-      </section>
+      )}
+
+      {/* Minigames Grid */}
+      {activeHubTab === 'MINIGAMES' && (
+        <div
+          id="hub-minigames-container"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))',
+            gap: '1.25rem',
+            alignItems: 'stretch',
+          }}
+        >
+          {MINIGAMES_CATALOG.map((mg) => (
+            <Card
+              key={mg.id}
+              id={`card-minigame-${mg.id}`}
+              variant="interactive"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: '1rem',
+                padding: '1.25rem',
+                border: '1px solid var(--border-prominent)',
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>{mg.icon}</span>
+                    <div>
+                      <h3
+                        style={{
+                          margin: 0,
+                          fontSize: '1.05rem',
+                          fontFamily: 'var(--font-display)',
+                          fontWeight: 700,
+                          color: 'var(--text-primary)',
+                        }}
+                      >
+                        {mg.title}
+                      </h3>
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          fontFamily: 'var(--font-mono)',
+                          color: mg.accentColor,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {mg.badge}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: '0.84rem',
+                    color: 'var(--text-secondary)',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {mg.desc}
+                </p>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                  {mg.features.map((feat, fIdx) => (
+                    <span
+                      key={fIdx}
+                      style={{
+                        fontSize: '0.68rem',
+                        fontFamily: 'var(--font-mono)',
+                        padding: '0.2rem 0.5rem',
+                        borderRadius: 'var(--radius-xs)',
+                        backgroundColor: 'var(--bg-sunken)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-muted)',
+                      }}
+                    >
+                      {feat}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <ActionButton
+                id={`hub-btn-play-${mg.id}`}
+                variant="primary"
+                size="sm"
+                fullWidth
+                onClick={() => {
+                  if (onLaunchMinigame) {
+                    onLaunchMinigame(mg.id);
+                  } else {
+                    onStartBotMatch(botDifficulty);
+                  }
+                }}
+              >
+                Jogar {mg.title.split(' ')[0]}
+              </ActionButton>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Academy Study Area */}
+      {activeHubTab === 'ACADEMY' && (
+        <div id="hub-academy-container" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Academy Progress Banner */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '1rem 1.25rem',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--bg-sunken)',
+              border: '1px solid var(--border-prominent)',
+              gap: '1rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <span
+                style={{
+                  fontSize: '0.72rem',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  color: 'var(--color-accent)',
+                }}
+              >
+                Progresso do Treinamento
+              </span>
+              <span style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {academyStats.completedCount} de {academyStats.totalExercises} exercícios concluídos ({academyStats.completionPercentage}%)
+              </span>
+            </div>
+
+            {/* Category Filter Pills */}
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+              {(['ALL', 'FUNDAMENTALS', 'TACTICS', 'CHECKMATES', 'ENDGAMES'] as const).map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setAcademyCategory(cat)}
+                  style={{
+                    padding: '0.3rem 0.65rem',
+                    fontSize: '0.72rem',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 600,
+                    borderRadius: 'var(--radius-full)',
+                    cursor: 'pointer',
+                    backgroundColor:
+                      academyCategory === cat ? 'var(--color-accent)' : 'var(--bg-card)',
+                    color: academyCategory === cat ? '#ffffff' : 'var(--text-secondary)',
+                    border: '1px solid var(--border-subtle)',
+                    transition: 'all var(--transition-fast)',
+                  }}
+                >
+                  {cat === 'ALL'
+                    ? 'Todos'
+                    : cat === 'FUNDAMENTALS'
+                    ? 'Fundamentos'
+                    : cat === 'TACTICS'
+                    ? 'Tática'
+                    : cat === 'CHECKMATES'
+                    ? 'Mates'
+                    : 'Finais'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Exercises Grid */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+              gap: '1.15rem',
+            }}
+          >
+            {AcademyStudyEngine.EXERCISES.filter(
+              (ex) => academyCategory === 'ALL' || ex.category === academyCategory
+            ).map((ex) => {
+              const isHintOpen = Boolean(revealedHints[ex.id]);
+              const currentFeedback = exerciseFeedback[ex.id];
+              const isCompleted = AcademyStudyEngine.getCompletedExerciseIds().includes(ex.id);
+
+              return (
+                <Card
+                  key={ex.id}
+                  id={`exercise-${ex.id}`}
+                  variant="elevated"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '0.85rem',
+                    padding: '1.15rem',
+                    border: isCompleted
+                      ? '1px solid var(--color-success)'
+                      : '1px solid var(--border-prominent)',
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span
+                        style={{
+                          fontSize: '0.68rem',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 700,
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: 'var(--radius-xs)',
+                          backgroundColor: 'var(--bg-sunken)',
+                          color: 'var(--color-accent)',
+                          border: '1px solid var(--border-subtle)',
+                        }}
+                      >
+                        {ex.category} • {ex.difficulty}
+                      </span>
+
+                      {isCompleted && (
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 700,
+                            color: 'var(--color-success)',
+                          }}
+                        >
+                          ✓ Concluído
+                        </span>
+                      )}
+                    </div>
+
+                    <h4
+                      style={{
+                        margin: 0,
+                        fontSize: '1rem',
+                        fontFamily: 'var(--font-display)',
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      {ex.title}
+                    </h4>
+
+                    <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                      {ex.prompt}
+                    </p>
+
+                    {isHintOpen && (
+                      <div
+                        style={{
+                          padding: '0.55rem 0.75rem',
+                          borderRadius: 'var(--radius-xs)',
+                          backgroundColor: 'var(--bg-sunken)',
+                          border: '1px solid var(--border-subtle)',
+                          fontSize: '0.76rem',
+                          color: 'var(--text-secondary)',
+                          fontStyle: 'italic',
+                        }}
+                      >
+                        💡 {ex.hint}
+                      </div>
+                    )}
+
+                    {currentFeedback && (
+                      <div
+                        role="status"
+                        style={{
+                          padding: '0.55rem 0.75rem',
+                          borderRadius: 'var(--radius-xs)',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          backgroundColor: currentFeedback.isCorrect
+                            ? 'var(--color-success-bg, rgba(16, 185, 129, 0.15))'
+                            : 'var(--color-warning-bg, rgba(234, 179, 8, 0.15))',
+                          color: currentFeedback.isCorrect
+                            ? 'var(--color-success)'
+                            : 'var(--color-warning)',
+                          border: `1px solid ${
+                            currentFeedback.isCorrect
+                              ? 'var(--color-success)'
+                              : 'var(--color-warning)'
+                          }`,
+                        }}
+                      >
+                        {currentFeedback.message}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input
+                        id={`input-${ex.id}`}
+                        type="text"
+                        placeholder="Lance em SAN (ex: e4, Nf3, Ra8#)"
+                        value={exerciseAnswers[ex.id] || ''}
+                        onChange={(e) =>
+                          setExerciseAnswers((prev) => ({ ...prev, [ex.id]: e.target.value }))
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const ans = exerciseAnswers[ex.id] || '';
+                            if (ans.trim()) {
+                              const outcome = AcademyStudyEngine.verifyMove(ex.id, 0, ans);
+                              setExerciseFeedback((prev) => ({
+                                ...prev,
+                                [ex.id]: { isCorrect: outcome.isCorrect, message: outcome.feedback },
+                              }));
+                              if (outcome.isCorrect) {
+                                setAcademyStats(AcademyStudyEngine.getAcademyStats());
+                              }
+                            }
+                          }
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '0.35rem 0.6rem',
+                          fontSize: '0.78rem',
+                          fontFamily: 'var(--font-mono)',
+                          borderRadius: 'var(--radius-xs)',
+                          border: '1px solid var(--border-prominent)',
+                          backgroundColor: 'var(--bg-sunken)',
+                          color: 'var(--text-primary)',
+                          outline: 'none',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const ans = exerciseAnswers[ex.id] || '';
+                          if (ans.trim()) {
+                            const outcome = AcademyStudyEngine.verifyMove(ex.id, 0, ans);
+                            setExerciseFeedback((prev) => ({
+                              ...prev,
+                              [ex.id]: { isCorrect: outcome.isCorrect, message: outcome.feedback },
+                            }));
+                            if (outcome.isCorrect) {
+                              setAcademyStats(AcademyStudyEngine.getAcademyStats());
+                            }
+                          }
+                        }}
+                        style={{
+                          padding: '0.35rem 0.75rem',
+                          fontSize: '0.76rem',
+                          fontFamily: 'var(--font-sans)',
+                          fontWeight: 700,
+                          borderRadius: 'var(--radius-xs)',
+                          backgroundColor: 'var(--color-accent)',
+                          color: '#ffffff',
+                          border: 'none',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Verificar
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setRevealedHints((prev) => ({ ...prev, [ex.id]: !prev[ex.id] }))
+                        }
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          fontSize: '0.72rem',
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                          padding: 0,
+                        }}
+                      >
+                        {isHintOpen ? 'Ocultar Dica' : 'Ver Dica'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const sol = ex.solutionSequence[0];
+                          const outcome = AcademyStudyEngine.verifyMove(ex.id, 0, sol);
+                          setExerciseAnswers((prev) => ({ ...prev, [ex.id]: sol }));
+                          setExerciseFeedback((prev) => ({
+                            ...prev,
+                            [ex.id]: { isCorrect: outcome.isCorrect, message: outcome.feedback },
+                          }));
+                          setAcademyStats(AcademyStudyEngine.getAcademyStats());
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--color-accent)',
+                          fontSize: '0.72rem',
+                          cursor: 'pointer',
+                          padding: 0,
+                        }}
+                      >
+                        Ver Resposta
+                      </button>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </section>
     </div>
   );
 };

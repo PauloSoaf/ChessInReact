@@ -21,6 +21,10 @@ export interface IGameControlsBarProps {
   boardViewMode?: '2D' | '3D';
   onToggleBoardViewMode?: (mode: '2D' | '3D') => void;
   onForceBotMove?: () => void;
+  onOfferDraw?: () => void;
+  onResign?: () => void;
+  isGameOver?: boolean;
+  canClaimDraw?: boolean;
 }
 
 export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
@@ -41,6 +45,10 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
   boardViewMode = '2D',
   onToggleBoardViewMode,
   onForceBotMove,
+  onOfferDraw,
+  onResign,
+  isGameOver = false,
+  canClaimDraw = false,
 }) => {
   const formattedEval =
     lastEval !== null ? `${lastEval > 0 ? '+' : ''}${(lastEval / 100).toFixed(2)}` : '0.00';
@@ -416,7 +424,79 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
 
       <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)' }} />
 
-      {/* Section 4: Separated Cautionary Reset Action */}
+      {/* Section 4: Match Progression Actions (Draw / Resign) */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span
+            style={{
+              fontSize: '0.68rem',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.07em',
+              color: 'var(--text-muted)',
+            }}
+          >
+            Ações da Partida
+          </span>
+          <span
+            style={{
+              fontSize: '0.68rem',
+              fontFamily: 'var(--font-mono)',
+              color: canClaimDraw ? 'var(--color-accent)' : 'var(--text-muted)',
+              fontWeight: canClaimDraw ? 700 : 400,
+            }}
+          >
+            {canClaimDraw ? 'Empate Reivindicável' : 'Desfecho Formal'}
+          </span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+          <ActionButton
+            id="bot-draw-button"
+            type="button"
+            variant="secondary"
+            size="sm"
+            aria-label={canClaimDraw ? 'Reivindicar Empate' : 'Propor Empate'}
+            title={
+              canClaimDraw
+                ? 'Reivindicar empate formal por repetição ou regra dos 50 lances'
+                : 'Propor empate mútuo'
+            }
+            disabled={isGameOver || !onOfferDraw}
+            onClick={onOfferDraw}
+            leadingIcon={
+              <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 10h12M4 6h12M4 14h12" />
+              </svg>
+            }
+          >
+            {canClaimDraw ? 'Reivindicar Empate' : 'Propor Empate'}
+          </ActionButton>
+
+          <ActionButton
+            id="bot-resign-button"
+            type="button"
+            variant="danger"
+            size="sm"
+            aria-label="Abandonar Partida"
+            title="Abandonar partida e conceder a vitória ao oponente"
+            disabled={isGameOver || !onResign}
+            onClick={onResign}
+            leadingIcon={
+              <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4v16M4 4h10l-2 4 2 4H4" />
+              </svg>
+            }
+          >
+            Abandonar
+          </ActionButton>
+        </div>
+      </div>
+
+      <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)' }} />
+
+      {/* Section 5: Separated Cautionary Reset Action */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
         <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
           Reiniciar posição inicial

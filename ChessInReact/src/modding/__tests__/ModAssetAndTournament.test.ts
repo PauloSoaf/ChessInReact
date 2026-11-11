@@ -32,18 +32,46 @@ describe('Spec 10 - Mod Workshop Assets, Tournament Engine & Quarantine (S10-RF0
     });
 
     it('successfully validates genuine GLTF v2 binary buffer and calculates SHA-256 fingerprint', () => {
-      // Construct minimal valid GLB v2 header (12 bytes)
+      // Construct minimal valid GLB v2 header (12 bytes header + 8 bytes JSON chunk 0 header)
       const validHeader = new Uint8Array(20);
       const view = new DataView(validHeader.buffer);
       view.setUint32(0, 0x46546c67, true); // 'glTF'
       view.setUint32(4, 2, true); // Version 2
       view.setUint32(8, 20, true); // Total length
+      view.setUint32(12, 0, true); // Chunk 0 length
+      view.setUint32(16, 0x4E4F534A, true); // 'JSON' chunk type
 
       const res = GLTFAssetValidator.validateBinaryGlb(validHeader);
       expect(res.isValid).toBe(true);
       expect(res.gltfVersion).toBe(2);
       expect(res.sha256Hash).toBeDefined();
       expect(res.sha256Hash?.length).toBe(64); // SHA-256 hex length
+    });
+
+    it('rejects corrupt GLB with mismatched length or non-JSON chunk 0', () => {
+      const corruptLength = new Uint8Array(20);
+      const view = new DataView(corruptLength.buffer);
+      view.setUint32(0, 0x46546c67, true);
+      view.setUint32(4, 2, true);
+      view.setUint32(8, 9999, true); // Declared length mismatch!
+      view.setUint32(12, 0, true);
+      view.setUint32(16, 0x4E4F534A, true);
+
+      const res = GLTFAssetValidator.validateBinaryGlb(corruptLength);
+      expect(res.isValid).toBe(false);
+      expect(res.reason).toContain('Comprimento binário corrompido');
+
+      const nonJsonChunk = new Uint8Array(20);
+      const view2 = new DataView(nonJsonChunk.buffer);
+      view2.setUint32(0, 0x46546c67, true);
+      view2.setUint32(4, 2, true);
+      view2.setUint32(8, 20, true);
+      view2.setUint32(12, 0, true);
+      view2.setUint32(16, 0x12345678, true); // Invalid chunk type!
+
+      const res2 = GLTFAssetValidator.validateBinaryGlb(nonJsonChunk);
+      expect(res2.isValid).toBe(false);
+      expect(res2.reason).toContain('Primeiro chunk do GLB deve ser do tipo JSON');
     });
 
     it('resolves canonical Staunton geometry IDs as fallback for failed models', () => {

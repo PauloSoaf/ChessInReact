@@ -15,6 +15,16 @@
  *    - First checkmate or resignation on either board awards victory to the corresponding team.
  */
 
+import { IDomainState } from '../../core/state/gameState';
+import { createDefaultDomainState } from '../../core/state/initialState';
+import { createStandardChessPieces } from '../../core/bootstrap/GameInitializer';
+import { RulesEngine } from '../../engine/rules/RulesEngine';
+import { SquareTopology } from '../../core/topology/SquareTopology';
+import { asCoordinateKey, asEntityId } from '../../core/coordinates';
+import { MovePieceCommand } from '../../core/commands/MovePieceCommand';
+import { IPieceEntity } from '../../core/entities/types';
+import { PGNExporter } from '../../core/persistence/pgn/PGNExporter';
+
 export type BughouseBoardId = 'BOARD_A' | 'BOARD_B';
 export type BughouseTeam = 'TEAM_1' | 'TEAM_2';
 export type BughousePieceType = 'p' | 'n' | 'b' | 'r' | 'q';
@@ -33,6 +43,7 @@ export interface IBughouseBoardState {
   readonly fullmoveNumber: number;
   readonly isCheckmate: boolean;
   readonly isResigned: boolean;
+  readonly domainState?: IDomainState;
 }
 
 export interface IBughouseMatchState {
@@ -46,8 +57,31 @@ export interface IBughouseMatchState {
 }
 
 export class BughouseEngine {
+  private static readonly topology = new SquareTopology({ width: 8, height: 8 });
+
   /**
-   * Initializes a full 4-player 2v2 Bughouse match state.
+   * Builds an isolated initial domain state populated with standard 32 Staunton pieces.
+   */
+  public static createInitialBoardDomain(matchId: string): IDomainState {
+    const base = createDefaultDomainState(matchId, 'standard_square');
+    const domain: IDomainState = {
+      ...base,
+      turnState: { ...base.turnState, phase: 'COMMIT' },
+      boardEntities: {},
+      occupancy: {},
+    };
+    const pieces = createStandardChessPieces();
+    pieces.forEach((piece) => {
+      domain.boardEntities[piece.id] = piece;
+      if (piece.position) {
+        domain.occupancy[piece.position] = piece.id;
+      }
+    });
+    return domain;
+  }
+
+  /**
+   * Initializes a full 4-player 2v2 Bughouse match state with two authoritative boards.
    */
   public static createMatch(
     players: {
@@ -97,6 +131,7 @@ export class BughouseEngine {
         fullmoveNumber: 1,
         isCheckmate: false,
         isResigned: false,
+        domainState: this.createInitialBoardDomain(`${matchId}_A`),
       },
       boardB: {
         boardId: 'BOARD_B',
@@ -104,6 +139,7 @@ export class BughouseEngine {
         fullmoveNumber: 1,
         isCheckmate: false,
         isResigned: false,
+        domainState: this.createInitialBoardDomain(`${matchId}_B`),
       },
       players: playerMap,
       isGameOver: false,
@@ -127,8 +163,35 @@ export class BughouseEngine {
   }
 
   /**
+   * Helper to normalize coordinate (e.g. 'e4' -> '4,3' or '4,3' -> '4,3').
+   */
+  public static normalizeCoord(coord: string): string {
+    if (coord.includes(',')) return coord;
+    try {
+      return PGNExporter.algebraicToCoord(coord);
+    } catch {
+      return coord;
+    }
+  }
+
+  /**
+   * Translates internal piece variant ID into BughousePieceType ('p' | 'n' | 'b' | 'r' | 'q').
+   */
+  public static variantToBughouseType(variantId?: string): BughousePieceType | undefined {
+    if (!variantId) return undefined;
+    const v = variantId.toUpperCase();
+    if (v.includes('PAWN')) return 'p';
+    if (v.includes('KNIGHT')) return 'n';
+    if (v.includes('BISHOP')) return 'b';
+    if (v.includes('ROOK')) return 'r';
+    if (v.includes('QUEEN')) return 'q';
+    return undefined;
+  }
+
+  /**
    * Executes a move on one of the boards.
    * If a piece is captured, transfers it to the capturing player's partner on the opposite board.
+   * Authoritatively evaluates move legality, captures, and checkmate when domainState is present.
    */
   public static executeMove(
     state: IBughouseMatchState,
@@ -155,12 +218,59 @@ export class BughouseEngine {
       throw new Error('Não é o turno deste jogador.');
     }
 
+    let detectedCapture: BughousePieceType | undefined = move.capturedPieceType;
+    let authoritativeCheckmate = Boolean(move.isCheckmate);
+    const nextDomain = currentBoard.domainState ? JSON.parse(JSON.stringify(currentBoard.domainState)) as IDomainState : undefined;
+
+    if (nextDomain) {
+      const fromNorm = this.normalizeCoord(move.from);
+      const toNorm = this.normalizeCoord(move.to);
+      const fromKey = asCoordinateKey(fromNorm);
+      const toKey = asCoordinateKey(toNorm);
+
+      const pieceId = nextDomain.occupancy[fromKey];
+      if (pieceId) {
+        const piece = nextDomain.boardEntities[pieceId] as IPieceEntity | undefined;
+        const actingPlayer = player.color === 'WHITE' ? 'P1' : 'P2';
+
+        // Detect capture directly from authoritative board state
+        const targetPieceId = nextDomain.occupancy[toKey];
+        if (targetPieceId) {
+          const targetPiece = nextDomain.boardEntities[targetPieceId] as IPieceEntity | undefined;
+          if (targetPiece && targetPiece.ownerId !== actingPlayer) {
+            detectedCapture = this.variantToBughouseType(targetPiece.variantId) ?? detectedCapture;
+          }
+        }
+
+        if (piece) {
+          const cmd = new MovePieceCommand(
+            asEntityId(pieceId),
+            fromKey,
+            toKey,
+            actingPlayer,
+            `bug_cmd_${Date.now()}`,
+            true,
+            false,
+            undefined,
+            this.topology
+          );
+          cmd.execute(nextDomain);
+
+          // Authoritatively verify checkmate on the updated domain state
+          const gameRes = RulesEngine.getGameResult(nextDomain, this.topology);
+          if (gameRes.isGameOver && gameRes.status === 'CHECKMATE') {
+            authoritativeCheckmate = true;
+          }
+        }
+      }
+    }
+
     // Check checkmate win condition
-    if (move.isCheckmate) {
+    if (authoritativeCheckmate) {
       return {
         ...state,
-        boardA: boardId === 'BOARD_A' ? { ...state.boardA, isCheckmate: true } : state.boardA,
-        boardB: boardId === 'BOARD_B' ? { ...state.boardB, isCheckmate: true } : state.boardB,
+        boardA: boardId === 'BOARD_A' ? { ...state.boardA, isCheckmate: true, domainState: nextDomain } : state.boardA,
+        boardB: boardId === 'BOARD_B' ? { ...state.boardB, isCheckmate: true, domainState: nextDomain } : state.boardB,
         isGameOver: true,
         winningTeam: player.team,
         winReason: `Xeque-mate aplicado por ${player.color} na ${boardId}. Vitória da ${player.team}!`,
@@ -171,13 +281,13 @@ export class BughouseEngine {
     const updatedPlayers = { ...state.players };
 
     // Transfer captured piece to partner's reserve
-    if (move.capturedPieceType) {
+    if (detectedCapture) {
       const partnerId = this.getPartnerId(state, playerId);
       if (partnerId && updatedPlayers[partnerId]) {
         const partner = updatedPlayers[partnerId];
         updatedPlayers[partnerId] = {
           ...partner,
-          reservePieces: [...partner.reservePieces, move.capturedPieceType],
+          reservePieces: [...partner.reservePieces, detectedCapture],
         };
       }
     }
@@ -190,6 +300,7 @@ export class BughouseEngine {
       ...currentBoard,
       activeColor: nextActiveColor,
       fullmoveNumber: nextFullmove,
+      domainState: nextDomain,
     };
 
     return {

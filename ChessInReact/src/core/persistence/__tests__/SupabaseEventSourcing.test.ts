@@ -156,6 +156,11 @@ describe('Spec 09 - Supabase Event Sourcing, Compression & RLS (S09-RF01, RF-02,
       expect(userUpdatePolicy).toBeDefined();
       expect(userUpdatePolicy?.usingExpression).toContain('auth.uid()');
 
+      // P1 Security: Ensure User table direct SELECT is restricted to owner to protect private email
+      const userReadPrivatePolicy = policies.find((p) => p.policyName === 'user_read_own_private');
+      expect(userReadPrivatePolicy).toBeDefined();
+      expect(userReadPrivatePolicy?.usingExpression).toBe('auth.uid()::text = id');
+
       const variantReadPolicy = policies.find((p) => p.policyName === 'variants_read_public_or_own');
       expect(variantReadPolicy).toBeDefined();
       expect(variantReadPolicy?.usingExpression).toContain('"isPublic" = true');
@@ -176,6 +181,7 @@ describe('Spec 09 - Supabase Event Sourcing, Compression & RLS (S09-RF01, RF-02,
       const sql = SupabaseRLSPolicyCatalog.generatePostgresMigrationSql();
       expect(sql).toContain('ENABLE ROW LEVEL SECURITY');
       expect(sql).toContain('CREATE POLICY "user_update_own_profile"');
+      expect(sql).toContain('CREATE OR REPLACE VIEW "PublicUserProfile"');
       expect(sql).toContain('CREATE INDEX IF NOT EXISTS "idx_player_rating_leaderboard_btree"');
     });
   });

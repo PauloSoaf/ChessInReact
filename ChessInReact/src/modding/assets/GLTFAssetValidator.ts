@@ -21,6 +21,7 @@ export interface IAssetValidationResult {
 export class GLTFAssetValidator {
   public static readonly MAX_ASSET_SIZE_BYTES = 2 * 1024 * 1024; // 2 Megabytes
   public static readonly GLTF_MAGIC_HEADER = 0x46546c67; // 'glTF' in ASCII little-endian
+  public static readonly GLTF_JSON_CHUNK_TYPE = 0x4E4F534A; // 'JSON' in ASCII little-endian
 
   /**
    * Validates raw binary buffer of a user-uploaded .glb asset.
@@ -72,7 +73,49 @@ export class GLTFAssetValidator {
       };
     }
 
-    // 4. SHA-256 fingerprint
+    // 4. Minimum container size for chunk 0 (12 bytes header + 8 bytes chunk header = 20 bytes)
+    if (size < 20) {
+      return {
+        isValid: false,
+        fileSizeBytes: size,
+        gltfVersion: version,
+        reason: 'Arquivo binário truncado: menor que o mínimo de 20 bytes para glTF container.',
+      };
+    }
+
+    const declaredLength = view.getUint32(8, true);
+    if (declaredLength !== size) {
+      return {
+        isValid: false,
+        fileSizeBytes: size,
+        gltfVersion: version,
+        reason: `Comprimento binário corrompido: declarado ${declaredLength} bytes, recebido ${size} bytes.`,
+      };
+    }
+
+    // 5. Chunk 0 integrity inspection (JSON Chunk Header)
+    const chunk0Length = view.getUint32(12, true);
+    const chunk0Type = view.getUint32(16, true);
+
+    if (chunk0Type !== this.GLTF_JSON_CHUNK_TYPE) {
+      return {
+        isValid: false,
+        fileSizeBytes: size,
+        gltfVersion: version,
+        reason: `Primeiro chunk do GLB deve ser do tipo JSON (0x4E4F534A), recebido 0x${chunk0Type.toString(16).toUpperCase()}.`,
+      };
+    }
+
+    if (12 + 8 + chunk0Length > size) {
+      return {
+        isValid: false,
+        fileSizeBytes: size,
+        gltfVersion: version,
+        reason: `Comprimento do chunk JSON excede os limites do arquivo (${12 + 8 + chunk0Length} > ${size}).`,
+      };
+    }
+
+    // 6. SHA-256 fingerprint
     const hash = createHash('sha256').update(buffer).digest('hex');
 
     return {

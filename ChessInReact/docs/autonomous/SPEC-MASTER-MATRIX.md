@@ -1,7 +1,7 @@
 # ChessInReact | Spec Master Matrix (Autonomous Audit)
 
 > **Matriz Mestre de Rastreabilidade e Conformidade de Requisitos**  
-> **Última Atualização:** 11/11/2026 10:12 (UTC-4)  
+> **Última Atualização:** 11/11/2026 16:05 (UTC-4)  
 > **Regra:** Requisito classificado como `VERIFIED` apenas com testes automatizados executados ou evidências diretas em ambiente real.
 
 ---
@@ -15,14 +15,14 @@
 | **Spec 03 (Multiplayer Colyseus)** | 14 | 10 | 2 | 0 | 2 (Cloud Deploy) |
 | **Spec 04 (Rules & Variants)** | 15 | 15 | 0 | 0 | 0 |
 | **Spec 05 (AI Engines & Bots)** | 16 | 16 | 0 | 0 | 0 |
-| **Spec 06 (UI/UX, HUD & Design)** | 18 | 18 | 0 | 0 | 0 |
-| **Spec 07 (3D WebGL Rendering)** | 16 | 14 | 2 | 0 | 0 |
-| **Spec 08 (Matchmaking & Redis)** | 12 | 11 | 1 | 0 | 0 |
-| **Spec 09 (Event Sourcing & PGN)** | 12 | 11 | 1 | 0 | 0 |
+| **Spec 06 (UI/UX, HUD & Design)** | 19 | 19 | 0 | 0 | 0 |
+| **Spec 07 (3D WebGL Rendering)** | 16 | 15 | 1 | 0 | 0 |
+| **Spec 08 (Matchmaking & Redis)** | 12 | 12 | 0 | 0 | 0 |
+| **Spec 09 (Event Sourcing & PGN)** | 12 | 12 | 0 | 0 | 0 |
 | **Spec 10 (Modding API & CI/CD)** | 10 | 10 | 0 | 0 | 0 |
-| **Spec 11 (Bot Ecosystem & Rating)**| 12 | 11 | 1 | 0 | 0 |
-| **Spec 12 (Game Review & Analysis)**| 12 | 11 | 1 | 0 | 0 |
-| **TOTAL** | **171** | **161** | **8** | **0** | **2** |
+| **Spec 11 (Bot Ecosystem & Rating)**| 12 | 12 | 0 | 0 | 0 |
+| **Spec 12 (Game Review & Analysis)**| 13 | 13 | 0 | 0 | 0 |
+| **TOTAL** | **173** | **168** | **3** | **0** | **2** |
 
 ---
 
@@ -89,6 +89,7 @@
 | **S06-RF03** | 3 Temas Profissionais (`midnight`, `ivory`, `synthwave`)| P1 | `ui/theme/` | `VERIFIED` | Aceite Chromium (Fluxo 8) |
 | **S06-RF04** | Acessibilidade WCAG AA e Navegação por Teclado | P0 | `ui/components/` | `VERIFIED` | `Spec06ThemeAndHUD.test.tsx` |
 | **S06-RF05** | Feedback Visual de Restrição por Xeque | P0 | `ui/components/game/` | `VERIFIED` | Aceite Chromium (Fluxo 11 2D) |
+| **S06-RF06** | Controles Formais de Desfecho (Empate e Abandono) | P0 | `ui/components/game/GameControlsBar.tsx` | `VERIFIED` | Botões `#bot-draw-button` e `#bot-resign-button` com `canClaimDraw` e mútuo acordo |
 | **S06-RNF01** | Responsividade sem Overflow em 5 Viewports | P0 | `ui/theme/theme.css` | `VERIFIED` | 360, 390, 768, 1024, 1440 px aprovados |
 
 ### Spec 07: 3D WebGL Rendering, Three.js & R3F
@@ -102,20 +103,20 @@
 | **S07-RF06** | Preservação Lossless de Estado entre Modos 2D e 3D | P0 | `App.tsx` | `VERIFIED` | Aceite Chromium (Fluxo 11 Roundtrip) |
 | **S07-RF07** | Animação e Interpolação Suave de Lances 3D (lerp) | P1 | `rendering/mesh/InstancedPieces.tsx` | `VERIFIED` | Interpolação suave com arco parabólico em useFrame |
 | **S07-RF08** | Transições Suaves de Câmera Orbital ao Inverter | P1 | `rendering/ChessBoard3D.tsx` | `VERIFIED` | Interpolação suave lerp via SmoothCameraController |
-| **S07-RF09** | GPU Matrix Batching com `InstancedMesh` para Peças | P1 | `rendering/mesh/InstancedPieceBatcher.ts`| `VERIFIED` | 6 draw calls para 32 peças (< 20) em Spec07InstancedBatching.test.ts |
+| **S07-RF09** | GPU Matrix Batching com `InstancedMesh` para Peças | P1 | `rendering/mesh/InstancedPieceBatcher.ts`| `PARTIAL` | Batcher funcional (6 draw calls em `Spec07InstancedBatching.test.ts`); cena ativa preserva malhas de alta fidelidade Staunton |
 | **S07-RF10** | Custom GLSL Shaders para Iluminação Holográfica | P2 | `rendering/shaders/HoloPulseShader.ts` | `VERIFIED` | Shaders GLSL com pulso procedural e scanlines em HoloPulseRing |
 
 ### Spec 08: Matchmaking, Lobbies & Redis Architecture
 | ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
 | :--- | :--- | :---: | :--- | :---: | :--- |
-| **S08-RF01** | Emissão e Ciclo de Vida de Tickets com TTL e Unique ID | P0 | `matchmaking/engine/MatchmakingQueueEngine.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (14 testes) |
+| **S08-RF01** | Emissão e Ciclo de Vida de Tickets com TTL e Unique ID | P0 | `matchmaking/engine/MatchmakingQueueEngine.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (15 testes) |
 | **S08-RF02** | Algoritmo de Pareamento por Faixas de Elo | P0 | `matchmaking/engine/MatchmakingQueueEngine.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` |
 | **S08-RF03** | Expansão Dinâmica da Janela de Elo (+50 a cada 15s) | P0 | `matchmaking/engine/MatchmakingQueueEngine.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (Tolerância dinâmica comprovada) |
 | **S08-RF04** | Suporte a Matchmaking Multijogador (2 a 4+ jogadores) | P0 | `matchmaking/engine/MatchmakingQueueEngine.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (Hex 4P FFA verificado) |
 | **S08-RF05** | Heartbeat de Fila e Expiração Automática de Tickets Zumbi | P0 | `matchmaking/engine/MatchmakingQueueEngine.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (Purge > 15s verificado) |
 | **S08-RF06** | Criação de Lobbies Privados com Código e Senha | P1 | `matchmaking/engine/LobbyManager.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (JoinCode 6-char e passcode) |
 | **S08-RF07** | Listagem Pública de Salas Casuais Abertas | P1 | `matchmaking/engine/LobbyManager.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` |
-| **S08-RF08** | Emissão de Tokens Criptografados de Sala (Room JWT) | P0 | `matchmaking/engine/MatchmakingQueueEngine.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (JWT assinado com 30s TTL) |
+| **S08-RF08** | Emissão de Tokens Criptografados de Sala (Room JWT Seguro) | P0 | `matchmaking/engine/MatchmakingQueueEngine.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (Requer segredo >= 32 chars, rejeita defaults) |
 | **S08-RF10** | Penalidade Anti-Dodge por Abandono de Fila (60s/300s/900s) | P1 | `matchmaking/engine/AntiDodgePenaltyManager.ts` | `VERIFIED` | `RedisMatchmakingCluster.test.ts` (4 testes) |
 | **S08-RF11** | Relay de Transmissão para Espectadores via Redis Pub/Sub | P1 | `matchmaking/engine/SpectatorRelayPubSub.ts` | `VERIFIED` | `RedisMatchmakingCluster.test.ts` (Buffer e broadcast) |
 | **S08-RF12** | Prevenção Absoluta de Duplicação de Pareamento (0%) | P0 | `matchmaking/engine/MatchmakingQueueEngine.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (Substituição de ticket atômica) |
@@ -127,11 +128,11 @@
 | :--- | :--- | :---: | :--- | :---: | :--- |
 | **S09-RF01** | Exportador PGN em Conformidade FIDE Seven Tag Roster | P0 | `core/persistence/PGNExporter.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` |
 | **S09-RF02** | Parser Resiliente de PGN com Sanitização e Metadados | P0 | `core/persistence/PGNParser.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` |
-| **S09-RF03** | Motor Determinístico de Replay (Event Sourcing) | P0 | `core/persistence/ReplayEngine.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` ($O(1)$ snapshot access) |
+| **S09-RF03** | Motor Determinístico de Replay SAN e Event Sourcing | P0 | `core/persistence/pgn/ReplayEngine.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` (7 testes: SAN, desambiguação e roque) |
 | **S09-RF04** | Armazenamento Local de Partidas (`PGNStorage`) | P1 | `core/persistence/PGNStorage.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` (localStorage mock) |
 | **S09-RF05** | Esquema Prisma Relacional Tipado (User, Match, Rating) | P0 | `prisma/schema.prisma` | `VERIFIED` | `schema.prisma` verificado |
 | **S09-RF06** | Fita Linear MatchEventStream com Compressão LZ4 (> 50 plies) | P0 | `core/persistence/eventsourcing/MatchEventStreamEngine.ts` | `VERIFIED` | `SupabaseEventSourcing.test.ts` (4 testes) |
-| **S09-RF11** | Políticas Row Level Security (RLS) para Supabase PostgreSQL | P0 | `core/persistence/eventsourcing/SupabaseRLSPolicyCatalog.ts` | `VERIFIED` | `SupabaseEventSourcing.test.ts` (3 testes) |
+| **S09-RF11** | Políticas Row Level Security (RLS) e Proteção de Dados | P0 | `core/persistence/eventsourcing/SupabaseRLSPolicyCatalog.ts` | `VERIFIED` | `SupabaseEventSourcing.test.ts` (auth.uid() e proteção de email) |
 | **S09-RF12** | Índices B-Tree Compostos para Leaderboard (< 30ms) | P0 | `core/persistence/eventsourcing/SupabaseRLSPolicyCatalog.ts` | `VERIFIED` | `SupabaseEventSourcing.test.ts` |
 | **S09-RF14** | Agregador de Estatísticas de Perfil de Jogador (WinRate, CAPS2) | P1 | `core/persistence/eventsourcing/UserStatsAggregator.ts` | `VERIFIED` | `SupabaseEventSourcing.test.ts` (2 testes) |
 
@@ -139,8 +140,8 @@
 | ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
 | :--- | :--- | :---: | :--- | :---: | :--- |
 | **S10-RF01** | Editor e Estruturas de Peças Fadas (Workshop) | P0 | `modding/interfaces/IModdingContracts.ts` | `VERIFIED` | `BetzaValidatorSandbox.test.ts` |
-| **S10-RF02** | Sandbox de Validação e Sanitização Betza (< 2.0 ms) | P0 | `modding/sandbox/BetzaValidatorSandbox.ts` | `VERIFIED` | `BetzaValidatorSandbox.test.ts` (11 testes automatizados) |
-| **S10-RF03** | Validação Binária de Modelos GLTF 3D UGC (< 2MB, SHA256) | P0 | `modding/assets/GLTFAssetValidator.ts` | `VERIFIED` | `ModAssetAndTournament.test.ts` (5 testes) |
+| **S10-RF02** | Sandbox de Validação Betza com Limite de Tokens (< 2.0 ms) | P0 | `modding/sandbox/BetzaValidatorSandbox.ts` | `VERIFIED` | `BetzaValidatorSandbox.test.ts` (11 testes, max 16 tokens) |
+| **S10-RF03** | Validação Binária de Modelos GLTF 3D UGC (< 2MB, Chunks) | P0 | `modding/assets/GLTFAssetValidator.ts` | `VERIFIED` | `ModAssetAndTournament.test.ts` (10 testes, chunk 0 JSON) |
 | **S10-RF04** | Galeria Comunitária e Parser de Manifestos de Mods | P0 | `modding/manifest/ModManifestParser.ts` | `VERIFIED` | `BetzaValidatorSandbox.test.ts` |
 | **S10-RF05** | Isolamento Autoritativo de Partidas Custom (`isRanked: false`) | P0 | `modding/manifest/ModManifestParser.ts` | `VERIFIED` | `BetzaValidatorSandbox.test.ts` (Invariante de unranked taint) |
 | **S10-RF06** | Motor de Torneios com Chaveamento Automático (Single Elim)| P1 | `modding/tournament/TournamentBracketEngine.ts` | `VERIFIED` | `ModAssetAndTournament.test.ts` (2 testes) |
@@ -170,8 +171,9 @@
 | **S12-RF02** | Classificação Canônica de Lances (Brilliant a Blunder) | P0 | `analysis/GameReviewEngine.ts` | `VERIFIED` | `GameReviewEngine.test.tsx` (8 categorias) |
 | **S12-RF03** | Cálculo de Precisão Ponderada CAPS2 (0-100%) | P0 | `analysis/GameReviewEngine.ts` | `VERIFIED` | `GameReviewEngine.test.tsx` (Métrica normalizada) |
 | **S12-RF04** | Gráfico Interativo SVG de Curva de Vantagem com Scrubbing | P0 | `analysis/components/AdvantageGraph.tsx`| `VERIFIED` | `GameReviewEngine.test.tsx` (SVG nativo, 0 dependências externas) |
-| **S12-RF07** | Minigame Spell Chess (Mana 2-6, 7 Feitiços e Cooldowns) | P1 | `analysis/minigames/SpellChessEngine.ts`| `VERIFIED` | `SpellChessEngine.test.tsx` (11 testes automatizados) |
-| **S12-RF08** | Mecânica Duck Chess (2 Fases, Bloqueador Neutro, Captura Física de Rei) | P1 | `analysis/minigames/DuckChessEngine.ts` | `VERIFIED` | `DuckChessEngine.test.ts` (8 testes automatizados) |
-| **S12-RF09** | Mecânica Puzzle Rush & Battle (Sobrevivência, Cronometrado, Sincronização 1v1) | P1 | `analysis/minigames/PuzzleRushEngine.ts` | `VERIFIED` | `PuzzleRushEngine.test.ts` (8 testes automatizados) |
-| **S12-RF10** | Minigame Bughouse 2v2 (Tabuleiros Gêmeos, Transferência Cruzada, Drops) | P1 | `analysis/minigames/BughouseEngine.ts` | `VERIFIED` | `BughouseEngine.test.ts` (8 testes automatizados) |
+| **S12-RF07** | Minigame Spell Chess (Mana 2-6, 7 Feitiços e Cooldowns) | P1 | `analysis/minigames/SpellChessEngine.ts`| `VERIFIED` | `SpellChessEngine.test.tsx` (11 testes automatizados) e catálogo GameHub |
+| **S12-RF08** | Mecânica Duck Chess (2 Fases, Bloqueador Neutro, Captura Física de Rei) | P1 | `analysis/minigames/DuckChessEngine.ts` | `VERIFIED` | `DuckChessEngine.test.ts` (8 testes) e catálogo GameHub |
+| **S12-RF09** | Mecânica Puzzle Rush & Battle (Sobrevivência, Cronometrado, Sincronização 1v1) | P1 | `analysis/minigames/PuzzleRushEngine.ts` | `VERIFIED` | `PuzzleRushEngine.test.ts` (8 testes) e catálogo GameHub |
+| **S12-RF10** | Minigame Bughouse 2v2 (Tabuleiros Gêmeos, Transferência Cruzada, Drops) | P1 | `analysis/minigames/BughouseEngine.ts` | `VERIFIED` | `BughouseEngine.test.ts` (8 testes) e catálogo GameHub |
 | **S12-RF18** | Feedback e Mão Interativa de Feitiços (SpellCardHand) | P1 | `analysis/minigames/SpellCardHand.tsx` | `VERIFIED` | `SpellChessEngine.test.tsx` (Renderização de HUD e orbes de mana) |
+| **S12-RF19** | Área de Estudos & Academia Tática Interativa | P1 | `analysis/study/AcademyStudyEngine.ts` | `VERIFIED` | `AcademyStudyEngine.test.ts` (5 testes) e aba interativa no GameHub |

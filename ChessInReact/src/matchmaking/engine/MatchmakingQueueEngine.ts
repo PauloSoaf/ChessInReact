@@ -32,10 +32,19 @@ export class MatchmakingQueueEngine {
   private readonly jwtSecret: string;
 
   public constructor(
-    jwtSecret = 'test-isolated-jwt-secret-do-not-use-in-prod-min-32-chars-long',
+    jwtSecret?: string,
     config: Partial<IMatchmakingConfig> = {}
   ) {
-    this.jwtSecret = jwtSecret;
+    const resolvedSecret = jwtSecret || process.env.MATCHMAKING_JWT_SECRET || process.env.JWT_SECRET;
+    if (!resolvedSecret) {
+      throw new Error(
+        '[MatchmakingQueueEngine] FATAL: Missing required JWT secret. Configure MATCHMAKING_JWT_SECRET or pass explicit secret.'
+      );
+    }
+    if (resolvedSecret.length < 32) {
+      throw new Error('[MatchmakingQueueEngine] Insecure JWT secret: minimum length is 32 characters.');
+    }
+    this.jwtSecret = resolvedSecret;
     this.config = { ...DEFAULT_MATCHMAKING_CONFIG, ...config };
   }
 

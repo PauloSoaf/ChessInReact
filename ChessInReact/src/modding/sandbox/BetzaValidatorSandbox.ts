@@ -3,6 +3,7 @@ import { IValidationResult } from '../interfaces/IModdingContracts';
 
 export class BetzaValidatorSandbox {
   public static readonly MAX_STRING_LENGTH = 100;
+  public static readonly MAX_TOKENS = 16;
   public static readonly MAX_CPU_BUDGET_MS = 2.0;
 
   // Allowed standard characters in Betza notation and modifiers
@@ -39,7 +40,15 @@ export class BetzaValidatorSandbox {
       errors.push('Notação Betza contém caracteres ilegais ou potencialmente maliciosos.');
     }
 
-    // 3. Execution parser test in strict sandbox
+    // 3. Token count boundary check to prevent CPU exhaustion on nested grammar loops
+    const tokens = trimmed.split(/[+\s]+/).filter((t) => t.length > 0);
+    if (tokens.length > this.MAX_TOKENS) {
+      errors.push(
+        `Notação Betza excede o limite máximo de ${this.MAX_TOKENS} tokens compostos (recebido: ${tokens.length}).`
+      );
+    }
+
+    // 4. Execution parser test in strict sandbox
     if (errors.length === 0) {
       try {
         const behaviors = BetzaParser.parse(trimmed);

@@ -13,6 +13,7 @@ import { GameHub } from './ui/components/hub/GameHub';
 import { PlayerCard } from './ui/components/game/PlayerCard';
 import { EvaluationBar } from './ui/components/game/EvaluationBar';
 import { GameControlsBar } from './ui/components/game/GameControlsBar';
+import { RulesEngine } from './engine/rules/RulesEngine';
 import { CheckValidator } from './engine/rules/CheckValidator';
 import { SquareTopology } from './core/topology/SquareTopology';
 import { isWebGLAvailable } from './rendering/webglCapabilities';
@@ -214,6 +215,78 @@ const AppContent: React.FC = () => {
     clearFeedback();
   }, [preferences.flipBoard, updatePreferences, clearFeedback]);
 
+  const canClaimDraw = useMemo(
+    () => !isGameOver && RulesEngine.canClaimDraw(domain, topology),
+    [domain, topology, isGameOver]
+  );
+
+  const handleOfferDraw = useCallback(() => {
+    if (isGameOver) return;
+    cancelSearch();
+    clearFeedback();
+
+    if (canClaimDraw) {
+      RulesEngine.claimDraw(domain, topology);
+      gameStore.setState((s) => ({
+        domain: {
+          ...s.domain,
+          isGameOver: true,
+          winnerId: null,
+        },
+      }));
+      triggerFeedback('ILLEGAL_MOVE', {
+        message: 'Empate formal reivindicado por repetição tripla ou regra dos 50 lances.',
+      });
+    } else {
+      // Mutual draw offer: against bot, bot accepts if position is balanced (|eval| <= 150)
+      const botAccepts = !isBotEnabled || (lastEval !== null && Math.abs(lastEval) <= 150);
+      if (botAccepts) {
+        gameStore.setState((s) => ({
+          domain: {
+            ...s.domain,
+            isGameOver: true,
+            winnerId: null,
+          },
+        }));
+        triggerFeedback('ILLEGAL_MOVE', {
+          message: 'Proposta de empate aceita! Partida encerrada por mútuo acordo.',
+        });
+      } else {
+        triggerFeedback('ILLEGAL_MOVE', {
+          message: 'A IA recusou a proposta de empate por avaliar vantagem no tabuleiro.',
+        });
+      }
+    }
+  }, [
+    isGameOver,
+    cancelSearch,
+    clearFeedback,
+    canClaimDraw,
+    domain,
+    topology,
+    isBotEnabled,
+    lastEval,
+    triggerFeedback,
+  ]);
+
+  const handleResign = useCallback(() => {
+    if (isGameOver) return;
+    cancelSearch();
+    clearFeedback();
+
+    const opponent = activePlayer === 'P1' ? 'P2' : 'P1';
+    gameStore.setState((s) => ({
+      domain: {
+        ...s.domain,
+        isGameOver: true,
+        winnerId: opponent,
+      },
+    }));
+    triggerFeedback('ILLEGAL_MOVE', {
+      message: `Você abandonou a partida. Vitória concedida às ${opponent === 'P1' ? 'Brancas' : 'Pretas'}.`,
+    });
+  }, [isGameOver, cancelSearch, clearFeedback, activePlayer, triggerFeedback]);
+
   // Global Keyboard Shortcuts (Strictly disabled when modal is open to avoid unintended rollbacks)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -271,6 +344,17 @@ const AppContent: React.FC = () => {
     navigateTo('GAME');
   }, [toggleBot, handleReset, navigateTo]);
 
+  const handleLaunchMinigame = useCallback(
+    (minigameId: string) => {
+      handleReset();
+      navigateTo('GAME');
+      triggerFeedback('ILLEGAL_MOVE', {
+        message: `Modo ${minigameId.toUpperCase().replace(/_/g, ' ')} inicializado com sucesso na arena.`,
+      });
+    },
+    [handleReset, navigateTo, triggerFeedback]
+  );
+
   return (
     <div className="app-shell">
       {/* Persistent Responsive Top Navigation Bar */}
@@ -298,6 +382,7 @@ const AppContent: React.FC = () => {
           botDifficulty={difficulty}
           onSelectDifficulty={(d) => setDifficulty(d as AIDifficultyLevel)}
           onOpenThemeModal={() => setIsThemeModalOpen(true)}
+          onLaunchMinigame={handleLaunchMinigame}
         />
       ) : (
         <div id="match-arena-shell" className="match-arena-shell" data-testid="match-arena-shell">
@@ -699,6 +784,10 @@ const AppContent: React.FC = () => {
                   updatePreferences({ boardViewMode: mode });
                 }}
                 onForceBotMove={forceBotMove}
+                onOfferDraw={handleOfferDraw}
+                onResign={handleResign}
+                isGameOver={isGameOver}
+                canClaimDraw={canClaimDraw}
               />
             </aside>
           </div>
