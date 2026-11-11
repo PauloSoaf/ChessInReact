@@ -19,11 +19,15 @@
 
 ## 2. Histórico Recente de Commits
 
-1. `HEAD` — `feat(spec12): Duck Chess two-phase turn progression, physical king capture and neutral blocker (SPEC12-DUCK-CHESS-NEUTRAL-BLOCKER-03)`
+1. `HEAD` — `feat(spec12): Puzzle Rush survival mode, countdown timer and real-time battle engine (SPEC12-PUZZLE-RUSH-TACTICAL-ENGINE-04)`
+   - Implementou `PuzzleRushEngine.ts` com modos Sobrevivência (3 vidas, progressão 600-2600+), Contra o Relógio (3m/5m) e Duelo 1v1 Puzzle Battle.
+   - Catálogo canônico de puzzles táticos cobrindo do rating 600 a 2600+ com FENs e lances validados.
+   - Sincronização em tempo real de pontuação do oponente e telemetria de lances.
+2. `54905df` — `feat(spec12): Duck Chess two-phase turn progression, physical king capture and neutral blocker (SPEC12-DUCK-CHESS-NEUTRAL-BLOCKER-03)`
    - Implementou `DuckChessEngine.ts` com ciclo de turno em 2 fases (`PIECE_MOVE` seguido de `PLACE_DUCK` obrigatório).
    - Invariante de Bloqueador Neutro Absoluto: pato intransponível e incapturável que bloqueia casas e trajetórias.
    - Captura Física de Rei: desativação canônica de xeque/xeque-mate e encerramento imediato por captura.
-2. `162f9e7` — `feat(spec11): Adaptive bot rating ecosystem, Zobrist blunder memory and 19-bot ladder (SPEC11-ADAPTIVE-BOT-RATING-ECOSYSTEM-01)`
+3. `162f9e7` — `feat(spec11): Adaptive bot rating ecosystem, Zobrist blunder memory and 19-bot ladder (SPEC11-ADAPTIVE-BOT-RATING-ECOSYSTEM-01)`
    - Ladder de 19 bots em 4 tiers de rating (0 a 2200+).
    - Memória adaptativa de gafes Zobrist (-15.000 centipawns com LRU 500) e Glicko-2 PVE.
 3. `02e6f2d` — `feat(spec10): Betza validation sandbox, mod manifest parser with unranked taint and LiveOps MotD (SPEC10-MODDING-API-RULESET-SANDBOX-01)`
@@ -50,13 +54,13 @@
 | **G1** | `npx tsc --noEmit` | **PASS** | 0 erros de compilação TypeScript |
 | **G2** | `npm run lint` | **PASS** | 0 erros, 0 warnings (ESLint com `--max-warnings 0`) |
 | **G3** | `npm run build` | **PASS** | CSS: 4.30 kB gzip \| Main JS: 65.55 kB gzip \| 3D Lazy: 5.42 kB gzip \| Three: 288.48 kB gzip |
-| **G4** | `npx vitest run` | **PASS** | 737 testes aprovados em 90 arquivos (0 falhas, 0 pulados) |
+| **G4** | `npx vitest run` | **PASS** | 745 testes aprovados em 91 arquivos (0 falhas, 0 pulados) |
 | **G5** | `node scripts/runChromiumSmoke.js` | **PASS** | Chromium headless: Web Worker real executado com sucesso |
-| **G6** | `npm run bench:memory` | **PASS** | Baseline: 19.55 MB, Pico: 21.90 MB (< 40 MB orçado), Drift: +0.0120 MB/ciclo |
+| **G6** | `npm run bench:memory` | **PASS** | Baseline: 19.61 MB, Pico: 35.64 MB (< 40 MB orçado), Drift: +0.0090 MB/ciclo |
 | **G7** | `npm run acceptance` | **PASS** | 11/11 fluxos comportamentais e 5 resoluções aprovados estritamente |
 
 ---
 
-## 4. Próxima Fronteira de Desenvolvimento: Spec 12 (Puzzle Rush & Battle)
+## 4. Próxima Fronteira de Desenvolvimento: Spec 12 (Bughouse 2v2 Twin Board)
 
-1. `SPEC12-PUZZLE-RUSH-TACTICAL-ENGINE-04`: Modos Sobrevivência (3 vidas, rating progressivo de 600 a 2600+), Contra o Relógio (3m/5m) e sincronização 1v1.
+1. `SPEC12-BUGHOUSE-TWIN-BOARD-ENGINE-05`: Coordenação de tabuleiros gêmeos (Mesa A e Mesa B), cores cruzadas, transferência imediata de capturas e drops.
