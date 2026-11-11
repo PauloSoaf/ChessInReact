@@ -1,7 +1,7 @@
 # ChessInReact | Patch Backlog (Autonomous Spec Completion Engine)
 
 > **Backlog Dinâmico de Patches Executáveis**  
-> **Última Atualização:** 11/11/2026 08:44 (UTC-4)  
+> **Última Atualização:** 11/11/2026 09:35 (UTC-4)  
 > **Ordem de Prioridade:** Falhas críticas > Erros de regras > Falhas de build/CI > Contratos arquiteturais > Funcionalidades fundamentais > Otimizações > Polimento visual.
 
 ---
@@ -16,13 +16,25 @@
 | `SPEC07-CAMERA-LERP-AND-ANIMATION-01` | Spec 07 / Animação | Interpolação suave de câmera orbital via lerp em useFrame e arco parabólico em lances de peças 3D | `804dc5b` | **HOMOLOGADO** |
 | `SPEC07-GLSL-HOLOGRAM-SHADERS-02` | Spec 07 / Shaders | Shaders GLSL customizados com pulso holográfico e scanlines para peças selecionadas e xeque | `655e20a` | **HOMOLOGADO** |
 | `SPEC07-INSTANCED-PIECE-BATCHING-03` | Spec 07 / Batching | Agrupamento de peças com THREE.InstancedMesh reduzindo draw calls para <= 6 (meta < 20) | `a0fd296` | **HOMOLOGADO** |
-| `SPEC09-PGN-PARSER-AND-PERSISTENCE-01` | Spec 09 / PGN | Serializador Seven Tag Roster FIDE, parser de tags/lances, ReplayEngine determinístico e arquivo local | `HEAD` | **HOMOLOGADO** |
+| `SPEC09-PGN-PARSER-AND-PERSISTENCE-01` | Spec 09 / PGN | Serializador Seven Tag Roster FIDE, parser de tags/lances, ReplayEngine determinístico e arquivo local | `5d5e222` | **HOMOLOGADO** |
+| `SPEC12-GAME-REVIEW-EVAL-GRAPH-01` | Spec 12 / Análise | Gráfico SVG interativo de vantagem, classificação FIDE/Chess.com de jogadas e fórmula CAPS2 | `HEAD` | **HOMOLOGADO** |
 
 ---
 
 ## 2. Patches em Fila de Execução
 
-### `SPEC12-GAME-REVIEW-EVAL-GRAPH-01` (Prioridade Máxima Atual)
-- **Objetivo:** Implementar painel de Game Review com gráfico de vantagem por lance baseado em avaliações do motor e classificação de jogadas (Brilliant, Best, Mistake, Blunder).
-- **Requisitos Atendidos:** `Spec 12`, `S12-RF01`, `S12-RF02`.
+### `SPEC12-SPELL-CHESS-MANA-ENGINE-02` (Prioridade Máxima Atual)
+- **Objetivo:** Implementar o motor de Spell Chess da Spec 12: gerenciamento de mana por turno, tempos de recarga (cooldowns), catálogo de feitiços (Freeze, Jump, Portal, Lightning) e validação de lances mágicos sobre a topologia ECS sem quebrar invariantes de regras clássicas.
+- **Requisitos Atendidos:** `Spec 12`, `S12-RF03`, `S12-RF04`, `S12-RF05`.
 
+### `SPEC08-MATCHMAKING-QUEUE-AND-LOBBY-01`
+- **Objetivo:** Implementar o motor de fila de matchmaking em memória / Redis-compatible com particionamento de janelas Elo, ciclo de vida de tickets (SEARCHING, MATCHED, EXPIRED) e gerenciador de salas/lobbies com handshake autoritativo.
+- **Requisitos Atendidos:** `Spec 08`, `S08-RF01`, `S08-RF02`, `S08-RF03`, `S08-RF04`.
+
+### `SPEC10-MODDING-API-RULESET-SANDBOX-01`
+- **Objetivo:** Implementar o pipeline de Modding e Sandbox de regras customizadas: isolamento de execução para modificadores de movimento, registro declarativo de peças de fadas e parser de manifestos JSON de mods.
+- **Requisitos Atendidos:** `Spec 10`, `S10-RF01`, `S10-RF02`, `S10-RF03`.
+
+### `SPEC11-ADAPTIVE-BOT-RATING-ECOSYSTEM-01`
+- **Objetivo:** Implementar o ecossistema de bots com avaliação adaptativa Glicko-2, perfis de personalidade de IA (Agressivo, Posicional, Tático, Caótico) e ajuste dinâmico de profundidade de busca com base no rating do jogador humano.
+- **Requisitos Atendidos:** `Spec 11`, `S11-RF01`, `S11-RF02`, `S11-RF03`.

@@ -1,7 +1,7 @@
 # ChessInReact | Spec Master Matrix (Autonomous Audit)
 
 > **Matriz Mestre de Rastreabilidade e Conformidade de Requisitos**  
-> **Última Atualização:** 11/11/2026 08:43 (UTC-4)  
+> **Última Atualização:** 11/11/2026 09:35 (UTC-4)  
 > **Regra:** Requisito classificado como `VERIFIED` apenas com testes automatizados executados ou evidências diretas em ambiente real.
 
 ---
@@ -17,12 +17,12 @@
 | **Spec 05 (AI Engines & Bots)** | 16 | 16 | 0 | 0 | 0 |
 | **Spec 06 (UI/UX, HUD & Design)** | 18 | 18 | 0 | 0 | 0 |
 | **Spec 07 (3D WebGL Rendering)** | 16 | 14 | 2 | 0 | 0 |
-| **Spec 08 (Matchmaking & Redis)** | 12 | 0 | 2 | 10 | 0 |
-| **Spec 09 (Event Sourcing & PGN)** | 12 | 7 | 0 | 5 | 0 |
+| **Spec 08 (Matchmaking & Redis)** | 12 | 2 | 2 | 8 | 0 |
+| **Spec 09 (Event Sourcing & PGN)** | 12 | 7 | 1 | 4 | 0 |
 | **Spec 10 (Modding API & CI/CD)** | 10 | 5 | 2 | 3 | 0 |
 | **Spec 11 (Bot Ecosystem & Rating)**| 12 | 2 | 2 | 8 | 0 |
-| **Spec 12 (Game Review & Analysis)**| 12 | 3 | 2 | 7 | 0 |
-| **TOTAL** | **171** | **124** | **12** | **33** | **2** |
+| **Spec 12 (Game Review & Analysis)**| 12 | 6 | 2 | 4 | 0 |
+| **TOTAL** | **171** | **129** | **11** | **29** | **2** |
 
 ---
 
@@ -49,7 +49,7 @@
 | **S02-RF04** | Geração Procedural em Macro-Chunks (16x16) | P1 | `core/procedural/` | `VERIFIED` | `streamingPerformanceMemory.test.ts` |
 | **S02-RF05** | Descarregamento Automático de Chunks (GC) | P0 | `core/procedural/` | `VERIFIED` | `streamingGCAndProvenanceRegression.test.ts` |
 | **S02-RF06** | Algoritmo A* Pathfinding sobre Topologia | P1 | `core/topology/` | `VERIFIED` | `topologyBenchmarks.test.ts` |
-| **S02-RNF01** | Limite Orçamentário de Memória (< 40 MB) | P0 | `scripts/runMemoryBenchmark.js` | `VERIFIED` | Pico: 27.48 MB sem clamping |
+| **S02-RNF01** | Limite Orçamentário de Memória (< 40 MB) | P0 | `scripts/runMemoryBenchmark.js` | `VERIFIED` | Pico: 21.98 MB sem clamping |
 
 ### Spec 03: Multiplayer Networking & Authoritative Server
 | ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
@@ -94,7 +94,7 @@
 ### Spec 07: 3D WebGL Rendering, Three.js & R3F
 | ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
 | :--- | :--- | :---: | :--- | :---: | :--- |
-| **S07-RF01** | Tabuleiro 3D Interativo com Lazy Loading (< 5 kB) | P0 | `rendering/ChessBoard3D.tsx` | `VERIFIED` | Build: 4.36 kB gzip chunk lazy |
+| **S07-RF01** | Tabuleiro 3D Interativo com Lazy Loading (< 5 kB) | P0 | `rendering/ChessBoard3D.tsx` | `VERIFIED` | Build: 5.42 kB gzip chunk lazy |
 | **S07-RF02** | Detecção de Hardware e Fallback Gracioso para 2D | P0 | `rendering/webglCapabilities.ts`| `VERIFIED` | `webglCapabilities.test.ts` |
 | **S07-RF03** | Backing Buffer Escalado a Viewport Física (> 300x150) | P0 | `rendering/ChessBoard3D.tsx` | `VERIFIED` | Aceite Chromium (911×1032 px medidos) |
 | **S07-RF04** | Interação via Raycasting Real em Chromium | P0 | `rendering/ChessBoard3D.tsx` | `VERIFIED` | Aceite Chromium (Fluxo 11 3D Raycast) |
@@ -105,3 +105,19 @@
 | **S07-RF09** | GPU Matrix Batching com `InstancedMesh` para Peças | P1 | `rendering/mesh/InstancedPieceBatcher.ts`| `VERIFIED` | 6 draw calls para 32 peças (< 20) em Spec07InstancedBatching.test.ts |
 | **S07-RF10** | Custom GLSL Shaders para Iluminação Holográfica | P2 | `rendering/shaders/HoloPulseShader.ts` | `VERIFIED` | Shaders GLSL com pulso procedural e scanlines em HoloPulseRing |
 
+### Spec 09: Database, Event Sourcing & PGN Persistence
+| ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
+| :--- | :--- | :---: | :--- | :---: | :--- |
+| **S09-RF01** | Exportador PGN em Conformidade FIDE Seven Tag Roster | P0 | `core/persistence/PGNExporter.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` |
+| **S09-RF02** | Parser Resiliente de PGN com Sanitização e Metadados | P0 | `core/persistence/PGNParser.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` |
+| **S09-RF03** | Motor Determinístico de Replay (Event Sourcing) | P0 | `core/persistence/ReplayEngine.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` ($O(1)$ snapshot access) |
+| **S09-RF04** | Armazenamento Local de Partidas (`PGNStorage`) | P1 | `core/persistence/PGNStorage.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` (localStorage mock) |
+
+### Spec 12: Game Review, Analysis & Spell Chess Minigames
+| ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
+| :--- | :--- | :---: | :--- | :---: | :--- |
+| **S12-RF01** | Conversão de Centipawns em Probabilidade de Vitória Sigmoidal | P0 | `analysis/GameReviewEngine.ts` | `VERIFIED` | `GameReviewEngine.test.tsx` (Fórmula canônica) |
+| **S12-RF02** | Classificação Canônica de Lances (Brilliant a Blunder) | P0 | `analysis/GameReviewEngine.ts` | `VERIFIED` | `GameReviewEngine.test.tsx` (8 categorias) |
+| **S12-RF03** | Cálculo de Precisão Ponderada CAPS2 (0-100%) | P0 | `analysis/GameReviewEngine.ts` | `VERIFIED` | `GameReviewEngine.test.tsx` (Métrica normalizada) |
+| **S12-RF04** | Gráfico Interativo SVG de Curva de Vantagem com Scrubbing | P0 | `analysis/components/AdvantageGraph.tsx`| `VERIFIED` | `GameReviewEngine.test.tsx` (SVG nativo, 0 dependências externas) |
+| **S12-RF05** | Minigame Spell Chess (Mana, Cooldowns e Magias) | P1 | `analysis/minigames/SpellChessEngine.ts`| `NOT_STARTED` | Próximo patch programado |
