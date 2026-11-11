@@ -1,7 +1,7 @@
 # ChessInReact | Patch Backlog (Autonomous Spec Completion Engine)
 
 > **Backlog Dinâmico de Patches Executáveis**  
-> **Última Atualização:** 11/11/2026 09:44 (UTC-4)  
+> **Última Atualização:** 11/11/2026 09:52 (UTC-4)  
 > **Ordem de Prioridade:** Falhas críticas > Erros de regras > Falhas de build/CI > Contratos arquiteturais > Funcionalidades fundamentais > Otimizações > Polimento visual.
 
 ---
@@ -18,17 +18,14 @@
 | `SPEC07-INSTANCED-PIECE-BATCHING-03` | Spec 07 / Batching | Agrupamento de peças com THREE.InstancedMesh reduzindo draw calls para <= 6 (meta < 20) | `a0fd296` | **HOMOLOGADO** |
 | `SPEC09-PGN-PARSER-AND-PERSISTENCE-01` | Spec 09 / PGN | Serializador Seven Tag Roster FIDE, parser de tags/lances, ReplayEngine determinístico e arquivo local | `5d5e222` | **HOMOLOGADO** |
 | `SPEC12-GAME-REVIEW-EVAL-GRAPH-01` | Spec 12 / Análise | Gráfico SVG interativo de vantagem, classificação FIDE/Chess.com de jogadas e fórmula CAPS2 | `2f5a6de` | **HOMOLOGADO** |
-| `SPEC12-SPELL-CHESS-MANA-ENGINE-02` | Spec 12 / Minigames | Máquina de estados de Spell Chess: economia de mana (2-6), 7 feitiços canônicos, cooldowns e HUD | `HEAD` | **HOMOLOGADO** |
+| `SPEC12-SPELL-CHESS-MANA-ENGINE-02` | Spec 12 / Minigames | Máquina de estados de Spell Chess: economia de mana (2-6), 7 feitiços canônicos, cooldowns e HUD | `aae907a` | **HOMOLOGADO** |
+| `SPEC08-MATCHMAKING-QUEUE-AND-LOBBY-01` | Spec 08 / Matchmaker | Motor de fila de matchmaking por janelas dinâmicas de Elo, tickets com heartbeat/TTL e LobbyManager | `HEAD` | **HOMOLOGADO** |
 
 ---
 
 ## 2. Patches em Fila de Execução
 
-### `SPEC08-MATCHMAKING-QUEUE-AND-LOBBY-01` (Prioridade Máxima Atual)
-- **Objetivo:** Implementar o motor de fila de matchmaking em memória / Redis-compatible com particionamento de janelas Elo, ciclo de vida de tickets (SEARCHING, MATCHED, EXPIRED) e gerenciador de salas/lobbies com handshake autoritativo.
-- **Requisitos Atendidos:** `Spec 08`, `S08-RF01`, `S08-RF02`, `S08-RF03`, `S08-RF04`.
-
-### `SPEC10-MODDING-API-RULESET-SANDBOX-01`
+### `SPEC10-MODDING-API-RULESET-SANDBOX-01` (Prioridade Máxima Atual)
 - **Objetivo:** Implementar o pipeline de Modding e Sandbox de regras customizadas: isolamento de execução para modificadores de movimento, registro declarativo de peças de fadas e parser de manifestos JSON de mods.
 - **Requisitos Atendidos:** `Spec 10`, `S10-RF01`, `S10-RF02`, `S10-RF03`.
 

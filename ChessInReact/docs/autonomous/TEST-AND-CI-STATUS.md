@@ -1,16 +1,16 @@
 # ChessInReact | Test and CI Status
 
 > **Status de Testes e Pipelines de Integração Contínua**  
-> **Data:** 11/11/2026 09:44 (UTC-4)
+> **Data:** 11/11/2026 09:52 (UTC-4)
 
 ---
 
 ## 1. Suíte Local de Testes e Cobertura
 
-- **Total de Testes:** 693 testes aprovados em 86 arquivos de teste.
+- **Total de Testes:** 707 testes aprovados em 87 arquivos de teste.
 - **Falhas / Pulados:** 0 falhas, 0 testes pulados.
 - **Cobertura de Topologia (Spec 02):** 98,21% (Requisito da governança: > 95%).
-- **Duração Média da Suíte:** ~35 segundos (incluindo testes de stress Perft, shaders GLSL, batching instanciado, PGN, ReplayEngine, GameReviewEngine e SpellChessEngine).
+- **Duração Média da Suíte:** ~37 segundos (incluindo testes de stress Perft, shaders GLSL, batching instanciado, PGN, ReplayEngine, GameReviewEngine, SpellChessEngine e MatchmakingQueueEngine).
 
 ---
 
@@ -25,7 +25,7 @@
 2. **Benchmark Isolado de Memória (`npm run bench:memory`):**
    - Executado com `node --expose-gc scripts/runMemoryBenchmark.js`.
    - 10.240 células ativas retidas em 40 macro-chunks procedurais.
-   - Pico de heap: **21.98 MB** (orçamento formal: < 40 MB).
+   - Pico de heap: **27.51 MB** (orçamento formal: < 40 MB).
    - Deriva por ciclo após 10 iterações: **+0.0090 MB/ciclo** (sem vazamentos de memória).
 
 3. **Aceite Funcional e Responsivo Chromium (`npm run acceptance`):**

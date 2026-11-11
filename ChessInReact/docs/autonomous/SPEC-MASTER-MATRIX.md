@@ -1,7 +1,7 @@
 # ChessInReact | Spec Master Matrix (Autonomous Audit)
 
 > **Matriz Mestre de Rastreabilidade e Conformidade de Requisitos**  
-> **Última Atualização:** 11/11/2026 09:44 (UTC-4)  
+> **Última Atualização:** 11/11/2026 09:52 (UTC-4)  
 > **Regra:** Requisito classificado como `VERIFIED` apenas com testes automatizados executados ou evidências diretas em ambiente real.
 
 ---
@@ -17,12 +17,12 @@
 | **Spec 05 (AI Engines & Bots)** | 16 | 16 | 0 | 0 | 0 |
 | **Spec 06 (UI/UX, HUD & Design)** | 18 | 18 | 0 | 0 | 0 |
 | **Spec 07 (3D WebGL Rendering)** | 16 | 14 | 2 | 0 | 0 |
-| **Spec 08 (Matchmaking & Redis)** | 12 | 2 | 2 | 8 | 0 |
+| **Spec 08 (Matchmaking & Redis)** | 12 | 8 | 2 | 2 | 0 |
 | **Spec 09 (Event Sourcing & PGN)** | 12 | 7 | 1 | 4 | 0 |
 | **Spec 10 (Modding API & CI/CD)** | 10 | 5 | 2 | 3 | 0 |
 | **Spec 11 (Bot Ecosystem & Rating)**| 12 | 2 | 2 | 8 | 0 |
 | **Spec 12 (Game Review & Analysis)**| 12 | 8 | 1 | 3 | 0 |
-| **TOTAL** | **171** | **131** | **10** | **28** | **2** |
+| **TOTAL** | **171** | **137** | **10** | **22** | **2** |
 
 ---
 
@@ -49,7 +49,7 @@
 | **S02-RF04** | Geração Procedural em Macro-Chunks (16x16) | P1 | `core/procedural/` | `VERIFIED` | `streamingPerformanceMemory.test.ts` |
 | **S02-RF05** | Descarregamento Automático de Chunks (GC) | P0 | `core/procedural/` | `VERIFIED` | `streamingGCAndProvenanceRegression.test.ts` |
 | **S02-RF06** | Algoritmo A* Pathfinding sobre Topologia | P1 | `core/topology/` | `VERIFIED` | `topologyBenchmarks.test.ts` |
-| **S02-RNF01** | Limite Orçamentário de Memória (< 40 MB) | P0 | `scripts/runMemoryBenchmark.js` | `VERIFIED` | Pico: 21.98 MB sem clamping |
+| **S02-RNF01** | Limite Orçamentário de Memória (< 40 MB) | P0 | `scripts/runMemoryBenchmark.js` | `VERIFIED` | Pico: 27.51 MB sem clamping |
 
 ### Spec 03: Multiplayer Networking & Authoritative Server
 | ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
@@ -104,6 +104,20 @@
 | **S07-RF08** | Transições Suaves de Câmera Orbital ao Inverter | P1 | `rendering/ChessBoard3D.tsx` | `VERIFIED` | Interpolação suave lerp via SmoothCameraController |
 | **S07-RF09** | GPU Matrix Batching com `InstancedMesh` para Peças | P1 | `rendering/mesh/InstancedPieceBatcher.ts`| `VERIFIED` | 6 draw calls para 32 peças (< 20) em Spec07InstancedBatching.test.ts |
 | **S07-RF10** | Custom GLSL Shaders para Iluminação Holográfica | P2 | `rendering/shaders/HoloPulseShader.ts` | `VERIFIED` | Shaders GLSL com pulso procedural e scanlines em HoloPulseRing |
+
+### Spec 08: Matchmaking, Lobbies & Redis Architecture
+| ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
+| :--- | :--- | :---: | :--- | :---: | :--- |
+| **S08-RF01** | Emissão e Ciclo de Vida de Tickets com TTL e Unique ID | P0 | `matchmaking/engine/MatchmakingQueueEngine.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (14 testes) |
+| **S08-RF02** | Algoritmo de Pareamento por Faixas de Elo | P0 | `matchmaking/engine/MatchmakingQueueEngine.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` |
+| **S08-RF03** | Expansão Dinâmica da Janela de Elo (+50 a cada 15s) | P0 | `matchmaking/engine/MatchmakingQueueEngine.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (Tolerância dinâmica comprovada) |
+| **S08-RF04** | Suporte a Matchmaking Multijogador (2 a 4+ jogadores) | P0 | `matchmaking/engine/MatchmakingQueueEngine.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (Hex 4P FFA verificado) |
+| **S08-RF05** | Heartbeat de Fila e Expiração Automática de Tickets Zumbi | P0 | `matchmaking/engine/MatchmakingQueueEngine.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (Purge > 15s verificado) |
+| **S08-RF06** | Criação de Lobbies Privados com Código e Senha | P1 | `matchmaking/engine/LobbyManager.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (JoinCode 6-char e passcode) |
+| **S08-RF07** | Listagem Pública de Salas Casuais Abertas | P1 | `matchmaking/engine/LobbyManager.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` |
+| **S08-RF08** | Emissão de Tokens Criptografados de Sala (Room JWT) | P0 | `matchmaking/engine/MatchmakingQueueEngine.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (JWT assinado com 30s TTL) |
+| **S08-RF12** | Prevenção Absoluta de Duplicação de Pareamento (0%) | P0 | `matchmaking/engine/MatchmakingQueueEngine.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (Substituição de ticket atômica) |
+| **S08-RF15** | Purga e Coleta Automática de Lobbies Inativos (> 10 min) | P1 | `matchmaking/engine/LobbyManager.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (Purge > 600s verificado) |
 
 ### Spec 09: Database, Event Sourcing & PGN Persistence
 | ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |

@@ -14,6 +14,7 @@ export default defineConfig({
       'src/ui/**/__tests__/**/*.test.{ts,tsx}',
       'src/rendering/**/__tests__/**/*.test.{ts,tsx}',
       'src/analysis/**/__tests__/**/*.test.{ts,tsx}',
+      'src/matchmaking/**/__tests__/**/*.test.{ts,tsx}',
       'src-backend/**/__tests__/**/*.test.{ts,tsx}',
     ],
     coverage: {
