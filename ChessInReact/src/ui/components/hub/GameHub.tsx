@@ -134,7 +134,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
   onOpenThemeModal,
   progressive3DMode,
 }) => {
-  const { uiTheme } = useTheme();
+  const { uiTheme, boardViewMode, setBoardViewMode } = useTheme();
   const activeDiff = DIFFICULTY_META.find((d) => d.level === botDifficulty) ?? DIFFICULTY_META[2];
   const isMatchInProgress = hasActiveMatch && !isGameOver;
   const isMatchConcluded = hasActiveMatch && isGameOver;
@@ -629,6 +629,76 @@ export const GameHub: React.FC<IGameHubProps> = ({
                   }}
                 >
                   {activeDiff.desc}
+                </div>
+
+                {/* Dual 2D / 3D Board View Mode Selector */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '0.5rem',
+                    padding: '0.45rem 0.65rem',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      color: 'var(--text-muted)',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Tabuleiro:
+                  </span>
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      borderRadius: 'var(--radius-xs)',
+                      overflow: 'hidden',
+                      border: '1px solid var(--border-prominent)',
+                    }}
+                  >
+                    <button
+                      id="hub-ai-card-view-2d"
+                      type="button"
+                      onClick={() => setBoardViewMode('2D')}
+                      style={{
+                        padding: '0.26rem 0.6rem',
+                        fontSize: '0.74rem',
+                        fontWeight: boardViewMode !== '3D' ? 800 : 500,
+                        backgroundColor: boardViewMode !== '3D' ? 'var(--color-accent)' : 'transparent',
+                        color: boardViewMode !== '3D' ? '#ffffff' : 'var(--text-secondary)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        transition: 'all var(--transition-fast)',
+                      }}
+                    >
+                      📐 2D Vetorial
+                    </button>
+                    <button
+                      id="hub-ai-card-view-3d"
+                      type="button"
+                      onClick={() => setBoardViewMode('3D')}
+                      style={{
+                        padding: '0.26rem 0.6rem',
+                        fontSize: '0.74rem',
+                        fontWeight: boardViewMode === '3D' ? 800 : 500,
+                        backgroundColor: boardViewMode === '3D' ? 'var(--color-accent)' : 'transparent',
+                        color: boardViewMode === '3D' ? '#ffffff' : 'var(--text-secondary)',
+                        border: 'none',
+                        borderLeft: '1px solid var(--border-subtle)',
+                        cursor: 'pointer',
+                        transition: 'all var(--transition-fast)',
+                      }}
+                    >
+                      🎲 3D WebGL
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

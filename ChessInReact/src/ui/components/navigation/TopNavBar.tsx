@@ -192,7 +192,8 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
             }}
           >
             <span style={{ fontSize: '0.85rem' }}>{boardViewMode === '3D' ? '🎲' : '📐'}</span>
-            <span className="nav-btn-text">{boardViewMode === '3D' ? '3D WebGL' : '2D Vetorial'}</span>
+            <span className="nav-view-mode-badge" style={{ fontWeight: 800 }}>{boardViewMode}</span>
+            <span className="nav-btn-text">{boardViewMode === '3D' ? 'WebGL' : 'Vetorial'}</span>
           </button>
 
           {/* Quick Theme Toggle */}

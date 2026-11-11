@@ -747,6 +747,12 @@ select:focus-visible,
     display: none !important;
   }
 
+  #nav-quick-view-mode-toggle .nav-view-mode-badge {
+    display: inline-block !important;
+    font-size: 0.72rem !important;
+    font-weight: 800 !important;
+  }
+
   #nav-quick-view-mode-toggle {
     padding: 0.42rem 0.55rem !important;
   }
@@ -844,6 +850,12 @@ select:focus-visible,
 
   #nav-quick-view-mode-toggle .nav-btn-text {
     display: none !important;
+  }
+
+  #nav-quick-view-mode-toggle .nav-view-mode-badge {
+    display: inline-block !important;
+    font-size: 0.72rem !important;
+    font-weight: 800 !important;
   }
 
   #nav-open-theme-customizer .nav-btn-text {

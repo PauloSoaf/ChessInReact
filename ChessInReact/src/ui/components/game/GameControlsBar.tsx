@@ -20,11 +20,13 @@ export interface IGameControlsBarProps {
   isBoardFlipped?: boolean;
   boardViewMode?: '2D' | '3D';
   onToggleBoardViewMode?: (mode: '2D' | '3D') => void;
+  onForceBotMove?: () => void;
 }
 
 export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
   isBotEnabled,
   difficulty,
+  isThinking,
   lastEval,
   boardSize,
   onToggleBot,
@@ -38,6 +40,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
   isBoardFlipped = false,
   boardViewMode = '2D',
   onToggleBoardViewMode,
+  onForceBotMove,
 }) => {
   const formattedEval =
     lastEval !== null ? `${lastEval > 0 ? '+' : ''}${(lastEval / 100).toFixed(2)}` : '0.00';
@@ -214,6 +217,37 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
             <option value={5}>N5 — Mestre</option>
           </select>
         </div>
+
+        {isBotEnabled && onForceBotMove && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.15rem' }}>
+            <button
+              id="bot-force-move-button"
+              type="button"
+              disabled={isThinking}
+              onClick={onForceBotMove}
+              style={{
+                fontSize: '0.72rem',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+                padding: '0.3rem 0.65rem',
+                borderRadius: 'var(--radius-xs)',
+                backgroundColor: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-prominent)',
+                color: 'var(--text-secondary)',
+                cursor: isThinking ? 'not-allowed' : 'pointer',
+                opacity: isThinking ? 0.6 : 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                transition: 'all var(--transition-fast)',
+              }}
+              title="Forçar lance imediato da IA para o turno ativo"
+            >
+              <span>⚡</span>
+              <span>{isThinking ? 'Calculando...' : 'Forçar Lance IA'}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Section 3: Board Orientation, Grid Dimension & Visual Themes */}

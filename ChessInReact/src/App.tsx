@@ -114,6 +114,7 @@ const AppContent: React.FC = () => {
     toggleBot,
     setDifficulty,
     cancelSearch,
+    forceBotMove,
     updateTopologySize,
   } = useBotMatch({
     botPlayer: 'P2',
@@ -238,12 +239,17 @@ const AppContent: React.FC = () => {
         handleRedo();
       } else if (e.key === 'h' || e.key === 'H') {
         navigateTo(currentView === 'HUB' ? 'GAME' : 'HUB');
+      } else if (e.key === 'v' || e.key === 'V') {
+        clearFeedback();
+        updatePreferences({ boardViewMode: preferences.boardViewMode === '3D' ? '2D' : '3D' });
+      } else if (e.key === 'f' || e.key === 'F') {
+        handleFlipBoard();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isThemeModalOpen, handleUndo, handleRedo, navigateTo, currentView]);
+  }, [isThemeModalOpen, handleUndo, handleRedo, navigateTo, currentView, preferences.boardViewMode, updatePreferences, clearFeedback, handleFlipBoard]);
 
   const handleResumeMatch = useCallback(() => {
     navigateTo('GAME');
@@ -314,6 +320,134 @@ const AppContent: React.FC = () => {
                   difficultyLabel={isBotEnabled ? DIFFICULTY_LABELS[difficulty] : undefined}
                   isInCheck={!isGameOver && isP2InCheck}
                 />
+              </div>
+
+              {/* Board Perspective & View Mode Switcher Ribbon (2D vs 3D and Board Flip) */}
+              <div
+                className="match-stage-controls-ribbon"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  width: '100%',
+                  maxWidth: '604px',
+                  padding: '0.45rem 0.75rem',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--bg-sunken)',
+                  border: '1px solid var(--border-prominent)',
+                  boxShadow: 'var(--shadow-sm)',
+                  gap: '0.5rem',
+                  flexWrap: 'wrap',
+                }}
+              >
+                {/* 2D / 3D Prominent Segmented Switcher */}
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span
+                    style={{
+                      fontSize: '0.7rem',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 800,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    Visualização:
+                  </span>
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      borderRadius: 'var(--radius-sm)',
+                      overflow: 'hidden',
+                      border: '1.5px solid var(--border-prominent)',
+                      backgroundColor: 'var(--bg-card)',
+                      boxShadow: 'var(--shadow-sm)',
+                    }}
+                  >
+                    <button
+                      id="arena-view-mode-2d-btn"
+                      type="button"
+                      aria-label="Ativar Visão 2D Clássica"
+                      onClick={() => {
+                        clearFeedback();
+                        updatePreferences({ boardViewMode: '2D' });
+                      }}
+                      style={{
+                        padding: '0.36rem 0.75rem',
+                        fontSize: '0.78rem',
+                        fontWeight: preferences.boardViewMode !== '3D' ? 800 : 600,
+                        cursor: 'pointer',
+                        backgroundColor: preferences.boardViewMode !== '3D' ? 'var(--color-accent)' : 'transparent',
+                        color: preferences.boardViewMode !== '3D' ? '#ffffff' : 'var(--text-secondary)',
+                        border: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        transition: 'all var(--transition-fast)',
+                      }}
+                      title="Modo 2D Clássico / Vetorial (Atalho: V)"
+                    >
+                      <span style={{ fontSize: '0.85rem' }}>📐</span>
+                      <span>2D Vetorial</span>
+                    </button>
+                    <button
+                      id="arena-view-mode-3d-btn"
+                      type="button"
+                      aria-label="Ativar Visão 3D"
+                      onClick={() => {
+                        clearFeedback();
+                        updatePreferences({ boardViewMode: '3D' });
+                      }}
+                      style={{
+                        padding: '0.36rem 0.75rem',
+                        fontSize: '0.78rem',
+                        fontWeight: preferences.boardViewMode === '3D' ? 800 : 600,
+                        cursor: 'pointer',
+                        backgroundColor: preferences.boardViewMode === '3D' ? 'var(--color-accent)' : 'transparent',
+                        color: preferences.boardViewMode === '3D' ? '#ffffff' : 'var(--text-secondary)',
+                        border: 'none',
+                        borderLeft: '1px solid var(--border-subtle)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        transition: 'all var(--transition-fast)',
+                      }}
+                      title="Modo 3D WebGL Realtime (Atalho: V)"
+                    >
+                      <span style={{ fontSize: '0.85rem' }}>🎲</span>
+                      <span>Modo 3D</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Flip Board Quick Trigger */}
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <button
+                    id="arena-flip-board-quick-btn"
+                    type="button"
+                    onClick={handleFlipBoard}
+                    title="Inverter orientação do tabuleiro (Atalho: F)"
+                    style={{
+                      padding: '0.36rem 0.75rem',
+                      fontSize: '0.76rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      backgroundColor: isBoardFlipped ? 'var(--color-accent-subtle)' : 'var(--bg-card)',
+                      color: isBoardFlipped ? 'var(--color-accent)' : 'var(--text-secondary)',
+                      border: isBoardFlipped ? '1.5px solid var(--border-active)' : '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-sm)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      boxShadow: 'var(--shadow-sm)',
+                    }}
+                  >
+                    <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 10a6 6 0 0110.24-4.24L16 7M16 3v4h-4M16 10a6 6 0 01-10.24 4.24L4 13M4 17v-4h4" />
+                    </svg>
+                    <span>Girar</span>
+                  </button>
+                </div>
               </div>
 
               {/* Sculpted Board Bezel: Real-time Evaluation Bar + Protagonist Board */}
@@ -564,6 +698,7 @@ const AppContent: React.FC = () => {
                   clearFeedback();
                   updatePreferences({ boardViewMode: mode });
                 }}
+                onForceBotMove={forceBotMove}
               />
             </aside>
           </div>

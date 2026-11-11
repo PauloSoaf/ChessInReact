@@ -300,55 +300,31 @@ export class BotMatchController {
             return null;
           }
 
-          // 4. Guaranteed Non-Blocking Fallback (RNF-09):
-          // First, attempt asynchronous recalculation via the freshly respawned WebWorker (off-main-thread).
+          // 4. Instantaneous Zero-Search Linear Emergency Fallback (Zero main-thread blocking, RNF-09):
+          // Immediately perform a shallow linear inspection over active bot pieces (O(N) with N <= 16 active pieces)
+          // selecting the first valid legal move via RulesEngine without blocking or awaiting another worker cycle (< 0.5ms).
+          const botPieces = Object.values(currentDomain.boardEntities).filter(
+            (e): e is IPieceEntity => e.type === 'PIECE' && !e.isCaptured && e.ownerId === this.botPlayer
+          );
           let fallbackResult: IBestMoveResult | null = null;
-          if (!this.bridgeOptions?.bridge && typeof Worker !== 'undefined') {
-            try {
-              fallbackResult = await this.bridge.calculateBestMove(currentDomain, {
-                difficulty: 1,
-                timeBudgetMs: 50,
-                variantId: currentDomain.variantId,
-                topologyOptions:
-                  this.topology.type === 'SQUARE'
-                    ? {
-                      width: (this.topology as SquareTopology).width ?? 8,
-                      height: (this.topology as SquareTopology).height ?? 8,
-                    }
-                    : undefined,
-              });
-            } catch {
-              // Worker retry failed; proceed to instantaneous O(1) legal move fallback
-            }
-          }
-
-          // 5. Zero-Search Linear Emergency Fallback (Zero main-thread blocking, RNF-09):
-          // If worker retry is unavailable or threw, perform a shallow linear inspection over active bot pieces
-          // (O(N) with N <= 16 active pieces) selecting the first valid legal move via RulesEngine
-          // without executing any recursive minimax tree search on the main thread (measured execution < 0.5ms).
-          if (!fallbackResult || !fallbackResult.bestMove) {
-            const botPieces = Object.values(currentDomain.boardEntities).filter(
-              (e): e is IPieceEntity => e.type === 'PIECE' && !e.isCaptured && e.ownerId === this.botPlayer
-            );
-            for (const p of botPieces) {
-              const legal = RulesEngine.getLegalMovesForPiece(p, currentDomain, this.topology);
-              if (legal.length > 0) {
-                const chosen = legal[0];
-                fallbackResult = {
-                  bestMove: {
-                    pieceId: p.id,
-                    fromCoord: p.position,
-                    toCoord: chosen.to,
-                    promotionVariant: chosen.isPromotion ? 'QUEEN' : undefined,
-                  },
-                  evaluationScore: 0,
-                  calculationTimeMs: 1,
-                  depthReached: 1,
-                  nodesCalculated: 1,
-                  pvLine: [`${p.position}->${chosen.to}`],
-                };
-                break;
-              }
+          for (const p of botPieces) {
+            const legal = RulesEngine.getLegalMovesForPiece(p, currentDomain, this.topology);
+            if (legal.length > 0) {
+              const chosen = legal[0];
+              fallbackResult = {
+                bestMove: {
+                  pieceId: p.id,
+                  fromCoord: p.position,
+                  toCoord: chosen.to,
+                  promotionVariant: chosen.isPromotion ? 'QUEEN' : undefined,
+                },
+                evaluationScore: 0,
+                calculationTimeMs: 1,
+                depthReached: 1,
+                nodesCalculated: 1,
+                pvLine: [`${p.position}->${chosen.to}`],
+              };
+              break;
             }
           }
 
@@ -403,6 +379,19 @@ export class BotMatchController {
         this.notify();
       }
     }
+  }
+
+  /**
+   * Forces immediate computation and execution of the best legal move for the bot,
+   * bypassing any pending searches. Used by UI manual override or emergency trigger.
+   */
+  public async forceImmediateBotMove(): Promise<IBestMoveResult | null> {
+    const domain = gameStore.getState().domain;
+    if (domain.isGameOver || domain.activePlayer !== this.botPlayer) {
+      return null;
+    }
+    this.cancel();
+    return this.checkAndTriggerBotTurn();
   }
 
   public dispose(): void {

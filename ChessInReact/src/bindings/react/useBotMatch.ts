@@ -101,6 +101,12 @@ export function useBotMatch(options?: IBotMatchControllerOptions) {
     }
   }, []);
 
+  const forceBotMove = useCallback(() => {
+    if (controllerRef.current) {
+      controllerRef.current.forceImmediateBotMove();
+    }
+  }, []);
+
   const updateTopologySize = useCallback((size: number) => {
     if (controllerRef.current) {
       controllerRef.current.setTopology(new SquareTopology({ width: size, height: size }));
@@ -116,6 +122,7 @@ export function useBotMatch(options?: IBotMatchControllerOptions) {
     toggleBot,
     setDifficulty,
     cancelSearch,
+    forceBotMove,
     updateTopologySize,
   };
 }
