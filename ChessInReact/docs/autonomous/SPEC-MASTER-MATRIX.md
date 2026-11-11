@@ -1,7 +1,7 @@
 # ChessInReact | Spec Master Matrix (Autonomous Audit)
 
 > **Matriz Mestre de Rastreabilidade e Conformidade de Requisitos**  
-> **Última Atualização:** 11/11/2026 09:35 (UTC-4)  
+> **Última Atualização:** 11/11/2026 09:44 (UTC-4)  
 > **Regra:** Requisito classificado como `VERIFIED` apenas com testes automatizados executados ou evidências diretas em ambiente real.
 
 ---
@@ -21,8 +21,8 @@
 | **Spec 09 (Event Sourcing & PGN)** | 12 | 7 | 1 | 4 | 0 |
 | **Spec 10 (Modding API & CI/CD)** | 10 | 5 | 2 | 3 | 0 |
 | **Spec 11 (Bot Ecosystem & Rating)**| 12 | 2 | 2 | 8 | 0 |
-| **Spec 12 (Game Review & Analysis)**| 12 | 6 | 2 | 4 | 0 |
-| **TOTAL** | **171** | **129** | **11** | **29** | **2** |
+| **Spec 12 (Game Review & Analysis)**| 12 | 8 | 1 | 3 | 0 |
+| **TOTAL** | **171** | **131** | **10** | **28** | **2** |
 
 ---
 
@@ -120,4 +120,5 @@
 | **S12-RF02** | Classificação Canônica de Lances (Brilliant a Blunder) | P0 | `analysis/GameReviewEngine.ts` | `VERIFIED` | `GameReviewEngine.test.tsx` (8 categorias) |
 | **S12-RF03** | Cálculo de Precisão Ponderada CAPS2 (0-100%) | P0 | `analysis/GameReviewEngine.ts` | `VERIFIED` | `GameReviewEngine.test.tsx` (Métrica normalizada) |
 | **S12-RF04** | Gráfico Interativo SVG de Curva de Vantagem com Scrubbing | P0 | `analysis/components/AdvantageGraph.tsx`| `VERIFIED` | `GameReviewEngine.test.tsx` (SVG nativo, 0 dependências externas) |
-| **S12-RF05** | Minigame Spell Chess (Mana, Cooldowns e Magias) | P1 | `analysis/minigames/SpellChessEngine.ts`| `NOT_STARTED` | Próximo patch programado |
+| **S12-RF07** | Minigame Spell Chess (Mana 2-6, 7 Feitiços e Cooldowns) | P1 | `analysis/minigames/SpellChessEngine.ts`| `VERIFIED` | `SpellChessEngine.test.tsx` (11 testes automatizados) |
+| **S12-RF18** | Feedback e Mão Interativa de Feitiços (SpellCardHand) | P1 | `analysis/minigames/SpellCardHand.tsx` | `VERIFIED` | `SpellChessEngine.test.tsx` (Renderização de HUD e orbes de mana) |

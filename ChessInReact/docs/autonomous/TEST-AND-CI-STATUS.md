@@ -1,16 +1,16 @@
 # ChessInReact | Test and CI Status
 
 > **Status de Testes e Pipelines de Integração Contínua**  
-> **Data:** 11/11/2026 09:35 (UTC-4)
+> **Data:** 11/11/2026 09:44 (UTC-4)
 
 ---
 
 ## 1. Suíte Local de Testes e Cobertura
 
-- **Total de Testes:** 682 testes aprovados em 85 arquivos de teste.
+- **Total de Testes:** 693 testes aprovados em 86 arquivos de teste.
 - **Falhas / Pulados:** 0 falhas, 0 testes pulados.
 - **Cobertura de Topologia (Spec 02):** 98,21% (Requisito da governança: > 95%).
-- **Duração Média da Suíte:** ~35 segundos (incluindo testes de stress Perft, shaders GLSL, batching instanciado, PGN, ReplayEngine e GameReviewEngine).
+- **Duração Média da Suíte:** ~35 segundos (incluindo testes de stress Perft, shaders GLSL, batching instanciado, PGN, ReplayEngine, GameReviewEngine e SpellChessEngine).
 
 ---
 
