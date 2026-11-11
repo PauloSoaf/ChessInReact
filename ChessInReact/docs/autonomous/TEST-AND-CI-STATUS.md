@@ -7,10 +7,10 @@
 
 ## 1. Suíte Local de Testes e Cobertura
 
-- **Total de Testes:** 663 testes aprovados em 81 arquivos de teste.
+- **Total de Testes:** 666 testes aprovados em 82 arquivos de teste.
 - **Falhas / Pulados:** 0 falhas, 0 testes pulados.
 - **Cobertura de Topologia (Spec 02):** 98,21% (Requisito da governança: > 95%).
-- **Duração Média da Suíte:** ~35 segundos (incluindo testes de stress Perft e geração procedural de 10.240 células).
+- **Duração Média da Suíte:** ~37 segundos (incluindo testes de stress Perft, shaders GLSL e geração procedural de 10.240 células).
 
 ---
 

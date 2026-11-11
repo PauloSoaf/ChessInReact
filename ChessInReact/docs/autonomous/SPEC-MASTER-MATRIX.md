@@ -16,13 +16,13 @@
 | **Spec 04 (Rules & Variants)** | 15 | 15 | 0 | 0 | 0 |
 | **Spec 05 (AI Engines & Bots)** | 16 | 16 | 0 | 0 | 0 |
 | **Spec 06 (UI/UX, HUD & Design)** | 18 | 18 | 0 | 0 | 0 |
-| **Spec 07 (3D WebGL Rendering)** | 16 | 12 | 4 | 0 | 0 |
+| **Spec 07 (3D WebGL Rendering)** | 16 | 13 | 3 | 0 | 0 |
 | **Spec 08 (Matchmaking & Redis)** | 12 | 0 | 2 | 10 | 0 |
 | **Spec 09 (Event Sourcing & PGN)** | 12 | 4 | 2 | 6 | 0 |
 | **Spec 10 (Modding API & CI/CD)** | 10 | 5 | 2 | 3 | 0 |
 | **Spec 11 (Bot Ecosystem & Rating)**| 12 | 2 | 2 | 8 | 0 |
 | **Spec 12 (Game Review & Analysis)**| 12 | 3 | 2 | 7 | 0 |
-| **TOTAL** | **171** | **119** | **16** | **34** | **2** |
+| **TOTAL** | **171** | **120** | **15** | **34** | **2** |
 
 ---
 
@@ -103,5 +103,5 @@
 | **S07-RF07** | Animação e Interpolação Suave de Lances 3D (lerp) | P1 | `rendering/mesh/InstancedPieces.tsx` | `VERIFIED` | Interpolação suave com arco parabólico em useFrame |
 | **S07-RF08** | Transições Suaves de Câmera Orbital ao Inverter | P1 | `rendering/ChessBoard3D.tsx` | `VERIFIED` | Interpolação suave lerp via SmoothCameraController |
 | **S07-RF09** | GPU Matrix Batching com `InstancedMesh` para Peças | P1 | `rendering/mesh/InstancedPieces.tsx`| `PARTIAL` | Atualmente usa modelos procedurais individuais |
-| **S07-RF10** | Custom GLSL Shaders para Iluminação Holográfica | P2 | `rendering/shaders/` | `PARTIAL` | Utiliza PBR MeshStandardMaterial |
+| **S07-RF10** | Custom GLSL Shaders para Iluminação Holográfica | P2 | `rendering/shaders/HoloPulseShader.ts` | `VERIFIED` | Shaders GLSL com pulso procedural e scanlines em HoloPulseRing |
 

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useMemo } from 'react';
 import * as THREE from 'three';
 import { useThree, useFrame } from '@react-three/fiber';
 import { IPieceEntity } from '../../core/entities/types';
+import { HoloPulseRing } from '../shaders/HoloPulseRing';
 
 export interface IInstancedPiecesProps {
   boardSize?: number;
@@ -215,28 +216,39 @@ const Piece3DModel: React.FC<{
         </group>
       )}
 
-      {/* Selection Glow Disk */}
+      {/* Selection Glow Disk (GLSL Hologram Pulse Shader - Spec 07 RF-10) */}
       {isSelected && (
-        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.45, 0.55, 32]} />
-          <meshBasicMaterial color="#f59e0b" toneMapped={false} />
-        </mesh>
+        <HoloPulseRing
+          color="#f59e0b"
+          pulseSpeed={3.2}
+          innerRadius={0.45}
+          outerRadius={0.58}
+          opacity={0.88}
+        />
       )}
 
-      {/* Check Constraint Warning Ring for King */}
+      {/* Check Constraint Warning Ring for King (GLSL Hologram Pulse Shader - Spec 07 RF-05, RF-10) */}
       {isCheckKing && (
-        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} name="check-king-3d-ring">
-          <ringGeometry args={[0.46, 0.62, 32]} />
-          <meshBasicMaterial color="#ef4444" toneMapped={false} />
-        </mesh>
+        <HoloPulseRing
+          color="#ef4444"
+          pulseSpeed={4.8}
+          innerRadius={0.46}
+          outerRadius={0.65}
+          opacity={0.95}
+          name="check-king-3d-ring"
+        />
       )}
 
-      {/* Check Constraint Error Ring for Helpless Piece */}
+      {/* Check Constraint Error Ring for Helpless Piece (GLSL Hologram Pulse Shader - Spec 07 RF-05, RF-10) */}
       {isCheckSource && (
-        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]} name="check-source-3d-ring">
-          <ringGeometry args={[0.45, 0.55, 32]} />
-          <meshBasicMaterial color="#dc2626" toneMapped={false} />
-        </mesh>
+        <HoloPulseRing
+          color="#dc2626"
+          pulseSpeed={4.0}
+          innerRadius={0.45}
+          outerRadius={0.58}
+          opacity={0.9}
+          name="check-source-3d-ring"
+        />
       )}
     </group>
   );
