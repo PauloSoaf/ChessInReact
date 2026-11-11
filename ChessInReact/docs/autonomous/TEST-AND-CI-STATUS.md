@@ -7,10 +7,10 @@
 
 ## 1. Suíte Local de Testes e Cobertura
 
-- **Total de Testes:** 666 testes aprovados em 82 arquivos de teste.
+- **Total de Testes:** 671 testes aprovados em 83 arquivos de teste.
 - **Falhas / Pulados:** 0 falhas, 0 testes pulados.
 - **Cobertura de Topologia (Spec 02):** 98,21% (Requisito da governança: > 95%).
-- **Duração Média da Suíte:** ~37 segundos (incluindo testes de stress Perft, shaders GLSL e geração procedural de 10.240 células).
+- **Duração Média da Suíte:** ~35 segundos (incluindo testes de stress Perft, shaders GLSL, batching instanciado e geração procedural).
 
 ---
 
@@ -25,8 +25,8 @@
 2. **Benchmark Isolado de Memória (`npm run bench:memory`):**
    - Executado com `node --expose-gc scripts/runMemoryBenchmark.js`.
    - 10.240 células ativas retidas em 40 macro-chunks procedurais.
-   - Pico de heap: **27.48 MB** (orçamento formal: < 40 MB).
-   - Deriva por ciclo após 10 iterações: **+0.0090 MB/ciclo** (sem vazamentos de memória).
+   - Pico de heap: **21.95 MB** (orçamento formal: < 40 MB).
+   - Deriva por ciclo após 10 iterações: **+0.0100 MB/ciclo** (sem vazamentos de memória).
 
 3. **Aceite Funcional e Responsivo Chromium (`npm run acceptance`):**
    - 5 Viewports validadas: 360×800, 390×844, 768×1024, 1024×768, 1440×900 px.

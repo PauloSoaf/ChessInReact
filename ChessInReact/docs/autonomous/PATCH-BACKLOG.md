@@ -14,17 +14,14 @@
 | `SPEC07-3D-TEST-AND-WORKER-CLEANUP-01` | Spec 07 / IA | Limpeza de mocks Three.js (0 warnings), fallback assíncrono não-bloqueante e fluxo de xeque 2D | `f2ab2ac` | **HOMOLOGADO** |
 | `SPEC07-REAL-WEBGL-ACCEPTANCE-02` | Spec 07 / WebGL | Resolução de buffer WebGL (> 300x150), raycasting real 3D, evidências visuais e medição de latência | `060f3fb` | **HOMOLOGADO** |
 | `SPEC07-CAMERA-LERP-AND-ANIMATION-01` | Spec 07 / Animação | Interpolação suave de câmera orbital via lerp em useFrame e arco parabólico em lances de peças 3D | `804dc5b` | **HOMOLOGADO** |
-| `SPEC07-GLSL-HOLOGRAM-SHADERS-02` | Spec 07 / Shaders | Shaders GLSL customizados com pulso holográfico e scanlines para peças selecionadas e xeque | `HEAD` | **HOMOLOGADO** |
+| `SPEC07-GLSL-HOLOGRAM-SHADERS-02` | Spec 07 / Shaders | Shaders GLSL customizados com pulso holográfico e scanlines para peças selecionadas e xeque | `655e20a` | **HOMOLOGADO** |
+| `SPEC07-INSTANCED-PIECE-BATCHING-03` | Spec 07 / Batching | Agrupamento de peças com THREE.InstancedMesh reduzindo draw calls para <= 6 (meta < 20) | `HEAD` | **HOMOLOGADO** |
 
 ---
 
 ## 2. Patches em Fila de Execução
 
-### `SPEC07-INSTANCED-PIECE-BATCHING-03` (Prioridade Máxima Atual)
-- **Objetivo:** Agrupar peças idênticas (16 peões, 4 torres, etc.) em buffers de instâncias `THREE.InstancedMesh` únicos com `setMatrixAt`, reduzindo o número total de draw calls para $< 20$.
-- **Requisitos Atendidos:** `S07-RF09`, `RNF-01`.
-
-### `SPEC09-PGN-PARSER-AND-PERSISTENCE-01`
+### `SPEC09-PGN-PARSER-AND-PERSISTENCE-01` (Prioridade Máxima Atual)
 - **Objetivo:** Implementar parser e exportador PGN compatível com standard FIDE para histórico de partidas com persistência local e download.
 - **Requisitos Atendidos:** `Spec 09`, `S09-RF01`, `S09-RF02`.
 
