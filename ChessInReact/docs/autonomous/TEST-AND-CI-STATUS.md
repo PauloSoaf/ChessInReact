@@ -7,10 +7,10 @@
 
 ## 1. Suíte Local de Testes e Cobertura
 
-- **Total de Testes:** 780 testes aprovados em 95 arquivos de teste.
+- **Total de Testes:** 789 testes aprovados em 96 arquivos de teste.
 - **Falhas / Pulados:** 0 falhas, 0 testes pulados.
 - **Cobertura de Topologia (Spec 02):** 98,21% (Requisito da governança: > 95%).
-- **Duração Média da Suíte:** ~55 segundos (incluindo testes de stress Perft, shaders GLSL, batching instanciado, PGN, ReplayEngine, GameReviewEngine, SpellChessEngine, MatchmakingQueueEngine, BetzaValidatorSandbox, AdaptiveBotEcosystem, DuckChessEngine, PuzzleRushEngine, BughouseEngine, SupabaseEventSourcing, RedisMatchmakingCluster e PlayerHabitsAndTiers).
+- **Duração Média da Suíte:** ~55 segundos (incluindo testes de stress Perft, shaders GLSL, batching instanciado, PGN, ReplayEngine, GameReviewEngine, SpellChessEngine, MatchmakingQueueEngine, BetzaValidatorSandbox, AdaptiveBotEcosystem, DuckChessEngine, PuzzleRushEngine, BughouseEngine, SupabaseEventSourcing, RedisMatchmakingCluster, PlayerHabitsAndTiers e ModAssetAndTournament).
 
 ---
 

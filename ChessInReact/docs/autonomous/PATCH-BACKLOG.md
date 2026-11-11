@@ -27,15 +27,15 @@
 | `SPEC12-BUGHOUSE-TWIN-BOARD-ENGINE-05` | Spec 12 / Minigames | Tabuleiros gêmeos 2v2 (Mesa A/B), transferência cruzada de capturas e Drop Moves | `590ccc3` | **HOMOLOGADO** |
 | `SPEC09-SUPABASE-EVENT-SOURCING-02` | Spec 09 / Supabase | Esquema Prisma relacional, Event Sourcing com compressão LZ4 de fita e RLS | `7ee2cee` | **HOMOLOGADO** |
 | `SPEC08-REDIS-MATCHMAKING-CLUSTER-02` | Spec 08 / Matchmaker | Penalidade Anti-Dodge (60s/300s/900s), Relay PubSub de Espectadores e Presença | `161a010` | **HOMOLOGADO** |
-| `SPEC11-PLAYER-HABIT-AND-TIER-UNLOCK-02` | Spec 11 / Bots | Perfilagem tática de hábitos, injeção de blunders (< 800) e desbloqueio de Tiers | `HEAD` | **HOMOLOGADO** |
+| `SPEC11-PLAYER-HABIT-AND-TIER-UNLOCK-02` | Spec 11 / Bots | Perfilagem tática de hábitos, injeção de blunders (< 800) e desbloqueio de Tiers | `3e235f2` | **HOMOLOGADO** |
+| `SPEC10-MOD-COMMUNITY-WORKSHOP-02` | Spec 10 / Modding | Validador GLTF (2MB, Magic, SHA256), motor de torneios e quarentena de mods | `HEAD` | **HOMOLOGADO** |
 
 ---
 
 ## 2. Patches em Fila de Execução
 
-### `SPEC10-MOD-COMMUNITY-WORKSHOP-02` (Prioridade Máxima Atual)
-- **Objetivo:** Visualizador e validador de malhas 3D para variantes e peças fadas no Workshop Comunitário.
-- **Requisitos Atendidos:** `Spec 10`, `S10-RF03`, `S10-RF06`.
+### `AUTONOMOUS-CONSOLIDATION-AND-FINAL-AUDIT-01` (Prioridade Máxima Atual)
+- **Objetivo:** Consolidação final de conformidade de todas as especificações (Specs 01 a 12), auditoria rigorosa de integridade e fechamento de ciclo autônomo.
 
 ### `SPEC12-BUGHOUSE-TWIN-BOARD-ENGINE-05`
 - **Objetivo:** Motor de Bughouse 2v2: Gerenciamento dos tabuleiros gêmeos (Mesa A e Mesa B), cores cruzadas, transferência imediata de peças capturadas para a reserva do parceiro, Drop Move em casas vazias e término compartilhado no primeiro xeque-mate.

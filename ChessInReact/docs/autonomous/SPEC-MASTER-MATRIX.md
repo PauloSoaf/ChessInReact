@@ -19,10 +19,10 @@
 | **Spec 07 (3D WebGL Rendering)** | 16 | 14 | 2 | 0 | 0 |
 | **Spec 08 (Matchmaking & Redis)** | 12 | 11 | 1 | 0 | 0 |
 | **Spec 09 (Event Sourcing & PGN)** | 12 | 11 | 1 | 0 | 0 |
-| **Spec 10 (Modding API & CI/CD)** | 10 | 8 | 2 | 0 | 0 |
+| **Spec 10 (Modding API & CI/CD)** | 10 | 10 | 0 | 0 | 0 |
 | **Spec 11 (Bot Ecosystem & Rating)**| 12 | 11 | 1 | 0 | 0 |
 | **Spec 12 (Game Review & Analysis)**| 12 | 11 | 1 | 0 | 0 |
-| **TOTAL** | **171** | **159** | **8** | **2** | **2** |
+| **TOTAL** | **171** | **161** | **8** | **0** | **2** |
 
 ---
 
@@ -140,9 +140,13 @@
 | :--- | :--- | :---: | :--- | :---: | :--- |
 | **S10-RF01** | Editor e Estruturas de Peças Fadas (Workshop) | P0 | `modding/interfaces/IModdingContracts.ts` | `VERIFIED` | `BetzaValidatorSandbox.test.ts` |
 | **S10-RF02** | Sandbox de Validação e Sanitização Betza (< 2.0 ms) | P0 | `modding/sandbox/BetzaValidatorSandbox.ts` | `VERIFIED` | `BetzaValidatorSandbox.test.ts` (11 testes automatizados) |
+| **S10-RF03** | Validação Binária de Modelos GLTF 3D UGC (< 2MB, SHA256) | P0 | `modding/assets/GLTFAssetValidator.ts` | `VERIFIED` | `ModAssetAndTournament.test.ts` (5 testes) |
 | **S10-RF04** | Galeria Comunitária e Parser de Manifestos de Mods | P0 | `modding/manifest/ModManifestParser.ts` | `VERIFIED` | `BetzaValidatorSandbox.test.ts` |
 | **S10-RF05** | Isolamento Autoritativo de Partidas Custom (`isRanked: false`) | P0 | `modding/manifest/ModManifestParser.ts` | `VERIFIED` | `BetzaValidatorSandbox.test.ts` (Invariante de unranked taint) |
+| **S10-RF06** | Motor de Torneios com Chaveamento Automático (Single Elim)| P1 | `modding/tournament/TournamentBracketEngine.ts` | `VERIFIED` | `ModAssetAndTournament.test.ts` (2 testes) |
 | **S10-RF07** | Server-Driven UI e LiveOps - MotD Dinâmico | P1 | `modding/liveops/LiveOpsService.ts` | `VERIFIED` | `BetzaValidatorSandbox.test.ts` (Zero-downtime MotD updates) |
+| **S10-RF10** | Quarentena Automática de Mods com Erros (> 5%) | P1 | `modding/quarantine/ModQuarantineEngine.ts` | `VERIFIED` | `ModAssetAndTournament.test.ts` (2 testes) |
+| **S10-RF14** | Fallback Gracioso de Geometrias 3D para Falhas de Modelos | P0 | `modding/assets/GLTFAssetValidator.ts` | `VERIFIED` | `ModAssetAndTournament.test.ts` |
 
 ### Spec 11: Bot Ecosystem, Adaptive Learning & Ratings
 | ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |

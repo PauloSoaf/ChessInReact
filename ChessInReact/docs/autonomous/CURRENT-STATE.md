@@ -19,11 +19,16 @@
 
 ## 2. Histórico Recente de Commits
 
-1. `HEAD` — `feat(spec11): Player habit profiler, low-rating blunder injection and tier progression (SPEC11-PLAYER-HABIT-AND-TIER-UNLOCK-02)`
+1. `HEAD` — `feat(spec10): GLTF asset validator with SHA256, tournament bracket engine and mod quarantine (SPEC10-MOD-COMMUNITY-WORKSHOP-02)`
+   - Implementou `GLTFAssetValidator.ts` com validação de magic header `0x46546C67`, teto de 2MB, SHA-256 e fallbacks Staunton.
+   - Implementou `TournamentBracketEngine.ts` com chaveamento de eliminação simples até 256 participantes e progressão automática.
+   - Implementou `ModQuarantineEngine.ts` com quarentena automática de mods com erro > 5%.
+2. `3e235f2` — `feat(spec11): Player habit profiler, low-rating blunder injection and tier progression (SPEC11-PLAYER-HABIT-AND-TIER-UNLOCK-02)`
    - Implementou `PlayerHabitProfiler.ts` para capturar agressividade, preferência de roque e tempo de reflexão.
    - Implementou `LowRatingBlunderInjector.ts` com ruído gaussiano ponderado e blunders graduais para ratings < 800.
    - Implementou `TierProgressionManager.ts` controlando o desbloqueio progressivo dos 4 tiers de bots.
-2. `161a010` — `feat(spec08): Redis matchmaking cluster, anti-dodge penalty manager and spectator pubsub relay (SPEC08-REDIS-MATCHMAKING-CLUSTER-02)`
+3. `161a010` — `feat(spec08): Redis matchmaking cluster, anti-dodge penalty manager and spectator pubsub relay (SPEC08-REDIS-MATCHMAKING-CLUSTER-02)`
+
    - Implementou `AntiDodgePenaltyManager.ts` com travas progressivas (60s -> 300s -> 900s) e janela de reabilitação de 24h.
    - Implementou `SpectatorRelayPubSub.ts` com buffer catchup para espectadores ao vivo em `match:<matchId>:events`.
    - Implementou `PresenceTracker.ts` com TTL de 30s e agregação de jogadores por variante e lobby.
@@ -73,13 +78,13 @@
 | **G1** | `npx tsc --noEmit` | **PASS** | 0 erros de compilação TypeScript |
 | **G2** | `npm run lint` | **PASS** | 0 erros, 0 warnings (ESLint com `--max-warnings 0`) |
 | **G3** | `npm run build` | **PASS** | CSS: 4.30 kB gzip \| Main JS: 65.55 kB gzip \| 3D Lazy: 5.42 kB gzip \| Three: 288.48 kB gzip |
-| **G4** | `npx vitest run` | **PASS** | 780 testes aprovados em 95 arquivos (0 falhas, 0 pulados) |
+| **G4** | `npx vitest run` | **PASS** | 789 testes aprovados em 96 arquivos (0 falhas, 0 pulados) |
 | **G5** | `node scripts/runChromiumSmoke.js` | **PASS** | Chromium headless: Web Worker real executado com sucesso |
-| **G6** | `npm run bench:memory` | **PASS** | Baseline: 19.66 MB, Pico: 21.91 MB (< 40 MB orçado), Drift: +0.0100 MB/ciclo |
+| **G6** | `npm run bench:memory` | **PASS** | Baseline: 19.65 MB, Pico: 27.93 MB (< 40 MB orçado), Drift: +0.0100 MB/ciclo |
 | **G7** | `npm run acceptance` | **PASS** | 11/11 fluxos comportamentais e 5 resoluções aprovados estritamente |
 
 ---
 
-## 4. Próxima Fronteira de Desenvolvimento: Spec 10 (Mod Workshop Asset Pipeline)
+## 4. Próxima Fronteira de Desenvolvimento: Relatório Final de Homologação Autônoma
 
-1. `SPEC10-MOD-COMMUNITY-WORKSHOP-02`: Validação de geometrias GLTF e parser de shaders/texturas de peças comunitárias.
+1. `AUTONOMOUS-CONSOLIDATION-AND-FINAL-AUDIT-01`: Consolidação integral de todas as especificações e homologação técnica da plataforma.
