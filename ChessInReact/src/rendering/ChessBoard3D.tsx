@@ -1,4 +1,5 @@
 import React, { useMemo, useCallback, useEffect } from 'react';
+import * as THREE from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { useGameStore, useGameActions } from '../bindings/react/useGameStore';
@@ -34,6 +35,72 @@ function FrameInvalidator({ deps }: { deps: readonly unknown[] }) {
     invalidate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
+  return null;
+}
+
+/**
+ * Bridges internal Three.js camera and renderer state to testing and runtime automation (Spec 07 § 10, RF-07).
+ */
+function Chess3DInstrumentation({
+  boardSize,
+  isFlipped,
+}: {
+  boardSize: number;
+  isFlipped: boolean;
+}) {
+  const { camera, gl, size } = useThree();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const offset = (boardSize - 1) / 2;
+
+    (window as unknown as { __CHESS_3D__?: unknown }).__CHESS_3D__ = {
+      projectCoordToScreen: (coord: string) => {
+        const [colStr, rowStr] = coord.split(',');
+        const col = parseInt(colStr, 10);
+        const row = parseInt(rowStr, 10);
+        if (isNaN(col) || isNaN(row)) return null;
+
+        // In 3D world space, tiles and pieces are centered at wx = col - offset, wz = row - offset
+        const wx = col - offset;
+        const wz = row - offset;
+        const wy = 0.05;
+
+        const vec = new THREE.Vector3(wx, wy, wz);
+        vec.project(camera);
+
+        const rect = gl.domElement.getBoundingClientRect();
+        const clientX = rect.left + ((vec.x + 1) * 0.5) * rect.width;
+        const clientY = rect.top + ((-vec.y + 1) * 0.5) * rect.height;
+
+        return {
+          clientX,
+          clientY,
+          ndc: { x: vec.x, y: vec.y, z: vec.z },
+        };
+      },
+      getRenderMetrics: () => {
+        const canvas = gl.domElement;
+        const rect = canvas.getBoundingClientRect();
+        return {
+          width: canvas.width,
+          height: canvas.height,
+          clientWidth: rect.width,
+          clientHeight: rect.height,
+          dpr: window.devicePixelRatio || 1,
+          cameraFov: (camera as THREE.PerspectiveCamera).fov,
+          cameraPosition: [camera.position.x, camera.position.y, camera.position.z],
+          isContextLost: Boolean(gl.getContext()?.isContextLost?.()),
+        };
+      },
+    };
+
+    return () => {
+      delete (window as unknown as { __CHESS_3D__?: unknown }).__CHESS_3D__;
+    };
+  }, [boardSize, isFlipped, camera, gl, size]);
+
   return null;
 }
 
@@ -249,8 +316,14 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
         shadows
         camera={{ position: cameraPosition, fov: 45 }}
         frameloop="demand"
-        style={{ width: '100%', height: '100%' }}
+        dpr={[1, 2]}
+        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+        style={{ width: '100%', height: '100%', display: 'block' }}
+        onCreated={({ invalidate }) => {
+          invalidate();
+        }}
       >
+        <Chess3DInstrumentation boardSize={boardSize} isFlipped={isFlipped} />
         <FrameInvalidator
           deps={[
             domain.revision,

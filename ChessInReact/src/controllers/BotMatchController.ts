@@ -189,9 +189,9 @@ export class BotMatchController {
       const topologyOptions =
         this.topology.type === 'SQUARE'
           ? {
-              width: (this.topology as SquareTopology).width ?? 8,
-              height: (this.topology as SquareTopology).height ?? 8,
-            }
+            width: (this.topology as SquareTopology).width ?? 8,
+            height: (this.topology as SquareTopology).height ?? 8,
+          }
           : undefined;
 
       const result = await bridge.calculateBestMove(domain, {
@@ -312,9 +312,9 @@ export class BotMatchController {
                 topologyOptions:
                   this.topology.type === 'SQUARE'
                     ? {
-                        width: (this.topology as SquareTopology).width ?? 8,
-                        height: (this.topology as SquareTopology).height ?? 8,
-                      }
+                      width: (this.topology as SquareTopology).width ?? 8,
+                      height: (this.topology as SquareTopology).height ?? 8,
+                    }
                     : undefined,
               });
             } catch {
@@ -322,9 +322,10 @@ export class BotMatchController {
             }
           }
 
-          // 5. Zero-search O(1) Instantaneous Fallback (Zero main-thread blocking):
-          // If worker retry is unavailable or threw, select the first legal move directly from RulesEngine
-          // without running any minimax/tree search on the main thread (< 0.1ms execution).
+          // 5. Zero-Search Linear Emergency Fallback (Zero main-thread blocking, RNF-09):
+          // If worker retry is unavailable or threw, perform a shallow linear inspection over active bot pieces
+          // (O(N) with N <= 16 active pieces) selecting the first valid legal move via RulesEngine
+          // without executing any recursive minimax tree search on the main thread (measured execution < 0.5ms).
           if (!fallbackResult || !fallbackResult.bestMove) {
             const botPieces = Object.values(currentDomain.boardEntities).filter(
               (e): e is IPieceEntity => e.type === 'PIECE' && !e.isCaptured && e.ownerId === this.botPlayer

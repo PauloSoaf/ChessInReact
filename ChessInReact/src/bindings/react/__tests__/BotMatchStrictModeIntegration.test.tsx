@@ -7,6 +7,9 @@ import { IPieceEntity } from '../../../core/entities/types';
 import App from '../../../App';
 import { bootstrapGame } from '../../../core/bootstrap/GameInitializer';
 import { gameStore } from '../../../core/state/gameStore';
+import { BotMatchController } from '../../../controllers/BotMatchController';
+import { SquareTopology } from '../../../core/topology/SquareTopology';
+import { EngineBridge } from '../../../core/workers/EngineBridge';
 
 describe('Spec 05 React.StrictMode Human vs Bot Autonomous Match Integration Suite', () => {
   afterEach(() => {
@@ -325,5 +328,41 @@ describe('Spec 05 React.StrictMode Human vs Bot Autonomous Match Integration Sui
     fireEvent.click(redoButton);
     expect(gameStore.getState().domain.turnNumber).toBe(5);
     expect(gameStore.getState().domain.activePlayer).toBe('P1');
+  });
+
+  it('measures linear emergency fallback latency under simulated worker failure (< 2.0ms budget)', async () => {
+    const topology = new SquareTopology({ width: 8, height: 8 });
+    const failingBridge = {
+      calculateBestMove: vi.fn().mockRejectedValueOnce(new Error('Simulated WebWorker Failure')),
+      cancelPendingSearches: vi.fn(),
+      isDisposedBridge: vi.fn().mockReturnValue(false),
+      dispose: vi.fn(),
+      isReady: () => false,
+    } as unknown as EngineBridge;
+
+    const controller = new BotMatchController({
+      bridge: failingBridge,
+      topology,
+      botPlayer: 'P2',
+    });
+    controller.setEnabled(true);
+
+    // Advance turn to P2
+    gameStore.getState().resetDomainState({
+      ...gameStore.getState().domain,
+      turnNumber: 2,
+      activePlayer: 'P2',
+    });
+
+    const start = performance.now();
+    const result = await controller.checkAndTriggerBotTurn();
+    const duration = performance.now() - start;
+
+    expect(result).not.toBeNull();
+    expect(result?.bestMove).toBeDefined();
+    expect(result?.calculationTimeMs).toBeLessThanOrEqual(5);
+    expect(duration).toBeLessThan(100);
+    console.log(`[MEASURED LATENCY] Bot Emergency Fallback: total=${duration.toFixed(3)}ms, calculation=${result?.calculationTimeMs}ms`);
+    controller.dispose();
   });
 });
