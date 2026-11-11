@@ -1,7 +1,7 @@
 # ChessInReact | Patch Backlog (Autonomous Spec Completion Engine)
 
 > **Backlog Dinâmico de Patches Executáveis**  
-> **Última Atualização:** 11/11/2026 10:01 (UTC-4)  
+> **Última Atualização:** 11/11/2026 10:12 (UTC-4)  
 > **Ordem de Prioridade:** Falhas críticas > Erros de regras > Falhas de build/CI > Contratos arquiteturais > Funcionalidades fundamentais > Otimizações > Polimento visual.
 
 ---
@@ -20,16 +20,13 @@
 | `SPEC12-GAME-REVIEW-EVAL-GRAPH-01` | Spec 12 / Análise | Gráfico SVG interativo de vantagem, classificação FIDE/Chess.com de jogadas e fórmula CAPS2 | `2f5a6de` | **HOMOLOGADO** |
 | `SPEC12-SPELL-CHESS-MANA-ENGINE-02` | Spec 12 / Minigames | Máquina de estados de Spell Chess: economia de mana (2-6), 7 feitiços canônicos, cooldowns e HUD | `aae907a` | **HOMOLOGADO** |
 | `SPEC08-MATCHMAKING-QUEUE-AND-LOBBY-01` | Spec 08 / Matchmaker | Motor de fila de matchmaking por janelas dinâmicas de Elo, tickets com heartbeat/TTL e LobbyManager | `d280f4f` | **HOMOLOGADO** |
-| `SPEC10-MODDING-API-RULESET-SANDBOX-01` | Spec 10 / Modding | Sandbox de validação Betza (< 2.0ms), parser de manifestos com unranked taint e LiveOps MotD | `HEAD` | **HOMOLOGADO** |
+| `SPEC10-MODDING-API-RULESET-SANDBOX-01` | Spec 10 / Modding | Sandbox de validação Betza (< 2.0ms), parser de manifestos com unranked taint e LiveOps MotD | `02e6f2d` | **HOMOLOGADO** |
+| `SPEC11-ADAPTIVE-BOT-RATING-ECOSYSTEM-01` | Spec 11 / Bots | Ladder de 19 bots calibrados (0-2200+), motor adaptativo com Zobrist blunders (LRU 500) e Glicko-2 | `HEAD` | **HOMOLOGADO** |
 
 ---
 
 ## 2. Patches em Fila de Execução
 
-### `SPEC11-ADAPTIVE-BOT-RATING-ECOSYSTEM-01` (Prioridade Máxima Atual)
-- **Objetivo:** Implementar o ecossistema de bots com avaliação adaptativa Glicko-2, perfis de personalidade de IA (Agressivo, Posicional, Tático, Caótico) e ajuste dinâmico de profundidade de busca com base no rating do jogador humano.
-- **Requisitos Atendidos:** `Spec 11`, `S11-RF01`, `S11-RF02`, `S11-RF03`, `S11-RF04`.
-
-### `SPEC12-DUCK-CHESS-NEUTRAL-BLOCKER-03`
+### `SPEC12-DUCK-CHESS-NEUTRAL-BLOCKER-03` (Prioridade Máxima Atual)
 - **Objetivo:** Implementar as regras e entidades de Duck Chess: movimentação em 2 fases (Lance de Peça + Movimento Obrigatório do Pato), eliminação do conceito de xeque/xeque-mate e captura física do rei.
 - **Requisitos Atendidos:** `Spec 12`, `S12-RF08`, `S12-RF18`.

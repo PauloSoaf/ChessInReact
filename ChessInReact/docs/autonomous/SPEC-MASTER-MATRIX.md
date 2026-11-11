@@ -1,7 +1,7 @@
 # ChessInReact | Spec Master Matrix (Autonomous Audit)
 
 > **Matriz Mestre de Rastreabilidade e Conformidade de Requisitos**  
-> **Última Atualização:** 11/11/2026 10:01 (UTC-4)  
+> **Última Atualização:** 11/11/2026 10:12 (UTC-4)  
 > **Regra:** Requisito classificado como `VERIFIED` apenas com testes automatizados executados ou evidências diretas em ambiente real.
 
 ---
@@ -20,9 +20,9 @@
 | **Spec 08 (Matchmaking & Redis)** | 12 | 8 | 2 | 2 | 0 |
 | **Spec 09 (Event Sourcing & PGN)** | 12 | 7 | 1 | 4 | 0 |
 | **Spec 10 (Modding API & CI/CD)** | 10 | 8 | 2 | 0 | 0 |
-| **Spec 11 (Bot Ecosystem & Rating)**| 12 | 2 | 2 | 8 | 0 |
+| **Spec 11 (Bot Ecosystem & Rating)**| 12 | 8 | 2 | 2 | 0 |
 | **Spec 12 (Game Review & Analysis)**| 12 | 8 | 1 | 3 | 0 |
-| **TOTAL** | **171** | **140** | **10** | **19** | **2** |
+| **TOTAL** | **171** | **146** | **10** | **13** | **2** |
 
 ---
 
@@ -49,7 +49,7 @@
 | **S02-RF04** | Geração Procedural em Macro-Chunks (16x16) | P1 | `core/procedural/` | `VERIFIED` | `streamingPerformanceMemory.test.ts` |
 | **S02-RF05** | Descarregamento Automático de Chunks (GC) | P0 | `core/procedural/` | `VERIFIED` | `streamingGCAndProvenanceRegression.test.ts` |
 | **S02-RF06** | Algoritmo A* Pathfinding sobre Topologia | P1 | `core/topology/` | `VERIFIED` | `topologyBenchmarks.test.ts` |
-| **S02-RNF01** | Limite Orçamentário de Memória (< 40 MB) | P0 | `scripts/runMemoryBenchmark.js` | `VERIFIED` | Pico: 27.51 MB sem clamping |
+| **S02-RNF01** | Limite Orçamentário de Memória (< 40 MB) | P0 | `scripts/runMemoryBenchmark.js` | `VERIFIED` | Pico: 35.11 MB sem clamping |
 
 ### Spec 03: Multiplayer Networking & Authoritative Server
 | ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
@@ -135,6 +135,18 @@
 | **S10-RF04** | Galeria Comunitária e Parser de Manifestos de Mods | P0 | `modding/manifest/ModManifestParser.ts` | `VERIFIED` | `BetzaValidatorSandbox.test.ts` |
 | **S10-RF05** | Isolamento Autoritativo de Partidas Custom (`isRanked: false`) | P0 | `modding/manifest/ModManifestParser.ts` | `VERIFIED` | `BetzaValidatorSandbox.test.ts` (Invariante de unranked taint) |
 | **S10-RF07** | Server-Driven UI e LiveOps - MotD Dinâmico | P1 | `modding/liveops/LiveOpsService.ts` | `VERIFIED` | `BetzaValidatorSandbox.test.ts` (Zero-downtime MotD updates) |
+
+### Spec 11: Bot Ecosystem, Adaptive Learning & Ratings
+| ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
+| :--- | :--- | :---: | :--- | :---: | :--- |
+| **S11-RF01** | Hierarquia Completa de 19 Bots Calibrados (0 a 2200+) | P0 | `ai/bots/catalog/BotLadderCatalog.ts` | `VERIFIED` | `AdaptiveBotEcosystem.test.ts` (19 bots verificados) |
+| **S11-RF02** | Categorização Formal: Benchmark Estático vs Adaptativo | P0 | `ai/bots/catalog/BotLadderCatalog.ts` | `VERIFIED` | `AdaptiveBotEcosystem.test.ts` (4 Tiers com bots adaptativos) |
+| **S11-RF03** | Mutação de Livro de Aberturas com Decaimento de 50% | P1 | `ai/bots/learning/AdaptiveBotLearningEngine.ts` | `VERIFIED` | `AdaptiveBotEcosystem.test.ts` (Multiplicative decay) |
+| **S11-RF04** | Tabela de Memória de Gafes Zobrist com Limite LRU 500 | P0 | `ai/bots/learning/AdaptiveBotLearningEngine.ts` | `VERIFIED` | `AdaptiveBotEcosystem.test.ts` (-15k penalty & LRU 500) |
+| **S11-RF07** | Motor de Rating Glicko-2 para PVE | P0 | `ai/bots/rating/PVEGlickoRatingEngine.ts` | `VERIFIED` | `AdaptiveBotEcosystem.test.ts` (Glicko-2 delta calculations) |
+| **S11-RF11** | Diálogos Expressivos de Personalidade para os 19 Bots | P1 | `ai/bots/catalog/BotLadderCatalog.ts` | `VERIFIED` | `AdaptiveBotEcosystem.test.ts` (5 categorias de diálogos) |
+| **S11-RF13** | Função de Reset de Aprendizado do Bot | P1 | `ai/bots/learning/AdaptiveBotLearningEngine.ts` | `VERIFIED` | `AdaptiveBotEcosystem.test.ts` (Factory Reset verificado) |
+| **S11-RF14** | Exportação e Importação de Perfil de Aprendizado JSON | P1 | `ai/bots/learning/AdaptiveBotLearningEngine.ts` | `VERIFIED` | `AdaptiveBotEcosystem.test.ts` (JSON roundtrip verificado) |
 
 ### Spec 12: Game Review, Analysis & Spell Chess Minigames
 | ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |

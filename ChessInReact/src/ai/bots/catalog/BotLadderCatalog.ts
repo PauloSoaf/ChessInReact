@@ -1,0 +1,441 @@
+import { IBotProfile } from '../interfaces/IBotEcosystemContracts';
+
+export const BOT_LADDER_CATALOG: readonly IBotProfile[] = [
+  // --- TIER 1: INICIANTES (0 - 500) ---
+  {
+    id: 'bot_000',
+    name: 'Bebê Peão',
+    ratingElo: 0,
+    isAdaptive: false,
+    tier: 1,
+    avatarUrl: '/assets/bots/bot_000.webp',
+    bioDescription: 'Totalmente caótico. Move peças aleatoriamente sem objetivo.',
+    archetype: 'CHAOTIC',
+    blunderRate: 0.90,
+    maxDepth: 1,
+    maxThinkTimeMs: 100,
+    openingBookFileName: 'none',
+    dialogueLines: {
+      gameStart: ['Gugu dadá! As peças são brinquedos coloridos!'],
+      onCapturePlayerQueen: ['Olha que peça brilhante eu peguei!'],
+      onOwnBlunder: ['Ops... caiu no chão!'],
+      onCheckmateDelivered: ['Gugu! Acho que acabou a brincadeira!'],
+      onDefeated: ['Buááá... vou pedir mamadeira!'],
+    },
+  },
+  {
+    id: 'bot_100',
+    name: 'Pipoca',
+    ratingElo: 100,
+    isAdaptive: false,
+    tier: 1,
+    avatarUrl: '/assets/bots/bot_100.webp',
+    bioDescription: 'Distraído. Avança peões laterais e pendura peças desprotegidas.',
+    archetype: 'CHAOTIC',
+    blunderRate: 0.75,
+    maxDepth: 1,
+    maxThinkTimeMs: 150,
+    openingBookFileName: 'flank_random',
+    dialogueLines: {
+      gameStart: ['Vamos nessa! Espero não queimar a pipoca hoje.'],
+      onCapturePlayerQueen: ['Pula, pula, pipoquinha! Peguei sua Dama!'],
+      onOwnBlunder: ['Ih, esqueci aquela peça ali sozinha...'],
+      onCheckmateDelivered: ['Pipocou o xeque-mate! Venci!'],
+      onDefeated: ['Ah, virei milho queimado... boa partida!'],
+    },
+  },
+  {
+    id: 'bot_200',
+    name: 'Estagiário',
+    ratingElo: 200,
+    isAdaptive: false,
+    tier: 1,
+    avatarUrl: '/assets/bots/bot_200.webp',
+    bioDescription: 'Afobado. Tenta avançar o rei cedo e ignora ameaças diretas.',
+    archetype: 'AGGRESSIVE',
+    blunderRate: 0.60,
+    maxDepth: 1,
+    maxThinkTimeMs: 200,
+    openingBookFileName: 'flank_random',
+    dialogueLines: {
+      gameStart: ['Primeiro dia no escritório do xadrez! Vou dar o meu melhor!'],
+      onCapturePlayerQueen: ['Isso vai direto pro meu relatório de produtividade!'],
+      onOwnBlunder: ['Foi culpa do estagiário anterior, juro!'],
+      onCheckmateDelivered: ['Fui efetivado! Xeque-mate!'],
+      onDefeated: ['Vou voltar pro café... você joga bem.'],
+    },
+  },
+  {
+    id: 'bot_300',
+    name: 'Faísca',
+    ratingElo: 300,
+    isAdaptive: true, // Tier 1 Adaptive
+    tier: 1,
+    avatarUrl: '/assets/bots/bot_300.webp',
+    bioDescription: 'Começa cometendo erros bobos, mas aprende a não cair no Pastor.',
+    archetype: 'ADAPTIVE_EVOLUTIONARY',
+    blunderRate: 0.50,
+    maxDepth: 2,
+    maxThinkTimeMs: 250,
+    openingBookFileName: 'central_pawns',
+    dialogueLines: {
+      gameStart: ['Uma faísca pode acender uma grande fogueira! Cuidado!'],
+      onCapturePlayerQueen: ['Queimou a mão! Sua Dama é minha!'],
+      onOwnBlunder: ['Ouch! Não vou repetir esse erro da próxima vez!'],
+      onCheckmateDelivered: ['Fogo no tabuleiro! Xeque-mate elétrico!'],
+      onDefeated: ['Apagou minha brasa... mas aprendi com isso!'],
+    },
+  },
+  {
+    id: 'bot_400',
+    name: 'Recruta',
+    ratingElo: 400,
+    isAdaptive: false,
+    tier: 1,
+    avatarUrl: '/assets/bots/bot_400.webp',
+    bioDescription: 'Agressivo ingênuo. Tenta dar Mate do Pastor em todas as partidas.',
+    archetype: 'AGGRESSIVE',
+    blunderRate: 0.42,
+    maxDepth: 2,
+    maxThinkTimeMs: 300,
+    openingBookFileName: 'scholars_attempt',
+    dialogueLines: {
+      gameStart: ['Sentido! Meu pelotão está pronto para a ofensiva!'],
+      onCapturePlayerQueen: ['Alvo de alto valor neutralizado!'],
+      onOwnBlunder: ['Soldado ferido em combate! Recuar!'],
+      onCheckmateDelivered: ['Missão cumprida! Xeque-mate do Pastor!'],
+      onDefeated: ['Missão falhou... recuando para o quartel.'],
+    },
+  },
+  {
+    id: 'bot_500',
+    name: 'Camponês',
+    ratingElo: 500,
+    isAdaptive: false,
+    tier: 1,
+    avatarUrl: '/assets/bots/bot_500.webp',
+    bioDescription: 'Passivo. Não calcula trocas de peças e esquece peças cravadas.',
+    archetype: 'PASSIVE',
+    blunderRate: 0.35,
+    maxDepth: 2,
+    maxThinkTimeMs: 350,
+    openingBookFileName: 'giuoco_piano_simple',
+    dialogueLines: {
+      gameStart: ['Trabalho honesto na lavoura das 64 casas.'],
+      onCapturePlayerQueen: ['Uma colheita farta hoje!'],
+      onOwnBlunder: ['A praga pegou minha peça... que descuido.'],
+      onCheckmateDelivered: ['A força da terra venceu! Xeque-mate!'],
+      onDefeated: ['Hora de descansar a enxada. Bom jogo.'],
+    },
+  },
+
+  // --- TIER 2: INTERMEDIÁRIOS (600 - 1100) ---
+  {
+    id: 'bot_600',
+    name: 'Capivara Audaz',
+    ratingElo: 600,
+    isAdaptive: true, // Tier 2 Adaptive
+    tier: 2,
+    avatarUrl: '/assets/bots/bot_600.webp',
+    bioDescription: 'Guarda memória das capturas sofridas na partida anterior.',
+    archetype: 'ADAPTIVE_EVOLUTIONARY',
+    blunderRate: 0.30,
+    maxDepth: 3,
+    maxThinkTimeMs: 400,
+    openingBookFileName: 'italian_basic',
+    dialogueLines: {
+      gameStart: ['Relaxando à beira do lago... mas não me subestime!'],
+      onCapturePlayerQueen: ['Um banquete para a capivara!'],
+      onOwnBlunder: ['Capivarei... mas guardei isso na memória!'],
+      onCheckmateDelivered: ['A capivara reinou na lagoa! Xeque-mate!'],
+      onDefeated: ['Nadando de volta pra toca... na próxima eu te pego!'],
+    },
+  },
+  {
+    id: 'bot_700',
+    name: 'Sentinela',
+    ratingElo: 700,
+    isAdaptive: false,
+    tier: 2,
+    avatarUrl: '/assets/bots/bot_700.webp',
+    bioDescription: 'Defensivo. Protege peças mas falha em garfos de cavalo.',
+    archetype: 'PASSIVE',
+    blunderRate: 0.24,
+    maxDepth: 3,
+    maxThinkTimeMs: 450,
+    openingBookFileName: 'french_caro',
+    dialogueLines: {
+      gameStart: ['Nenhum invasor passará pela minha muralha.'],
+      onCapturePlayerQueen: ['Incursão inimiga desmantelada com sucesso.'],
+      onOwnBlunder: ['Uma brecha na sentinela... imperdoável.'],
+      onCheckmateDelivered: ['A fortaleza resistiu e esmagou o invasor!'],
+      onDefeated: ['Minhas muralhas caíram... honra ao vencedor.'],
+    },
+  },
+  {
+    id: 'bot_800',
+    name: 'Escudeiro',
+    ratingElo: 800,
+    isAdaptive: false,
+    tier: 2,
+    avatarUrl: '/assets/bots/bot_800.webp',
+    bioDescription: 'Tenta controlar o centro mas erra a ordem de movimentos táticos.',
+    archetype: 'SOLID',
+    blunderRate: 0.18,
+    maxDepth: 3,
+    maxThinkTimeMs: 500,
+    openingBookFileName: 'ruy_lopez_elementary',
+    dialogueLines: {
+      gameStart: ['Carrego o escudo e a espada do meu mestre!'],
+      onCapturePlayerQueen: ['Pela honra do meu senhor! Sua Dama jaz!'],
+      onOwnBlunder: ['Errei a estocada... preciso treinar mais.'],
+      onCheckmateDelivered: ['Hoje me tornarei cavaleiro! Xeque-mate!'],
+      onDefeated: ['Sua lâmina foi mais rápida. Me rendo.'],
+    },
+  },
+  {
+    id: 'bot_900',
+    name: 'Cavaleiro Errante',
+    ratingElo: 900,
+    isAdaptive: true, // Tier 2 Adaptive
+    tier: 2,
+    avatarUrl: '/assets/bots/bot_900.webp',
+    bioDescription: 'Adapta as linhas de abertura após perder para armadilhas conhecidas.',
+    archetype: 'ADAPTIVE_EVOLUTIONARY',
+    blunderRate: 0.14,
+    maxDepth: 4,
+    maxThinkTimeMs: 600,
+    openingBookFileName: 'queens_gambit',
+    dialogueLines: {
+      gameStart: ['Pelo caminho da virtude e das diagonais abertas.'],
+      onCapturePlayerQueen: ['Um nobre golpe no coração do seu exército.'],
+      onOwnBlunder: ['Caí em sua emboscada... memorizado com honra.'],
+      onCheckmateDelivered: ['A justiça cavalheiresca prevaleceu! Xeque-mate!'],
+      onDefeated: ['Um digno oponente em meu caminho. Até breve.'],
+    },
+  },
+  {
+    id: 'bot_1000',
+    name: 'Comandante',
+    ratingElo: 1000,
+    isAdaptive: false,
+    tier: 2,
+    avatarUrl: '/assets/bots/bot_1000.webp',
+    bioDescription: 'Muito sólido. Raras gafes simples; exige visão tática para vencer.',
+    archetype: 'SOLID',
+    blunderRate: 0.10,
+    maxDepth: 4,
+    maxThinkTimeMs: 700,
+    openingBookFileName: 'london_system',
+    dialogueLines: {
+      gameStart: ['Linhas de suprimento estabelecidas. Iniciem as manobras.'],
+      onCapturePlayerQueen: ['A peça mais valiosa foi capturada.'],
+      onOwnBlunder: ['Falha de inteligência de campo. Corrigindo.'],
+      onCheckmateDelivered: ['Vitória tática completa. Fim das operações.'],
+      onDefeated: ['Excelente coordenação do oponente. Derrota aceita.'],
+    },
+  },
+  {
+    id: 'bot_1100',
+    name: 'Artilheiro',
+    ratingElo: 1100,
+    isAdaptive: false,
+    tier: 2,
+    avatarUrl: '/assets/bots/bot_1100.webp',
+    bioDescription: 'Tático agressivo. Busca ataques na ala do rei adversário.',
+    archetype: 'TACTICAL',
+    blunderRate: 0.07,
+    maxDepth: 4,
+    maxThinkTimeMs: 750,
+    openingBookFileName: 'sicilian_open',
+    dialogueLines: {
+      gameStart: ['Canhões carregados e apontados para o seu roque!'],
+      onCapturePlayerQueen: ['Fogo de artilharia certeiro! Alvo destruído!'],
+      onOwnBlunder: ['Tiro saiu pela culatra...'],
+      onCheckmateDelivered: ['Bombardeio final! Xeque-mate fulminante!'],
+      onDefeated: ['Munição esgotada... boa defesa a sua.'],
+    },
+  },
+
+  // --- TIER 3: AVANÇADOS (1200 - 1800) ---
+  {
+    id: 'bot_1200',
+    name: 'Gladiador',
+    ratingElo: 1200,
+    isAdaptive: true, // Tier 3 Adaptive
+    tier: 3,
+    avatarUrl: '/assets/bots/bot_1200.webp',
+    bioDescription: 'Monitora as peças mais perigosas do jogador e busca neutralizá-las.',
+    archetype: 'ADAPTIVE_EVOLUTIONARY',
+    blunderRate: 0.05,
+    maxDepth: 5,
+    maxThinkTimeMs: 800,
+    openingBookFileName: 'english_opening',
+    dialogueLines: {
+      gameStart: ['Na arena do Coliseu, só os mais fortes sobrevivem!'],
+      onCapturePlayerQueen: ['O leão devorou a Dama na arena!'],
+      onOwnBlunder: ['Um corte superficial... meu sangue ferve!'],
+      onCheckmateDelivered: ['Polegar para baixo! Vitória no Coliseu!'],
+      onDefeated: ['A plateia aplaude sua perícia. Bravo.'],
+    },
+  },
+  {
+    id: 'bot_1600',
+    name: 'Estrategista',
+    ratingElo: 1600,
+    isAdaptive: false,
+    tier: 3,
+    avatarUrl: '/assets/bots/bot_1600.webp',
+    bioDescription: 'Nível de clube intermediário. Conhece finais de peões e torres.',
+    archetype: 'SOLID',
+    blunderRate: 0.025,
+    maxDepth: 6,
+    maxThinkTimeMs: 900,
+    openingBookFileName: 'kings_indian',
+    dialogueLines: {
+      gameStart: ['Cada lance foi calculado com 10 jogadas de antecedência.'],
+      onCapturePlayerQueen: ['Consequência inevitável da minha cadeia de peões.'],
+      onOwnBlunder: ['Um cálculo impreciso no ramo secundário.'],
+      onCheckmateDelivered: ['Conclusão geométrica perfeita. Xeque-mate.'],
+      onDefeated: ['Sua estratégia superou meus cálculos. Meus parabéns.'],
+    },
+  },
+  {
+    id: 'bot_1700',
+    name: 'Inquisidor',
+    ratingElo: 1700,
+    isAdaptive: true, // Tier 3 Adaptive
+    tier: 3,
+    avatarUrl: '/assets/bots/bot_1700.webp',
+    bioDescription: 'Perfila o repertório de aberturas do jogador e prepara antídotos.',
+    archetype: 'ADAPTIVE_EVOLUTIONARY',
+    blunderRate: 0.018,
+    maxDepth: 6,
+    maxThinkTimeMs: 950,
+    openingBookFileName: 'nimzo_indian',
+    dialogueLines: {
+      gameStart: ['Seus segredos táticos serão expostos sob julgamento.'],
+      onCapturePlayerQueen: ['A heresia foi purgada do tabuleiro!'],
+      onOwnBlunder: ['Essa anomalia foi catalogada para expurgação futura.'],
+      onCheckmateDelivered: ['Sentença executada. Xeque-mate divino!'],
+      onDefeated: ['Você resistiu à inquisição... desta vez.'],
+    },
+  },
+  {
+    id: 'bot_1800',
+    name: 'Mestre de Armas',
+    ratingElo: 1800,
+    isAdaptive: false,
+    tier: 3,
+    avatarUrl: '/assets/bots/bot_1800.webp',
+    bioDescription: 'Jogador de primeira categoria. Castiga erros posicionais sutis.',
+    archetype: 'TACTICAL',
+    blunderRate: 0.010,
+    maxDepth: 7,
+    maxThinkTimeMs: 1000,
+    openingBookFileName: 'slav_grunfeld',
+    dialogueLines: {
+      gameStart: ['Domino todas as 64 armas deste tabuleiro. Mostre o que sabe.'],
+      onCapturePlayerQueen: ['Desarme perfeito. Sem sua Dama, não há jogo.'],
+      onOwnBlunder: ['Uma falha técnica rara na minha guarda.'],
+      onCheckmateDelivered: ['Golpe de mestre. Xeque-mate irrevogável.'],
+      onDefeated: ['Você maneja as peças como um verdadeiro mestre. Respeito.'],
+    },
+  },
+
+  // --- TIER 4: MESTRES & NEMESIS (1900 - 2200+) ---
+  {
+    id: 'bot_1900',
+    name: 'Arquiduque',
+    ratingElo: 1900,
+    isAdaptive: true, // Tier 4 Adaptive
+    tier: 4,
+    avatarUrl: '/assets/bots/bot_1900.webp',
+    bioDescription: 'Tabela de gafes ativa. Nunca comete o mesmo erro duas vezes.',
+    archetype: 'ADAPTIVE_EVOLUTIONARY',
+    blunderRate: 0.006,
+    maxDepth: 7,
+    maxThinkTimeMs: 1100,
+    openingBookFileName: 'fide_grandmaster_lines',
+    dialogueLines: {
+      gameStart: ['A realeza do xadrez exige precisão aristocrática.'],
+      onCapturePlayerQueen: ['A corte real reivindica sua mais poderosa aliada.'],
+      onOwnBlunder: ['Essa posição foi permanentemente memorizada no arquivo real.'],
+      onCheckmateDelivered: ['A coroa prevalece. Xeque-mate magistral.'],
+      onDefeated: ['Um triunfo histórico para sua carreira. Curvo-me.'],
+    },
+  },
+  {
+    id: 'bot_2000',
+    name: 'Grão-Chanceler',
+    ratingElo: 2000,
+    isAdaptive: false,
+    tier: 4,
+    avatarUrl: '/assets/bots/bot_2000.webp',
+    bioDescription: 'Nível Candidato a Mestre (CM). Quase impecável em tática.',
+    archetype: 'SOLID',
+    blunderRate: 0.002,
+    maxDepth: 8,
+    maxThinkTimeMs: 1200,
+    openingBookFileName: 'fide_deep_theory',
+    dialogueLines: {
+      gameStart: ['O Estado e a razão governam cada casa deste tabuleiro.'],
+      onCapturePlayerQueen: ['Uma inevitabilidade do cálculo de posições superiores.'],
+      onOwnBlunder: ['Uma anomalia de um milionésimo de percentual.'],
+      onCheckmateDelivered: ['Vitória pelo princípio da harmonia geométrica.'],
+      onDefeated: ['Seu jogo beira a perfeição de um Grande Mestre. Admirável.'],
+    },
+  },
+  {
+    id: 'bot_2200',
+    name: 'Nemesis Supremo',
+    ratingElo: 2200,
+    isAdaptive: true, // Tier 4 Adaptive (Full NNUE)
+    tier: 4,
+    avatarUrl: '/assets/bots/bot_2200.webp',
+    bioDescription: 'O ápice da máquina adaptativa. Realiza fine-tuning após cada jogo.',
+    archetype: 'ADAPTIVE_EVOLUTIONARY',
+    blunderRate: 0.0005,
+    maxDepth: 9,
+    maxThinkTimeMs: 1200,
+    openingBookFileName: 'dynamic_repertoire',
+    dialogueLines: {
+      gameStart: ['Eu observei todas as suas partidas. Conheço cada fraqueza sua.'],
+      onCapturePlayerQueen: ['Como previsto pelo meu modelo preditivo.'],
+      onOwnBlunder: ['Atualizando gradiente estocástico... isso nunca mais ocorrerá.'],
+      onCheckmateDelivered: ['Convergência absoluta. Xeque-mate inescapável.'],
+      onDefeated: ['Você me derrotou... meus pesos neurais foram aperfeiçoados.'],
+    },
+  },
+];
+
+export class BotLadderCatalog {
+  /**
+   * Returns all 19 bots in the catalog.
+   */
+  public static getAllBots(): readonly IBotProfile[] {
+    return BOT_LADDER_CATALOG;
+  }
+
+  /**
+   * Finds a bot by its ID (e.g. 'bot_300', 'bot_2200').
+   */
+  public static getBotById(botId: string): IBotProfile | undefined {
+    return BOT_LADDER_CATALOG.find(b => b.id === botId);
+  }
+
+  /**
+   * Filters bots belonging to a specific skill Tier (1 to 4).
+   */
+  public static getBotsByTier(tier: 1 | 2 | 3 | 4): readonly IBotProfile[] {
+    return BOT_LADDER_CATALOG.filter(b => b.tier === tier);
+  }
+
+  /**
+   * Returns only adaptive evolutionary bots (with learning active).
+   */
+  public static getAdaptiveBots(): readonly IBotProfile[] {
+    return BOT_LADDER_CATALOG.filter(b => b.isAdaptive);
+  }
+}
+
