@@ -17,12 +17,12 @@
 | **Spec 05 (AI Engines & Bots)** | 16 | 16 | 0 | 0 | 0 |
 | **Spec 06 (UI/UX, HUD & Design)** | 18 | 18 | 0 | 0 | 0 |
 | **Spec 07 (3D WebGL Rendering)** | 16 | 14 | 2 | 0 | 0 |
-| **Spec 08 (Matchmaking & Redis)** | 12 | 8 | 2 | 2 | 0 |
+| **Spec 08 (Matchmaking & Redis)** | 12 | 11 | 1 | 0 | 0 |
 | **Spec 09 (Event Sourcing & PGN)** | 12 | 11 | 1 | 0 | 0 |
 | **Spec 10 (Modding API & CI/CD)** | 10 | 8 | 2 | 0 | 0 |
 | **Spec 11 (Bot Ecosystem & Rating)**| 12 | 8 | 2 | 2 | 0 |
 | **Spec 12 (Game Review & Analysis)**| 12 | 11 | 1 | 0 | 0 |
-| **TOTAL** | **171** | **153** | **10** | **6** | **2** |
+| **TOTAL** | **171** | **156** | **9** | **4** | **2** |
 
 ---
 
@@ -116,7 +116,10 @@
 | **S08-RF06** | Criação de Lobbies Privados com Código e Senha | P1 | `matchmaking/engine/LobbyManager.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (JoinCode 6-char e passcode) |
 | **S08-RF07** | Listagem Pública de Salas Casuais Abertas | P1 | `matchmaking/engine/LobbyManager.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` |
 | **S08-RF08** | Emissão de Tokens Criptografados de Sala (Room JWT) | P0 | `matchmaking/engine/MatchmakingQueueEngine.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (JWT assinado com 30s TTL) |
+| **S08-RF10** | Penalidade Anti-Dodge por Abandono de Fila (60s/300s/900s) | P1 | `matchmaking/engine/AntiDodgePenaltyManager.ts` | `VERIFIED` | `RedisMatchmakingCluster.test.ts` (4 testes) |
+| **S08-RF11** | Relay de Transmissão para Espectadores via Redis Pub/Sub | P1 | `matchmaking/engine/SpectatorRelayPubSub.ts` | `VERIFIED` | `RedisMatchmakingCluster.test.ts` (Buffer e broadcast) |
 | **S08-RF12** | Prevenção Absoluta de Duplicação de Pareamento (0%) | P0 | `matchmaking/engine/MatchmakingQueueEngine.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (Substituição de ticket atômica) |
+| **S08-RF14** | Sincronização e Rastreamento de Presença de Usuários (TTL 30s) | P1 | `matchmaking/engine/PresenceTracker.ts` | `VERIFIED` | `RedisMatchmakingCluster.test.ts` (Contagem atômica e variantes) |
 | **S08-RF15** | Purga e Coleta Automática de Lobbies Inativos (> 10 min) | P1 | `matchmaking/engine/LobbyManager.ts` | `VERIFIED` | `MatchmakingQueueEngine.test.ts` (Purge > 600s verificado) |
 
 ### Spec 09: Database, Event Sourcing & PGN Persistence

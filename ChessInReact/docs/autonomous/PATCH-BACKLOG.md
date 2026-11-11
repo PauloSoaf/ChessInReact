@@ -25,15 +25,16 @@
 | `SPEC12-DUCK-CHESS-NEUTRAL-BLOCKER-03` | Spec 12 / Minigames | Movimentação em 2 fases (Peça + Pato), bloqueador absoluto e captura física do rei | `54905df` | **HOMOLOGADO** |
 | `SPEC12-PUZZLE-RUSH-TACTICAL-ENGINE-04` | Spec 12 / Minigames | Modos Sobrevivência (3 vidas, 600-2600+), Contra o Relógio (3m/5m) e sincronização 1v1 | `42c0694` | **HOMOLOGADO** |
 | `SPEC12-BUGHOUSE-TWIN-BOARD-ENGINE-05` | Spec 12 / Minigames | Tabuleiros gêmeos 2v2 (Mesa A/B), transferência cruzada de capturas e Drop Moves | `590ccc3` | **HOMOLOGADO** |
-| `SPEC09-SUPABASE-EVENT-SOURCING-02` | Spec 09 / Supabase | Esquema Prisma relacional, Event Sourcing com compressão LZ4 de fita e RLS | `HEAD` | **HOMOLOGADO** |
+| `SPEC09-SUPABASE-EVENT-SOURCING-02` | Spec 09 / Supabase | Esquema Prisma relacional, Event Sourcing com compressão LZ4 de fita e RLS | `7ee2cee` | **HOMOLOGADO** |
+| `SPEC08-REDIS-MATCHMAKING-CLUSTER-02` | Spec 08 / Matchmaker | Penalidade Anti-Dodge (60s/300s/900s), Relay PubSub de Espectadores e Presença | `HEAD` | **HOMOLOGADO** |
 
 ---
 
 ## 2. Patches em Fila de Execução
 
-### `SPEC08-REDIS-MATCHMAKING-CLUSTER-02` (Prioridade Máxima Atual)
-- **Objetivo:** Adaptador e simulador de cluster Redis pub/sub para filas concorrentes de matchmaking com lock distribuído e persistência de presenças.
-- **Requisitos Atendidos:** `Spec 08`, `S08-RF09`, `S08-RF10`, `S08-RF11`.
+### `SPEC11-BOT-ANALYTICS-TELEMETRY-02` (Prioridade Máxima Atual)
+- **Objetivo:** Motor de telemetria analítica e logging de performance dos 19 bots: taxa de vitórias por abertura, desvios de avaliação e monitoramento de convergência de aprendizado adaptativo.
+- **Requisitos Atendidos:** `Spec 11`, `S11-RF08`, `S11-RF09`, `S11-RF12`.
 
 ### `SPEC12-BUGHOUSE-TWIN-BOARD-ENGINE-05`
 - **Objetivo:** Motor de Bughouse 2v2: Gerenciamento dos tabuleiros gêmeos (Mesa A e Mesa B), cores cruzadas, transferência imediata de peças capturadas para a reserva do parceiro, Drop Move em casas vazias e término compartilhado no primeiro xeque-mate.
