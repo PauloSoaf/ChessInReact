@@ -20,9 +20,9 @@
 | **Spec 08 (Matchmaking & Redis)** | 12 | 11 | 1 | 0 | 0 |
 | **Spec 09 (Event Sourcing & PGN)** | 12 | 11 | 1 | 0 | 0 |
 | **Spec 10 (Modding API & CI/CD)** | 10 | 8 | 2 | 0 | 0 |
-| **Spec 11 (Bot Ecosystem & Rating)**| 12 | 8 | 2 | 2 | 0 |
+| **Spec 11 (Bot Ecosystem & Rating)**| 12 | 11 | 1 | 0 | 0 |
 | **Spec 12 (Game Review & Analysis)**| 12 | 11 | 1 | 0 | 0 |
-| **TOTAL** | **171** | **156** | **9** | **4** | **2** |
+| **TOTAL** | **171** | **159** | **8** | **2** | **2** |
 
 ---
 
@@ -151,8 +151,11 @@
 | **S11-RF02** | Categorização Formal: Benchmark Estático vs Adaptativo | P0 | `ai/bots/catalog/BotLadderCatalog.ts` | `VERIFIED` | `AdaptiveBotEcosystem.test.ts` (4 Tiers com bots adaptativos) |
 | **S11-RF03** | Mutação de Livro de Aberturas com Decaimento de 50% | P1 | `ai/bots/learning/AdaptiveBotLearningEngine.ts` | `VERIFIED` | `AdaptiveBotEcosystem.test.ts` (Multiplicative decay) |
 | **S11-RF04** | Tabela de Memória de Gafes Zobrist com Limite LRU 500 | P0 | `ai/bots/learning/AdaptiveBotLearningEngine.ts` | `VERIFIED` | `AdaptiveBotEcosystem.test.ts` (-15k penalty & LRU 500) |
+| **S11-RF05** | Perfilagem de Hábitos do Jogador Humano (PlayerHabitProfiler)| P1 | `ai/bots/learning/PlayerHabitProfiler.ts` | `VERIFIED` | `PlayerHabitsAndTiers.test.ts` (3 testes) |
+| **S11-RF06** | Injeção Ponderada de Blunder para Bots Iniciantes (< 800) | P1 | `ai/bots/learning/LowRatingBlunderInjector.ts` | `VERIFIED` | `PlayerHabitsAndTiers.test.ts` (3 testes) |
 | **S11-RF07** | Motor de Rating Glicko-2 para PVE | P0 | `ai/bots/rating/PVEGlickoRatingEngine.ts` | `VERIFIED` | `AdaptiveBotEcosystem.test.ts` (Glicko-2 delta calculations) |
 | **S11-RF11** | Diálogos Expressivos de Personalidade para os 19 Bots | P1 | `ai/bots/catalog/BotLadderCatalog.ts` | `VERIFIED` | `AdaptiveBotEcosystem.test.ts` (5 categorias de diálogos) |
+| **S11-RF12** | Desbloqueio Progressivo de Tiers da Ladder | P1 | `ai/bots/learning/TierProgressionManager.ts` | `VERIFIED` | `PlayerHabitsAndTiers.test.ts` (3 testes) |
 | **S11-RF13** | Função de Reset de Aprendizado do Bot | P1 | `ai/bots/learning/AdaptiveBotLearningEngine.ts` | `VERIFIED` | `AdaptiveBotEcosystem.test.ts` (Factory Reset verificado) |
 | **S11-RF14** | Exportação e Importação de Perfil de Aprendizado JSON | P1 | `ai/bots/learning/AdaptiveBotLearningEngine.ts` | `VERIFIED` | `AdaptiveBotEcosystem.test.ts` (JSON roundtrip verificado) |
 

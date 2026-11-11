@@ -19,11 +19,16 @@
 
 ## 2. Histórico Recente de Commits
 
-1. `HEAD` — `feat(spec08): Redis matchmaking cluster, anti-dodge penalty manager and spectator pubsub relay (SPEC08-REDIS-MATCHMAKING-CLUSTER-02)`
+1. `HEAD` — `feat(spec11): Player habit profiler, low-rating blunder injection and tier progression (SPEC11-PLAYER-HABIT-AND-TIER-UNLOCK-02)`
+   - Implementou `PlayerHabitProfiler.ts` para capturar agressividade, preferência de roque e tempo de reflexão.
+   - Implementou `LowRatingBlunderInjector.ts` com ruído gaussiano ponderado e blunders graduais para ratings < 800.
+   - Implementou `TierProgressionManager.ts` controlando o desbloqueio progressivo dos 4 tiers de bots.
+2. `161a010` — `feat(spec08): Redis matchmaking cluster, anti-dodge penalty manager and spectator pubsub relay (SPEC08-REDIS-MATCHMAKING-CLUSTER-02)`
    - Implementou `AntiDodgePenaltyManager.ts` com travas progressivas (60s -> 300s -> 900s) e janela de reabilitação de 24h.
    - Implementou `SpectatorRelayPubSub.ts` com buffer catchup para espectadores ao vivo em `match:<matchId>:events`.
    - Implementou `PresenceTracker.ts` com TTL de 30s e agregação de jogadores por variante e lobby.
-2. `7ee2cee` — `feat(spec09): Prisma relational schema, event sourcing stream with LZ compression and Supabase RLS policies (SPEC09-SUPABASE-EVENT-SOURCING-02)`
+3. `7ee2cee` — `feat(spec09): Prisma relational schema, event sourcing stream with LZ compression and Supabase RLS policies (SPEC09-SUPABASE-EVENT-SOURCING-02)`
+
    - Definido esquema Prisma (`schema.prisma`) para PostgreSQL Supabase com RLS.
    - Implementado `MatchEventStreamEngine.ts` com fita linear e compressão dictionary delta para partidas > 50 plies.
    - Implementado `UserStatsAggregator.ts` (WinRate, CAPS2, duração, variantes) e `SupabaseRLSPolicyCatalog.ts`.
@@ -68,13 +73,13 @@
 | **G1** | `npx tsc --noEmit` | **PASS** | 0 erros de compilação TypeScript |
 | **G2** | `npm run lint` | **PASS** | 0 erros, 0 warnings (ESLint com `--max-warnings 0`) |
 | **G3** | `npm run build` | **PASS** | CSS: 4.30 kB gzip \| Main JS: 65.55 kB gzip \| 3D Lazy: 5.42 kB gzip \| Three: 288.48 kB gzip |
-| **G4** | `npx vitest run` | **PASS** | 771 testes aprovados em 94 arquivos (0 falhas, 0 pulados) |
+| **G4** | `npx vitest run` | **PASS** | 780 testes aprovados em 95 arquivos (0 falhas, 0 pulados) |
 | **G5** | `node scripts/runChromiumSmoke.js` | **PASS** | Chromium headless: Web Worker real executado com sucesso |
-| **G6** | `npm run bench:memory` | **PASS** | Baseline: 19.63 MB, Pico: 35.52 MB (< 40 MB orçado), Drift: +0.0090 MB/ciclo |
+| **G6** | `npm run bench:memory` | **PASS** | Baseline: 19.66 MB, Pico: 21.91 MB (< 40 MB orçado), Drift: +0.0100 MB/ciclo |
 | **G7** | `npm run acceptance` | **PASS** | 11/11 fluxos comportamentais e 5 resoluções aprovados estritamente |
 
 ---
 
-## 4. Próxima Fronteira de Desenvolvimento: Spec 11 (Bot Analytics Telemetry)
+## 4. Próxima Fronteira de Desenvolvimento: Spec 10 (Mod Workshop Asset Pipeline)
 
-1. `SPEC11-BOT-ANALYTICS-TELEMETRY-02`: Telemetria analítica de performance da ladder de bots, taxas de vitória e monitoramento de convergência adaptativa.
+1. `SPEC10-MOD-COMMUNITY-WORKSHOP-02`: Validação de geometrias GLTF e parser de shaders/texturas de peças comunitárias.
