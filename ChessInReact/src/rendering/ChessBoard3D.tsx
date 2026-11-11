@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, useEffect } from 'react';
 import * as THREE from 'three';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { useGameStore, useGameActions } from '../bindings/react/useGameStore';
 import { useTheme } from '../ui/theme/ThemeContext';
@@ -102,6 +102,54 @@ function Chess3DInstrumentation({
   }, [boardSize, isFlipped, camera, gl, size]);
 
   return null;
+}
+
+/**
+ * Smoothly interpolates the camera between player perspectives and handles orbit controls (Spec 07 § 10, RF-07).
+ */
+function SmoothCameraController({ isFlipped }: { isFlipped: boolean }) {
+  const { camera, invalidate } = useThree();
+  const targetPos = useMemo(
+    () => (isFlipped ? new THREE.Vector3(0, 8.5, -7.5) : new THREE.Vector3(0, 8.5, 7.5)),
+    [isFlipped]
+  );
+  const isTransitioningRef = React.useRef(false);
+  const isMountedRef = React.useRef(false);
+
+  useEffect(() => {
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      return;
+    }
+    isTransitioningRef.current = true;
+    invalidate();
+  }, [isFlipped, invalidate]);
+
+  useFrame((_, delta) => {
+    if (!isTransitioningRef.current) return;
+
+    camera.position.lerp(targetPos, Math.min(1, delta * 8));
+    camera.lookAt(0, 0, 0);
+    invalidate();
+
+    if (camera.position.distanceTo(targetPos) < 0.04) {
+      camera.position.copy(targetPos);
+      camera.lookAt(0, 0, 0);
+      isTransitioningRef.current = false;
+      invalidate();
+    }
+  });
+
+  return (
+    <OrbitControls
+      enablePan={false}
+      minDistance={4}
+      maxDistance={15}
+      minPolarAngle={Math.PI / 6}
+      maxPolarAngle={Math.PI / 2.2}
+      onChange={() => invalidate()}
+    />
+  );
 }
 
 /**
@@ -336,13 +384,8 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           ]}
         />
 
-        <OrbitControls
-          enablePan={false}
-          minDistance={4}
-          maxDistance={15}
-          minPolarAngle={Math.PI / 6}
-          maxPolarAngle={Math.PI / 2.2}
-        />
+        {/* Smooth Camera Orbital Lerp & OrbitControls (Spec 07 § 10, RF-07) */}
+        <SmoothCameraController isFlipped={isFlipped} />
 
         {/* Studio Lighting */}
         <ambientLight intensity={ambientIntensity} />

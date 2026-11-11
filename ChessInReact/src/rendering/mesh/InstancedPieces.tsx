@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
-import { useThree } from '@react-three/fiber';
+import React, { useEffect, useRef, useMemo } from 'react';
+import * as THREE from 'three';
+import { useThree, useFrame } from '@react-three/fiber';
 import { IPieceEntity } from '../../core/entities/types';
 
 export interface IInstancedPiecesProps {
@@ -47,13 +48,61 @@ const Piece3DModel: React.FC<{
   const effectivePedestalColor = isCheckKing
     ? '#dc2626'
     : isCheckSource
-    ? '#ef4444'
-    : isSelected
-    ? '#f59e0b'
-    : bodyColor;
+      ? '#ef4444'
+      : isSelected
+        ? '#f59e0b'
+        : bodyColor;
+
+  const { invalidate } = useThree();
+  const groupRef = useRef<THREE.Group>(null);
+  const currentPos = useRef(new THREE.Vector3(...position));
+  const targetPos = useMemo(() => new THREE.Vector3(...position), [position]);
+  const isAnimatingRef = useRef(false);
+
+  useEffect(() => {
+    if (currentPos.current.distanceTo(targetPos) > 0.05) {
+      isAnimatingRef.current = true;
+      invalidate();
+    }
+  }, [targetPos, invalidate]);
+
+  useFrame((_, delta) => {
+    if (!groupRef.current) return;
+
+    if (isAnimatingRef.current) {
+      const dist = currentPos.current.distanceTo(targetPos);
+      currentPos.current.lerp(targetPos, Math.min(1, delta * 12));
+
+      // Parabolic jump arc peaking at midpoint of translation (Spec 07 § 8)
+      const arc = Math.sin(Math.min(Math.PI, dist * Math.PI)) * 0.28;
+      const targetY = (isSelected ? 0.22 : 0) + arc;
+
+      groupRef.current.position.set(
+        currentPos.current.x,
+        currentPos.current.y + targetY,
+        currentPos.current.z
+      );
+      invalidate();
+
+      if (dist < 0.02) {
+        currentPos.current.copy(targetPos);
+        groupRef.current.position.set(
+          targetPos.x,
+          targetPos.y + (isSelected ? 0.22 : 0),
+          targetPos.z
+        );
+        isAnimatingRef.current = false;
+        invalidate();
+      }
+    } else {
+      const targetY = position[1] + (isSelected ? 0.22 : 0);
+      groupRef.current.position.set(position[0], targetY, position[2]);
+    }
+  });
 
   return (
     <group
+      ref={groupRef}
       position={[position[0], yPos, position[2]]}
       onPointerDown={onPointerDown}
       name={coord ? `piece-3d-${coord}` : undefined}
