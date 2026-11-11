@@ -19,11 +19,15 @@
 
 ## 2. Histórico Recente de Commits
 
-1. `HEAD` — `feat(spec12): Puzzle Rush survival mode, countdown timer and real-time battle engine (SPEC12-PUZZLE-RUSH-TACTICAL-ENGINE-04)`
+1. `HEAD` — `feat(spec12): Bughouse 2v2 dual-board coordination, cross-board transfers and drop moves (SPEC12-BUGHOUSE-TWIN-BOARD-ENGINE-05)`
+   - Implementou `BughouseEngine.ts` com sincronização de tabuleiros gêmeos (Mesa A e Mesa B).
+   - Transferência imediata cross-board de peças capturadas para o inventário do parceiro.
+   - Validação e execução de Drop Moves e término compartilhado no primeiro xeque-mate ou resignação.
+2. `42c0694` — `feat(spec12): Puzzle Rush survival mode, countdown timer and real-time battle engine (SPEC12-PUZZLE-RUSH-TACTICAL-ENGINE-04)`
    - Implementou `PuzzleRushEngine.ts` com modos Sobrevivência (3 vidas, progressão 600-2600+), Contra o Relógio (3m/5m) e Duelo 1v1 Puzzle Battle.
    - Catálogo canônico de puzzles táticos cobrindo do rating 600 a 2600+ com FENs e lances validados.
-   - Sincronização em tempo real de pontuação do oponente e telemetria de lances.
-2. `54905df` — `feat(spec12): Duck Chess two-phase turn progression, physical king capture and neutral blocker (SPEC12-DUCK-CHESS-NEUTRAL-BLOCKER-03)`
+3. `54905df` — `feat(spec12): Duck Chess two-phase turn progression, physical king capture and neutral blocker (SPEC12-DUCK-CHESS-NEUTRAL-BLOCKER-03)`
+
    - Implementou `DuckChessEngine.ts` com ciclo de turno em 2 fases (`PIECE_MOVE` seguido de `PLACE_DUCK` obrigatório).
    - Invariante de Bloqueador Neutro Absoluto: pato intransponível e incapturável que bloqueia casas e trajetórias.
    - Captura Física de Rei: desativação canônica de xeque/xeque-mate e encerramento imediato por captura.
@@ -54,13 +58,13 @@
 | **G1** | `npx tsc --noEmit` | **PASS** | 0 erros de compilação TypeScript |
 | **G2** | `npm run lint` | **PASS** | 0 erros, 0 warnings (ESLint com `--max-warnings 0`) |
 | **G3** | `npm run build` | **PASS** | CSS: 4.30 kB gzip \| Main JS: 65.55 kB gzip \| 3D Lazy: 5.42 kB gzip \| Three: 288.48 kB gzip |
-| **G4** | `npx vitest run` | **PASS** | 745 testes aprovados em 91 arquivos (0 falhas, 0 pulados) |
+| **G4** | `npx vitest run` | **PASS** | 753 testes aprovados em 92 arquivos (0 falhas, 0 pulados) |
 | **G5** | `node scripts/runChromiumSmoke.js` | **PASS** | Chromium headless: Web Worker real executado com sucesso |
-| **G6** | `npm run bench:memory` | **PASS** | Baseline: 19.61 MB, Pico: 35.64 MB (< 40 MB orçado), Drift: +0.0090 MB/ciclo |
+| **G6** | `npm run bench:memory` | **PASS** | Baseline: 19.61 MB, Pico: 22.04 MB (< 40 MB orçado), Drift: +0.0090 MB/ciclo |
 | **G7** | `npm run acceptance` | **PASS** | 11/11 fluxos comportamentais e 5 resoluções aprovados estritamente |
 
 ---
 
-## 4. Próxima Fronteira de Desenvolvimento: Spec 12 (Bughouse 2v2 Twin Board)
+## 4. Próxima Fronteira de Desenvolvimento: Spec 09 (Supabase & Event Sourcing)
 
-1. `SPEC12-BUGHOUSE-TWIN-BOARD-ENGINE-05`: Coordenação de tabuleiros gêmeos (Mesa A e Mesa B), cores cruzadas, transferência imediata de capturas e drops.
+1. `SPEC09-SUPABASE-EVENT-SOURCING-02`: Esquema relacional Prisma, fita linear de eventos `MatchEventStream`, compressão LZ4 e RLS.

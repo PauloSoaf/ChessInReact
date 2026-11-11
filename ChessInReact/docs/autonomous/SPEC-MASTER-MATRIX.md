@@ -21,8 +21,8 @@
 | **Spec 09 (Event Sourcing & PGN)** | 12 | 7 | 1 | 4 | 0 |
 | **Spec 10 (Modding API & CI/CD)** | 10 | 8 | 2 | 0 | 0 |
 | **Spec 11 (Bot Ecosystem & Rating)**| 12 | 8 | 2 | 2 | 0 |
-| **Spec 12 (Game Review & Analysis)**| 12 | 10 | 1 | 1 | 0 |
-| **TOTAL** | **171** | **148** | **10** | **11** | **2** |
+| **Spec 12 (Game Review & Analysis)**| 12 | 11 | 1 | 0 | 0 |
+| **TOTAL** | **171** | **149** | **10** | **10** | **2** |
 
 ---
 
@@ -158,4 +158,5 @@
 | **S12-RF07** | Minigame Spell Chess (Mana 2-6, 7 Feitiços e Cooldowns) | P1 | `analysis/minigames/SpellChessEngine.ts`| `VERIFIED` | `SpellChessEngine.test.tsx` (11 testes automatizados) |
 | **S12-RF08** | Mecânica Duck Chess (2 Fases, Bloqueador Neutro, Captura Física de Rei) | P1 | `analysis/minigames/DuckChessEngine.ts` | `VERIFIED` | `DuckChessEngine.test.ts` (8 testes automatizados) |
 | **S12-RF09** | Mecânica Puzzle Rush & Battle (Sobrevivência, Cronometrado, Sincronização 1v1) | P1 | `analysis/minigames/PuzzleRushEngine.ts` | `VERIFIED` | `PuzzleRushEngine.test.ts` (8 testes automatizados) |
+| **S12-RF10** | Minigame Bughouse 2v2 (Tabuleiros Gêmeos, Transferência Cruzada, Drops) | P1 | `analysis/minigames/BughouseEngine.ts` | `VERIFIED` | `BughouseEngine.test.ts` (8 testes automatizados) |
 | **S12-RF18** | Feedback e Mão Interativa de Feitiços (SpellCardHand) | P1 | `analysis/minigames/SpellCardHand.tsx` | `VERIFIED` | `SpellChessEngine.test.tsx` (Renderização de HUD e orbes de mana) |

@@ -23,15 +23,16 @@
 | `SPEC10-MODDING-API-RULESET-SANDBOX-01` | Spec 10 / Modding | Sandbox de validação Betza (< 2.0ms), parser de manifestos com unranked taint e LiveOps MotD | `02e6f2d` | **HOMOLOGADO** |
 | `SPEC11-ADAPTIVE-BOT-RATING-ECOSYSTEM-01` | Spec 11 / Bots | Ladder de 19 bots calibrados (0-2200+), motor adaptativo com Zobrist blunders (LRU 500) e Glicko-2 | `162f9e7` | **HOMOLOGADO** |
 | `SPEC12-DUCK-CHESS-NEUTRAL-BLOCKER-03` | Spec 12 / Minigames | Movimentação em 2 fases (Peça + Pato), bloqueador absoluto e captura física do rei | `54905df` | **HOMOLOGADO** |
-| `SPEC12-PUZZLE-RUSH-TACTICAL-ENGINE-04` | Spec 12 / Minigames | Modos Sobrevivência (3 vidas, 600-2600+), Contra o Relógio (3m/5m) e sincronização 1v1 | `HEAD` | **HOMOLOGADO** |
+| `SPEC12-PUZZLE-RUSH-TACTICAL-ENGINE-04` | Spec 12 / Minigames | Modos Sobrevivência (3 vidas, 600-2600+), Contra o Relógio (3m/5m) e sincronização 1v1 | `42c0694` | **HOMOLOGADO** |
+| `SPEC12-BUGHOUSE-TWIN-BOARD-ENGINE-05` | Spec 12 / Minigames | Tabuleiros gêmeos 2v2 (Mesa A/B), transferência cruzada de capturas e Drop Moves | `HEAD` | **HOMOLOGADO** |
 
 ---
 
 ## 2. Patches em Fila de Execução
 
-### `SPEC12-BUGHOUSE-TWIN-BOARD-ENGINE-05` (Prioridade Máxima Atual)
-- **Objetivo:** Motor de Bughouse 2v2: Gerenciamento dos tabuleiros gêmeos (Mesa A e Mesa B), cores cruzadas, transferência imediata de peças capturadas para a reserva do parceiro, Drop Move em casas vazias e término compartilhado no primeiro xeque-mate.
-- **Requisitos Atendidos:** `Spec 12`, `S12-RF10`, `S12-RF11`.
+### `SPEC09-SUPABASE-EVENT-SOURCING-02` (Prioridade Máxima Atual)
+- **Objetivo:** Camada de persistência relacional e Event Sourcing: Esquema Prisma tipado (`User`, `MatchHistory`, `VariantDefinition`), fita linear de eventos `MatchEventStream`, compressão LZ4 para partidas > 50 lances e RLS.
+- **Requisitos Atendidos:** `Spec 09`, `S09-RF01`, `S09-RF02`, `S09-RF03`, `S09-RF06`.
 
 ### `SPEC12-BUGHOUSE-TWIN-BOARD-ENGINE-05`
 - **Objetivo:** Motor de Bughouse 2v2: Gerenciamento dos tabuleiros gêmeos (Mesa A e Mesa B), cores cruzadas, transferência imediata de peças capturadas para a reserva do parceiro, Drop Move em casas vazias e término compartilhado no primeiro xeque-mate.
