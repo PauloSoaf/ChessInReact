@@ -1,7 +1,7 @@
 # ChessInReact | Spec Master Matrix (Autonomous Audit)
 
 > **Matriz Mestre de Rastreabilidade e Conformidade de Requisitos**  
-> **Última Atualização:** 11/11/2026 09:52 (UTC-4)  
+> **Última Atualização:** 11/11/2026 10:01 (UTC-4)  
 > **Regra:** Requisito classificado como `VERIFIED` apenas com testes automatizados executados ou evidências diretas em ambiente real.
 
 ---
@@ -19,10 +19,10 @@
 | **Spec 07 (3D WebGL Rendering)** | 16 | 14 | 2 | 0 | 0 |
 | **Spec 08 (Matchmaking & Redis)** | 12 | 8 | 2 | 2 | 0 |
 | **Spec 09 (Event Sourcing & PGN)** | 12 | 7 | 1 | 4 | 0 |
-| **Spec 10 (Modding API & CI/CD)** | 10 | 5 | 2 | 3 | 0 |
+| **Spec 10 (Modding API & CI/CD)** | 10 | 8 | 2 | 0 | 0 |
 | **Spec 11 (Bot Ecosystem & Rating)**| 12 | 2 | 2 | 8 | 0 |
 | **Spec 12 (Game Review & Analysis)**| 12 | 8 | 1 | 3 | 0 |
-| **TOTAL** | **171** | **137** | **10** | **22** | **2** |
+| **TOTAL** | **171** | **140** | **10** | **19** | **2** |
 
 ---
 
@@ -126,6 +126,15 @@
 | **S09-RF02** | Parser Resiliente de PGN com Sanitização e Metadados | P0 | `core/persistence/PGNParser.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` |
 | **S09-RF03** | Motor Determinístico de Replay (Event Sourcing) | P0 | `core/persistence/ReplayEngine.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` ($O(1)$ snapshot access) |
 | **S09-RF04** | Armazenamento Local de Partidas (`PGNStorage`) | P1 | `core/persistence/PGNStorage.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` (localStorage mock) |
+
+### Spec 10: Modding API, LiveOps, CI/CD & Telemetry
+| ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
+| :--- | :--- | :---: | :--- | :---: | :--- |
+| **S10-RF01** | Editor e Estruturas de Peças Fadas (Workshop) | P0 | `modding/interfaces/IModdingContracts.ts` | `VERIFIED` | `BetzaValidatorSandbox.test.ts` |
+| **S10-RF02** | Sandbox de Validação e Sanitização Betza (< 2.0 ms) | P0 | `modding/sandbox/BetzaValidatorSandbox.ts` | `VERIFIED` | `BetzaValidatorSandbox.test.ts` (11 testes automatizados) |
+| **S10-RF04** | Galeria Comunitária e Parser de Manifestos de Mods | P0 | `modding/manifest/ModManifestParser.ts` | `VERIFIED` | `BetzaValidatorSandbox.test.ts` |
+| **S10-RF05** | Isolamento Autoritativo de Partidas Custom (`isRanked: false`) | P0 | `modding/manifest/ModManifestParser.ts` | `VERIFIED` | `BetzaValidatorSandbox.test.ts` (Invariante de unranked taint) |
+| **S10-RF07** | Server-Driven UI e LiveOps - MotD Dinâmico | P1 | `modding/liveops/LiveOpsService.ts` | `VERIFIED` | `BetzaValidatorSandbox.test.ts` (Zero-downtime MotD updates) |
 
 ### Spec 12: Game Review, Analysis & Spell Chess Minigames
 | ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
