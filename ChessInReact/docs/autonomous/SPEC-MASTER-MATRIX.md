@@ -18,11 +18,11 @@
 | **Spec 06 (UI/UX, HUD & Design)** | 18 | 18 | 0 | 0 | 0 |
 | **Spec 07 (3D WebGL Rendering)** | 16 | 14 | 2 | 0 | 0 |
 | **Spec 08 (Matchmaking & Redis)** | 12 | 0 | 2 | 10 | 0 |
-| **Spec 09 (Event Sourcing & PGN)** | 12 | 4 | 2 | 6 | 0 |
+| **Spec 09 (Event Sourcing & PGN)** | 12 | 7 | 0 | 5 | 0 |
 | **Spec 10 (Modding API & CI/CD)** | 10 | 5 | 2 | 3 | 0 |
 | **Spec 11 (Bot Ecosystem & Rating)**| 12 | 2 | 2 | 8 | 0 |
 | **Spec 12 (Game Review & Analysis)**| 12 | 3 | 2 | 7 | 0 |
-| **TOTAL** | **171** | **121** | **14** | **34** | **2** |
+| **TOTAL** | **171** | **124** | **12** | **33** | **2** |
 
 ---
 
