@@ -21,8 +21,8 @@
 | **Spec 09 (Event Sourcing & PGN)** | 12 | 7 | 1 | 4 | 0 |
 | **Spec 10 (Modding API & CI/CD)** | 10 | 8 | 2 | 0 | 0 |
 | **Spec 11 (Bot Ecosystem & Rating)**| 12 | 8 | 2 | 2 | 0 |
-| **Spec 12 (Game Review & Analysis)**| 12 | 8 | 1 | 3 | 0 |
-| **TOTAL** | **171** | **146** | **10** | **13** | **2** |
+| **Spec 12 (Game Review & Analysis)**| 12 | 9 | 1 | 2 | 0 |
+| **TOTAL** | **171** | **147** | **10** | **12** | **2** |
 
 ---
 
@@ -156,4 +156,5 @@
 | **S12-RF03** | Cálculo de Precisão Ponderada CAPS2 (0-100%) | P0 | `analysis/GameReviewEngine.ts` | `VERIFIED` | `GameReviewEngine.test.tsx` (Métrica normalizada) |
 | **S12-RF04** | Gráfico Interativo SVG de Curva de Vantagem com Scrubbing | P0 | `analysis/components/AdvantageGraph.tsx`| `VERIFIED` | `GameReviewEngine.test.tsx` (SVG nativo, 0 dependências externas) |
 | **S12-RF07** | Minigame Spell Chess (Mana 2-6, 7 Feitiços e Cooldowns) | P1 | `analysis/minigames/SpellChessEngine.ts`| `VERIFIED` | `SpellChessEngine.test.tsx` (11 testes automatizados) |
+| **S12-RF08** | Mecânica Duck Chess (2 Fases, Bloqueador Neutro, Captura Física de Rei) | P1 | `analysis/minigames/DuckChessEngine.ts` | `VERIFIED` | `DuckChessEngine.test.ts` (8 testes automatizados) |
 | **S12-RF18** | Feedback e Mão Interativa de Feitiços (SpellCardHand) | P1 | `analysis/minigames/SpellCardHand.tsx` | `VERIFIED` | `SpellChessEngine.test.tsx` (Renderização de HUD e orbes de mana) |
