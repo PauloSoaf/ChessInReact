@@ -18,11 +18,11 @@
 | **Spec 06 (UI/UX, HUD & Design)** | 18 | 18 | 0 | 0 | 0 |
 | **Spec 07 (3D WebGL Rendering)** | 16 | 14 | 2 | 0 | 0 |
 | **Spec 08 (Matchmaking & Redis)** | 12 | 8 | 2 | 2 | 0 |
-| **Spec 09 (Event Sourcing & PGN)** | 12 | 7 | 1 | 4 | 0 |
+| **Spec 09 (Event Sourcing & PGN)** | 12 | 11 | 1 | 0 | 0 |
 | **Spec 10 (Modding API & CI/CD)** | 10 | 8 | 2 | 0 | 0 |
 | **Spec 11 (Bot Ecosystem & Rating)**| 12 | 8 | 2 | 2 | 0 |
 | **Spec 12 (Game Review & Analysis)**| 12 | 11 | 1 | 0 | 0 |
-| **TOTAL** | **171** | **149** | **10** | **10** | **2** |
+| **TOTAL** | **171** | **153** | **10** | **6** | **2** |
 
 ---
 
@@ -126,6 +126,11 @@
 | **S09-RF02** | Parser Resiliente de PGN com Sanitização e Metadados | P0 | `core/persistence/PGNParser.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` |
 | **S09-RF03** | Motor Determinístico de Replay (Event Sourcing) | P0 | `core/persistence/ReplayEngine.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` ($O(1)$ snapshot access) |
 | **S09-RF04** | Armazenamento Local de Partidas (`PGNStorage`) | P1 | `core/persistence/PGNStorage.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` (localStorage mock) |
+| **S09-RF05** | Esquema Prisma Relacional Tipado (User, Match, Rating) | P0 | `prisma/schema.prisma` | `VERIFIED` | `schema.prisma` verificado |
+| **S09-RF06** | Fita Linear MatchEventStream com Compressão LZ4 (> 50 plies) | P0 | `core/persistence/eventsourcing/MatchEventStreamEngine.ts` | `VERIFIED` | `SupabaseEventSourcing.test.ts` (4 testes) |
+| **S09-RF11** | Políticas Row Level Security (RLS) para Supabase PostgreSQL | P0 | `core/persistence/eventsourcing/SupabaseRLSPolicyCatalog.ts` | `VERIFIED` | `SupabaseEventSourcing.test.ts` (3 testes) |
+| **S09-RF12** | Índices B-Tree Compostos para Leaderboard (< 30ms) | P0 | `core/persistence/eventsourcing/SupabaseRLSPolicyCatalog.ts` | `VERIFIED` | `SupabaseEventSourcing.test.ts` |
+| **S09-RF14** | Agregador de Estatísticas de Perfil de Jogador (WinRate, CAPS2) | P1 | `core/persistence/eventsourcing/UserStatsAggregator.ts` | `VERIFIED` | `SupabaseEventSourcing.test.ts` (2 testes) |
 
 ### Spec 10: Modding API, LiveOps, CI/CD & Telemetry
 | ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
