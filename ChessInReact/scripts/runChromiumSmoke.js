@@ -1,6 +1,12 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const projectRoot = resolve(__dirname, '..');
 
 const CHROME_PATHS = [
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -49,6 +55,7 @@ export async function runChromiumWorkerSmokeTest() {
 
   // 1. Start Vite server programmatically
   const viteServer = await createServer({
+    root: projectRoot,
     server: { port, host: '127.0.0.1' },
     logLevel: 'error',
   });

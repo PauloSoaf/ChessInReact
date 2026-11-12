@@ -190,3 +190,4 @@ src/
 2. **JSON Schema Roundtrip:** Teste valida que uma configuração de partida exportada em JSON é importada com 100% de paridade de propriedades e tipos.
 3. **Stand-in Bot Activation:** Teste de desconexão simula o abandono de um jogador no slot 2 e comprova que o slot é convertido em `BOT_STANDIN` sem paralisar a partida para os outros jogadores.
 4. **Mobile Responsive Slot Grid:** Teste no Chromium headless em 360px valida que a listagem de 12 slots empilha verticalmente de forma fluida sem estourar a largura da janela.
+

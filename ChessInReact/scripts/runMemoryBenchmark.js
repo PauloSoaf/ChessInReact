@@ -18,8 +18,11 @@ if (typeof globalThis.gc !== 'function' && !process.env.CHILD_BENCHMARK) {
 
 async function runBenchmark() {
   const { createServer } = await import('vite');
+  const currentFile = fileURLToPath(import.meta.url);
+  const projectRoot = resolve(dirname(currentFile), '..');
 
   const viteServer = await createServer({
+    root: projectRoot,
     configFile: false,
     server: { middlewareMode: true },
     appType: 'custom',

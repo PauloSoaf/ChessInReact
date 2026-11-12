@@ -278,3 +278,4 @@ export type VictoryConditionType =
 3. **Atomic Chess Blast Verification:** Teste automatizado confirma que uma captura em e4 elimina a peça capturada, o agressor e peças adjacentes não-peões em raio 1, preservando peões adjacentes conforme a regra oficial.
 4. **Antichess Mandatory Capture:** Teste automatizado comprova que se houver 1 captura legal, movimentos calmos retornam lista vazia de lances legais.
 5. **Shogi Drop & Promotion:** Teste comprova que uma peça capturada pode ser inserida no tabuleiro e que atravessar a 7ª fileira ativa a flag de promoção.
+

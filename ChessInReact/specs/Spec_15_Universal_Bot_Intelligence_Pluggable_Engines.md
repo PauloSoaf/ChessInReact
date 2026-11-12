@@ -190,3 +190,4 @@ export interface IAIEngineStrategy {
 2. **Fog of War Fair Play:** Teste de auditoria de memória valida que durante a execução do ISMCTS, nenhuma informação de peças sob a névoa é injetada na heurística de avaliação.
 3. **Duck Placement Legality:** Teste automatizado confirma que o bot de Duck Chess sempre retorna uma tupla com movimento legal de peça e posicionamento válido do pato em casa livre.
 4. **Emergency Recovery Under Timeout:** Teste com injeção de rejeição assíncrona comprova que o fallback linear recupera a partida sem travar a thread de renderização.
+

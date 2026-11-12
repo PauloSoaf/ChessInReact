@@ -9,6 +9,10 @@ import {
   AcademyStudyEngine,
   StudyCategory,
 } from '../../../analysis/study/AcademyStudyEngine';
+import { PreMatchStagingModal } from './PreMatchStagingModal';
+import { IMatchConfiguration } from '../../../matchmaking/config/IMatchConfiguration';
+import { VariantCatalog } from '../../../engine/variants/catalog/VariantCatalog';
+import { CompositeArenaLayouts } from '../../../engine/multiplayer/arenas/CompositeArenaLayouts';
 
 const LazyChessPieceShowcase = React.lazy(() =>
   import('../showcase/ChessPieceShowcase').then((m) => ({
@@ -79,6 +83,7 @@ export interface IGameHubProps {
   onOpenThemeModal: () => void;
   progressive3DMode?: Progressive3DMode;
   onLaunchMinigame?: (minigameId: string) => void;
+  onLaunchMatch?: (config: IMatchConfiguration) => void;
 }
 
 const DIFFICULTY_META: {
@@ -141,74 +146,74 @@ const MINIGAMES_CATALOG = [
   {
     id: 'spell_chess',
     title: 'Spell Chess (Xadrez dos Feitiços)',
-    badge: 'Em Desenvolvimento (SPEC12)',
+    badge: 'Pronto para Jogar (SPEC13/16)',
     accentColor: '#9333ea',
     icon: '🧙‍♂️',
     desc: 'Cartas arcanas de magia com mana compartilhado: Congelamento em área (Freeze), Salto sobre peças (Jump), Camuflagem furtiva e Portais dimensionais.',
     features: ['Deck de Feitiços & Mana', 'Topologia Clássica & Hexagonal', 'Cartas Colecionáveis'],
-    status: 'IN_DEVELOPMENT' as const,
-    buttonText: 'Em Desenvolvimento',
-    disabled: true,
+    status: 'READY' as const,
+    buttonText: 'Configurar / Jogar Spell Chess',
+    disabled: false,
   },
   {
     id: 'duck_chess',
     title: 'Duck Chess (Xadrez do Pato)',
-    badge: 'Em Desenvolvimento (SPEC12)',
+    badge: 'Pronto para Jogar (SPEC13/16)',
     accentColor: '#eab308',
     icon: '🦆',
     desc: 'Um pato de borracha neutro bloqueia uma casa após cada lance. O pato não pode ser capturado e impede a passagem de ambas as cores.',
     features: ['Pato Neutro Móvel', 'Sem Regra de Xeque Tradicional', 'Bloqueio Tático Total'],
-    status: 'IN_DEVELOPMENT' as const,
-    buttonText: 'Em Desenvolvimento',
-    disabled: true,
+    status: 'READY' as const,
+    buttonText: 'Configurar / Jogar Duck Chess',
+    disabled: false,
   },
   {
     id: 'bughouse',
     title: 'Bughouse (Xadrez Duplo 2v2)',
-    badge: 'Em Desenvolvimento (SPEC12)',
+    badge: 'Pronto para Jogar (SPEC13/16)',
     accentColor: '#06b6d4',
     icon: '👯',
     desc: 'Disputa cooperativa em 2 tabuleiros paralelos. Peças capturadas pelo seu parceiro vão direto para o seu bolso de drops no tabuleiro vizinho.',
     features: ['Dois Tabuleiros Gêmeos', 'Repasse Imediato de Peças', 'Salas Síncronas Colyseus'],
-    status: 'IN_DEVELOPMENT' as const,
-    buttonText: 'Em Desenvolvimento',
-    disabled: true,
+    status: 'READY' as const,
+    buttonText: 'Configurar / Jogar Bughouse',
+    disabled: false,
   },
   {
     id: 'fog_of_war',
     title: 'Fog of War (Névoa de Guerra)',
-    badge: 'Em Desenvolvimento (SPEC12)',
+    badge: 'Pronto para Jogar (SPEC13/16)',
     accentColor: '#64748b',
     icon: '🌫️',
     desc: 'Visão tática restrita: veja apenas as casas e peças dentro do raio de visão e ataque dos seus guerreiros. Surpreenda o adversário no escuro!',
     features: ['Campo de Visão Dinâmico', 'Emboscadas & Furtividade', 'Desafio Estratégico'],
-    status: 'IN_DEVELOPMENT' as const,
-    buttonText: 'Em Desenvolvimento',
-    disabled: true,
+    status: 'READY' as const,
+    buttonText: 'Configurar / Jogar Fog of War',
+    disabled: false,
   },
   {
     id: 'atomic',
     title: 'Atomic Chess (Xadrez Atômico)',
-    badge: 'Em Desenvolvimento (SPEC12)',
+    badge: 'Pronto para Jogar (SPEC13/16)',
     accentColor: '#f97316',
     icon: '💥',
     desc: 'Cada captura explode em uma detonação de 3×3 casas, destruindo a peça capturada, a peça agressora e todas as peças adjacentes não-peões.',
     features: ['Explosões de Raio 1', 'Destruição em Cadeia', 'Risco Extremo ao Rei'],
-    status: 'IN_DEVELOPMENT' as const,
-    buttonText: 'Em Desenvolvimento',
-    disabled: true,
+    status: 'READY' as const,
+    buttonText: 'Configurar / Jogar Atomic Chess',
+    disabled: false,
   },
   {
     id: 'antichess',
     title: 'Antichess (Losing Chess)',
-    badge: 'Em Desenvolvimento (SPEC12)',
+    badge: 'Pronto para Jogar (SPEC13/16)',
     accentColor: '#10b981',
     icon: '🔄',
     desc: 'O objetivo é perder todas as suas peças ou ficar sem movimentos legais! Capturas são estritamente obrigatórias quando disponíveis.',
     features: ['Capturas Forçadas', 'Sem Xeque nem Roque', 'Vitória por Desarmamento'],
-    status: 'IN_DEVELOPMENT' as const,
-    buttonText: 'Em Desenvolvimento',
-    disabled: true,
+    status: 'READY' as const,
+    buttonText: 'Configurar / Jogar Antichess',
+    disabled: false,
   },
 ];
 
@@ -226,6 +231,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
   onOpenThemeModal,
   progressive3DMode,
   onLaunchMinigame,
+  onLaunchMatch,
 }) => {
   const { uiTheme, boardViewMode, setBoardViewMode } = useTheme();
   const activeDiff = DIFFICULTY_META.find((d) => d.level === botDifficulty) ?? DIFFICULTY_META[2];
@@ -236,7 +242,11 @@ export const GameHub: React.FC<IGameHubProps> = ({
 
   const [is3DActive, setIs3DActive] = React.useState<boolean>(() => effectiveMode === 'eager');
   const [keyboardActivated, setKeyboardActivated] = React.useState<boolean>(false);
-  const [activeHubTab, setActiveHubTab] = React.useState<'CLASSIC' | 'MINIGAMES' | 'ACADEMY'>('CLASSIC');
+  const [activeHubTab, setActiveHubTab] = React.useState<
+    'CLASSIC' | 'MINIGAMES' | 'ARENAS' | 'GEOMETRIC' | 'HISTORICAL' | 'ACADEMY'
+  >('CLASSIC');
+  const [stagingVariantId, setStagingVariantId] = React.useState<string | null>(null);
+  const [stagingParticipants, setStagingParticipants] = React.useState<number>(2);
   const [academyCategory, setAcademyCategory] = React.useState<StudyCategory | 'ALL'>('ALL');
   const [revealedHints, setRevealedHints] = React.useState<Record<string, boolean>>({});
   const [revealedSolutions, setRevealedSolutions] = React.useState<Record<string, boolean>>({});
@@ -604,12 +614,18 @@ export const GameHub: React.FC<IGameHubProps> = ({
               {activeHubTab === 'CLASSIC'
                 ? 'Modos Clássicos & Arena Tática'
                 : activeHubTab === 'MINIGAMES'
-                ? 'Central de Minijogos & Modos Alternativos'
+                ? 'Central de Minijogos & Modos Mágicos'
+                : activeHubTab === 'ARENAS'
+                ? 'Arenas Multijogador Massivas (3 a 12 Jogadores)'
+                : activeHubTab === 'GEOMETRIC'
+                ? 'Tabuleiros Geométricos & Peças Fadas'
+                : activeHubTab === 'HISTORICAL'
+                ? 'Variantes Históricas & Regionais (Ásia e Pérsia)'
                 : 'Área de Estudos & Academia Tática'}
             </h2>
           </div>
 
-          {/* Section Navigation Tabs: Classic | Minigames | Academy */}
+          {/* Section Navigation Tabs: 6 Categories */}
           <div
             role="tablist"
             style={{
@@ -666,7 +682,76 @@ export const GameHub: React.FC<IGameHubProps> = ({
                 transition: 'all var(--transition-fast)',
               }}
             >
-              🧙‍♂️ Minijogos (7)
+              ✨ Mágicos &amp; Híbridos (7)
+            </button>
+
+            <button
+              id="hub-tab-arenas"
+              type="button"
+              role="tab"
+              aria-selected={activeHubTab === 'ARENAS'}
+              onClick={() => setActiveHubTab('ARENAS')}
+              style={{
+                padding: '0.4rem 0.8rem',
+                fontSize: '0.78rem',
+                fontFamily: 'var(--font-sans)',
+                fontWeight: 700,
+                cursor: 'pointer',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor:
+                  activeHubTab === 'ARENAS' ? 'var(--color-accent)' : 'transparent',
+                color: activeHubTab === 'ARENAS' ? '#ffffff' : 'var(--text-secondary)',
+                border: 'none',
+                transition: 'all var(--transition-fast)',
+              }}
+            >
+              🛡️ Arenas Massivas (3-12P)
+            </button>
+
+            <button
+              id="hub-tab-geometric"
+              type="button"
+              role="tab"
+              aria-selected={activeHubTab === 'GEOMETRIC'}
+              onClick={() => setActiveHubTab('GEOMETRIC')}
+              style={{
+                padding: '0.4rem 0.8rem',
+                fontSize: '0.78rem',
+                fontFamily: 'var(--font-sans)',
+                fontWeight: 700,
+                cursor: 'pointer',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor:
+                  activeHubTab === 'GEOMETRIC' ? 'var(--color-accent)' : 'transparent',
+                color: activeHubTab === 'GEOMETRIC' ? '#ffffff' : 'var(--text-secondary)',
+                border: 'none',
+                transition: 'all var(--transition-fast)',
+              }}
+            >
+              📐 Fadas &amp; Geometria
+            </button>
+
+            <button
+              id="hub-tab-historical"
+              type="button"
+              role="tab"
+              aria-selected={activeHubTab === 'HISTORICAL'}
+              onClick={() => setActiveHubTab('HISTORICAL')}
+              style={{
+                padding: '0.4rem 0.8rem',
+                fontSize: '0.78rem',
+                fontFamily: 'var(--font-sans)',
+                fontWeight: 700,
+                cursor: 'pointer',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor:
+                  activeHubTab === 'HISTORICAL' ? 'var(--color-accent)' : 'transparent',
+                color: activeHubTab === 'HISTORICAL' ? '#ffffff' : 'var(--text-secondary)',
+                border: 'none',
+                transition: 'all var(--transition-fast)',
+              }}
+            >
+              📜 Histórico &amp; Regional
             </button>
 
             <button
@@ -1171,14 +1256,278 @@ export const GameHub: React.FC<IGameHubProps> = ({
                 title={mg.disabled ? 'Variante em desenvolvimento especializado na SPEC12' : `Jogar ${mg.title}`}
                 onClick={() => {
                   if (mg.disabled) return;
-                  if (onLaunchMinigame) {
-                    onLaunchMinigame(mg.id);
+                  if (mg.id === 'puzzle_rush') {
+                    if (onLaunchMinigame) {
+                      onLaunchMinigame(mg.id);
+                    } else {
+                      onStartBotMatch(botDifficulty);
+                    }
                   } else {
-                    onStartBotMatch(botDifficulty);
+                    setStagingVariantId(mg.id.toUpperCase());
+                    setStagingParticipants(mg.id === 'bughouse' ? 4 : 2);
                   }
                 }}
               >
                 {mg.buttonText}
+              </ActionButton>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Arenas Massivas (3 a 12 Jogadores) */}
+      {activeHubTab === 'ARENAS' && (
+        <div
+          id="hub-arenas-container"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
+            gap: '1.25rem',
+            alignItems: 'stretch',
+            width: '100%',
+            boxSizing: 'border-box',
+          }}
+        >
+          {CompositeArenaLayouts.getAllLayouts().map((arena) => (
+            <Card
+              key={arena.id}
+              id={`card-arena-${arena.id}`}
+              variant="interactive"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: '1rem',
+                padding: '1.25rem',
+                border: '1px solid var(--border-prominent)',
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>🛡️</span>
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      color: 'var(--color-primary, #60a5fa)',
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: '4px',
+                      backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    }}
+                  >
+                    {arena.totalParticipants} Jogadores
+                  </span>
+                </div>
+
+                <div>
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: '1.05rem',
+                      fontFamily: 'var(--font-display)',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                    }}
+                  >
+                    {arena.name}
+                  </h3>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    Topologia: {arena.boardType}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                  {arena.allowedEliminationPolicies.map((pol) => (
+                    <span
+                      key={pol}
+                      style={{
+                        fontSize: '0.65rem',
+                        fontFamily: 'var(--font-mono)',
+                        padding: '0.15rem 0.45rem',
+                        borderRadius: 'var(--radius-xs)',
+                        backgroundColor: 'var(--bg-sunken)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-muted)',
+                      }}
+                    >
+                      {pol}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <ActionButton
+                id={`hub-btn-arena-${arena.id}`}
+                variant="primary"
+                size="sm"
+                fullWidth
+                onClick={() => {
+                  setStagingVariantId(arena.id);
+                  setStagingParticipants(arena.totalParticipants);
+                }}
+              >
+                Configurar Arena ({arena.totalParticipants}P)
+              </ActionButton>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Tabuleiros Geométricos & Peças Fadas */}
+      {activeHubTab === 'GEOMETRIC' && (
+        <div
+          id="hub-geometric-container"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
+            gap: '1.25rem',
+            alignItems: 'stretch',
+            width: '100%',
+            boxSizing: 'border-box',
+          }}
+        >
+          {VariantCatalog.getByFamily('GEOMETRIC_FAIRY').map((v) => (
+            <Card
+              key={v.id}
+              id={`card-geom-${v.id}`}
+              variant="interactive"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: '1rem',
+                padding: '1.25rem',
+                border: '1px solid var(--border-prominent)',
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>📐</span>
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      color: 'var(--color-primary, #60a5fa)',
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: '4px',
+                      backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    }}
+                  >
+                    {v.badge}
+                  </span>
+                </div>
+
+                <div>
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: '1.05rem',
+                      fontFamily: 'var(--font-display)',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                    }}
+                  >
+                    {v.name}
+                  </h3>
+                  <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                    {v.description}
+                  </p>
+                </div>
+              </div>
+
+              <ActionButton
+                id={`hub-btn-geom-${v.id}`}
+                variant="primary"
+                size="sm"
+                fullWidth
+                onClick={() => {
+                  setStagingVariantId(v.id);
+                  setStagingParticipants(2);
+                }}
+              >
+                Configurar Partida
+              </ActionButton>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Variantes Históricas & Regionais */}
+      {activeHubTab === 'HISTORICAL' && (
+        <div
+          id="hub-historical-container"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
+            gap: '1.25rem',
+            alignItems: 'stretch',
+            width: '100%',
+            boxSizing: 'border-box',
+          }}
+        >
+          {VariantCatalog.getByFamily('HISTORICAL_REGIONAL').map((v) => (
+            <Card
+              key={v.id}
+              id={`card-hist-${v.id}`}
+              variant="interactive"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: '1rem',
+                padding: '1.25rem',
+                border: '1px solid var(--border-prominent)',
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>📜</span>
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      color: 'var(--color-primary, #60a5fa)',
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: '4px',
+                      backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    }}
+                  >
+                    {v.badge}
+                  </span>
+                </div>
+
+                <div>
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: '1.05rem',
+                      fontFamily: 'var(--font-display)',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                    }}
+                  >
+                    {v.name}
+                  </h3>
+                  <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                    {v.description}
+                  </p>
+                </div>
+              </div>
+
+              <ActionButton
+                id={`hub-btn-hist-${v.id}`}
+                variant="primary"
+                size="sm"
+                fullWidth
+                onClick={() => {
+                  setStagingVariantId(v.id);
+                  setStagingParticipants(2);
+                }}
+              >
+                Configurar Partida
               </ActionButton>
             </Card>
           ))}
@@ -1517,6 +1866,26 @@ export const GameHub: React.FC<IGameHubProps> = ({
         </div>
       )}
     </section>
+
+      {/* Pre-Match Universal Staging Modal (Spec 16 § 5, RF-16-06) */}
+      {stagingVariantId && (
+        <PreMatchStagingModal
+          isOpen={true}
+          variantId={stagingVariantId}
+          initialParticipantsCount={stagingParticipants}
+          onClose={() => setStagingVariantId(null)}
+          onLaunchMatch={(cfg) => {
+            setStagingVariantId(null);
+            if (onLaunchMatch) {
+              onLaunchMatch(cfg);
+            } else if (onLaunchMinigame) {
+              onLaunchMinigame(cfg.variantId);
+            } else {
+              onStartBotMatch(cfg.slots[1]?.botConfig?.difficultyLevel ?? botDifficulty);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

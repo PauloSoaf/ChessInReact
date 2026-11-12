@@ -163,3 +163,4 @@ sequenceDiagram
 2. **Turn Rotation After Elimination:** Teste comprova que ao eliminar o Jogador 3 em uma partida de 6 jogadores, o turno do Jogador 2 avança diretamente para o Jogador 4.
 3. **Simultaneous Head-on Bounce:** Teste de arbitragem comprova que duas peças tentando mover-se para a mesma casa no mesmo tick sofrem recuo para as posições de origem sem corrupção de estado.
 4. **Scoring Tally Accuracy:** Teste comprova que capturar uma Dama adversária e aplicar xeque-mate acumula exatamente 29 pontos no placar individual da facção.
+
