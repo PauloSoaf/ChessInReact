@@ -2,9 +2,11 @@ import React from 'react';
 import { useTheme } from '../../theme/ThemeContext';
 import { BrandMark } from '../primitives/BrandMark';
 
+export type AppView = 'HUB' | 'GAME' | 'PUZZLE_RUSH';
+
 export interface ITopNavBarProps {
-  currentView: 'HUB' | 'GAME';
-  onNavigate: (view: 'HUB' | 'GAME') => void;
+  currentView: AppView;
+  onNavigate: (view: AppView) => void;
   onOpenThemeModal: () => void;
   isMatchActive?: boolean;
   turnNumber?: number;

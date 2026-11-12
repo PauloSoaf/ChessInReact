@@ -7,9 +7,10 @@ import { AIDifficultyLevel } from './workers/ai/interfaces/IAIEngineContracts';
 import { bootstrapGame } from './core/bootstrap/GameInitializer';
 import { gameStore } from './core/state/gameStore';
 import { ThemeProvider, useTheme } from './ui/theme/ThemeContext';
-import { TopNavBar } from './ui/components/navigation/TopNavBar';
+import { TopNavBar, AppView } from './ui/components/navigation/TopNavBar';
 import { ThemeCustomizerModal } from './ui/components/navigation/ThemeCustomizerModal';
 import { GameHub } from './ui/components/hub/GameHub';
+import { PuzzleRushArena } from './ui/components/hub/PuzzleRushArena';
 import { PlayerCard } from './ui/components/game/PlayerCard';
 import { EvaluationBar } from './ui/components/game/EvaluationBar';
 import { GameControlsBar } from './ui/components/game/GameControlsBar';
@@ -17,6 +18,7 @@ import { RulesEngine } from './engine/rules/RulesEngine';
 import { CheckValidator } from './engine/rules/CheckValidator';
 import { SquareTopology } from './core/topology/SquareTopology';
 import { isWebGLAvailable } from './rendering/webglCapabilities';
+import { PlayerId } from './core/coordinates/types';
 import './ui/theme/theme.css';
 
 // Lazy-loaded 3D WebGL Chessboard to preserve initial 2D bundle size (Spec 07 Priority 2)
@@ -64,13 +66,15 @@ const DIFFICULTY_LABELS: Record<AIDifficultyLevel, string> = {
 
 const AppContent: React.FC = () => {
   const [boardSize, setBoardSize] = useState(8);
-  const [currentView, setCurrentView] = useState<'HUB' | 'GAME'>(() => {
-    if (typeof window !== 'undefined' && window.location.hash === '#game') {
-      return 'GAME';
+  const [currentView, setCurrentView] = useState<AppView>(() => {
+    if (typeof window !== 'undefined') {
+      if (window.location.hash === '#game') return 'GAME';
+      if (window.location.hash === '#puzzle_rush') return 'PUZZLE_RUSH';
     }
     return 'HUB';
   });
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [pendingDrawOffer, setPendingDrawOffer] = useState<PlayerId | null>(null);
 
   const { preferences, updatePreferences } = useTheme();
   const isBoardFlipped = Boolean(preferences.flipBoard);
@@ -137,11 +141,18 @@ const AppContent: React.FC = () => {
     }
   }, [entityCount]);
 
-  // Two-way synchronization with URL hash (#game vs #hub)
+  // Two-way synchronization with URL hash (#game vs #hub vs #puzzle_rush)
   useEffect(() => {
     const handleHashChange = () => {
       if (typeof window !== 'undefined') {
-        setCurrentView(window.location.hash === '#game' ? 'GAME' : 'HUB');
+        const hash = window.location.hash;
+        if (hash === '#game') {
+          setCurrentView('GAME');
+        } else if (hash === '#puzzle_rush') {
+          setCurrentView('PUZZLE_RUSH');
+        } else {
+          setCurrentView('HUB');
+        }
       }
     };
     handleHashChange();
@@ -149,10 +160,10 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  const navigateTo = useCallback((view: 'HUB' | 'GAME') => {
+  const navigateTo = useCallback((view: AppView) => {
     setCurrentView(view);
     if (typeof window !== 'undefined') {
-      const targetHash = view === 'GAME' ? '#game' : '#hub';
+      const targetHash = view === 'GAME' ? '#game' : view === 'PUZZLE_RUSH' ? '#puzzle_rush' : '#hub';
       if (window.location.hash !== targetHash) {
         window.location.hash = targetHash;
       }
@@ -162,6 +173,7 @@ const AppContent: React.FC = () => {
   const handleReset = useCallback(() => {
     cancelSearch();
     clearFeedback();
+    setPendingDrawOffer(null);
     bootstrapGame({ targetStore: gameStore });
   }, [cancelSearch, clearFeedback]);
 
@@ -222,10 +234,10 @@ const AppContent: React.FC = () => {
 
   const handleOfferDraw = useCallback(() => {
     if (isGameOver) return;
-    cancelSearch();
     clearFeedback();
 
     if (canClaimDraw) {
+      cancelSearch();
       RulesEngine.claimDraw(domain, topology);
       gameStore.setState((s) => ({
         domain: {
@@ -234,13 +246,19 @@ const AppContent: React.FC = () => {
           winnerId: null,
         },
       }));
-      triggerFeedback('ILLEGAL_MOVE', {
-        message: 'Empate formal reivindicado por repetição tripla ou regra dos 50 lances.',
+      setPendingDrawOffer(null);
+      triggerFeedback('GAME_TERMINATION', {
+        message: 'Empate formal reivindicado por repetição tríplice ou regra dos 50 lances.',
       });
-    } else {
-      // Mutual draw offer: against bot, bot accepts if position is balanced (|eval| <= 150)
-      const botAccepts = !isBotEnabled || (lastEval !== null && Math.abs(lastEval) <= 150);
+      return;
+    }
+
+    if (isBotEnabled) {
+      // Proposing mutual draw against Bot
+      // Bot evaluates position: accepts if position is balanced (|eval| <= 150)
+      const botAccepts = lastEval !== null && Math.abs(lastEval) <= 150;
       if (botAccepts) {
+        cancelSearch();
         gameStore.setState((s) => ({
           domain: {
             ...s.domain,
@@ -248,44 +266,94 @@ const AppContent: React.FC = () => {
             winnerId: null,
           },
         }));
-        triggerFeedback('ILLEGAL_MOVE', {
-          message: 'Proposta de empate aceita! Partida encerrada por mútuo acordo.',
+        triggerFeedback('GAME_TERMINATION', {
+          message: 'Proposta de empate aceita pela IA (posição avaliada como equilibrada). Partida encerrada.',
         });
       } else {
-        triggerFeedback('ILLEGAL_MOVE', {
-          message: 'A IA recusou a proposta de empate por avaliar vantagem no tabuleiro.',
+        // Do NOT cancel search; the AI declines and continues playing!
+        triggerFeedback('GAME_EVENT', {
+          message: 'A IA recusou a proposta de empate por avaliar vantagem competitiva no tabuleiro.',
+        });
+      }
+    } else {
+      // Local 2-Player Pass & Play: Requires explicit opponent acceptance
+      if (!pendingDrawOffer) {
+        setPendingDrawOffer(activePlayer);
+        const playerLabel = activePlayer === 'P1' ? 'Brancas' : 'Pretas';
+        const opponentLabel = activePlayer === 'P1' ? 'Pretas' : 'Brancas';
+        triggerFeedback('GAME_EVENT', {
+          message: `${playerLabel} propuseram empate. ${opponentLabel}, cliquem no botão para aceitar ou façam um lance para recusar.`,
+        });
+      } else if (pendingDrawOffer !== activePlayer) {
+        // Opponent accepted the draw!
+        gameStore.setState((s) => ({
+          domain: {
+            ...s.domain,
+            isGameOver: true,
+            winnerId: null,
+          },
+        }));
+        setPendingDrawOffer(null);
+        triggerFeedback('GAME_TERMINATION', {
+          message: 'Proposta de empate aceita por mútuo acordo entre ambos os jogadores locais.',
+        });
+      } else {
+        // Same player clicked again to retract offer
+        setPendingDrawOffer(null);
+        triggerFeedback('GAME_EVENT', {
+          message: 'Oferta de empate cancelada.',
         });
       }
     }
   }, [
     isGameOver,
-    cancelSearch,
-    clearFeedback,
     canClaimDraw,
-    domain,
-    topology,
     isBotEnabled,
     lastEval,
+    cancelSearch,
+    clearFeedback,
+    domain,
+    topology,
     triggerFeedback,
+    pendingDrawOffer,
+    activePlayer,
   ]);
 
-  const handleResign = useCallback(() => {
-    if (isGameOver) return;
-    cancelSearch();
-    clearFeedback();
+  const handleResign = useCallback(
+    (resigningPlayer?: PlayerId | unknown) => {
+      if (isGameOver) return;
+      cancelSearch();
+      clearFeedback();
 
-    const opponent = activePlayer === 'P1' ? 'P2' : 'P1';
-    gameStore.setState((s) => ({
-      domain: {
-        ...s.domain,
-        isGameOver: true,
-        winnerId: opponent,
-      },
-    }));
-    triggerFeedback('ILLEGAL_MOVE', {
-      message: `Você abandonou a partida. Vitória concedida às ${opponent === 'P1' ? 'Brancas' : 'Pretas'}.`,
-    });
-  }, [isGameOver, cancelSearch, clearFeedback, activePlayer, triggerFeedback]);
+      // If playing against Bot, the human is P1 (White); resigning always gives victory to P2 (Bot),
+      // even if human clicks resign during Bot's thinking turn.
+      let resigner: PlayerId;
+      if (typeof resigningPlayer === 'string' && (resigningPlayer === 'P1' || resigningPlayer === 'P2')) {
+        resigner = resigningPlayer;
+      } else if (isBotEnabled) {
+        resigner = 'P1';
+      } else {
+        resigner = activePlayer;
+      }
+
+      const winner: PlayerId = resigner === 'P1' ? 'P2' : 'P1';
+      const resignerName = resigner === 'P1' ? 'Brancas' : 'Pretas';
+      const winnerName = winner === 'P1' ? 'Brancas' : 'Pretas';
+
+      gameStore.setState((s) => ({
+        domain: {
+          ...s.domain,
+          isGameOver: true,
+          winnerId: winner,
+        },
+      }));
+      setPendingDrawOffer(null);
+      triggerFeedback('GAME_TERMINATION', {
+        message: `${resignerName} abandonaram a partida. Vitória concedida às ${winnerName}.`,
+      });
+    },
+    [isGameOver, cancelSearch, clearFeedback, isBotEnabled, activePlayer, triggerFeedback]
+  );
 
   // Global Keyboard Shortcuts (Strictly disabled when modal is open to avoid unintended rollbacks)
   useEffect(() => {
@@ -346,13 +414,16 @@ const AppContent: React.FC = () => {
 
   const handleLaunchMinigame = useCallback(
     (minigameId: string) => {
-      handleReset();
-      navigateTo('GAME');
-      triggerFeedback('ILLEGAL_MOVE', {
-        message: `Modo ${minigameId.toUpperCase().replace(/_/g, ' ')} inicializado com sucesso na arena.`,
-      });
+      if (minigameId === 'puzzle_rush') {
+        clearFeedback();
+        navigateTo('PUZZLE_RUSH');
+      } else {
+        triggerFeedback('GAME_EVENT', {
+          message: `A variante ${minigameId.toUpperCase().replace(/_/g, ' ')} está em fase final de homologação técnica (SPEC12).`,
+        });
+      }
     },
-    [handleReset, navigateTo, triggerFeedback]
+    [clearFeedback, navigateTo, triggerFeedback]
   );
 
   return (
@@ -369,7 +440,9 @@ const AppContent: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      {currentView === 'HUB' ? (
+      {currentView === 'PUZZLE_RUSH' ? (
+        <PuzzleRushArena onBackToHub={() => navigateTo('HUB')} />
+      ) : currentView === 'HUB' ? (
         <GameHub
           onStartBotMatch={handleStartBotMatch}
           onStartLocalMatch={handleStartLocalMatch}
@@ -631,6 +704,10 @@ const AppContent: React.FC = () => {
                   className={`check-constraint-banner ${
                     invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
                       ? 'check-constraint-banner--danger'
+                      : invalidMoveFeedback.reason === 'GAME_TERMINATION'
+                      ? 'check-constraint-banner--info'
+                      : invalidMoveFeedback.reason === 'GAME_EVENT'
+                      ? 'check-constraint-banner--event'
                       : 'check-constraint-banner--warning'
                   }`}
                   style={{
@@ -642,19 +719,35 @@ const AppContent: React.FC = () => {
                     backgroundColor:
                       invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
                         ? 'var(--color-danger-bg)'
+                        : invalidMoveFeedback.reason === 'GAME_TERMINATION'
+                        ? 'rgba(79, 140, 255, 0.12)'
+                        : invalidMoveFeedback.reason === 'GAME_EVENT'
+                        ? 'var(--bg-sunken)'
                         : 'rgba(212, 155, 75, 0.14)',
                     border:
                       invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
                         ? '1.5px solid var(--color-danger)'
+                        : invalidMoveFeedback.reason === 'GAME_TERMINATION'
+                        ? '1.5px solid var(--color-accent)'
+                        : invalidMoveFeedback.reason === 'GAME_EVENT'
+                        ? '1.5px solid var(--border-prominent)'
                         : '1.5px solid var(--color-warning)',
                     boxShadow:
                       invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
                         ? '0 4px 16px rgba(239, 68, 68, 0.22)'
-                        : '0 4px 16px rgba(212, 155, 75, 0.16)',
-                    animation: 'checkErrorShake 0.4s ease',
+                        : '0 4px 16px rgba(0, 0, 0, 0.15)',
+                    animation: invalidMoveFeedback.reason === 'CHECK_CONSTRAINT' ? 'checkErrorShake 0.4s ease' : undefined,
                   }}
                 >
-                  <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>⚠️</span>
+                  <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>
+                    {invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
+                      ? '⚠️'
+                      : invalidMoveFeedback.reason === 'GAME_TERMINATION'
+                      ? '🏁'
+                      : invalidMoveFeedback.reason === 'GAME_EVENT'
+                      ? '📢'
+                      : '⚠️'}
+                  </span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0 }}>
                     <strong
                       style={{
@@ -664,11 +757,19 @@ const AppContent: React.FC = () => {
                         color:
                           invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
                             ? 'var(--color-danger)'
+                            : invalidMoveFeedback.reason === 'GAME_TERMINATION'
+                            ? 'var(--color-accent)'
+                            : invalidMoveFeedback.reason === 'GAME_EVENT'
+                            ? 'var(--text-primary)'
                             : 'var(--color-warning)',
                       }}
                     >
                       {invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
                         ? 'MOVIMENTO INVÁLIDO: REI EM XEQUE'
+                        : invalidMoveFeedback.reason === 'GAME_TERMINATION'
+                        ? 'DESFECHO DA PARTIDA'
+                        : invalidMoveFeedback.reason === 'GAME_EVENT'
+                        ? 'AVISO DA PARTIDA'
                         : 'MOVIMENTO NÃO PERMITIDO'}
                     </strong>
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
@@ -788,6 +889,8 @@ const AppContent: React.FC = () => {
                 onResign={handleResign}
                 isGameOver={isGameOver}
                 canClaimDraw={canClaimDraw}
+                pendingDrawOffer={pendingDrawOffer}
+                activePlayer={activePlayer}
               />
             </aside>
           </div>

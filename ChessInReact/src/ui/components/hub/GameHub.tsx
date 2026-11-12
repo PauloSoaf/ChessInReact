@@ -127,67 +127,88 @@ const DIFFICULTY_META: {
 
 const MINIGAMES_CATALOG = [
   {
-    id: 'spell_chess',
-    title: 'Spell Chess (Xadrez dos Feitiços)',
-    badge: 'Spec 12 Arcano',
-    accentColor: '#9333ea',
-    icon: '🧙‍♂️',
-    desc: 'Cartas arcanas de magia com mana compartilhado: Congelamento em área (Freeze), Salto sobre peças (Jump), Camuflagem furtiva e Portais dimensionais.',
-    features: ['Deck de Feitiços & Mana', 'Topologia Clássica & Hexagonal', 'Cartas Colecionáveis'],
-  },
-  {
-    id: 'duck_chess',
-    title: 'Duck Chess (Xadrez do Pato)',
-    badge: 'Variante Popular',
-    accentColor: '#eab308',
-    icon: '🦆',
-    desc: 'Um pato de borracha neutro bloqueia uma casa após cada lance. O pato não pode ser capturado e impede a passagem de ambas as cores.',
-    features: ['Pato Neutro Móvel', 'Sem Regra de Xeque Tradicional', 'Bloqueio Tático Total'],
-  },
-  {
-    id: 'bughouse',
-    title: 'Bughouse (Xadrez Duplo 2v2)',
-    badge: 'Multiplayer em Duplas',
-    accentColor: '#06b6d4',
-    icon: '👯',
-    desc: 'Disputa cooperativa em 2 tabuleiros paralelos. Peças capturadas pelo seu parceiro vão direto para o seu bolso de drops no tabuleiro vizinho.',
-    features: ['Dois Tabuleiros Gêmeos', 'Repasse Imediato de Peças', 'Salas Síncronas Colyseus'],
-  },
-  {
     id: 'puzzle_rush',
     title: 'Puzzle Rush & Sobrevivência',
-    badge: 'Treino Tático',
+    badge: 'Pronto para Jogar',
     accentColor: '#ef4444',
     icon: '⚡',
     desc: 'Resolva o maior número de combinações táticas e problemas de mate contra o relógio em 3 ou 5 minutos antes de esgotar suas 3 vidas.',
     features: ['Modo 3 Minutos & 5 Minutos', 'Modo Sobrevivência Sem Limite', 'Banco de 100k Puzzles'],
+    status: 'READY' as const,
+    buttonText: 'Jogar Puzzle Rush',
+    disabled: false,
+  },
+  {
+    id: 'spell_chess',
+    title: 'Spell Chess (Xadrez dos Feitiços)',
+    badge: 'Em Desenvolvimento (SPEC12)',
+    accentColor: '#9333ea',
+    icon: '🧙‍♂️',
+    desc: 'Cartas arcanas de magia com mana compartilhado: Congelamento em área (Freeze), Salto sobre peças (Jump), Camuflagem furtiva e Portais dimensionais.',
+    features: ['Deck de Feitiços & Mana', 'Topologia Clássica & Hexagonal', 'Cartas Colecionáveis'],
+    status: 'IN_DEVELOPMENT' as const,
+    buttonText: 'Em Desenvolvimento',
+    disabled: true,
+  },
+  {
+    id: 'duck_chess',
+    title: 'Duck Chess (Xadrez do Pato)',
+    badge: 'Em Desenvolvimento (SPEC12)',
+    accentColor: '#eab308',
+    icon: '🦆',
+    desc: 'Um pato de borracha neutro bloqueia uma casa após cada lance. O pato não pode ser capturado e impede a passagem de ambas as cores.',
+    features: ['Pato Neutro Móvel', 'Sem Regra de Xeque Tradicional', 'Bloqueio Tático Total'],
+    status: 'IN_DEVELOPMENT' as const,
+    buttonText: 'Em Desenvolvimento',
+    disabled: true,
+  },
+  {
+    id: 'bughouse',
+    title: 'Bughouse (Xadrez Duplo 2v2)',
+    badge: 'Em Desenvolvimento (SPEC12)',
+    accentColor: '#06b6d4',
+    icon: '👯',
+    desc: 'Disputa cooperativa em 2 tabuleiros paralelos. Peças capturadas pelo seu parceiro vão direto para o seu bolso de drops no tabuleiro vizinho.',
+    features: ['Dois Tabuleiros Gêmeos', 'Repasse Imediato de Peças', 'Salas Síncronas Colyseus'],
+    status: 'IN_DEVELOPMENT' as const,
+    buttonText: 'Em Desenvolvimento',
+    disabled: true,
   },
   {
     id: 'fog_of_war',
     title: 'Fog of War (Névoa de Guerra)',
-    badge: 'Informação Oculta',
+    badge: 'Em Desenvolvimento (SPEC12)',
     accentColor: '#64748b',
     icon: '🌫️',
     desc: 'Visão tática restrita: veja apenas as casas e peças dentro do raio de visão e ataque dos seus guerreiros. Surpreenda o adversário no escuro!',
     features: ['Campo de Visão Dinâmico', 'Emboscadas & Furtividade', 'Desafio Estratégico'],
+    status: 'IN_DEVELOPMENT' as const,
+    buttonText: 'Em Desenvolvimento',
+    disabled: true,
   },
   {
     id: 'atomic',
     title: 'Atomic Chess (Xadrez Atômico)',
-    badge: 'Detonação Caótica',
+    badge: 'Em Desenvolvimento (SPEC12)',
     accentColor: '#f97316',
     icon: '💥',
     desc: 'Cada captura explode em uma detonação de 3×3 casas, destruindo a peça capturada, a peça agressora e todas as peças adjacentes não-peões.',
     features: ['Explosões de Raio 1', 'Destruição em Cadeia', 'Risco Extremo ao Rei'],
+    status: 'IN_DEVELOPMENT' as const,
+    buttonText: 'Em Desenvolvimento',
+    disabled: true,
   },
   {
     id: 'antichess',
     title: 'Antichess (Losing Chess)',
-    badge: 'Objetivo Invertido',
+    badge: 'Em Desenvolvimento (SPEC12)',
     accentColor: '#10b981',
     icon: '🔄',
     desc: 'O objetivo é perder todas as suas peças ou ficar sem movimentos legais! Capturas são estritamente obrigatórias quando disponíveis.',
     features: ['Capturas Forçadas', 'Sem Xeque nem Roque', 'Vitória por Desarmamento'],
+    status: 'IN_DEVELOPMENT' as const,
+    buttonText: 'Em Desenvolvimento',
+    disabled: true,
   },
 ];
 
@@ -218,6 +239,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
   const [activeHubTab, setActiveHubTab] = React.useState<'CLASSIC' | 'MINIGAMES' | 'ACADEMY'>('CLASSIC');
   const [academyCategory, setAcademyCategory] = React.useState<StudyCategory | 'ALL'>('ALL');
   const [revealedHints, setRevealedHints] = React.useState<Record<string, boolean>>({});
+  const [revealedSolutions, setRevealedSolutions] = React.useState<Record<string, boolean>>({});
   const [exerciseAnswers, setExerciseAnswers] = React.useState<Record<string, string>>({});
   const [exerciseFeedback, setExerciseFeedback] = React.useState<
     Record<string, { isCorrect: boolean; message: string }>
@@ -1058,9 +1080,11 @@ export const GameHub: React.FC<IGameHubProps> = ({
           id="hub-minigames-container"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))',
             gap: '1.25rem',
             alignItems: 'stretch',
+            width: '100%',
+            boxSizing: 'border-box',
           }}
         >
           {MINIGAMES_CATALOG.map((mg) => (
@@ -1140,10 +1164,13 @@ export const GameHub: React.FC<IGameHubProps> = ({
 
               <ActionButton
                 id={`hub-btn-play-${mg.id}`}
-                variant="primary"
+                variant={mg.disabled ? 'ghost' : 'primary'}
                 size="sm"
                 fullWidth
+                disabled={mg.disabled}
+                title={mg.disabled ? 'Variante em desenvolvimento especializado na SPEC12' : `Jogar ${mg.title}`}
                 onClick={() => {
+                  if (mg.disabled) return;
                   if (onLaunchMinigame) {
                     onLaunchMinigame(mg.id);
                   } else {
@@ -1151,7 +1178,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                   }
                 }}
               >
-                Jogar {mg.title.split(' ')[0]}
+                {mg.buttonText}
               </ActionButton>
             </Card>
           ))}
@@ -1189,7 +1216,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                 Progresso do Treinamento
               </span>
               <span style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                {academyStats.completedCount} de {academyStats.totalExercises} exercícios concluídos ({academyStats.completionPercentage}%)
+                {academyStats.completedExercises} de {academyStats.totalExercises} exercícios concluídos ({academyStats.completionPercentage}%)
               </span>
             </div>
 
@@ -1230,10 +1257,13 @@ export const GameHub: React.FC<IGameHubProps> = ({
 
           {/* Exercises Grid */}
           <div
+            id="academy-exercises-grid"
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))',
               gap: '1.15rem',
+              width: '100%',
+              boxSizing: 'border-box',
             }}
           >
             {AcademyStudyEngine.EXERCISES.filter(
@@ -1437,15 +1467,9 @@ export const GameHub: React.FC<IGameHubProps> = ({
 
                       <button
                         type="button"
+                        id={`btn-solution-${ex.id}`}
                         onClick={() => {
-                          const sol = ex.solutionSequence[0];
-                          const outcome = AcademyStudyEngine.verifyMove(ex.id, 0, sol);
-                          setExerciseAnswers((prev) => ({ ...prev, [ex.id]: sol }));
-                          setExerciseFeedback((prev) => ({
-                            ...prev,
-                            [ex.id]: { isCorrect: outcome.isCorrect, message: outcome.feedback },
-                          }));
-                          setAcademyStats(AcademyStudyEngine.getAcademyStats());
+                          setRevealedSolutions((prev) => ({ ...prev, [ex.id]: !prev[ex.id] }));
                         }}
                         style={{
                           background: 'none',
@@ -1454,11 +1478,37 @@ export const GameHub: React.FC<IGameHubProps> = ({
                           fontSize: '0.72rem',
                           cursor: 'pointer',
                           padding: 0,
+                          textDecoration: 'underline',
                         }}
                       >
-                        Ver Resposta
+                        {revealedSolutions[ex.id] ? 'Ocultar Resposta' : 'Ver Resposta (Estudo)'}
                       </button>
                     </div>
+
+                    {revealedSolutions[ex.id] && (
+                      <div
+                        id={`solution-callout-${ex.id}`}
+                        style={{
+                          backgroundColor: 'var(--bg-sunken)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 'var(--radius-sm)',
+                          padding: '0.55rem 0.75rem',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.25rem',
+                        }}
+                      >
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-accent)' }}>
+                          💡 Solução Didática: {ex.solutionSequence.join(' ➔ ')}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
+                          {ex.solutionExplanation}
+                        </span>
+                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                          * A visualização da resposta serve para aprendizado e não computa pontuação de progresso.
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </Card>
               );

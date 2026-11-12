@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 
-export type InvalidMoveReason = 'CHECK_CONSTRAINT' | 'ILLEGAL_MOVE';
+export type InvalidMoveReason = 'CHECK_CONSTRAINT' | 'ILLEGAL_MOVE' | 'GAME_TERMINATION' | 'GAME_EVENT';
 
 export interface IInvalidMoveFeedback {
   readonly reason: InvalidMoveReason;
@@ -44,6 +44,10 @@ export function useMoveFeedback() {
       const defaultMessage =
         reason === 'CHECK_CONSTRAINT'
           ? 'Movimento inválido: seu rei está em xeque. Resolva o xeque movendo o rei, capturando a ameaça ou bloqueando a linha.'
+          : reason === 'GAME_TERMINATION'
+          ? 'Partida finalizada.'
+          : reason === 'GAME_EVENT'
+          ? 'Notificação da partida.'
           : 'Movimento não permitido pelas regras desta peça.';
 
       setFeedback({

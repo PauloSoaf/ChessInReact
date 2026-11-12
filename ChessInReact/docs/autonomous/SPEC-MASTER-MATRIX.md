@@ -128,7 +128,7 @@
 | :--- | :--- | :---: | :--- | :---: | :--- |
 | **S09-RF01** | Exportador PGN em Conformidade FIDE Seven Tag Roster | P0 | `core/persistence/PGNExporter.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` |
 | **S09-RF02** | Parser Resiliente de PGN com Sanitização e Metadados | P0 | `core/persistence/PGNParser.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` |
-| **S09-RF03** | Motor Determinístico de Replay SAN e Event Sourcing | P0 | `core/persistence/pgn/ReplayEngine.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` (7 testes: SAN, desambiguação e roque) |
+| **S09-RF03** | Motor Determinístico de Replay SAN e Event Sourcing | P0 | `core/persistence/pgn/ReplayEngine.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` (10 testes: SAN estrito, Opera Game de 34 plies, desambiguação e roque) |
 | **S09-RF04** | Armazenamento Local de Partidas (`PGNStorage`) | P1 | `core/persistence/PGNStorage.ts` | `VERIFIED` | `PGNReplayEngine.test.ts` (localStorage mock) |
 | **S09-RF05** | Esquema Prisma Relacional Tipado (User, Match, Rating) | P0 | `prisma/schema.prisma` | `VERIFIED` | `schema.prisma` verificado |
 | **S09-RF06** | Fita Linear MatchEventStream com Compressão LZ4 (> 50 plies) | P0 | `core/persistence/eventsourcing/MatchEventStreamEngine.ts` | `VERIFIED` | `SupabaseEventSourcing.test.ts` (4 testes) |
@@ -171,9 +171,9 @@
 | **S12-RF02** | Classificação Canônica de Lances (Brilliant a Blunder) | P0 | `analysis/GameReviewEngine.ts` | `VERIFIED` | `GameReviewEngine.test.tsx` (8 categorias) |
 | **S12-RF03** | Cálculo de Precisão Ponderada CAPS2 (0-100%) | P0 | `analysis/GameReviewEngine.ts` | `VERIFIED` | `GameReviewEngine.test.tsx` (Métrica normalizada) |
 | **S12-RF04** | Gráfico Interativo SVG de Curva de Vantagem com Scrubbing | P0 | `analysis/components/AdvantageGraph.tsx`| `VERIFIED` | `GameReviewEngine.test.tsx` (SVG nativo, 0 dependências externas) |
-| **S12-RF07** | Minigame Spell Chess (Mana 2-6, 7 Feitiços e Cooldowns) | P1 | `analysis/minigames/SpellChessEngine.ts`| `VERIFIED` | `SpellChessEngine.test.tsx` (11 testes automatizados) e catálogo GameHub |
-| **S12-RF08** | Mecânica Duck Chess (2 Fases, Bloqueador Neutro, Captura Física de Rei) | P1 | `analysis/minigames/DuckChessEngine.ts` | `VERIFIED` | `DuckChessEngine.test.ts` (8 testes) e catálogo GameHub |
-| **S12-RF09** | Mecânica Puzzle Rush & Battle (Sobrevivência, Cronometrado, Sincronização 1v1) | P1 | `analysis/minigames/PuzzleRushEngine.ts` | `VERIFIED` | `PuzzleRushEngine.test.ts` (8 testes) e catálogo GameHub |
-| **S12-RF10** | Minigame Bughouse 2v2 (Tabuleiros Gêmeos, Transferência Cruzada, Drops) | P1 | `analysis/minigames/BughouseEngine.ts` | `VERIFIED` | `BughouseEngine.test.ts` (8 testes) e catálogo GameHub |
+| **S12-RF07** | Minigame Spell Chess (Mana 2-6, 7 Feitiços e Cooldowns) | P1 | `analysis/minigames/SpellChessEngine.ts`| `VERIFIED` | `SpellChessEngine.test.tsx` (11 testes automatizados); GameHub: `Em Desenvolvimento (SPEC12)` para arena 3D |
+| **S12-RF08** | Mecânica Duck Chess (2 Fases, Bloqueador Neutro, Captura Física de Rei) | P1 | `analysis/minigames/DuckChessEngine.ts` | `VERIFIED` | `DuckChessEngine.test.ts` (8 testes); GameHub: `Em Desenvolvimento (SPEC12)` para arena 3D |
+| **S12-RF09** | Mecânica Puzzle Rush & Battle (Sobrevivência, Cronometrado, Arena Dedicada) | P0 | `analysis/minigames/PuzzleRushEngine.ts`, `ui/components/hub/PuzzleRushArena.tsx` | `VERIFIED` | `PuzzleRushEngine.test.ts` (8 testes) e arena real interativa `PuzzleRushArena` no App e GameHub |
+| **S12-RF10** | Minigame Bughouse 2v2 (Tabuleiros Gêmeos, Transferência Cruzada, Drops Autoritativos) | P0 | `analysis/minigames/BughouseEngine.ts` | `VERIFIED` | `BughouseEngine.test.ts` (11 testes: regras autoritativas, mate, drops seguros, sem confiança cega em dados de entrada) |
 | **S12-RF18** | Feedback e Mão Interativa de Feitiços (SpellCardHand) | P1 | `analysis/minigames/SpellCardHand.tsx` | `VERIFIED` | `SpellChessEngine.test.tsx` (Renderização de HUD e orbes de mana) |
-| **S12-RF19** | Área de Estudos & Academia Tática Interativa | P1 | `analysis/study/AcademyStudyEngine.ts` | `VERIFIED` | `AcademyStudyEngine.test.ts` (5 testes) e aba interativa no GameHub |
+| **S12-RF19** | Área de Estudos & Academia Tática Interativa (Progressão Estrita) | P0 | `analysis/study/AcademyStudyEngine.ts` | `VERIFIED` | `AcademyStudyEngine.test.ts` (6 testes: verificação estrita passo-a-passo, FENs reais e inspeção pedagógica de gabarito) |

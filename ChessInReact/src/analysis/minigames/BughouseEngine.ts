@@ -20,9 +20,9 @@ import { createDefaultDomainState } from '../../core/state/initialState';
 import { createStandardChessPieces } from '../../core/bootstrap/GameInitializer';
 import { RulesEngine } from '../../engine/rules/RulesEngine';
 import { SquareTopology } from '../../core/topology/SquareTopology';
-import { asCoordinateKey, asEntityId } from '../../core/coordinates';
+import { asCoordinateKey, asEntityId, CoordinateKey, EntityId } from '../../core/coordinates';
 import { MovePieceCommand } from '../../core/commands/MovePieceCommand';
-import { IPieceEntity } from '../../core/entities/types';
+import { IPieceEntity, IEntity } from '../../core/entities/types';
 import { PGNExporter } from '../../core/persistence/pgn/PGNExporter';
 
 export type BughouseBoardId = 'BOARD_A' | 'BOARD_B';
@@ -218,51 +218,73 @@ export class BughouseEngine {
       throw new Error('Não é o turno deste jogador.');
     }
 
-    let detectedCapture: BughousePieceType | undefined = move.capturedPieceType;
-    let authoritativeCheckmate = Boolean(move.isCheckmate);
-    const nextDomain = currentBoard.domainState ? JSON.parse(JSON.stringify(currentBoard.domainState)) as IDomainState : undefined;
+    if (!currentBoard.domainState) {
+      throw new Error(`Estado autoritativo de domínio ausente para o tabuleiro ${boardId}.`);
+    }
 
-    if (nextDomain) {
-      const fromNorm = this.normalizeCoord(move.from);
-      const toNorm = this.normalizeCoord(move.to);
-      const fromKey = asCoordinateKey(fromNorm);
-      const toKey = asCoordinateKey(toNorm);
+    const nextDomain = JSON.parse(JSON.stringify(currentBoard.domainState)) as IDomainState;
+    const fromNorm = this.normalizeCoord(move.from);
+    const toNorm = this.normalizeCoord(move.to);
+    const fromKey = asCoordinateKey(fromNorm);
+    const toKey = asCoordinateKey(toNorm);
 
-      const pieceId = nextDomain.occupancy[fromKey];
-      if (pieceId) {
-        const piece = nextDomain.boardEntities[pieceId] as IPieceEntity | undefined;
-        const actingPlayer = player.color === 'WHITE' ? 'P1' : 'P2';
+    const pieceId = nextDomain.occupancy[fromKey];
+    if (!pieceId) {
+      throw new Error(`Nenhuma peça encontrada na casa de origem ${move.from}.`);
+    }
 
-        // Detect capture directly from authoritative board state
-        const targetPieceId = nextDomain.occupancy[toKey];
-        if (targetPieceId) {
-          const targetPiece = nextDomain.boardEntities[targetPieceId] as IPieceEntity | undefined;
-          if (targetPiece && targetPiece.ownerId !== actingPlayer) {
-            detectedCapture = this.variantToBughouseType(targetPiece.variantId) ?? detectedCapture;
-          }
-        }
+    const piece = nextDomain.boardEntities[pieceId] as IPieceEntity | undefined;
+    const actingPlayer = player.color === 'WHITE' ? 'P1' : 'P2';
+    if (nextDomain.activePlayer !== actingPlayer) {
+      throw new Error(`Turno incorreto para o jogador ${player.color}.`);
+    }
+    if (!piece || piece.ownerId !== actingPlayer) {
+      throw new Error(`A peça em ${move.from} não pertence ao jogador ativo (${player.color}).`);
+    }
 
-        if (piece) {
-          const cmd = new MovePieceCommand(
-            asEntityId(pieceId),
-            fromKey,
-            toKey,
-            actingPlayer,
-            `bug_cmd_${Date.now()}`,
-            true,
-            false,
-            undefined,
-            this.topology
-          );
-          cmd.execute(nextDomain);
+    // Authoritative Move Validation via RulesEngine
+    const legalMoves = RulesEngine.getLegalMoves(nextDomain, this.topology);
+    const matchedMove = legalMoves.find(
+      (m) => m.from === fromKey && m.to === toKey && m.pieceId === pieceId
+    );
+    if (!matchedMove) {
+      throw new Error(`Movimento ilegal de ${move.from} para ${move.to} rejeitado pelas regras autoritativas.`);
+    }
 
-          // Authoritatively verify checkmate on the updated domain state
-          const gameRes = RulesEngine.getGameResult(nextDomain, this.topology);
-          if (gameRes.isGameOver && gameRes.status === 'CHECKMATE') {
-            authoritativeCheckmate = true;
-          }
-        }
+    // Authoritative Capture Detection — NEVER trust caller's move.capturedPieceType
+    let detectedCapture: BughousePieceType | undefined = undefined;
+    const targetPieceId = nextDomain.occupancy[toKey];
+    if (targetPieceId) {
+      const targetPiece = nextDomain.boardEntities[targetPieceId] as IPieceEntity | undefined;
+      if (targetPiece && targetPiece.ownerId !== actingPlayer) {
+        detectedCapture = this.variantToBughouseType(targetPiece.variantId);
       }
+    } else if (matchedMove.isEnPassant && matchedMove.capturedPieceId) {
+      const epPiece = nextDomain.boardEntities[matchedMove.capturedPieceId] as IPieceEntity | undefined;
+      if (epPiece) {
+        detectedCapture = this.variantToBughouseType(epPiece.variantId);
+      }
+    }
+
+    // Execute Move Command
+    const cmd = new MovePieceCommand(
+      asEntityId(pieceId),
+      fromKey,
+      toKey,
+      actingPlayer,
+      `bug_cmd_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      true,
+      false,
+      undefined,
+      this.topology
+    );
+    cmd.execute(nextDomain);
+
+    // Authoritative Checkmate Detection — NEVER trust caller's move.isCheckmate
+    let authoritativeCheckmate = false;
+    const gameRes = RulesEngine.getGameResult(nextDomain, this.topology);
+    if (gameRes.isGameOver && gameRes.status === 'CHECKMATE') {
+      authoritativeCheckmate = true;
     }
 
     // Check checkmate win condition
@@ -312,6 +334,20 @@ export class BughouseEngine {
   }
 
   /**
+   * Translates internal BughousePieceType ('p'|'n'|'b'|'r'|'q') to canonical Variant ID.
+   */
+  public static bughouseTypeToVariant(type: BughousePieceType): string {
+    switch (type) {
+      case 'p': return 'PAWN';
+      case 'n': return 'KNIGHT';
+      case 'b': return 'BISHOP';
+      case 'r': return 'ROOK';
+      case 'q': return 'QUEEN';
+      default: return 'PAWN';
+    }
+  }
+
+  /**
    * Validates if a piece can be dropped from the player's reserve onto a target square.
    */
   public static canDropPiece(
@@ -320,7 +356,7 @@ export class BughouseEngine {
     playerId: string,
     pieceType: BughousePieceType,
     targetCoord: string,
-    occupiedCoords: ReadonlySet<string>
+    occupiedCoords?: ReadonlySet<string>
   ): { allowed: boolean; reason?: string } {
     if (state.isGameOver) {
       return { allowed: false, reason: 'Partida já finalizada.' };
@@ -340,16 +376,28 @@ export class BughouseEngine {
       return { allowed: false, reason: 'Peça não disponível na reserva do jogador.' };
     }
 
-    if (occupiedCoords.has(targetCoord)) {
-      return { allowed: false, reason: 'A casa de destino já está ocupada.' };
-    }
+    const normTarget = this.normalizeCoord(targetCoord);
+    const targetKey = asCoordinateKey(normTarget);
 
     // Pawn drop restriction: cannot drop on 1st or 8th rank
     if (pieceType === 'p') {
-      const rank = targetCoord.charAt(1);
-      if (rank === '1' || rank === '8') {
+      const isFirstOrLastRank =
+        targetCoord.endsWith('1') ||
+        targetCoord.endsWith('8') ||
+        normTarget.endsWith(',0') ||
+        normTarget.endsWith(',7');
+      if (isFirstOrLastRank) {
         return { allowed: false, reason: 'Peões não podem ser inseridos na primeira ou oitava fileira.' };
       }
+    }
+
+    // Authoritative check against board domainState occupancy (never trust external caller solely)
+    if (currentBoard.domainState && currentBoard.domainState.occupancy[targetKey]) {
+      return { allowed: false, reason: 'A casa de destino já está ocupada.' };
+    }
+
+    if (occupiedCoords && (occupiedCoords.has(targetCoord) || occupiedCoords.has(normTarget))) {
+      return { allowed: false, reason: 'A casa de destino já está ocupada.' };
     }
 
     return { allowed: true };
@@ -364,7 +412,7 @@ export class BughouseEngine {
     playerId: string,
     pieceType: BughousePieceType,
     targetCoord: string,
-    occupiedCoords: ReadonlySet<string>
+    occupiedCoords?: ReadonlySet<string>
   ): IBughouseMatchState {
     const check = this.canDropPiece(state, boardId, playerId, pieceType, targetCoord, occupiedCoords);
     if (!check.allowed) {
@@ -387,6 +435,33 @@ export class BughouseEngine {
     };
 
     const currentBoard = boardId === 'BOARD_A' ? state.boardA : state.boardB;
+    const nextDomain: IDomainState | undefined = currentBoard.domainState
+      ? JSON.parse(JSON.stringify(currentBoard.domainState))
+      : undefined;
+
+    if (nextDomain) {
+      const normTarget = this.normalizeCoord(targetCoord);
+      const targetKey = asCoordinateKey(normTarget);
+      const actingPlayer = player.color === 'WHITE' ? 'P1' : 'P2';
+      const variantId = this.bughouseTypeToVariant(pieceType);
+      const dropId = asEntityId(`drop_${boardId}_${playerId}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`);
+
+      const droppedPiece: IPieceEntity = {
+        id: dropId,
+        type: 'PIECE',
+        ownerId: actingPlayer,
+        variantId,
+        position: targetKey,
+        hasMoved: true,
+        isCaptured: false,
+        metadata: { isDropped: true },
+      };
+
+      (nextDomain.boardEntities as Record<EntityId, IEntity>)[dropId] = droppedPiece;
+      (nextDomain.occupancy as Record<CoordinateKey, EntityId>)[targetKey] = dropId;
+      (nextDomain as { revision: number }).revision = (nextDomain.revision || 0) + 1;
+    }
+
     const nextActiveColor: 'WHITE' | 'BLACK' = currentBoard.activeColor === 'WHITE' ? 'BLACK' : 'WHITE';
     const nextFullmove = currentBoard.activeColor === 'BLACK' ? currentBoard.fullmoveNumber + 1 : currentBoard.fullmoveNumber;
 
@@ -394,6 +469,7 @@ export class BughouseEngine {
       ...currentBoard,
       activeColor: nextActiveColor,
       fullmoveNumber: nextFullmove,
+      domainState: nextDomain,
     };
 
     return {

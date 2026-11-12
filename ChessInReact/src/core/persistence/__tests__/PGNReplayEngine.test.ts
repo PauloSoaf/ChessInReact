@@ -210,4 +210,52 @@ describe('Spec 09 PGN Event Sourcing & Replay Engine Suite (S09-RF01, S09-RF02, 
       expect(storage.listMatches()).toHaveLength(0);
     });
   });
+
+  describe('5. Strict PGN Replay Mode Hardening (Audit Patch 4)', () => {
+    it('throws diagnostic error when encountering an illegal move in strict mode', () => {
+      const illegalPGN = `
+[Event "Illegal Replay"]
+1. e4 e5 2. Qh5 Nf6 3. Qxf7# 1-0
+      `; // White queen cannot capture f7 with mate on move 3 without bishop on c4!
+      const parsed = PGNParser.parse(illegalPGN);
+
+      // In strict mode (default), Qxf7# is illegal because f7 is defended by king and queen is undefended
+      expect(() => new ReplayEngine(parsed)).toThrow(/Strict PGN Replay/);
+    });
+
+    it('throws diagnostic error when capture syntax (x) is indicated but target square is empty', () => {
+      const falseCapturePGN = `
+[Event "False Capture"]
+1. e4 d5 2. e5xd5 1-0
+      `; // e5 is not where white pawn starts, or trying to capture an empty square
+      const parsed = PGNParser.parse(falseCapturePGN);
+
+      expect(() => new ReplayEngine(parsed)).toThrow(/Strict PGN Replay/);
+    });
+
+    it('faithfully reconstitutes complete real historical master games without error', () => {
+      // Morphy's Opera Game (Paris, 1858) - Full PGN
+      const operaGamePGN = `
+[Event "Opera Game"]
+[Site "Paris FRA"]
+[Date "1858.??.??"]
+[White "Paul Morphy"]
+[Black "Duke Karl / Count Isouard"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 d6 3. d4 Bg4 4. dxe5 Bxf3 5. Qxf3 dxe5 6. Bc4 Nf6 7. Qb3 Qe7 8. Nc3 c6 9. Bg5 b5 10. Nxb5 cxb5 11. Bxb5+ Nbd7 12. O-O-O Rd8 13. Rxd7 Rxd7 14. Rd1 Qe6 15. Bxd7+ Nxd7 16. Qb8+ Nxb8 17. Rd8# 1-0
+      `;
+
+      const parsed = PGNParser.parse(operaGamePGN);
+      const replay = new ReplayEngine(parsed);
+
+      // 17 full moves (33 plies) -> 34 snapshots
+      expect(replay.getTotalStates()).toBe(34);
+
+      // Final state: Black King on e8 checkmated by White Rook on d8
+      const finalState = replay.getStateAtTurn(33);
+      expect(finalState.isGameOver).toBe(true);
+      expect(finalState.winnerId).toBe('P1');
+    });
+  });
 });

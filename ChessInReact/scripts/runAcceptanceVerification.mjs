@@ -143,6 +143,7 @@ try {
       height,
       deviceScaleFactor: 2,
       mobile,
+      fitWindow: false,
     });
   };
 

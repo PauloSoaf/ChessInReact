@@ -16,12 +16,22 @@ import { SquareTopology } from '../../topology/SquareTopology';
  * allowing instantaneous O(1) state random access, time scrubbing, and 60 FPS replay playback.
  * Fully resolves Standard Algebraic Notation (SAN) with disambiguation, castling, and promotions.
  */
+export interface IReplayEngineOptions {
+  readonly strict?: boolean;
+}
+
 export class ReplayEngine {
   private readonly statesList: IDomainState[] = [];
   private readonly defaultTopology = new SquareTopology({ width: 8, height: 8 });
   private currentIndex = 0;
+  private readonly strict: boolean;
 
-  constructor(public readonly pgnMatch: IParsedPGNMatch, initialDomain?: IDomainState) {
+  constructor(
+    public readonly pgnMatch: IParsedPGNMatch,
+    initialDomain?: IDomainState,
+    options?: IReplayEngineOptions
+  ) {
+    this.strict = options?.strict ?? true;
     this.compile(initialDomain);
   }
 
@@ -71,8 +81,14 @@ export class ReplayEngine {
         (currentState as { activePlayer: string }).activePlayer = actingPlayer;
       }
 
-      const resolved = this.resolveMove(currentState, move);
+      const resolved = this.resolveMove(currentState, move, i + 1);
       if (!resolved) {
+        if (this.strict) {
+          throw new Error(
+            `[Strict PGN Replay] Impossível resolver o lance no ply ${i + 1} (${actingPlayer}): '${move.token}'. ` +
+            `Verifique a sintaxe SAN, a legalidade do movimento e a posição das peças.`
+          );
+        }
         continue;
       }
 
@@ -85,7 +101,7 @@ export class ReplayEngine {
         actingPlayer,
         `replay_cmd_${i}`,
         true,
-        false, // bypass strict rejection to tolerate legacy / custom PGNs
+        this.strict,
         promotionVariant,
         this.defaultTopology
       );
@@ -93,7 +109,8 @@ export class ReplayEngine {
       const nextState: IDomainState = JSON.parse(JSON.stringify(currentState));
       command.execute(nextState);
 
-      if (castledRook) {
+      // If not in strict mode, MovePieceCommand did not auto-move the rook, so move it explicitly
+      if (castledRook && !this.strict) {
         const rookCmd = new MovePieceCommand(
           asEntityId(castledRook.pieceId),
           asCoordinateKey(castledRook.from),
@@ -108,6 +125,28 @@ export class ReplayEngine {
         rookCmd.execute(nextState);
       }
 
+      // Strict validation of check and checkmate notations
+      if (this.strict) {
+        const rawToken = move.token.trim();
+        const opponent = actingPlayer === 'P1' ? 'P2' : 'P1';
+
+        if (rawToken.includes('#')) {
+          const res = RulesEngine.getGameResult(nextState, this.defaultTopology);
+          if (!res.isGameOver || res.status !== 'CHECKMATE') {
+            throw new Error(
+              `[Strict PGN Replay] Notação indica xeque-mate ('${rawToken}') no ply ${i + 1}, mas a posição resultante não é de xeque-mate.`
+            );
+          }
+        } else if (rawToken.includes('+')) {
+          const inCheck = CheckValidator.isRoyalInCheck(opponent, nextState, this.defaultTopology);
+          if (!inCheck) {
+            throw new Error(
+              `[Strict PGN Replay] Notação indica xeque ('${rawToken}') no ply ${i + 1}, mas o rei adversário não está em xeque.`
+            );
+          }
+        }
+      }
+
       currentState = nextState;
       this.statesList.push(currentState);
     }
@@ -118,7 +157,8 @@ export class ReplayEngine {
    */
   private resolveMove(
     state: IDomainState,
-    move: IParsedPGNMove
+    move: IParsedPGNMove,
+    plyNumber: number = 1
   ): {
     pieceId: string;
     from: string;
@@ -231,8 +271,23 @@ export class ReplayEngine {
       return true;
     });
 
+    if (candidateMoves.length > 1 && this.strict) {
+      throw new Error(
+        `[Strict PGN Replay] Token SAN ambíguo no ply ${plyNumber}: '${move.token}'. ` +
+        `Existem ${candidateMoves.length} movimentos possíveis para ${to}. ` +
+        `Notação de desambiguação requerida.`
+      );
+    }
+
     if (candidateMoves.length > 0) {
       const chosen = candidateMoves[0];
+
+      if (this.strict && rawToken.includes('x') && !chosen.isCapture) {
+        throw new Error(
+          `[Strict PGN Replay] Token indica captura ('${move.token}') no ply ${plyNumber}, mas o movimento não captura nenhuma peça.`
+        );
+      }
+
       return {
         pieceId: chosen.pieceId,
         from: chosen.from,
@@ -255,7 +310,12 @@ export class ReplayEngine {
       }
     }
 
-    // 7. Heuristic fallback for non-strict or partial moves
+    // In strict mode, HEURISTIC INFERENCE IS STRICTLY FORBIDDEN!
+    if (this.strict) {
+      return null;
+    }
+
+    // 7. Heuristic fallback ONLY for non-strict legacy compatibility mode
     const fromInferred = this.inferFromCoord(state, to, move.isWhite, targetRole, disambig);
     if (fromInferred) {
       const pieceId = state.occupancy[asCoordinateKey(fromInferred)];

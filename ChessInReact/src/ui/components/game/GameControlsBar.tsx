@@ -2,6 +2,7 @@ import React from 'react';
 import { AIDifficultyLevel } from '../../../workers/ai/interfaces/IAIEngineContracts';
 import { ActionButton } from '../primitives/ActionButton';
 import { Card } from '../primitives/Card';
+import { PlayerId } from '../../../core/coordinates/types';
 
 export interface IGameControlsBarProps {
   isBotEnabled: boolean;
@@ -25,6 +26,8 @@ export interface IGameControlsBarProps {
   onResign?: () => void;
   isGameOver?: boolean;
   canClaimDraw?: boolean;
+  pendingDrawOffer?: PlayerId | null;
+  activePlayer?: string;
 }
 
 export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
@@ -49,6 +52,8 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
   onResign,
   isGameOver = false,
   canClaimDraw = false,
+  pendingDrawOffer = null,
+  activePlayer = 'P1',
 }) => {
   const formattedEval =
     lastEval !== null ? `${lastEval > 0 ? '+' : ''}${(lastEval / 100).toFixed(2)}` : '0.00';
@@ -455,23 +460,41 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
           <ActionButton
             id="bot-draw-button"
             type="button"
-            variant="secondary"
+            variant={pendingDrawOffer ? 'primary' : 'secondary'}
             size="sm"
-            aria-label={canClaimDraw ? 'Reivindicar Empate' : 'Propor Empate'}
+            aria-label={
+              canClaimDraw
+                ? 'Reivindicar Empate'
+                : pendingDrawOffer
+                ? pendingDrawOffer !== activePlayer
+                  ? 'Aceitar Empate'
+                  : 'Cancelar Oferta'
+                : 'Propor Empate'
+            }
             title={
               canClaimDraw
                 ? 'Reivindicar empate formal por repetição ou regra dos 50 lances'
+                : pendingDrawOffer
+                ? pendingDrawOffer !== activePlayer
+                  ? 'Aceitar oferta de empate do adversário'
+                  : 'Cancelar oferta de empate pendente'
                 : 'Propor empate mútuo'
             }
             disabled={isGameOver || !onOfferDraw}
-            onClick={onOfferDraw}
+            onClick={() => onOfferDraw?.()}
             leadingIcon={
               <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 10h12M4 6h12M4 14h12" />
               </svg>
             }
           >
-            {canClaimDraw ? 'Reivindicar Empate' : 'Propor Empate'}
+            {canClaimDraw
+              ? 'Reivindicar Empate'
+              : pendingDrawOffer
+              ? pendingDrawOffer !== activePlayer
+                ? 'Aceitar Empate'
+                : 'Cancelar Oferta'
+              : 'Propor Empate'}
           </ActionButton>
 
           <ActionButton
@@ -482,7 +505,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
             aria-label="Abandonar Partida"
             title="Abandonar partida e conceder a vitória ao oponente"
             disabled={isGameOver || !onResign}
-            onClick={onResign}
+            onClick={() => onResign?.()}
             leadingIcon={
               <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 4v16M4 4h10l-2 4 2 4H4" />
