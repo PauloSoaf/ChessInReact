@@ -14,6 +14,14 @@ import { PuzzleRushArena } from './ui/components/hub/PuzzleRushArena';
 import { PlayerCard } from './ui/components/game/PlayerCard';
 import { EvaluationBar } from './ui/components/game/EvaluationBar';
 import { GameControlsBar } from './ui/components/game/GameControlsBar';
+import { SpectatorControlsBar } from './ui/components/game/SpectatorControlsBar';
+import { MultiplayerFactionRibbon } from './ui/components/game/MultiplayerFactionRibbon';
+import { DuckChessBanner } from './ui/components/game/DuckChessBanner';
+import { OfficialSpellBar } from './ui/components/game/OfficialSpellBar';
+import { SpellCardHand } from './analysis/minigames/SpellCardHand';
+import { useUniversalMatch } from './bindings/react/useUniversalMatch';
+import { IMatchConfiguration } from './matchmaking/config/IMatchConfiguration';
+import { MatchConfigurationManager } from './matchmaking/config/MatchConfigurationManager';
 import { RulesEngine } from './engine/rules/RulesEngine';
 import { CheckValidator } from './engine/rules/CheckValidator';
 import { SquareTopology } from './core/topology/SquareTopology';
@@ -125,6 +133,8 @@ const AppContent: React.FC = () => {
     botPlayer: 'P2',
     difficulty: 3,
   });
+
+  const universalMatch = useUniversalMatch();
 
   // Automatically fallback to 2D if WebGL is unavailable on device/browser (Spec 07 Priority 3)
   useEffect(() => {
@@ -396,34 +406,65 @@ const AppContent: React.FC = () => {
     navigateTo('GAME');
   }, [navigateTo]);
 
+  const handleLaunchMatch = useCallback(
+    (config: IMatchConfiguration) => {
+      cancelSearch();
+      clearFeedback();
+      setPendingDrawOffer(null);
+      universalMatch.startUniversalMatch(config);
+
+      const v = config.variantId.toUpperCase();
+      if (v === 'CAPABLANCA_CHESS') {
+        handleBoardSizeChange(10);
+      } else if (v.includes('FFA') || v.includes('4P') || config.totalParticipants > 2) {
+        handleBoardSizeChange(14);
+      } else {
+        handleBoardSizeChange(8);
+      }
+
+      // Sync bot difficulty if slot 1 has botConfig
+      if (config.slots[1]?.botConfig) {
+        setDifficulty(config.slots[1].botConfig.difficultyLevel as AIDifficultyLevel);
+      }
+      toggleBot(config.slots[1]?.role === 'AI_BOT' || config.slots[1]?.role === 'BOT_STANDIN');
+
+      triggerFeedback('GAME_EVENT', {
+        message: `Partida iniciada: ${config.variantId.replace(/_/g, ' ')} (${config.totalParticipants} jogadores).`,
+      });
+      navigateTo('GAME');
+    },
+    [cancelSearch, clearFeedback, universalMatch, handleBoardSizeChange, setDifficulty, toggleBot, triggerFeedback, navigateTo]
+  );
+
   const handleStartBotMatch = useCallback(
     (level: number) => {
       toggleBot(true);
       setDifficulty(level as AIDifficultyLevel);
-      handleReset();
-      navigateTo('GAME');
+      const cfg = MatchConfigurationManager.createDefaultMatch('standard', 2);
+      handleLaunchMatch(cfg);
     },
-    [toggleBot, setDifficulty, handleReset, navigateTo]
+    [toggleBot, setDifficulty, handleLaunchMatch]
   );
 
   const handleStartLocalMatch = useCallback(() => {
     toggleBot(false);
-    handleReset();
-    navigateTo('GAME');
-  }, [toggleBot, handleReset, navigateTo]);
+    const base = MatchConfigurationManager.createDefaultMatch('standard', 2);
+    const cfg = MatchConfigurationManager.updateSlotRole(base, 1, 'HUMAN_LOCAL');
+    handleLaunchMatch(cfg);
+  }, [toggleBot, handleLaunchMatch]);
 
   const handleLaunchMinigame = useCallback(
     (minigameId: string) => {
       if (minigameId === 'puzzle_rush') {
         clearFeedback();
         navigateTo('PUZZLE_RUSH');
-      } else {
-        triggerFeedback('GAME_EVENT', {
-          message: `A variante ${minigameId.toUpperCase().replace(/_/g, ' ')} está em fase final de homologação técnica (SPEC12).`,
-        });
+        return;
       }
+      const participantCount = minigameId.includes('3P') ? 3 : minigameId.includes('4P') ? 4 : 2;
+      const defaultCfg = MatchConfigurationManager.createDefaultMatch(minigameId, participantCount);
+      handleLaunchMatch(defaultCfg);
     },
-    [clearFeedback, navigateTo, triggerFeedback]
+    [clearFeedback, navigateTo, handleLaunchMatch]
   );
 
   return (
@@ -456,26 +497,110 @@ const AppContent: React.FC = () => {
           onSelectDifficulty={(d) => setDifficulty(d as AIDifficultyLevel)}
           onOpenThemeModal={() => setIsThemeModalOpen(true)}
           onLaunchMinigame={handleLaunchMinigame}
+          onLaunchMatch={handleLaunchMatch}
         />
       ) : (
         <div id="match-arena-shell" className="match-arena-shell" data-testid="match-arena-shell">
           <div className="match-arena-grid">
             {/* Left / Center Stage: Protagonist Chessboard + Evaluation Bar + Player Cards */}
             <div className="match-stage-column">
-              {/* Top Player Strip (Opponent - Black P2) */}
+              {/* Spectator Autonomous Controls (0-Human / All-Bot matches) */}
+              {universalMatch.snapshot.isSpectatorMatch && (
+                <SpectatorControlsBar
+                  isPaused={universalMatch.snapshot.isPaused}
+                  speed={universalMatch.snapshot.playbackSpeed}
+                  isThinking={universalMatch.snapshot.isThinking}
+                  lastMoveSummary={universalMatch.snapshot.lastMoveSummary}
+                  onTogglePause={universalMatch.togglePause}
+                  onSetSpeed={universalMatch.setSpeed}
+                  onStepForward={universalMatch.stepForward}
+                />
+              )}
+
+              {/* Multiplayer Faction Ribbon (3 to 12 participants) */}
+              {universalMatch.snapshot.config.totalParticipants > 2 && (
+                <MultiplayerFactionRibbon
+                  slots={universalMatch.snapshot.config.slots}
+                  activePlayer={activePlayer}
+                  scores={universalMatch.snapshot.scores}
+                  eliminatedPlayers={universalMatch.snapshot.eliminatedPlayers}
+                  isThinking={universalMatch.snapshot.isThinking}
+                />
+              )}
+
+              {/* Duck Chess Two-Phase Turn Banner */}
+              {universalMatch.snapshot.config.variantId.toUpperCase().includes('DUCK') && (
+                <DuckChessBanner
+                  duckCoordinate={universalMatch.snapshot.duckCoordinate}
+                  duckPhase={universalMatch.snapshot.duckPhase}
+                  activePlayerLabel={activePlayer === 'P1' ? 'Brancas' : 'Pretas'}
+                />
+              )}
+
+              {/* Official Spell Chess Toolbar */}
+              {universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_OFFICIAL' &&
+                universalMatch.snapshot.officialSpellState && (
+                  <OfficialSpellBar
+                    state={universalMatch.snapshot.officialSpellState}
+                    activePlayer={activePlayer}
+                    onCastSpell={(spellType) => {
+                      const ok = universalMatch.castOfficialSpell(spellType, spellType === 'FREEZE' ? 'd4' : '');
+                      if (ok) {
+                        triggerFeedback('GAME_EVENT', {
+                          message: `Feitiço ${spellType} conjurado com sucesso!`,
+                        });
+                      }
+                    }}
+                  />
+                )}
+
+              {/* Expanded Spell Chess Hand */}
+              {universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_EXPANDED' &&
+                universalMatch.snapshot.expandedSpellState && (
+                  <div style={{ maxWidth: '604px', marginBottom: '0.5rem', width: '100%' }}>
+                    <SpellCardHand
+                      state={universalMatch.snapshot.expandedSpellState}
+                      activePlayer={activePlayer === 'P1' ? 'WHITE' : 'BLACK'}
+                      onSelectSpell={(spell) => {
+                        const ok = universalMatch.castExpandedSpell(spell, 'e4');
+                        if (ok) {
+                          triggerFeedback('GAME_EVENT', {
+                            message: `Feitiço ${spell.displayName} conjurado por ${spell.manaCost} mana!`,
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+
+              {/* Top Player Strip (Opponent - Black P2 or Bot 2) */}
               <div className="match-stage-player-wrap">
                 <PlayerCard
                   playerId="P2"
-                  displayName={isBotEnabled ? 'Oponente IA' : 'Jogador 2 (Pretas)'}
+                  displayName={
+                    universalMatch.snapshot.config.slots[1]?.displayName ??
+                    (isBotEnabled ? 'Oponente IA' : 'Jogador 2 (Pretas)')
+                  }
                   subtitle={
-                    isBotEnabled
-                      ? 'Peças Pretas • Inteligência Artificial'
+                    universalMatch.snapshot.config.slots[1]?.role === 'AI_BOT' ||
+                    universalMatch.snapshot.config.slots[1]?.role === 'BOT_STANDIN'
+                      ? `Peças Pretas • IA (N${universalMatch.snapshot.config.slots[1]?.botConfig?.difficultyLevel ?? difficulty})`
                       : 'Peças Pretas • Controle Manual Local'
                   }
                   isTurnActive={!isGameOver && activePlayer === 'P2'}
-                  isThinking={isThinking}
-                  isBot={isBotEnabled}
-                  difficultyLabel={isBotEnabled ? DIFFICULTY_LABELS[difficulty] : undefined}
+                  isThinking={isThinking || (universalMatch.snapshot.isThinking && activePlayer === 'P2')}
+                  isBot={
+                    universalMatch.snapshot.config.slots[1]?.role === 'AI_BOT' ||
+                    universalMatch.snapshot.config.slots[1]?.role === 'BOT_STANDIN' ||
+                    isBotEnabled
+                  }
+                  difficultyLabel={
+                    universalMatch.snapshot.config.slots[1]?.botConfig
+                      ? DIFFICULTY_LABELS[universalMatch.snapshot.config.slots[1].botConfig!.difficultyLevel]
+                      : isBotEnabled
+                      ? DIFFICULTY_LABELS[difficulty]
+                      : undefined
+                  }
                   isInCheck={!isGameOver && isP2InCheck}
                 />
               </div>
@@ -646,7 +771,12 @@ const AppContent: React.FC = () => {
                         boardSize={boardSize}
                         isBotThinking={isThinking}
                         botPlayer={isBotEnabled ? 'P2' : undefined}
-                        disabled={isBotEnabled && activePlayer === 'P2'}
+                        disabled={
+                          universalMatch.snapshot.isSpectatorMatch ||
+                          universalMatch.snapshot.activeSlot?.role === 'AI_BOT' ||
+                          universalMatch.snapshot.activeSlot?.role === 'BOT_STANDIN' ||
+                          (isBotEnabled && activePlayer === 'P2')
+                        }
                         isFlipped={isBoardFlipped}
                         invalidMoveFeedback={invalidMoveFeedback}
                         onTriggerInvalidMove={triggerFeedback}
@@ -672,7 +802,12 @@ const AppContent: React.FC = () => {
                       boardSize={boardSize}
                       isBotThinking={isThinking}
                       botPlayer={isBotEnabled ? 'P2' : undefined}
-                      disabled={isBotEnabled && activePlayer === 'P2'}
+                      disabled={
+                        universalMatch.snapshot.isSpectatorMatch ||
+                        universalMatch.snapshot.activeSlot?.role === 'AI_BOT' ||
+                        universalMatch.snapshot.activeSlot?.role === 'BOT_STANDIN' ||
+                        (isBotEnabled && activePlayer === 'P2')
+                      }
                       invalidMoveFeedback={invalidMoveFeedback}
                       onTriggerInvalidMove={triggerFeedback}
                       onClearInvalidMove={clearFeedback}
@@ -681,13 +816,28 @@ const AppContent: React.FC = () => {
                 )}
               </div>
 
-              {/* Bottom Player Strip (Human - White P1) */}
+              {/* Bottom Player Strip (Human - White P1 or Bot 1) */}
               <div className="match-stage-player-wrap">
                 <PlayerCard
                   playerId="P1"
-                  displayName="Você (Brancas)"
-                  subtitle="Peças Brancas • Perspectiva Principal"
+                  displayName={universalMatch.snapshot.config.slots[0]?.displayName ?? 'Você (Brancas)'}
+                  subtitle={
+                    universalMatch.snapshot.config.slots[0]?.role === 'AI_BOT' ||
+                    universalMatch.snapshot.config.slots[0]?.role === 'BOT_STANDIN'
+                      ? `Peças Brancas • IA (N${universalMatch.snapshot.config.slots[0]?.botConfig?.difficultyLevel ?? difficulty})`
+                      : 'Peças Brancas • Perspectiva Principal'
+                  }
                   isTurnActive={!isGameOver && activePlayer === 'P1'}
+                  isThinking={universalMatch.snapshot.isThinking && activePlayer === 'P1'}
+                  isBot={
+                    universalMatch.snapshot.config.slots[0]?.role === 'AI_BOT' ||
+                    universalMatch.snapshot.config.slots[0]?.role === 'BOT_STANDIN'
+                  }
+                  difficultyLabel={
+                    universalMatch.snapshot.config.slots[0]?.botConfig
+                      ? DIFFICULTY_LABELS[universalMatch.snapshot.config.slots[0].botConfig!.difficultyLevel]
+                      : undefined
+                  }
                   isInCheck={!isGameOver && isP1InCheck}
                 />
               </div>
