@@ -22,7 +22,11 @@
 | **Spec 10 (Modding API & CI/CD)** | 10 | 10 | 0 | 0 | 0 |
 | **Spec 11 (Bot Ecosystem & Rating)**| 12 | 12 | 0 | 0 | 0 |
 | **Spec 12 (Game Review & Analysis)**| 13 | 13 | 0 | 0 | 0 |
-| **TOTAL** | **173** | **168** | **3** | **0** | **2** |
+| **Spec 13 (Expanded Variant Universe)**| 12 | 0 | 0 | 12 | 0 |
+| **Spec 14 (Massive Multiplayer 3-12P)**| 7 | 0 | 0 | 7 | 0 |
+| **Spec 15 (Universal Bot Intelligence)**| 8 | 0 | 0 | 8 | 0 |
+| **Spec 16 (Lobby & Configurator)**| 7 | 0 | 0 | 7 | 0 |
+| **TOTAL** | **207** | **168** | **3** | **34** | **2** |
 
 ---
 
@@ -177,3 +181,53 @@
 | **S12-RF10** | Minigame Bughouse 2v2 (Tabuleiros Gêmeos, Transferência Cruzada, Drops Autoritativos) | P0 | `analysis/minigames/BughouseEngine.ts` | `VERIFIED` | `BughouseEngine.test.ts` (11 testes: regras autoritativas, mate, drops seguros, sem confiança cega em dados de entrada) |
 | **S12-RF18** | Feedback e Mão Interativa de Feitiços (SpellCardHand) | P1 | `analysis/minigames/SpellCardHand.tsx` | `VERIFIED` | `SpellChessEngine.test.tsx` (Renderização de HUD e orbes de mana) |
 | **S12-RF19** | Área de Estudos & Academia Tática Interativa (Progressão Estrita) | P0 | `analysis/study/AcademyStudyEngine.ts` | `VERIFIED` | `AcademyStudyEngine.test.ts` (6 testes: verificação estrita passo-a-passo, FENs reais e inspeção pedagógica de gabarito) |
+
+### Spec 13: Expanded Variant Universe, Historical & Fairy Engines
+| ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
+| :--- | :--- | :---: | :--- | :---: | :--- |
+| **S13-RF01** | Catálogo Mestre Unificado das 4 Famílias (A, B, D, E) | P0 | `specs/Spec_13_Expanded_Variant_Universe_Historical_Fairy_Engines.md` | `SPEC_DEFINED` | Especificação formal completa |
+| **S13-RF02** | Motor Spell Chess Oficial (2 feitiços, cargas, cooldowns) | P0 | `specs/Spec_13_Expanded_Variant_Universe_Historical_Fairy_Engines.md` | `SPEC_DEFINED` | Contrato estrito isolado |
+| **S13-RF03** | Motor Spell Chess Expanded (7 feitiços, mana, cartas) | P0 | `specs/Spec_13_Expanded_Variant_Universe_Historical_Fairy_Engines.md` | `SPEC_DEFINED` | Contrato isolado de mana 2-6 |
+| **S13-RF04** | Motor Duck Chess em Duas Fases Atômicas | P0 | `specs/Spec_13_Expanded_Variant_Universe_Historical_Fairy_Engines.md` | `SPEC_DEFINED` | Lance legal + Pato neutro |
+| **S13-RF05** | Motor Atomic Chess com Detonação Radial 3×3 | P0 | `specs/Spec_13_Expanded_Variant_Universe_Historical_Fairy_Engines.md` | `SPEC_DEFINED` | Explosão de raio 1 |
+| **S13-RF06** | Motor Antichess com Capturas Obrigatórias | P0 | `specs/Spec_13_Expanded_Variant_Universe_Historical_Fairy_Engines.md` | `SPEC_DEFINED` | Aniquilação ou afogamento |
+| **S13-RF07** | Motores Three-Check e Five-Check | P1 | `specs/Spec_13_Expanded_Variant_Universe_Historical_Fairy_Engines.md` | `SPEC_DEFINED` | Acumulador de xeques |
+| **S13-RF08** | Motor King of the Hill (Centro d4, e4, d5, e5) | P1 | `specs/Spec_13_Expanded_Variant_Universe_Historical_Fairy_Engines.md` | `SPEC_DEFINED` | Ocupação do centro |
+| **S13-RF09** | Motor Racing Kings (Corrida sem xeques) | P1 | `specs/Spec_13_Expanded_Variant_Universe_Historical_Fairy_Engines.md` | `SPEC_DEFINED` | Corrida até 8ª fileira |
+| **S13-RF10** | Motores de Drops (Crazyhouse, Bughouse) | P0 | `specs/Spec_13_Expanded_Variant_Universe_Historical_Fairy_Engines.md` | `SPEC_DEFINED` | Drops em casas vazias |
+| **S13-RF11** | Motores Históricos (Shatranj, Shogi, Xiangqi) | P1 | `specs/Spec_13_Expanded_Variant_Universe_Historical_Fairy_Engines.md` | `SPEC_DEFINED` | Bare King, Drops Shogi, Rio/Palácio |
+| **S13-RF12** | Tabuleiros Geométricos e Peças Fadas (Capablanca 10×8, Glinski) | P1 | `specs/Spec_13_Expanded_Variant_Universe_Historical_Fairy_Engines.md` | `SPEC_DEFINED` | Chanceler e Arcebispo |
+
+### Spec 14: Massive Multiplayer Arenas (3 to 12 Players)
+| ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
+| :--- | :--- | :---: | :--- | :---: | :--- |
+| **S14-RF01** | Catálogo Geométrico das 18 Arenas Massivas (3 a 12P) | P0 | `specs/Spec_14_Massive_Multiplayer_Arenas_3_to_12_Players.md` | `SPEC_DEFINED` | 4PlayerChess+ 34 layouts base |
+| **S14-RF02** | Ciclo de Turnos Clockwise com Salto de Eliminados | P0 | `specs/Spec_14_Massive_Multiplayer_Arenas_3_to_12_Players.md` | `SPEC_DEFINED` | TurnCycleManager |
+| **S14-RF03** | Motor de Pontuação FFA (Material + 20pts Eliminação) | P0 | `specs/Spec_14_Massive_Multiplayer_Arenas_3_to_12_Players.md` | `SPEC_DEFINED` | FFAScoringEngine |
+| **S14-RF04** | 4 Políticas de Eliminação (Evaporation, Grey, Conquest, Bot) | P1 | `specs/Spec_14_Massive_Multiplayer_Arenas_3_to_12_Players.md` | `SPEC_DEFINED` | EliminationPolicy |
+| **S14-RF05** | Motor de Resolução Simultânea (Diplomacy Chess) | P1 | `specs/Spec_14_Massive_Multiplayer_Arenas_3_to_12_Players.md` | `SPEC_DEFINED` | Commit + Arbitragem de colisão |
+| **S14-RF06** | Modo Equipes Coletivas (Teams 2v2, 3v3, 4v4) | P1 | `specs/Spec_14_Massive_Multiplayer_Arenas_3_to_12_Players.md` | `SPEC_DEFINED` | Vitória compartilhada |
+| **S14-RF07** | Salas Colyseus para 12 Conexões Simultâneas (20 Hz) | P0 | `specs/Spec_14_Massive_Multiplayer_Arenas_3_to_12_Players.md` | `SPEC_DEFINED` | MultiplayerArenaRoom |
+
+### Spec 15: Universal Bot Intelligence & Pluggable Engines
+| ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
+| :--- | :--- | :---: | :--- | :---: | :--- |
+| **S15-RF01** | Suporte Universal a Bots em 100% das Modalidades | P0 | `specs/Spec_15_Universal_Bot_Intelligence_Pluggable_Engines.md` | `SPEC_DEFINED` | Sem restrição "só local" |
+| **S15-RF02** | Motor MaxN & Paranoid Search para 3 a 12 Jogadores | P0 | `specs/Spec_15_Universal_Bot_Intelligence_Pluggable_Engines.md` | `SPEC_DEFINED` | N-tuplas vetorizadas |
+| **S15-RF03** | Busca ISMCTS para Informação Imperfeita (Fog of War) | P0 | `specs/Spec_15_Universal_Bot_Intelligence_Pluggable_Engines.md` | `SPEC_DEFINED` | Sem trapaça na memória |
+| **S15-RF04** | Planejador Conjunto Lance + Pato (Duck Chess) | P0 | `specs/Spec_15_Universal_Bot_Intelligence_Pluggable_Engines.md` | `SPEC_DEFINED` | JointMoveDuckPlanner |
+| **S15-RF05** | Agentes de IA Coordenados com Mensageria (Bughouse 2v2) | P1 | `specs/Spec_15_Universal_Bot_Intelligence_Pluggable_Engines.md` | `SPEC_DEFINED` | Droppool awareness |
+| **S15-RF06** | Avaliador Tático de Feitiços (Oficial vs Expandido) | P1 | `specs/Spec_15_Universal_Bot_Intelligence_Pluggable_Engines.md` | `SPEC_DEFINED` | Cargas vs Curva de Mana |
+| **S15-RF07** | Simulador de IA para Puzzle Battle (Latência Humana ELO) | P1 | `specs/Spec_15_Universal_Bot_Intelligence_Pluggable_Engines.md` | `SPEC_DEFINED` | Resolução calibrada |
+| **S15-RF08** | Desacoplamento Assíncrono via AIWorkerPool | P0 | `specs/Spec_15_Universal_Bot_Intelligence_Pluggable_Engines.md` | `SPEC_DEFINED` | Zero bloqueio de UI |
+
+### Spec 16: Universal Match Configurator & Expanded Game Hub
+| ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
+| :--- | :--- | :---: | :--- | :---: | :--- |
+| **S16-RF01** | Contrato Universal de Participantes (2 a 12 Slots) | P0 | `specs/Spec_16_Universal_Lobby_Match_Configurator_Expanded_Hub.md` | `SPEC_DEFINED` | IMatchConfiguration |
+| **S16-RF02** | 4 Papéis Dinâmicos por Slot (Human, Bot, Remote, Stand-in) | P0 | `specs/Spec_16_Universal_Lobby_Match_Configurator_Expanded_Hub.md` | `SPEC_DEFINED` | Alocação flexível |
+| **S16-RF03** | Calibração Individual de Bots nos Slots (Nível, Estilo, Tempo) | P1 | `specs/Spec_16_Universal_Lobby_Match_Configurator_Expanded_Hub.md` | `SPEC_DEFINED` | Dificuldade por assento |
+| **S16-RF04** | Assunção Automática de Bots em Desconexão (Auto Stand-in) | P0 | `specs/Spec_16_Universal_Lobby_Match_Configurator_Expanded_Hub.md` | `SPEC_DEFINED` | Continuidade de partida |
+| **S16-RF05** | Game Hub Visual com 6 Grandes Categorias e Filtros | P0 | `specs/Spec_16_Universal_Lobby_Match_Configurator_Expanded_Hub.md` | `SPEC_DEFINED` | Navegação multifacetada |
+| **S16-RF06** | Sala de Pré-Jogo com Pré-Visualização Gráfica da Arena | P1 | `specs/Spec_16_Universal_Lobby_Match_Configurator_Expanded_Hub.md` | `SPEC_DEFINED` | PreMatchStagingModal |
+| **S16-RF07** | Exportação e Importação de Configuração JSON (Clipboard) | P1 | `specs/Spec_16_Universal_Lobby_Match_Configurator_Expanded_Hub.md` | `SPEC_DEFINED` | Portabilidade de torneio |
