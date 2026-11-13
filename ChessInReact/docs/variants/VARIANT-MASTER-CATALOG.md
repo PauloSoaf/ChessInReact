@@ -113,3 +113,4 @@ Qualquer assento ($0 \dots N-1$, para 2 a 12 participantes) admite:
 | `PUZZLE_RUSH_5MIN` | Contra o Relógio | Máximo de puzzles resolvidos em 300 segundos |
 | `PUZZLE_BATTLE_VS_BOT` | Disputa 1v1 | Competição em tempo real contra bot com taxa de acerto calibrada por ELO |
 | `ACADEMY_TACTICAL_STUDY`| Estudo Pedagógico | Exercícios de Mate, Garfo, Cravada com gabarito explicativo |
+

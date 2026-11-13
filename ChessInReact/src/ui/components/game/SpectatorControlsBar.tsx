@@ -153,3 +153,4 @@ export const SpectatorControlsBar: React.FC<ISpectatorControlsBarProps> = ({
     </div>
   );
 };
+

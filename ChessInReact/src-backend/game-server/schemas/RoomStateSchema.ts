@@ -92,3 +92,46 @@ export class ChessRoomStateSchema extends Schema {
     }
   }
 }
+
+/**
+ * Root authoritative arena room state for 3 to 12 player multiplayer arenas (Spec 14 § 7, RF-14-07).
+ */
+export class ArenaRoomStateSchema extends Schema {
+  @type('string') public matchId: string = '';
+  @type('string') public arenaId: string = 'FOUR_PLAYER_FFA';
+  @type('string') public phase: string = 'WAITING'; // 'WAITING' | 'PLAYING' | 'RESOLVING' | 'GAME_OVER'
+  @type('string') public activeFactionId: string = 'FACTION_1';
+  @type('number') public roundNumber: number = 1;
+  @type('number') public totalParticipants: number = 4;
+  @type('string') public eliminationPolicy: string = 'EVAPORATION';
+  @type('string') public winnerFactionId: string = '';
+
+  @type({ map: NetworkEntitySchema })
+  public boardEntities = new MapSchema<NetworkEntitySchema>();
+
+  @type({ map: PlayerSchema })
+  public players = new MapSchema<PlayerSchema>();
+
+  @type({ map: 'number' })
+  public factionScores = new MapSchema<number>();
+
+  @type(['string'])
+  public eliminatedFactions = new ArraySchema<string>();
+
+  @type({ map: 'number' })
+  public playerSequenceAcks = new MapSchema<number>();
+
+  constructor(init?: Partial<ArenaRoomStateSchema>) {
+    super();
+    if (init) {
+      if (init.matchId !== undefined) this.matchId = init.matchId;
+      if (init.arenaId !== undefined) this.arenaId = init.arenaId;
+      if (init.phase !== undefined) this.phase = init.phase;
+      if (init.activeFactionId !== undefined) this.activeFactionId = init.activeFactionId;
+      if (init.roundNumber !== undefined) this.roundNumber = init.roundNumber;
+      if (init.totalParticipants !== undefined) this.totalParticipants = init.totalParticipants;
+      if (init.eliminationPolicy !== undefined) this.eliminationPolicy = init.eliminationPolicy;
+      if (init.winnerFactionId !== undefined) this.winnerFactionId = init.winnerFactionId;
+    }
+  }
+}

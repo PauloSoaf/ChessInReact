@@ -2,6 +2,7 @@ import http from 'http';
 import { Server } from 'colyseus';
 import { WebSocketTransport } from '@colyseus/ws-transport';
 import { ChessRoom } from './rooms/ChessRoom';
+import { MultiplayerArenaRoom } from './rooms/MultiplayerArenaRoom';
 import { validateJwtBootstrap } from './auth/jwtAuth';
 
 export interface IServerInstance {
@@ -54,6 +55,9 @@ export function createGameServer(requestedPort?: number): IServerInstance {
 
   // Define the authoritative chess room with matchId filtering
   gameServer.define('chess_room', ChessRoom).filterBy(['matchId']);
+
+  // Define the authoritative massive multiplayer arena room (Spec 14 § 7, RF-14-07)
+  gameServer.define('arena_room', MultiplayerArenaRoom).filterBy(['matchId']);
 
   const close = async (): Promise<void> => {
     await gameServer.gracefullyShutdown(false);

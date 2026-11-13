@@ -71,3 +71,4 @@ export const DuckChessBanner: React.FC<IDuckChessBannerProps> = ({
     </div>
   );
 };
+

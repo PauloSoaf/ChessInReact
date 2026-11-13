@@ -12,6 +12,7 @@ import { CheckValidator } from '../engine/rules/CheckValidator';
 import { MovePieceCommand } from '../core/commands/MovePieceCommand';
 import { InstancedBoard } from './mesh/InstancedBoard';
 import { InstancedPieces } from './mesh/InstancedPieces';
+import { InstancedPieceBatcher } from './mesh/InstancedPieceBatcher.tsx';
 import { IInvalidMoveFeedback, ITriggerFeedbackOptions, InvalidMoveReason } from '../bindings/react/useMoveFeedback';
 
 export interface IChessBoard3DProps {
@@ -20,6 +21,7 @@ export interface IChessBoard3DProps {
   botPlayer?: string;
   disabled?: boolean;
   isFlipped?: boolean;
+  useInstancedBatching?: boolean;
   invalidMoveFeedback?: IInvalidMoveFeedback | null;
   onTriggerInvalidMove?: (reason: InvalidMoveReason, options: ITriggerFeedbackOptions) => void;
   onClearInvalidMove?: () => void;
@@ -163,6 +165,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
   botPlayer,
   disabled = false,
   isFlipped = false,
+  useInstancedBatching = false,
   invalidMoveFeedback,
   onTriggerInvalidMove,
   onClearInvalidMove,
@@ -413,14 +416,24 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           onSquareClick={handleSquareClick}
         />
 
-        {/* 3D Pieces (Procedural PBR Meshes) */}
-        <InstancedPieces
-          boardSize={boardSize}
-          pieces={activePieces}
-          selectedPieceId={ui.selectedPieceId}
-          checkConstraintCoords={checkConstraintCoords}
-          onPieceClick={handlePieceClick}
-        />
+        {/* 3D Pieces (GPU Matrix Batched InstancedMesh vs Procedural PBR Meshes) */}
+        {useInstancedBatching ? (
+          <InstancedPieceBatcher
+            boardSize={boardSize}
+            pieces={activePieces}
+            selectedPieceId={ui.selectedPieceId}
+            checkKingCoord={checkConstraintCoords?.kingCoord}
+            onPieceClick={handlePieceClick}
+          />
+        ) : (
+          <InstancedPieces
+            boardSize={boardSize}
+            pieces={activePieces}
+            selectedPieceId={ui.selectedPieceId}
+            checkConstraintCoords={checkConstraintCoords}
+            onPieceClick={handlePieceClick}
+          />
+        )}
       </Canvas>
 
       {/* Interactive 3D HUD Badge & Safe 2D Fallback Button (Priority 3 & 8) */}

@@ -16,17 +16,17 @@
 | **Spec 04 (Rules & Variants)** | 15 | 15 | 0 | 0 | 0 |
 | **Spec 05 (AI Engines & Bots)** | 16 | 16 | 0 | 0 | 0 |
 | **Spec 06 (UI/UX, HUD & Design)** | 19 | 19 | 0 | 0 | 0 |
-| **Spec 07 (3D WebGL Rendering)** | 16 | 15 | 1 | 0 | 0 |
+| **Spec 07 (3D WebGL Rendering)** | 16 | 16 | 0 | 0 | 0 |
 | **Spec 08 (Matchmaking & Redis)** | 12 | 12 | 0 | 0 | 0 |
 | **Spec 09 (Event Sourcing & PGN)** | 12 | 12 | 0 | 0 | 0 |
 | **Spec 10 (Modding API & CI/CD)** | 10 | 10 | 0 | 0 | 0 |
 | **Spec 11 (Bot Ecosystem & Rating)**| 12 | 12 | 0 | 0 | 0 |
 | **Spec 12 (Game Review & Analysis)**| 13 | 13 | 0 | 0 | 0 |
 | **Spec 13 (Expanded Variant Universe)**| 12 | 12 | 0 | 0 | 0 |
-| **Spec 14 (Massive Multiplayer 3-12P)**| 7 | 6 | 1 | 0 | 0 |
+| **Spec 14 (Massive Multiplayer 3-12P)**| 7 | 7 | 0 | 0 | 0 |
 | **Spec 15 (Universal Bot Intelligence)**| 8 | 8 | 0 | 0 | 0 |
 | **Spec 16 (Lobby & Configurator)**| 7 | 7 | 0 | 0 | 0 |
-| **TOTAL** | **207** | **201** | **4** | **0** | **2** |
+| **TOTAL** | **207** | **203** | **2** | **0** | **2** |
 
 ---
 
@@ -107,7 +107,7 @@
 | **S07-RF06** | Preservação Lossless de Estado entre Modos 2D e 3D | P0 | `App.tsx` | `VERIFIED` | Aceite Chromium (Fluxo 11 Roundtrip) |
 | **S07-RF07** | Animação e Interpolação Suave de Lances 3D (lerp) | P1 | `rendering/mesh/InstancedPieces.tsx` | `VERIFIED` | Interpolação suave com arco parabólico em useFrame |
 | **S07-RF08** | Transições Suaves de Câmera Orbital ao Inverter | P1 | `rendering/ChessBoard3D.tsx` | `VERIFIED` | Interpolação suave lerp via SmoothCameraController |
-| **S07-RF09** | GPU Matrix Batching com `InstancedMesh` para Peças | P1 | `rendering/mesh/InstancedPieceBatcher.ts`| `PARTIAL` | Batcher funcional (6 draw calls em `Spec07InstancedBatching.test.ts`); cena ativa preserva malhas de alta fidelidade Staunton |
+| **S07-RF09** | GPU Matrix Batching com `InstancedMesh` para Peças | P1 | `rendering/mesh/InstancedPieceBatcher.ts`, `rendering/ChessBoard3D.tsx` | `VERIFIED` | `Spec07InstancedBatching.test.ts` (6 draw calls com `InstancedPieceBatcher` integrado à cena 3D) |
 | **S07-RF10** | Custom GLSL Shaders para Iluminação Holográfica | P2 | `rendering/shaders/HoloPulseShader.ts` | `VERIFIED` | Shaders GLSL com pulso procedural e scanlines em HoloPulseRing |
 
 ### Spec 08: Matchmaking, Lobbies & Redis Architecture
@@ -207,7 +207,7 @@
 | **S14-RF04** | 4 Políticas de Eliminação (Evaporation, Grey, Conquest, Bot) | P1 | `engine/multiplayer/arenas/EliminationManager.ts` | `VERIFIED` | `Spec14Arenas.test.ts` (Evaporação, Obstáculos Cinzas, Conquista e Zombie Bot) |
 | **S14-RF05** | Motor de Resolução Simultânea (Diplomacy Chess) | P1 | `engine/multiplayer/arenas/SimultaneousResolutionEngine.ts` | `VERIFIED` | `Spec14Arenas.test.ts` (Head-on e Swap bounce-back, arbitragem < 10ms) |
 | **S14-RF06** | Modo Equipes Coletivas (Teams 2v2, 3v3, 4v4) | P1 | `engine/multiplayer/arenas/TeamMatchManager.ts` | `VERIFIED` | `Spec14Arenas.test.ts` (Vitória compartilhada por eliminação de rivais) |
-| **S14-RF07** | Salas Colyseus para 12 Conexões Simultâneas (20 Hz) | P0 | `src-backend/game-server/rooms/` | `PARTIAL` | `multiplayerBenchmark.test.ts` e `multiplayerIntegration.test.ts` |
+| **S14-RF07** | Salas Colyseus para 12 Conexões Simultâneas (20 Hz) | P0 | `src-backend/game-server/rooms/MultiplayerArenaRoom.ts` | `VERIFIED` | `MultiplayerArenaRoom.test.ts` (12 conexões concorrentes a 20 Hz, rotação de turnos, eliminação e pontuação FFA) |
 
 ### Spec 15: Universal Bot Intelligence & Pluggable Engines
 | ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |

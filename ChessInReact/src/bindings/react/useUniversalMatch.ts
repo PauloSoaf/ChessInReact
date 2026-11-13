@@ -103,3 +103,4 @@ export function useUniversalMatch(initialConfig?: IMatchConfiguration) {
     castExpandedSpell,
   };
 }
+
