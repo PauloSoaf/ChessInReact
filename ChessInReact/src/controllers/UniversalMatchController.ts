@@ -516,7 +516,7 @@ export class UniversalMatchController {
         (action.payload.sourceCoord as string) ??
         '';
       if (spell) {
-        this.castExpandedSpell(spell, target);
+        this.castExpandedSpell(spell, target, action.payload.sourceCoord as string | undefined);
       }
     }
   }
@@ -601,7 +601,11 @@ export class UniversalMatchController {
   /**
    * Casts a spell in Expanded Spell Chess.
    */
-  public castExpandedSpell(spell: ISpellCard, targetCoord: string): boolean {
+  public castExpandedSpell(
+    spell: ISpellCard,
+    targetCoord: string,
+    sourceCoord?: string
+  ): boolean {
     if (!this.expandedSpellState) return false;
 
     const domain = gameStore.getState().domain;
@@ -622,6 +626,19 @@ export class UniversalMatchController {
       } else if (spell.type === 'MIRROR_SHIELD') {
         const entityId = domain.occupancy[asCoordinateKey(targetCoord)] ?? '';
         nextState = SpellChessEngine.castMirrorShield(nextState, player, entityId);
+      } else if (spell.type === 'PORTAL') {
+        const firstCoord = sourceCoord ?? '';
+        const destinationCoord = targetCoord;
+        if (!firstCoord || !destinationCoord || firstCoord === destinationCoord) {
+          return false;
+        }
+        if (
+          domain.occupancy[asCoordinateKey(firstCoord)] ||
+          domain.occupancy[asCoordinateKey(destinationCoord)]
+        ) {
+          return false;
+        }
+        nextState = SpellChessEngine.castPortal(nextState, player, firstCoord, destinationCoord);
       }
       this.expandedSpellState = nextState;
       this.notify();

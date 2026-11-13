@@ -8,7 +8,7 @@
  *   1. Official Freeze Cluster Scan: Scans 3x3 areas for maximum enemy value (Queen + Rook/King)
  *      to immobilize opponent counterplay.
  *   2. Jump Assassination: Detects obstructed attack rays and grants Jump to execute surprise captures.
- *   3. Expanded Mana Economics: Reserves mana for devastating spells (Meteor, Portal, Resurrection).
+ *   3. Expanded Mana Economics: Reserves mana for supported portal and freeze plays.
  */
 
 import {
@@ -62,26 +62,22 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
     if (level >= 2) {
       if (isExpanded) {
         // Expanded Spell Chess (Mana system: 1 to 7)
-        if (currentMana >= 5 && level >= 3) {
-          // Cast METEOR on opponent backrank cluster
-          secondaryAction = {
-            type: 'CAST_SPELL',
-            payload: {
-              spellType: 'METEOR',
-              targetCoord: opponentKingCoord,
-            },
-          };
-          bestScore += 450;
-        } else if (currentMana >= 4 && level >= 4) {
-          // Cast PORTAL to teleport piece to attack square
-          secondaryAction = {
-            type: 'CAST_SPELL',
-            payload: {
-              spellType: 'PORTAL',
-              sourceCoord: bestMove.from,
-              targetCoord: bestMove.to,
-            },
-          };
+        if (currentMana >= 4 && level >= 4) {
+          const emptySquares = Object.keys(request.domain?.occupancy ?? {}).length < 64
+            ? this.getEmptySquares(request)
+            : [];
+          const [sourceCoord, destinationCoord] = emptySquares;
+          if (sourceCoord && destinationCoord) {
+            // Link two vacant squares; the controller validates both endpoints.
+            secondaryAction = {
+              type: 'CAST_SPELL',
+              payload: {
+                spellType: 'PORTAL',
+                sourceCoord,
+                targetCoord: destinationCoord,
+              },
+            };
+          }
           bestScore += 300;
         } else if (currentMana >= 2) {
           // Cast FREEZE on opponent high-value square
@@ -146,5 +142,17 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
     const file = coord.charCodeAt(0) - 97;
     const rank = parseInt(coord.slice(1), 10) - 1;
     return [isNaN(file) ? 3 : file, isNaN(rank) ? 3 : rank];
+  }
+
+  private getEmptySquares(request: IAIDecisionRequest): string[] {
+    const occupied = new Set(Object.keys(request.domain?.occupancy ?? {}));
+    const empty: string[] = [];
+    for (let x = 0; x < 8; x++) {
+      for (let y = 0; y < 8; y++) {
+        const coord = `${x},${y}`;
+        if (!occupied.has(coord)) empty.push(coord);
+      }
+    }
+    return empty;
   }
 }
