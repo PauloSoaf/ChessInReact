@@ -252,6 +252,16 @@ export class UniversalMatchController {
     return this.config.slots.find((s) => s.slotIndex === slotIdx) ?? this.config.slots[slotIdx];
   }
 
+  /**
+   * Resolves bot ownership by the active player identity, never by a fixed
+   * P2 assumption. This is the single predicate used by autonomous turn
+   * scheduling and manual bot stepping.
+   */
+  public isBotPlayer(playerId: PlayerId): boolean {
+    const slot = this.getSlotForPlayer(playerId);
+    return slot?.role === 'AI_BOT' || slot?.role === 'BOT_STANDIN';
+  }
+
   public getActiveSlot(): IParticipantSlot {
     const domain = gameStore.getState().domain;
     return this.getSlotForPlayer(domain.activePlayer) ?? this.config.slots[0];
@@ -328,8 +338,7 @@ export class UniversalMatchController {
     const activeSlot = this.getSlotForPlayer(domain.activePlayer);
     if (!activeSlot) return;
 
-    const isBot = activeSlot.role === 'AI_BOT' || activeSlot.role === 'BOT_STANDIN';
-    if (!isBot) return;
+    if (!this.isBotPlayer(domain.activePlayer)) return;
 
     this.clearAutonomousTimer();
 
@@ -353,8 +362,7 @@ export class UniversalMatchController {
     const activeSlot = this.getSlotForPlayer(domain.activePlayer);
     if (!activeSlot) return false;
 
-    const isBot = activeSlot.role === 'AI_BOT' || activeSlot.role === 'BOT_STANDIN';
-    if (!isBot) return false;
+    if (!this.isBotPlayer(domain.activePlayer)) return false;
 
     const requestId = ++this.botRequestSequence;
     this.activeBotRequestId = requestId;

@@ -284,4 +284,27 @@ describe('UniversalMatchController (Universal Gameplay Lifecycle & 0-Human Spect
     const pieces = Object.values(domain.boardEntities).filter((e): e is IPieceEntity => e.type === 'PIECE');
     expect(pieces.length).toBeGreaterThan(0);
   });
+
+  it.each([2, 4, 6])(
+    'uses the configured playerId as bot authority in %i-player matches',
+    async (participantCount) => {
+      let config = MatchConfigurationManager.createDefaultMatch('standard', participantCount);
+      for (const slot of config.slots) {
+        config = MatchConfigurationManager.updateSlotRole(config, slot.slotIndex, 'AI_BOT');
+      }
+
+      controller = new UniversalMatchController(config);
+      controller.startMatch();
+      controller.togglePause();
+
+      expect(controller.isBotPlayer('P1')).toBe(true);
+      expect(controller.isBotPlayer(`P${participantCount}` as 'P1')).toBe(true);
+
+      const initialTurn = gameStore.getState().domain.turnNumber;
+      const stepped = await controller.stepBotTurn();
+
+      expect(stepped).toBe(true);
+      expect(gameStore.getState().domain.turnNumber).toBeGreaterThan(initialTurn);
+    }
+  );
 });
