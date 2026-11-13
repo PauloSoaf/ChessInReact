@@ -18,6 +18,9 @@ import { ISMCTSFogOfWarStrategy } from './strategies/ISMCTSFogOfWarStrategy';
 import { DuckChessPlannerStrategy } from './strategies/DuckChessPlannerStrategy';
 import { BughouseCoordinatedAgent } from './strategies/BughouseCoordinatedAgent';
 import { SpellOptimizationStrategy } from './strategies/SpellOptimizationStrategy';
+import { VariantSpecializedStrategy } from './strategies/VariantSpecializedStrategy';
+import { AlphaBetaMinimaxStrategy } from './strategies/AlphaBetaMinimaxStrategy';
+import { SimultaneousForecaster } from './strategies/SimultaneousForecaster';
 
 export class AIWorkerPool {
   private static readonly strategies = new Map<AIEngineStrategyId, IUniversalAIStrategy>();
@@ -31,6 +34,9 @@ export class AIWorkerPool {
     this.registerStrategy(new DuckChessPlannerStrategy());
     this.registerStrategy(new BughouseCoordinatedAgent());
     this.registerStrategy(new SpellOptimizationStrategy());
+    this.registerStrategy(new VariantSpecializedStrategy());
+    this.registerStrategy(new AlphaBetaMinimaxStrategy());
+    this.registerStrategy(new SimultaneousForecaster());
 
     this.initialized = true;
   }
@@ -45,6 +51,9 @@ export class AIWorkerPool {
   public static selectStrategyForVariant(variantId: string, participantCount: number = 2): AIEngineStrategyId {
     const v = variantId.toUpperCase();
 
+    if (v.includes('DIPLOMACY')) {
+      return 'CONCURRENT_ACTION_FORECASTER';
+    }
     if (participantCount > 2) {
       return 'MAXN_MULTIPLAYER';
     }
@@ -60,7 +69,13 @@ export class AIWorkerPool {
     if (v.includes('SPELL')) {
       return 'SPELL_OPTIMIZER';
     }
-    if (v.includes('ATOMIC') || v.includes('CRAZYHOUSE') || v.includes('CAPABLANCA')) {
+    if (
+      v.includes('ATOMIC') ||
+      v.includes('CRAZYHOUSE') ||
+      v.includes('CAPABLANCA') ||
+      v.includes('RACING') ||
+      v.includes('ANTICHESS')
+    ) {
       return 'VARIANT_SPECIALIZED';
     }
 
@@ -72,7 +87,8 @@ export class AIWorkerPool {
    */
   public static async dispatchDecision(request: IAIDecisionRequest): Promise<IAIDecisionResponse> {
     this.ensureInitialized();
-    const strategyId = this.selectStrategyForVariant(request.variantId);
+    const participants = Number(request.specializedContext?.participantCount ?? 2);
+    const strategyId = this.selectStrategyForVariant(request.variantId, participants);
     const strategy = this.strategies.get(strategyId);
 
     if (strategy) {

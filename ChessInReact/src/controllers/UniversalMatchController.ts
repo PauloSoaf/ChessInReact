@@ -361,7 +361,13 @@ export class UniversalMatchController {
 
       // Candidate empty squares for Duck Chess
       const emptySquares = this.getEmptySquares();
+      const opponentId: PlayerId = domain.activePlayer === 'P1' ? 'P2' : 'P1';
+      const friendlyKing = CheckValidator.findRoyalPiece(domain.activePlayer, domain);
+      const opponentKing = CheckValidator.findRoyalPiece(opponentId, domain);
       const specializedContext: Record<string, unknown> = {
+        participantCount: this.config.totalParticipants,
+        friendlyKingCoord: friendlyKing?.position,
+        opponentKingCoord: opponentKing?.position,
         emptySquares,
         duckCoordinate: this.duckState?.duckCoordinate,
         mana:
