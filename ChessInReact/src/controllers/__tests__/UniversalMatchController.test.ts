@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { UniversalMatchController } from '../UniversalMatchController';
 import { MatchConfigurationManager } from '../../matchmaking/config/MatchConfigurationManager';
 import { gameStore } from '../../core/state/gameStore';
 import { asCoordinateKey } from '../../core/coordinates';
 import { IPieceEntity } from '../../core/entities/types';
 import { SPELL_CATALOG } from '../../analysis/minigames/SpellChessEngine';
+import { AIWorkerPool } from '../../workers/ai/AIWorkerPool';
 
 describe('UniversalMatchController (Universal Gameplay Lifecycle & 0-Human Spectator)', () => {
   let controller: UniversalMatchController | null = null;
@@ -75,6 +76,70 @@ describe('UniversalMatchController (Universal Gameplay Lifecycle & 0-Human Spect
     expect(stepped).toBe(true);
     expect(gameStore.getState().domain.revision).toBeGreaterThan(initialRevision);
     expect(controller.getSnapshot().lastMoveSummary).not.toBeNull();
+  });
+
+  it('passes the configured bot difficulty to the universal AI strategy', async () => {
+    const dispatchSpy = vi.spyOn(AIWorkerPool, 'dispatchDecision');
+    let config = MatchConfigurationManager.createDefaultMatch('standard', 2);
+    config = MatchConfigurationManager.updateBotDifficulty(config, 0, 1);
+    config = MatchConfigurationManager.updateBotDifficulty(config, 1, 5);
+    config = MatchConfigurationManager.updateSlotRole(config, 0, 'AI_BOT');
+
+    controller = new UniversalMatchController(config);
+    controller.startMatch();
+    controller.togglePause();
+    await controller.stepBotTurn();
+
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        difficultyLevel: 1,
+        actingPlayer: 'P1',
+      })
+    );
+    dispatchSpy.mockRestore();
+  });
+
+  it('discards an AI decision when the match revision changes while awaiting it', async () => {
+    let resolveDecision!: (decision: Awaited<ReturnType<typeof AIWorkerPool.dispatchDecision>>) => void;
+    const decisionPromise = new Promise<Awaited<ReturnType<typeof AIWorkerPool.dispatchDecision>>>(
+      (resolve) => {
+        resolveDecision = resolve;
+      }
+    );
+    const dispatchSpy = vi
+      .spyOn(AIWorkerPool, 'dispatchDecision')
+      .mockReturnValueOnce(decisionPromise);
+
+    let config = MatchConfigurationManager.createDefaultMatch('standard', 2);
+    config = MatchConfigurationManager.updateSlotRole(config, 0, 'AI_BOT');
+    controller = new UniversalMatchController(config);
+    controller.startMatch();
+    controller.togglePause();
+    const stepPromise = controller.stepBotTurn();
+
+    gameStore.setState((state) => ({
+      domain: {
+        ...state.domain,
+        revision: state.domain.revision + 1,
+      },
+    }));
+
+    resolveDecision({
+      move: {
+        from: '4,6',
+        to: '4,4',
+        pieceId: 'b-pawn-4',
+      },
+      evaluationCentipawns: 0,
+      depthReached: 1,
+      nodesEvaluated: 1,
+      elapsedMs: 0,
+      strategyUsed: 'MINIMAX_ALPHA_BETA',
+    });
+
+    await expect(stepPromise).resolves.toBe(false);
+    expect(controller.getSnapshot().lastMoveSummary).toBeNull();
+    dispatchSpy.mockRestore();
   });
 
   it('executes the mandatory Duck Chess placement for a bot turn', async () => {

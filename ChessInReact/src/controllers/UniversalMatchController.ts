@@ -79,6 +79,9 @@ export class UniversalMatchController {
   // Timers & listeners
   private autonomousTimer: number | null = null;
   private isDisposedFlag = false;
+  private matchGeneration = 0;
+  private botRequestSequence = 0;
+  private activeBotRequestId = 0;
   private listeners = new Set<(snapshot: IUniversalMatchSnapshot) => void>();
   private storeUnsubscribe: (() => void) | null = null;
 
@@ -149,6 +152,12 @@ export class UniversalMatchController {
    * Initializes and boots a new match with the provided configuration.
    */
   public startMatch(config?: IMatchConfiguration): void {
+    // A new configuration invalidates every decision produced for the prior
+    // match, including decisions that are still awaiting an async strategy.
+    this.matchGeneration++;
+    this.activeBotRequestId = 0;
+    this.isThinkingState = false;
+
     if (config) {
       this.config = config;
       this.topology = this.resolveTopology(config);
@@ -211,6 +220,9 @@ export class UniversalMatchController {
 
   public togglePause(): void {
     this.isPausedState = !this.isPausedState;
+    if (this.isPausedState) {
+      this.activeBotRequestId = 0;
+    }
     this.notify();
     if (!this.isPausedState) {
       this.scheduleAutonomousTurnIfNeeded();
@@ -333,7 +345,7 @@ export class UniversalMatchController {
    * Executes a single step of bot deliberation and command dispatch.
    */
   public async stepBotTurn(): Promise<boolean> {
-    if (this.isDisposedFlag) return false;
+    if (this.isDisposedFlag || this.isThinkingState) return false;
 
     const domain = gameStore.getState().domain;
     if (domain.isGameOver) return false;
@@ -343,6 +355,16 @@ export class UniversalMatchController {
 
     const isBot = activeSlot.role === 'AI_BOT' || activeSlot.role === 'BOT_STANDIN';
     if (!isBot) return false;
+
+    const requestId = ++this.botRequestSequence;
+    this.activeBotRequestId = requestId;
+    const generation = this.matchGeneration;
+    const requestContext = {
+      matchId: domain.matchId,
+      revision: domain.revision,
+      activePlayer: domain.activePlayer,
+      turnNumber: domain.turnNumber,
+    };
 
     this.isThinkingState = true;
     this.notify();
@@ -412,6 +434,23 @@ export class UniversalMatchController {
         domain,
         topology: this.topology,
       });
+
+      const currentDomain = gameStore.getState().domain;
+      const isStaleRequest =
+        this.isDisposedFlag ||
+        generation !== this.matchGeneration ||
+        requestId !== this.activeBotRequestId ||
+        currentDomain.matchId !== requestContext.matchId ||
+        currentDomain.revision !== requestContext.revision ||
+        currentDomain.activePlayer !== requestContext.activePlayer ||
+        currentDomain.turnNumber !== requestContext.turnNumber ||
+        currentDomain.isGameOver;
+
+      // Never apply a move, spell, duck placement, or turn transition after
+      // reset, undo, abandonment, participant change, or a newer request.
+      if (isStaleRequest) {
+        return false;
+      }
 
       // 3. Apply the secondary action before the move when it grants a
       // modifier to the move itself (for example Official Jump).
@@ -679,6 +718,8 @@ export class UniversalMatchController {
 
   public dispose(): void {
     this.isDisposedFlag = true;
+    this.matchGeneration++;
+    this.activeBotRequestId = 0;
     this.clearAutonomousTimer();
     if (this.storeUnsubscribe) {
       this.storeUnsubscribe();

@@ -38,6 +38,16 @@ describe('Spec 16: Universal Match Configurator & Participant Slots', () => {
       expect(config.slots[2].botConfig?.difficultyLevel).toBe(5);
       expect(config.slots[2].botConfig?.archetype).toBe('MASTER');
     });
+
+    it('preserves every selected bot difficulty in the authoritative slot config', () => {
+      for (const level of [1, 2, 3, 4, 5] as const) {
+        const base = MatchConfigurationManager.createDefaultMatch('standard', 2);
+        const configured = MatchConfigurationManager.updateBotDifficulty(base, 1, level);
+
+        expect(configured.slots[1].botConfig?.difficultyLevel).toBe(level);
+        expect(configured.slots[1].displayName).toContain(`N${level}`);
+      }
+    });
   });
 
   describe('RF-16-04: Auto Stand-in Bot Takeover on Disconnect', () => {

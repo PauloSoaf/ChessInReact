@@ -136,7 +136,7 @@ const AppContent: React.FC = () => {
   const { undo, redo } = useGameActions();
 
   const {
-    isBotEnabled,
+    isBotEnabled: legacyBotEnabled,
     difficulty,
     isThinking,
     lastEval,
@@ -151,6 +151,18 @@ const AppContent: React.FC = () => {
   });
 
   const universalMatch = useUniversalMatch();
+  const isUniversalBotMatch = useMemo(
+    () =>
+      universalMatch.snapshot.config.matchId === domain.matchId &&
+      universalMatch.snapshot.config.slots.some(
+        (slot) => slot.role === 'AI_BOT' || slot.role === 'BOT_STANDIN'
+      ),
+    [domain.matchId, universalMatch.snapshot.config]
+  );
+  // Universal matches expose the same UI state without re-enabling the
+  // legacy controller. This keeps the presentation accurate while preserving
+  // one and only one bot command authority.
+  const isBotEnabled = isUniversalBotMatch || legacyBotEnabled;
   const duckCoordinate = useMemo(
     () => normalizeBoardCoordinate(universalMatch.snapshot.duckCoordinate),
     [universalMatch.snapshot.duckCoordinate]
@@ -450,11 +462,13 @@ const AppContent: React.FC = () => {
         handleBoardSizeChange(8);
       }
 
-      // Sync bot difficulty if slot 1 has botConfig
+      // The universal controller is authoritative for launched Hub matches.
+      // The legacy controller stays disabled so it cannot dispatch a second
+      // command for the same player and turn.
       if (config.slots[1]?.botConfig) {
         setDifficulty(config.slots[1].botConfig.difficultyLevel as AIDifficultyLevel);
       }
-      toggleBot(config.slots[1]?.role === 'AI_BOT' || config.slots[1]?.role === 'BOT_STANDIN');
+      toggleBot(false);
 
       triggerFeedback('GAME_EVENT', {
         message: `Partida iniciada: ${config.variantId.replace(/_/g, ' ')} (${config.totalParticipants} jogadores).`,
@@ -466,12 +480,16 @@ const AppContent: React.FC = () => {
 
   const handleStartBotMatch = useCallback(
     (level: number) => {
-      toggleBot(true);
       setDifficulty(level as AIDifficultyLevel);
-      const cfg = MatchConfigurationManager.createDefaultMatch('standard', 2);
+      let cfg = MatchConfigurationManager.createDefaultMatch('standard', 2);
+      cfg = MatchConfigurationManager.updateBotDifficulty(
+        cfg,
+        1,
+        level as AIDifficultyLevel
+      );
       handleLaunchMatch(cfg);
     },
-    [toggleBot, setDifficulty, handleLaunchMatch]
+    [setDifficulty, handleLaunchMatch]
   );
 
   const handleStartLocalMatch = useCallback(() => {
@@ -804,7 +822,7 @@ const AppContent: React.FC = () => {
                     >
                       <LazyChessBoard3D
                         boardSize={boardSize}
-                        isBotThinking={isThinking}
+                        isBotThinking={isThinking || universalMatch.snapshot.isThinking}
                         botPlayer={isBotEnabled ? 'P2' : undefined}
                         disabled={
                           universalMatch.snapshot.isSpectatorMatch ||
@@ -843,7 +861,7 @@ const AppContent: React.FC = () => {
                   >
                     <ChessBoard
                       boardSize={boardSize}
-                      isBotThinking={isThinking}
+                      isBotThinking={isThinking || universalMatch.snapshot.isThinking}
                       botPlayer={isBotEnabled ? 'P2' : undefined}
                       disabled={
                         universalMatch.snapshot.isSpectatorMatch ||
@@ -1071,8 +1089,8 @@ const AppContent: React.FC = () => {
                 isThinking={isThinking}
                 lastEval={lastEval}
                 boardSize={boardSize}
-                onToggleBot={toggleBot}
-                onSetDifficulty={setDifficulty}
+                onToggleBot={isUniversalBotMatch ? () => undefined : toggleBot}
+                onSetDifficulty={isUniversalBotMatch ? () => undefined : setDifficulty}
                 onBoardSizeChange={handleBoardSizeChange}
                 onUndo={handleUndo}
                 onRedo={handleRedo}
@@ -1085,7 +1103,9 @@ const AppContent: React.FC = () => {
                   clearFeedback();
                   updatePreferences({ boardViewMode: mode });
                 }}
-                onForceBotMove={forceBotMove}
+                onForceBotMove={
+                  isUniversalBotMatch ? () => void universalMatch.stepForward() : forceBotMove
+                }
                 onOfferDraw={handleOfferDraw}
                 onResign={handleResign}
                 isGameOver={isGameOver}
