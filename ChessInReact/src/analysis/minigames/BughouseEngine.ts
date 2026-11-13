@@ -379,6 +379,10 @@ export class BughouseEngine {
     const normTarget = this.normalizeCoord(targetCoord);
     const targetKey = asCoordinateKey(normTarget);
 
+    if (!this.topology.isValidCoordinate(targetKey)) {
+      return { allowed: false, reason: 'A casa de destino está fora do tabuleiro.' };
+    }
+
     // Pawn drop restriction: cannot drop on 1st or 8th rank
     if (pieceType === 'p') {
       const isFirstOrLastRank =
@@ -459,6 +463,24 @@ export class BughouseEngine {
 
       (nextDomain.boardEntities as Record<EntityId, IEntity>)[dropId] = droppedPiece;
       (nextDomain.occupancy as Record<CoordinateKey, EntityId>)[targetKey] = dropId;
+      (nextDomain as { activePlayer: 'P1' | 'P2' }).activePlayer =
+        player.color === 'WHITE' ? 'P2' : 'P1';
+      (nextDomain as { turnNumber: number }).turnNumber += 1;
+      (nextDomain.turnState as {
+        lastActionTimestamp: number;
+        fiftyMoveCounter: number;
+        enPassantTarget: CoordinateKey | null;
+      }).lastActionTimestamp = Date.now();
+      (nextDomain.turnState as {
+        lastActionTimestamp: number;
+        fiftyMoveCounter: number;
+        enPassantTarget: CoordinateKey | null;
+      }).fiftyMoveCounter = 0;
+      (nextDomain.turnState as {
+        lastActionTimestamp: number;
+        fiftyMoveCounter: number;
+        enPassantTarget: CoordinateKey | null;
+      }).enPassantTarget = null;
       (nextDomain as { revision: number }).revision = (nextDomain.revision || 0) + 1;
     }
 
