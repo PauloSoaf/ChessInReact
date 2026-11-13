@@ -134,6 +134,13 @@ describe('Spec 12 - BughouseEngine Authoritative & Security Hardening (S12-RF10,
     // Board B fullmove advanced to 2 and activeColor to WHITE
     expect(state.boardB.fullmoveNumber).toBe(2);
     expect(state.boardB.activeColor).toBe('WHITE');
+    expect(state.boardB.domainState?.activePlayer).toBe('P1');
+    expect(state.boardB.domainState?.turnNumber).toBe(3);
+
+    // The following move must be accepted after the drop; the domain turn
+    // cannot remain on the player who just dropped.
+    state = BughouseEngine.executeMove(state, 'BOARD_B', 'diana', { from: 'g2', to: 'g3' });
+    expect(state.boardB.activeColor).toBe('BLACK');
   });
 
   it('authoritatively rejects drops onto occupied squares even without external occupiedCoords', () => {
@@ -185,6 +192,10 @@ describe('Spec 12 - BughouseEngine Authoritative & Security Hardening (S12-RF10,
     const dropPawnRank8 = BughouseEngine.canDropPiece(state, 'BOARD_B', 'bob', 'p', 'c8');
     expect(dropPawnRank8.allowed).toBe(false);
     expect(dropPawnRank8.reason).toContain('primeira ou oitava fileira');
+
+    const dropOutsideBoard = BughouseEngine.canDropPiece(state, 'BOARD_B', 'bob', 'p', 'i5');
+    expect(dropOutsideBoard.allowed).toBe(false);
+    expect(dropOutsideBoard.reason).toContain('fora do tabuleiro');
   });
 
   it('authoritatively verifies checkmate (Fool\'s Mate) via RulesEngine and awards shared victory', () => {
