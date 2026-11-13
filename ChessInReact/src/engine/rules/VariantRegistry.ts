@@ -117,6 +117,23 @@ export class VariantRegistry {
     return this.variants.get(variantId.toUpperCase());
   }
 
+  /**
+   * Resolves the rules configuration (explosions, forced capture, drops, hill) for any
+   * match/variant key, tolerating catalog aliases such as "ATOMIC_CHESS" or "giveaway".
+   * Returns undefined for plain classical keys so default FIDE behaviour is unchanged.
+   */
+  public static resolveRulesConfig(variantKey: string | undefined | null): IVariantConfiguration | undefined {
+    if (!variantKey) return undefined;
+    const k = variantKey.toUpperCase();
+    const direct = this.variants.get(k);
+    if (direct && k !== 'CHESS_STANDARD') return direct.config;
+    if (k.includes('ATOMIC')) return this.variants.get('ATOMIC')?.config;
+    if (k.includes('ANTICHESS') || k.includes('GIVEAWAY')) return this.variants.get('ANTICHESS')?.config;
+    if (k.includes('CRAZYHOUSE')) return this.variants.get('CRAZYHOUSE')?.config;
+    if (k.includes('HILL')) return this.variants.get('KING_OF_THE_HILL')?.config;
+    return undefined;
+  }
+
   public static getAllVariants(): readonly IVariantDefinition[] {
     return Array.from(this.variants.values());
   }

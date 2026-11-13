@@ -13,6 +13,7 @@ import {
 import { BetzaParser } from './behaviors/BetzaParser';
 import { CheckValidator } from './CheckValidator';
 import { GameOverDetector } from './GameOverDetector';
+import { VariantRegistry } from './VariantRegistry';
 import { parseCoord, toCoordKey } from './utils/CoordinateHelper';
 
 const PROMOTION_OPTIONS: readonly PieceVariantId[] = ['QUEEN', 'ROOK', 'BISHOP', 'KNIGHT'];
@@ -27,6 +28,7 @@ export class RulesEngine {
     topology: ITopology,
     variantConfig?: IVariantConfiguration
   ): IValidationResult {
+    variantConfig = variantConfig ?? VariantRegistry.resolveRulesConfig(state.variantId);
     // 0. Game Over check (RF-01, RF-05)
     if (state.isGameOver || state.winnerId !== null) {
       return {
@@ -289,6 +291,7 @@ export class RulesEngine {
     topology: ITopology,
     variantConfig?: IVariantConfiguration
   ): ILegalMove[] {
+    variantConfig = variantConfig ?? VariantRegistry.resolveRulesConfig(state.variantId);
     const legalMoves: ILegalMove[] = [];
     const activePlayer = state.activePlayer;
 
@@ -333,6 +336,7 @@ export class RulesEngine {
     precomputedKing?: IPieceEntity | null,
     precomputedOpponentId?: PlayerId
   ): ILegalMove[] {
+    variantConfig = variantConfig ?? VariantRegistry.resolveRulesConfig(state.variantId);
     const isWhite = piece.ownerId === 'P1';
     const parsedFrom = parseCoord(piece.position);
     const vUpper = piece.variantId.toUpperCase();

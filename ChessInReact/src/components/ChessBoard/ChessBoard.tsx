@@ -24,6 +24,14 @@ export interface IChessBoardProps {
   invalidMoveFeedback?: IInvalidMoveFeedback | null;
   onTriggerInvalidMove?: (reason: InvalidMoveReason, options: ITriggerFeedbackOptions) => void;
   onClearInvalidMove?: () => void;
+  /** Duck Chess duck square (game coordinate key, e.g. "3,4") */
+  duckCoordinate?: string | null;
+  /** Spell Chess frozen squares (game coordinate keys) */
+  frozenCoordinates?: readonly string[];
+  /** Called after a successful human move in a variant with a secondary phase. */
+  onHumanPieceMoved?: (from: string, to: string, pieceId: string) => void;
+  /** Handles a variant-specific click such as Duck Chess placement. */
+  onVariantSquareClick?: (coordinate: string) => boolean;
 }
 
 export const ChessBoard: React.FC<IChessBoardProps> = ({
@@ -34,6 +42,10 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
   invalidMoveFeedback,
   onTriggerInvalidMove,
   onClearInvalidMove,
+  duckCoordinate,
+  frozenCoordinates,
+  onHumanPieceMoved,
+  onVariantSquareClick,
 }) => {
   const { preferences, activeBoardColors } = useTheme();
   const isFlipped = Boolean(preferences.flipBoard);
@@ -197,6 +209,10 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
         : boardSize - 1 - squareInfo.row;
     const clickedCoord = asCoordinateKey(`${gameX},${gameY}`);
 
+    if (onVariantSquareClick?.(clickedCoord)) {
+      return;
+    }
+
     const clickedEntityId = domain.occupancy[clickedCoord];
     const clickedEntity = clickedEntityId
       ? (domain.boardEntities[clickedEntityId] as IPieceEntity | undefined)
@@ -313,6 +329,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
         topology
       );
       executeCommand(moveCmd);
+      onHumanPieceMoved?.(activeSelected.position, clickedCoord, activeSelected.id);
     } catch (err) {
       console.warn('[RulesEngine] Move rejected by Core invariants / Rules Engine:', err);
     } finally {
@@ -385,6 +402,8 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               isCheckKingError={isCheckKingError}
               isCheckSourceError={isCheckSourceError}
               isCheckTargetError={isCheckTargetError}
+              hasDuck={Boolean(duckCoordinate) && duckCoordinate === coordKey}
+              isFrozen={Boolean(frozenCoordinates?.includes(coordKey))}
               rankLabel={rankLabel}
               fileLabel={fileLabel}
               tabIndex={isRovingActive ? 0 : -1}

@@ -77,6 +77,35 @@ describe('UniversalMatchController (Universal Gameplay Lifecycle & 0-Human Spect
     expect(controller.getSnapshot().lastMoveSummary).not.toBeNull();
   });
 
+  it('executes the mandatory Duck Chess placement for a bot turn', async () => {
+    let config = MatchConfigurationManager.createDefaultMatch('DUCK_CHESS', 2);
+    config = MatchConfigurationManager.updateSlotRole(config, 0, 'AI_BOT');
+
+    controller = new UniversalMatchController(config);
+    controller.startMatch();
+    controller.togglePause();
+
+    const stepped = await controller.stepBotTurn();
+
+    expect(stepped).toBe(true);
+    expect(controller.getSnapshot().duckPhase).toBe('PIECE_MOVE');
+    expect(controller.getSnapshot().duckCoordinate).not.toBeNull();
+  });
+
+  it('executes the bot spell action instead of only returning it', async () => {
+    let config = MatchConfigurationManager.createDefaultMatch('SPELL_CHESS_OFFICIAL', 2);
+    config = MatchConfigurationManager.updateSlotRole(config, 0, 'AI_BOT');
+
+    controller = new UniversalMatchController(config);
+    controller.startMatch();
+    controller.togglePause();
+
+    const stepped = await controller.stepBotTurn();
+
+    expect(stepped).toBe(true);
+    expect(controller.getSnapshot().officialSpellState?.whiteCharges.jumpCharges).toBe(1);
+  });
+
   it('orchestrates Duck Chess two-phase atomic turns', async () => {
     const config = MatchConfigurationManager.createDefaultMatch('DUCK_CHESS', 2);
     controller = new UniversalMatchController(config);

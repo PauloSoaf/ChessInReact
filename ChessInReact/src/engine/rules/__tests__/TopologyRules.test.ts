@@ -20,6 +20,10 @@ describe('Multi-Topology Pure Rules Compatibility (Spec 04 RF-07, RF-08)', () =>
       P6: [],
       P7: [],
       P8: [],
+      P9: [],
+      P10: [],
+      P11: [],
+      P12: [],
       NONE: [],
     };
     return {

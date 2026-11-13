@@ -15,6 +15,7 @@
 import { asCoordinateKey, asEntityId, createSquareCoord, PlayerId, SquareCodec } from '../core/coordinates';
 import { MovePieceCommand } from '../core/commands/MovePieceCommand';
 import { RulesEngine } from '../engine/rules/RulesEngine';
+import { VariantRegistry } from '../engine/rules/VariantRegistry';
 import { CheckValidator } from '../engine/rules/CheckValidator';
 import { ITopology } from '../core/topology/types';
 import { SquareTopology } from '../core/topology/SquareTopology';
@@ -26,7 +27,12 @@ import { AIWorkerPool } from '../workers/ai/AIWorkerPool';
 import { VariantPieceInitializer } from '../engine/variants/VariantPieceInitializer';
 import { DuckChessEngine, DuckTurnPhase, IDuckChessState } from '../analysis/minigames/DuckChessEngine';
 import { OfficialSpellEngine, IOfficialSpellState } from '../engine/variants/spells/OfficialSpellEngine';
-import { SpellChessEngine, ISpellGameState, ISpellCard } from '../analysis/minigames/SpellChessEngine';
+import {
+  SpellChessEngine,
+  ISpellGameState,
+  ISpellCard,
+  SPELL_CATALOG,
+} from '../analysis/minigames/SpellChessEngine';
 import { TurnCycleManager, ITurnCycleState } from '../engine/multiplayer/arenas/TurnCycleManager';
 import { FFAScoringEngine, IFFAPlayerScore } from '../engine/multiplayer/arenas/FFAScoringEngine';
 import { CompositeArenaLayouts } from '../engine/multiplayer/arenas/CompositeArenaLayouts';
@@ -43,6 +49,7 @@ export interface IUniversalMatchSnapshot {
   readonly lastMoveSummary: string | null;
   readonly duckCoordinate: string | null;
   readonly duckPhase: DuckTurnPhase;
+  readonly frozenCoordinates: readonly string[];
   readonly officialSpellState: IOfficialSpellState | null;
   readonly expandedSpellState: ISpellGameState | null;
   readonly scores: Readonly<Record<string, number>>;
@@ -165,6 +172,14 @@ export class UniversalMatchController {
       targetStore: gameStore,
     });
 
+    // Persist the rules variant in the authoritative state so legality, explosions,
+    // forced captures and drops apply for humans, bots and the 2D/3D boards alike.
+    const rulesConfig = VariantRegistry.resolveRulesConfig(this.config.variantId);
+    if (rulesConfig) {
+      gameStore.setState((s) => ({
+        domain: { ...s.domain, variantId: rulesConfig.variantId },
+      }));
+    }
     // Ensure store listener is active
     if (!this.storeUnsubscribe) {
       this.storeUnsubscribe = gameStore.subscribe(() => {
@@ -253,6 +268,10 @@ export class UniversalMatchController {
       lastMoveSummary: this.lastMoveSummaryStr,
       duckCoordinate: this.duckState?.duckCoordinate ?? null,
       duckPhase: this.duckState?.currentPhase ?? 'PIECE_MOVE',
+      frozenCoordinates: [
+        ...(this.officialSpellState ? Object.keys(this.officialSpellState.activeFrozenCoordinates) : []),
+        ...(this.expandedSpellState ? Object.keys(this.expandedSpellState.frozenCoordinates) : []),
+      ],
       officialSpellState: this.officialSpellState,
       expandedSpellState: this.expandedSpellState,
       scores,
@@ -394,8 +413,16 @@ export class UniversalMatchController {
         topology: this.topology,
       });
 
-      // 3. Execute MovePieceCommand on core domain
+      // 3. Apply the secondary action before the move when it grants a
+      // modifier to the move itself (for example Official Jump).
+      this.applyBotSecondaryAction(decision.secondaryAction);
+
+      // 4. Execute MovePieceCommand on core domain
       const best = decision.move;
+      const targetEntityId = domain.occupancy[asCoordinateKey(best.to)];
+      const capturedEntity = targetEntityId
+        ? domain.boardEntities[targetEntityId]
+        : undefined;
       const cmd = new MovePieceCommand(
         asEntityId(best.pieceId),
         asCoordinateKey(best.from),
@@ -411,21 +438,35 @@ export class UniversalMatchController {
       gameStore.getState().executeCommand(cmd);
       this.lastMoveSummaryStr = `${best.from} → ${best.to}`;
 
-      // 4. Handle secondary variant mechanics
+      // 5. Complete Duck Chess' mandatory second phase through its engine.
       if (this.duckState) {
+        this.duckState = DuckChessEngine.executePieceMove(this.duckState, {
+          from: best.from,
+          to: best.to,
+          pieceId: best.pieceId,
+          capturedPieceType:
+            capturedEntity?.type === 'PIECE' ? capturedEntity.variantId : undefined,
+        });
+
+        if (this.duckState.isGameOver) {
+          gameStore.setState((s) => ({
+            domain: {
+              ...s.domain,
+              isGameOver: true,
+              winnerId: domain.activePlayer,
+            },
+          }));
+          return true;
+        }
+
         const targetDuck =
           (decision.secondaryAction?.payload?.targetCoordinate as string) ??
           emptySquares.find((sq) => sq !== best.to) ??
           'e4';
-        this.duckState = {
-          ...this.duckState,
-          duckCoordinate: targetDuck,
-          currentPhase: 'PIECE_MOVE',
-          activePlayer: domain.activePlayer === 'P1' ? 'BLACK' : 'WHITE',
-        };
+        this.placeDuck(targetDuck);
       }
 
-      // 5. Handle multiplayer turn cycling if > 2 players
+      // 6. Handle multiplayer turn cycling if > 2 players
       if (this.config.totalParticipants > 2 && this.turnCycleState) {
         this.turnCycleState = TurnCycleManager.advanceTurn(this.turnCycleState);
         const nextFaction = TurnCycleManager.getActiveFaction(this.turnCycleState);
@@ -447,6 +488,36 @@ export class UniversalMatchController {
       this.isThinkingState = false;
       this.notify();
       this.scheduleAutonomousTurnIfNeeded();
+    }
+  }
+
+  private applyBotSecondaryAction(
+    action: {
+      readonly type: 'PLACE_DUCK' | 'CAST_SPELL' | 'DROP_PIECE';
+      readonly payload: Readonly<Record<string, unknown>>;
+    } | undefined
+  ): void {
+    if (!action || action.type !== 'CAST_SPELL') return;
+
+    const spellType = action.payload.spellType;
+    if (this.officialSpellState && (spellType === 'FREEZE' || spellType === 'JUMP')) {
+      const target =
+        spellType === 'FREEZE'
+          ? (action.payload.targetCoord as string)
+          : (action.payload.targetPieceId as string);
+      this.castOfficialSpell(spellType, target);
+      return;
+    }
+
+    if (this.expandedSpellState && typeof spellType === 'string') {
+      const spell = SPELL_CATALOG.find((candidate) => candidate.type === spellType);
+      const target =
+        (action.payload.targetCoord as string) ??
+        (action.payload.sourceCoord as string) ??
+        '';
+      if (spell) {
+        this.castExpandedSpell(spell, target);
+      }
     }
   }
 
@@ -585,7 +656,7 @@ export class UniversalMatchController {
     const match = factionId.match(/^FACTION_(\d+)$/);
     if (!match) return 'P1';
     const num = parseInt(match[1], 10);
-    const clamped = Math.max(1, Math.min(8, num));
+    const clamped = Math.max(1, Math.min(12, num));
     return `P${clamped}` as PlayerId;
   }
 

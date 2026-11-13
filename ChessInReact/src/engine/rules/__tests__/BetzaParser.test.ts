@@ -25,6 +25,10 @@ describe('BetzaParser & Primitive Behaviors (Spec 04 RF-03, RF-06, RF-07, RNF-10
       P6: [],
       P7: [],
       P8: [],
+      P9: [],
+      P10: [],
+      P11: [],
+      P12: [],
       NONE: [],
     };
     return {

@@ -13,6 +13,9 @@ export interface IBoardSquare {
   isCheckKingError?: boolean;
   isCheckSourceError?: boolean;
   isCheckTargetError?: boolean;
+  /** Variant overlays (Duck Chess duck / Spell Chess frozen square). */
+  hasDuck?: boolean;
+  isFrozen?: boolean;
   rankLabel?: string;
   fileLabel?: string;
   tabIndex?: number;

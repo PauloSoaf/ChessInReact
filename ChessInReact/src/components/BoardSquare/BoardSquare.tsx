@@ -16,6 +16,8 @@ const BoardSquare: React.FC<IBoardSquare> = ({
   isCheckKingError,
   isCheckSourceError,
   isCheckTargetError,
+  hasDuck,
+  isFrozen,
   rankLabel,
   fileLabel,
   tabIndex,
@@ -256,6 +258,44 @@ const BoardSquare: React.FC<IBoardSquare> = ({
           pieceSet={pieceSet}
         />
       ) : null}
+
+      {/* Spell Chess: frozen square overlay */}
+      {isFrozen && (
+        <div
+          data-testid="frozen-square-overlay"
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundColor: 'rgba(6, 182, 212, 0.28)',
+            boxShadow: 'inset 0 0 0 2px #06b6d4, inset 0 0 14px rgba(103, 232, 249, 0.6)',
+            pointerEvents: 'none',
+            zIndex: 1,
+          }}
+        />
+      )}
+
+      {/* Duck Chess: neutral blocking duck */}
+      {hasDuck && (
+        <span
+          data-testid="duck-marker"
+          role="img"
+          aria-label="Pato (bloqueia a casa)"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.5rem',
+            pointerEvents: 'none',
+            zIndex: 3,
+            filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.5))',
+          }}
+        >
+          🦆
+        </span>
+      )}
     </div>
   );
 };

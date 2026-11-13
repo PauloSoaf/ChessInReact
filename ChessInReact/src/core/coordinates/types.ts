@@ -4,7 +4,20 @@
  */
 export type CoordinateKey = string & { readonly __brand: unique symbol };
 export type EntityId = string & { readonly __brand: unique symbol };
-export type PlayerId = 'P1' | 'P2' | 'P3' | 'P4' | 'P5' | 'P6' | 'P7' | 'P8' | 'NONE';
+export type PlayerId =
+  | 'P1'
+  | 'P2'
+  | 'P3'
+  | 'P4'
+  | 'P5'
+  | 'P6'
+  | 'P7'
+  | 'P8'
+  | 'P9'
+  | 'P10'
+  | 'P11'
+  | 'P12'
+  | 'NONE';
 
 /**
  * Creates a branded CoordinateKey from a validated string.
