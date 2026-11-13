@@ -7,6 +7,7 @@ import {
   ITacticalPuzzle,
   PuzzleRushMode,
 } from '../../../analysis/minigames/PuzzleRushEngine';
+import { PuzzleBattleBotStrategy } from '../../../workers/ai/strategies/PuzzleBattleBotStrategy';
 
 export interface IPuzzleRushArenaProps {
   onBackToHub: () => void;
@@ -25,6 +26,7 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
   );
   const [candidateMove, setCandidateMove] = useState('');
   const [feedback, setFeedback] = useState<{ isCorrect: boolean; message: string } | null>(null);
+  const [botPuzzleIndex, setBotPuzzleIndex] = useState(0);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -43,6 +45,32 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [session.isGameOver, session.isPaused, session.timeRemainingMs]);
+
+  // Local Puzzle Battle opponent: the bot consumes the same ordered puzzle stream
+  // and publishes its score through the authoritative session transition.
+  useEffect(() => {
+    if (session.mode !== 'BATTLE' || session.isGameOver || session.isPaused) return;
+
+    const puzzle = puzzles[botPuzzleIndex];
+    if (!puzzle) return;
+
+    const result = PuzzleBattleBotStrategy.simulatePuzzleAttempt(
+      1600,
+      puzzle.rating,
+      puzzle.solutionMoves[0] ?? ''
+    );
+    const timeout = setTimeout(() => {
+      setSession((prev) =>
+        PuzzleRushEngine.updateOpponentScore(
+          prev,
+          (prev.battleOpponentScore ?? 0) + (result.isSolved ? 1 : 0)
+        )
+      );
+      setBotPuzzleIndex((prev) => prev + 1);
+    }, result.thinkTimeMs);
+
+    return () => clearTimeout(timeout);
+  }, [botPuzzleIndex, puzzles, session.isGameOver, session.isPaused, session.mode]);
 
   const currentPuzzle: ITacticalPuzzle | undefined = puzzles[session.currentPuzzleIndex];
 
@@ -76,6 +104,7 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
     setSession(PuzzleRushEngine.createSession(initialMode));
     setFeedback(null);
     setCandidateMove('');
+    setBotPuzzleIndex(0);
   }, [initialMode]);
 
   const formatTime = (ms: number) => {
@@ -156,6 +185,21 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
           >
             🏆 {session.score}
           </span>
+
+          {session.mode === 'BATTLE' && (
+            <span
+              id="pr-opponent-score"
+              aria-label={`Pontuação do bot: ${session.battleOpponentScore ?? 0}`}
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '1.05rem',
+                fontWeight: 800,
+                color: 'var(--color-warning)',
+              }}
+            >
+              🤖 {session.battleOpponentScore ?? 0}
+            </span>
+          )}
 
           {session.lives !== Infinity && (
             <span id="pr-lives" style={{ fontSize: '1.1rem' }}>
