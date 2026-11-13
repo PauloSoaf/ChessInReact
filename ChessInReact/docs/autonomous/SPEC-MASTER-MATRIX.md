@@ -12,7 +12,7 @@
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Spec 01 (Core State & ECS)** | 16 | 16 | 0 | 0 | 0 |
 | **Spec 02 (Procedural & Topology)** | 18 | 18 | 0 | 0 | 0 |
-| **Spec 03 (Multiplayer Colyseus)** | 14 | 10 | 2 | 0 | 2 (Cloud Deploy) |
+| **Spec 03 (Multiplayer Colyseus)** | 14 | 13 | 0 | 0 | 1 (Cloud Deploy) |
 | **Spec 04 (Rules & Variants)** | 15 | 15 | 0 | 0 | 0 |
 | **Spec 05 (AI Engines & Bots)** | 16 | 16 | 0 | 0 | 0 |
 | **Spec 06 (UI/UX, HUD & Design)** | 19 | 19 | 0 | 0 | 0 |
@@ -26,7 +26,7 @@
 | **Spec 14 (Massive Multiplayer 3-12P)**| 7 | 7 | 0 | 0 | 0 |
 | **Spec 15 (Universal Bot Intelligence)**| 8 | 8 | 0 | 0 | 0 |
 | **Spec 16 (Lobby & Configurator)**| 7 | 7 | 0 | 0 | 0 |
-| **TOTAL** | **207** | **203** | **2** | **0** | **2** |
+| **TOTAL** | **207** | **206** | **0** | **0** | **1** |
 
 ---
 
@@ -63,7 +63,15 @@
 | **S03-RF03** | Validação Anti-Cheat no Servidor | P0 | `src-backend/game-server/` | `VERIFIED` | `multiplayerIntegration.test.ts` |
 | **S03-RF04** | Reconexão Transparente (Janela de 60s) | P1 | `src-backend/game-server/` | `VERIFIED` | `multiplayerRulesE2E.test.ts` |
 | **S03-RF05** | Simulação a 20 Hz com Buffer de Comandos | P1 | `src-backend/game-server/` | `VERIFIED` | `multiplayerIntegration.test.ts` |
+| **S03-RF06** | Suporte a Turnos Simultâneos & Resolução Atômica | P1 | `src-backend/game-server/rooms/` | `VERIFIED` | `MultiplayerArenaRoom.test.ts` |
+| **S03-RF07** | Arbitragem Determinística de Colisões Simultâneas | P1 | `engine/multiplayer/arenas/` | `VERIFIED` | `SimultaneousResolutionEngine.ts` |
+| **S03-RF10** | Canal Dedicado para Espectadores (Read-Only) | P1 | `src-backend/game-server/` | `VERIFIED` | `multiplayerRulesE2E.test.ts`, `MultiplayerArenaRoom.test.ts` |
+| **S03-RF11** | Rate Limiting de Comandos (<= 10 req/s) | P1 | `src-backend/game-server/rooms/RateLimiter.ts` | `VERIFIED` | `RateLimiter.test.ts` |
+| **S03-RF12** | Autenticação por Token JWT em Handshake | P0 | `src-backend/game-server/auth/` | `VERIFIED` | `jwtAuth.test.ts` (9 testes) |
 | **S03-RNF01** | Deploy em Cluster Nuvem Gratuito | P2 | Infraestrutura CI/CD | `DEFERRED` | Requer infraestrutura física em nuvem |
+| **S03-RNF02** | Latência de Processamento de Tick (< 5ms) | P1 | `src-backend/game-server/` | `VERIFIED` | `multiplayerBenchmark.test.ts` (avg < 2.0ms) |
+| **S03-RNF03** | Limite de Memória RAM (< 250 MB para 20 salas) | P1 | `src-backend/game-server/` | `VERIFIED` | `multiplayerBenchmark.test.ts` (delta < 25 MB) |
+| **S03-RNF15** | Taxa de Atualização de Estado (Tick Rate 20 Hz) | P1 | `src-backend/game-server/` | `VERIFIED` | `multiplayerBenchmark.test.ts` & `MultiplayerArenaRoom.test.ts` |
 
 ### Spec 04: Rules Engine & Fairy Chess Variants
 | ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
