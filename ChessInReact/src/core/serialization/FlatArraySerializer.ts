@@ -260,6 +260,10 @@ export function serializeStateForWorker(
           P6: [...(domain.capturedInventory.P6 ?? [])],
           P7: [...(domain.capturedInventory.P7 ?? [])],
           P8: [...(domain.capturedInventory.P8 ?? [])],
+          P9: [...(domain.capturedInventory.P9 ?? [])],
+          P10: [...(domain.capturedInventory.P10 ?? [])],
+          P11: [...(domain.capturedInventory.P11 ?? [])],
+          P12: [...(domain.capturedInventory.P12 ?? [])],
           NONE: [],
         }
       : undefined,

@@ -72,6 +72,20 @@ const DIFFICULTY_LABELS: Record<AIDifficultyLevel, string> = {
   5: 'Mestre (N5)',
 };
 
+function normalizeBoardCoordinate(coordinate: string | null): string | null {
+  if (!coordinate) return null;
+  if (/^-?\d+,-?\d+$/.test(coordinate)) return coordinate;
+
+  const algebraic = coordinate.match(/^([a-zA-Z])([1-9]\d*)$/);
+  if (!algebraic) return null;
+
+  const file = algebraic[1].toLowerCase().charCodeAt(0) - 'a'.charCodeAt(0);
+  const rank = Number(algebraic[2]) - 1;
+  if (file < 0 || rank < 0) return null;
+
+  return `${file},${rank}`;
+}
+
 const AppContent: React.FC = () => {
   const [boardSize, setBoardSize] = useState(8);
   const [currentView, setCurrentView] = useState<AppView>(() => {
@@ -135,6 +149,17 @@ const AppContent: React.FC = () => {
   });
 
   const universalMatch = useUniversalMatch();
+  const duckCoordinate = useMemo(
+    () => normalizeBoardCoordinate(universalMatch.snapshot.duckCoordinate),
+    [universalMatch.snapshot.duckCoordinate]
+  );
+  const frozenCoordinates = useMemo(
+    () =>
+      universalMatch.snapshot.frozenCoordinates
+        .map(normalizeBoardCoordinate)
+        .filter((coordinate): coordinate is string => coordinate !== null),
+    [universalMatch.snapshot.frozenCoordinates]
+  );
 
   // Automatically fallback to 2D if WebGL is unavailable on device/browser (Spec 07 Priority 3)
   useEffect(() => {
@@ -782,6 +807,14 @@ const AppContent: React.FC = () => {
                         onTriggerInvalidMove={triggerFeedback}
                         onClearInvalidMove={clearFeedback}
                         onFallbackTo2D={() => updatePreferences({ boardViewMode: '2D' })}
+                        duckCoordinate={duckCoordinate}
+                        frozenCoordinates={frozenCoordinates}
+                        onHumanPieceMoved={universalMatch.onHumanPieceMoved}
+                        onVariantSquareClick={
+                          universalMatch.snapshot.duckPhase === 'PLACE_DUCK'
+                            ? universalMatch.placeDuck
+                            : undefined
+                        }
                       />
                     </React.Suspense>
                   </ChessBoard3DErrorBoundary>
@@ -811,6 +844,14 @@ const AppContent: React.FC = () => {
                       invalidMoveFeedback={invalidMoveFeedback}
                       onTriggerInvalidMove={triggerFeedback}
                       onClearInvalidMove={clearFeedback}
+                      duckCoordinate={duckCoordinate}
+                      frozenCoordinates={frozenCoordinates}
+                      onHumanPieceMoved={universalMatch.onHumanPieceMoved}
+                      onVariantSquareClick={
+                        universalMatch.snapshot.duckPhase === 'PLACE_DUCK'
+                          ? universalMatch.placeDuck
+                          : undefined
+                      }
                     />
                   </main>
                 )}

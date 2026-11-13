@@ -13,6 +13,7 @@ import { MovePieceCommand } from '../core/commands/MovePieceCommand';
 import { InstancedBoard } from './mesh/InstancedBoard';
 import { InstancedPieces } from './mesh/InstancedPieces';
 import { InstancedPieceBatcher } from './mesh/InstancedPieceBatcher.tsx';
+import { VariantOverlays3D } from './mesh/VariantOverlays3D';
 import { IInvalidMoveFeedback, ITriggerFeedbackOptions, InvalidMoveReason } from '../bindings/react/useMoveFeedback';
 
 export interface IChessBoard3DProps {
@@ -26,6 +27,12 @@ export interface IChessBoard3DProps {
   onTriggerInvalidMove?: (reason: InvalidMoveReason, options: ITriggerFeedbackOptions) => void;
   onClearInvalidMove?: () => void;
   onFallbackTo2D?: () => void;
+  /** Duck Chess duck square ("x,y") */
+  duckCoordinate?: string | null;
+  /** Spell Chess frozen squares ("x,y") */
+  frozenCoordinates?: readonly string[];
+  onHumanPieceMoved?: (from: string, to: string, pieceId: string) => void;
+  onVariantSquareClick?: (coordinate: string) => boolean;
 }
 
 /**
@@ -170,6 +177,10 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
   onTriggerInvalidMove,
   onClearInvalidMove,
   onFallbackTo2D,
+  duckCoordinate,
+  frozenCoordinates,
+  onHumanPieceMoved,
+  onVariantSquareClick,
 }) => {
   const { preferences, activeBoardColors, uiTheme } = useTheme();
 
@@ -218,6 +229,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
     (coord: string) => {
       if (disabled || isBotThinking) return;
       if (botPlayer && domain.activePlayer === botPlayer) return;
+      if (onVariantSquareClick?.(coord)) return;
 
       const entityAtCoord = activePieces.find((p) => p.position === coord);
 
@@ -312,6 +324,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           topology
         );
         executeCommand(moveCmd);
+        onHumanPieceMoved?.(selectedPiece.position, coord, selectedPiece.id);
       } catch (err) {
         console.warn('[ChessBoard3D] Move execution error:', err);
       } finally {
@@ -330,6 +343,8 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
       executeCommand,
       onTriggerInvalidMove,
       onClearInvalidMove,
+      onHumanPieceMoved,
+      onVariantSquareClick,
     ]
   );
 
@@ -384,6 +399,8 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
             legalMoveCoords.length,
             invalidMoveFeedback?.timestamp,
             uiTheme,
+            duckCoordinate,
+            frozenCoordinates?.join('|'),
           ]}
         />
 
@@ -434,6 +451,13 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
             onPieceClick={handlePieceClick}
           />
         )}
+
+        {/* Variant mechanics: Duck Chess duck and Spell Chess frozen squares */}
+        <VariantOverlays3D
+          boardSize={boardSize}
+          duckCoordinate={duckCoordinate}
+          frozenCoordinates={frozenCoordinates}
+        />
       </Canvas>
 
       {/* Interactive 3D HUD Badge & Safe 2D Fallback Button (Priority 3 & 8) */}

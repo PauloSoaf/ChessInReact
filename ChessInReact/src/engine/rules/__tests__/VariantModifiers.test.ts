@@ -24,6 +24,10 @@ describe('Variant Modifiers Pipeline Suite (Spec 04 RF-08 to RF-13)', () => {
       P6: [],
       P7: [],
       P8: [],
+      P9: [],
+      P10: [],
+      P11: [],
+      P12: [],
       NONE: [],
     };
     return {

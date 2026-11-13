@@ -99,6 +99,10 @@ export function reconstructDomainState(
     P6: [...(metadata?.capturedInventory?.P6 ?? [])],
     P7: [...(metadata?.capturedInventory?.P7 ?? [])],
     P8: [...(metadata?.capturedInventory?.P8 ?? [])],
+    P9: [...(metadata?.capturedInventory?.P9 ?? [])],
+    P10: [...(metadata?.capturedInventory?.P10 ?? [])],
+    P11: [...(metadata?.capturedInventory?.P11 ?? [])],
+    P12: [...(metadata?.capturedInventory?.P12 ?? [])],
     NONE: [],
   };
 
