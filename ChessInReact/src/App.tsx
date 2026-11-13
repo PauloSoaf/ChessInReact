@@ -11,6 +11,7 @@ import { TopNavBar, AppView } from './ui/components/navigation/TopNavBar';
 import { ThemeCustomizerModal } from './ui/components/navigation/ThemeCustomizerModal';
 import { GameHub } from './ui/components/hub/GameHub';
 import { PuzzleRushArena } from './ui/components/hub/PuzzleRushArena';
+import { BughouseArena } from './ui/components/hub/BughouseArena';
 import { PlayerCard } from './ui/components/game/PlayerCard';
 import { EvaluationBar } from './ui/components/game/EvaluationBar';
 import { GameControlsBar } from './ui/components/game/GameControlsBar';
@@ -92,6 +93,7 @@ const AppContent: React.FC = () => {
     if (typeof window !== 'undefined') {
       if (window.location.hash === '#game') return 'GAME';
       if (window.location.hash === '#puzzle_rush') return 'PUZZLE_RUSH';
+      if (window.location.hash === '#bughouse') return 'BUGHOUSE';
     }
     return 'HUB';
   });
@@ -198,7 +200,8 @@ const AppContent: React.FC = () => {
   const navigateTo = useCallback((view: AppView) => {
     setCurrentView(view);
     if (typeof window !== 'undefined') {
-      const targetHash = view === 'GAME' ? '#game' : view === 'PUZZLE_RUSH' ? '#puzzle_rush' : '#hub';
+      const targetHash =
+        view === 'GAME' ? '#game' : view === 'PUZZLE_RUSH' ? '#puzzle_rush' : view === 'BUGHOUSE' ? '#bughouse' : '#hub';
       if (window.location.hash !== targetHash) {
         window.location.hash = targetHash;
       }
@@ -485,6 +488,11 @@ const AppContent: React.FC = () => {
         navigateTo('PUZZLE_RUSH');
         return;
       }
+      if (minigameId === 'bughouse') {
+        clearFeedback();
+        navigateTo('BUGHOUSE');
+        return;
+      }
       const participantCount = minigameId.includes('3P') ? 3 : minigameId.includes('4P') ? 4 : 2;
       const defaultCfg = MatchConfigurationManager.createDefaultMatch(minigameId, participantCount);
       handleLaunchMatch(defaultCfg);
@@ -508,6 +516,8 @@ const AppContent: React.FC = () => {
       {/* Main Content Area */}
       {currentView === 'PUZZLE_RUSH' ? (
         <PuzzleRushArena onBackToHub={() => navigateTo('HUB')} />
+      ) : currentView === 'BUGHOUSE' ? (
+        <BughouseArena onBackToHub={() => navigateTo('HUB')} />
       ) : currentView === 'HUB' ? (
         <GameHub
           onStartBotMatch={handleStartBotMatch}

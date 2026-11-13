@@ -27,6 +27,7 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
   const [candidateMove, setCandidateMove] = useState('');
   const [feedback, setFeedback] = useState<{ isCorrect: boolean; message: string } | null>(null);
   const [botPuzzleIndex, setBotPuzzleIndex] = useState(0);
+  const [selectedMode, setSelectedMode] = useState<PuzzleRushMode>(initialMode);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -101,11 +102,19 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
   );
 
   const handleRestart = useCallback(() => {
-    setSession(PuzzleRushEngine.createSession(initialMode));
+    setSession(PuzzleRushEngine.createSession(selectedMode));
     setFeedback(null);
     setCandidateMove('');
     setBotPuzzleIndex(0);
-  }, [initialMode]);
+  }, [selectedMode]);
+
+  const handleModeChange = useCallback((mode: PuzzleRushMode) => {
+    setSelectedMode(mode);
+    setSession(PuzzleRushEngine.createSession(mode));
+    setFeedback(null);
+    setCandidateMove('');
+    setBotPuzzleIndex(0);
+  }, []);
 
   const formatTime = (ms: number) => {
     if (ms === Infinity) return '∞';
@@ -162,6 +171,19 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <label style={{ fontSize: '0.78rem' }}>
+            Modo{' '}
+            <select
+              aria-label="Modo Puzzle Rush"
+              value={selectedMode}
+              onChange={(event) => handleModeChange(event.target.value as PuzzleRushMode)}
+            >
+              <option value="SURVIVAL">Sobrevivência</option>
+              <option value="TIMED_3MIN">3 minutos</option>
+              <option value="TIMED_5MIN">5 minutos</option>
+              <option value="BATTLE">Battle vs Bot</option>
+            </select>
+          </label>
           <span
             id="pr-timer"
             style={{
