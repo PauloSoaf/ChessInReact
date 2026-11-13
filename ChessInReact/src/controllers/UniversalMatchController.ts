@@ -390,6 +390,8 @@ export class UniversalMatchController {
         timeBudgetMs: activeSlot.botConfig?.thinkTimeMs ?? 500,
         legalMoves: candidateMoves,
         specializedContext,
+        domain,
+        topology: this.topology,
       });
 
       // 3. Execute MovePieceCommand on core domain

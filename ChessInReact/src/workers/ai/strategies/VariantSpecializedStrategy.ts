@@ -14,6 +14,7 @@ import {
   IAIDecisionRequest,
   IAIDecisionResponse,
 } from '../interfaces/IUniversalAIEngine';
+import { decideWithSearch } from './SearchBackedDecision';
 
 export class VariantSpecializedStrategy implements IUniversalAIStrategy {
   public readonly strategyId = 'VARIANT_SPECIALIZED';
@@ -38,7 +39,9 @@ export class VariantSpecializedStrategy implements IUniversalAIStrategy {
       ({ bestMove, bestScore } = this.evaluateRacingKings(moves, level));
     } else if (variant.includes('ANTICHESS') || variant.includes('GIVEAWAY')) {
       ({ bestMove, bestScore } = this.evaluateAntichess(moves, level));
-    } else if (variant.includes('CAPABLANCA')) {
+    } else if (variant.includes('CAPABLANCA') || variant.includes('CRAZYHOUSE')) {
+      const searched = decideWithSearch(request, this.strategyId);
+      if (searched) return searched;
       ({ bestMove, bestScore } = this.evaluateCapablanca(moves, level));
     } else {
       ({ bestMove, bestScore } = this.evaluateGenericVariant(moves, level));

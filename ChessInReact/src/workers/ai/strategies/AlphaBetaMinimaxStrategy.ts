@@ -13,6 +13,7 @@ import {
   IAIDecisionRequest,
   IAIDecisionResponse,
 } from '../interfaces/IUniversalAIEngine';
+import { decideWithSearch } from './SearchBackedDecision';
 
 export class AlphaBetaMinimaxStrategy implements IUniversalAIStrategy {
   public readonly strategyId = 'MINIMAX_ALPHA_BETA';
@@ -26,6 +27,11 @@ export class AlphaBetaMinimaxStrategy implements IUniversalAIStrategy {
     }
 
     const level = request.difficultyLevel ?? 3;
+
+    // Real alpha-beta search when the authoritative state is available
+    const searched = decideWithSearch(request, this.strategyId);
+    if (searched) return searched;
+
     let bestMove = moves[0];
     let bestScore = -Infinity;
 

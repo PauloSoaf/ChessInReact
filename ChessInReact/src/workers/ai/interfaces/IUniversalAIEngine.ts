@@ -2,6 +2,9 @@
  * ChessInReact - Universal Bot Intelligence & Pluggable Engine Contracts (Spec 15 § 4, § 6)
  */
 
+import { IDomainState } from '../../../core/state/gameState';
+import { ITopology } from '../../../core/topology/types';
+
 export type AIEngineStrategyId =
   | 'MINIMAX_ALPHA_BETA'
   | 'VARIANT_SPECIALIZED'
@@ -28,6 +31,9 @@ export interface IAIDecisionRequest {
   }[];
   readonly visibleBoardState?: Readonly<Record<string, unknown>>;
   readonly specializedContext?: Readonly<Record<string, unknown>>;
+  /** Optional authoritative state enabling real tree search instead of heuristics. */
+  readonly domain?: IDomainState;
+  readonly topology?: ITopology;
 }
 
 export interface IAIDecisionResponse {
