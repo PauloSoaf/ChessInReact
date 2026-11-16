@@ -20,6 +20,7 @@ import { MultiplayerFactionRibbon } from './ui/components/game/MultiplayerFactio
 import { DuckChessBanner } from './ui/components/game/DuckChessBanner';
 import { OfficialSpellBar } from './ui/components/game/OfficialSpellBar';
 import { SpellCardHand } from './analysis/minigames/SpellCardHand';
+import { ISpellCard } from './analysis/minigames/SpellChessEngine';
 import { useUniversalMatch } from './bindings/react/useUniversalMatch';
 import { IMatchConfiguration } from './matchmaking/config/IMatchConfiguration';
 import { MatchConfigurationManager } from './matchmaking/config/MatchConfigurationManager';
@@ -99,6 +100,9 @@ const AppContent: React.FC = () => {
   });
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [pendingDrawOffer, setPendingDrawOffer] = useState<PlayerId | null>(null);
+  const [selectedOfficialSpell, setSelectedOfficialSpell] = useState<'FREEZE' | 'JUMP' | null>(null);
+  const [selectedExpandedSpell, setSelectedExpandedSpell] = useState<ISpellCard | null>(null);
+  const [portalFirstSquare, setPortalFirstSquare] = useState<string | null>(null);
 
   const { preferences, updatePreferences } = useTheme();
   const isBoardFlipped = Boolean(preferences.flipBoard);
@@ -224,8 +228,96 @@ const AppContent: React.FC = () => {
     cancelSearch();
     clearFeedback();
     setPendingDrawOffer(null);
-    bootstrapGame({ targetStore: gameStore });
-  }, [cancelSearch, clearFeedback]);
+    setSelectedOfficialSpell(null);
+    setSelectedExpandedSpell(null);
+    setPortalFirstSquare(null);
+    if (universalMatch.snapshot.config.matchId === gameStore.getState().domain.matchId) {
+      universalMatch.resetUniversalMatch();
+    } else {
+      bootstrapGame({ targetStore: gameStore });
+    }
+  }, [cancelSearch, clearFeedback, universalMatch]);
+
+  const handleToggleBot = useCallback(
+    (enabled: boolean) => {
+      if (universalMatch.snapshot.config.matchId === gameStore.getState().domain.matchId) {
+        universalMatch.updateSlotRole(1, enabled ? 'AI_BOT' : 'HUMAN_LOCAL', difficulty);
+        toggleBot(false);
+      } else {
+        toggleBot(enabled);
+      }
+    },
+    [universalMatch, difficulty, toggleBot]
+  );
+
+  const handleSetDifficulty = useCallback(
+    (level: AIDifficultyLevel) => {
+      setDifficulty(level);
+      if (universalMatch.snapshot.config.matchId === gameStore.getState().domain.matchId) {
+        universalMatch.updateBotDifficulty(1, level);
+      }
+    },
+    [setDifficulty, universalMatch]
+  );
+
+  const handleVariantSquareClick = useCallback(
+    (coord: string): boolean => {
+      if (universalMatch.snapshot.duckPhase === 'PLACE_DUCK') {
+        const placed = universalMatch.placeDuck(coord);
+        if (placed) {
+          clearFeedback();
+        }
+        return placed;
+      }
+
+      if (selectedOfficialSpell) {
+        const ok = universalMatch.castOfficialSpell(selectedOfficialSpell, coord);
+        if (ok) {
+          setSelectedOfficialSpell(null);
+          triggerFeedback('GAME_EVENT', {
+            message: `Feitiço ${selectedOfficialSpell} conjurado em ${coord}!`,
+          });
+          return true;
+        }
+        return false;
+      }
+
+      if (selectedExpandedSpell) {
+        if (selectedExpandedSpell.type === 'PORTAL' && !portalFirstSquare) {
+          setPortalFirstSquare(coord);
+          triggerFeedback('GAME_EVENT', {
+            message: `Primeira entrada do Portal em ${coord}. Clique na segunda casa vazia!`,
+          });
+          return true;
+        }
+        const ok = universalMatch.castExpandedSpell(
+          selectedExpandedSpell,
+          coord,
+          portalFirstSquare ?? undefined
+        );
+        if (ok) {
+          const spellName = selectedExpandedSpell.displayName;
+          const manaCost = selectedExpandedSpell.manaCost;
+          setSelectedExpandedSpell(null);
+          setPortalFirstSquare(null);
+          triggerFeedback('GAME_EVENT', {
+            message: `Feitiço ${spellName} conjurado em ${coord} (${manaCost} mana)!`,
+          });
+          return true;
+        }
+      }
+
+      return false;
+    },
+    [
+      universalMatch,
+      clearFeedback,
+      selectedOfficialSpell,
+      selectedExpandedSpell,
+      portalFirstSquare,
+      triggerFeedback,
+    ]
+  );
 
   const handleUndo = useCallback(() => {
     cancelSearch();
@@ -596,13 +688,39 @@ const AppContent: React.FC = () => {
                   <OfficialSpellBar
                     state={universalMatch.snapshot.officialSpellState}
                     activePlayer={activePlayer}
+                    selectedSpellType={selectedOfficialSpell}
                     onCastSpell={(spellType) => {
-                      const ok = universalMatch.castOfficialSpell(spellType, spellType === 'FREEZE' ? 'd4' : '');
-                      if (ok) {
-                        triggerFeedback('GAME_EVENT', {
-                          message: `Feitiço ${spellType} conjurado com sucesso!`,
-                        });
+                      const selectedPieceId = gameStore.getState().ui.selectedPieceId;
+                      if (spellType === 'JUMP' && selectedPieceId) {
+                        const ok = universalMatch.castOfficialSpell('JUMP', selectedPieceId);
+                        if (ok) {
+                          setSelectedOfficialSpell(null);
+                          triggerFeedback('GAME_EVENT', {
+                            message: 'Feitiço JUMP conjurado na peça selecionada!',
+                          });
+                          return;
+                        }
                       }
+                      if (selectedOfficialSpell === spellType) {
+                        const ok = universalMatch.castOfficialSpell(
+                          spellType,
+                          spellType === 'FREEZE' ? '3,3' : ''
+                        );
+                        setSelectedOfficialSpell(null);
+                        if (ok) {
+                          triggerFeedback('GAME_EVENT', {
+                            message: `Feitiço ${spellType} conjurado com sucesso!`,
+                          });
+                        }
+                        return;
+                      }
+                      setSelectedOfficialSpell(spellType);
+                      triggerFeedback('GAME_EVENT', {
+                        message:
+                          spellType === 'FREEZE'
+                            ? 'Feitiço FREEZE preparado! Clique na casa central 3×3 no tabuleiro (ou clique novamente no botão).'
+                            : 'Feitiço JUMP preparado! Clique na peça aliada no tabuleiro (ou clique novamente no botão).',
+                      });
                     }}
                   />
                 )}
@@ -614,13 +732,28 @@ const AppContent: React.FC = () => {
                     <SpellCardHand
                       state={universalMatch.snapshot.expandedSpellState}
                       activePlayer={activePlayer === 'P1' ? 'WHITE' : 'BLACK'}
+                      selectedSpellType={selectedExpandedSpell?.type ?? null}
                       onSelectSpell={(spell) => {
-                        const ok = universalMatch.castExpandedSpell(spell, 'e4');
-                        if (ok) {
-                          triggerFeedback('GAME_EVENT', {
-                            message: `Feitiço ${spell.displayName} conjurado por ${spell.manaCost} mana!`,
-                          });
+                        if (selectedExpandedSpell?.id === spell.id) {
+                          const ok = universalMatch.castExpandedSpell(
+                            spell,
+                            '4,3',
+                            spell.type === 'PORTAL' ? '3,3' : undefined
+                          );
+                          setSelectedExpandedSpell(null);
+                          setPortalFirstSquare(null);
+                          if (ok) {
+                            triggerFeedback('GAME_EVENT', {
+                              message: `Feitiço ${spell.displayName} conjurado por ${spell.manaCost} mana!`,
+                            });
+                          }
+                          return;
                         }
+                        setSelectedExpandedSpell(spell);
+                        setPortalFirstSquare(null);
+                        triggerFeedback('GAME_EVENT', {
+                          message: `Feitiço ${spell.displayName} preparado! Clique na casa-alvo no tabuleiro (ou clique novamente na carta).`,
+                        });
                       }}
                     />
                   </div>
@@ -826,9 +959,10 @@ const AppContent: React.FC = () => {
                         botPlayer={isBotEnabled ? 'P2' : undefined}
                         disabled={
                           universalMatch.snapshot.isSpectatorMatch ||
-                          universalMatch.snapshot.activeSlot?.role === 'AI_BOT' ||
-                          universalMatch.snapshot.activeSlot?.role === 'BOT_STANDIN' ||
-                          (isBotEnabled && activePlayer === 'P2')
+                          (universalMatch.snapshot.duckPhase !== 'PLACE_DUCK' &&
+                            (universalMatch.snapshot.activeSlot?.role === 'AI_BOT' ||
+                              universalMatch.snapshot.activeSlot?.role === 'BOT_STANDIN' ||
+                              (isBotEnabled && activePlayer === 'P2')))
                         }
                         isFlipped={isBoardFlipped}
                         invalidMoveFeedback={invalidMoveFeedback}
@@ -839,8 +973,10 @@ const AppContent: React.FC = () => {
                         frozenCoordinates={frozenCoordinates}
                         onHumanPieceMoved={universalMatch.onHumanPieceMoved}
                         onVariantSquareClick={
-                          universalMatch.snapshot.duckPhase === 'PLACE_DUCK'
-                            ? universalMatch.placeDuck
+                          universalMatch.snapshot.duckPhase === 'PLACE_DUCK' ||
+                          Boolean(selectedOfficialSpell) ||
+                          Boolean(selectedExpandedSpell)
+                            ? handleVariantSquareClick
                             : undefined
                         }
                       />
@@ -865,9 +1001,10 @@ const AppContent: React.FC = () => {
                       botPlayer={isBotEnabled ? 'P2' : undefined}
                       disabled={
                         universalMatch.snapshot.isSpectatorMatch ||
-                        universalMatch.snapshot.activeSlot?.role === 'AI_BOT' ||
-                        universalMatch.snapshot.activeSlot?.role === 'BOT_STANDIN' ||
-                        (isBotEnabled && activePlayer === 'P2')
+                        (universalMatch.snapshot.duckPhase !== 'PLACE_DUCK' &&
+                          (universalMatch.snapshot.activeSlot?.role === 'AI_BOT' ||
+                            universalMatch.snapshot.activeSlot?.role === 'BOT_STANDIN' ||
+                            (isBotEnabled && activePlayer === 'P2')))
                       }
                       invalidMoveFeedback={invalidMoveFeedback}
                       onTriggerInvalidMove={triggerFeedback}
@@ -876,8 +1013,10 @@ const AppContent: React.FC = () => {
                       frozenCoordinates={frozenCoordinates}
                       onHumanPieceMoved={universalMatch.onHumanPieceMoved}
                       onVariantSquareClick={
-                        universalMatch.snapshot.duckPhase === 'PLACE_DUCK'
-                          ? universalMatch.placeDuck
+                        universalMatch.snapshot.duckPhase === 'PLACE_DUCK' ||
+                        Boolean(selectedOfficialSpell) ||
+                        Boolean(selectedExpandedSpell)
+                          ? handleVariantSquareClick
                           : undefined
                       }
                     />
@@ -1086,11 +1225,11 @@ const AppContent: React.FC = () => {
               <GameControlsBar
                 isBotEnabled={isBotEnabled}
                 difficulty={difficulty}
-                isThinking={isThinking}
+                isThinking={isThinking || universalMatch.snapshot.isThinking}
                 lastEval={lastEval}
                 boardSize={boardSize}
-                onToggleBot={isUniversalBotMatch ? () => undefined : toggleBot}
-                onSetDifficulty={isUniversalBotMatch ? () => undefined : setDifficulty}
+                onToggleBot={handleToggleBot}
+                onSetDifficulty={handleSetDifficulty}
                 onBoardSizeChange={handleBoardSizeChange}
                 onUndo={handleUndo}
                 onRedo={handleRedo}

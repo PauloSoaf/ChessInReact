@@ -229,6 +229,10 @@ export class RulesEngine {
       const leavesInCheck = kingCoord
         ? CheckValidator.isSquareAttacked(kingCoord, opponentId, evalState, topology)
         : false;
+      const givesCheckInRacingKings =
+        !leavesInCheck &&
+        variantConfig?.variantId === 'RACING_KINGS' &&
+        CheckValidator.isRoyalInCheck(opponentId, evalState, topology);
 
       // Restore occupancy if not frozen
       if (!isFrozen) {
@@ -243,11 +247,13 @@ export class RulesEngine {
         }
       }
 
-      if (leavesInCheck) {
+      if (leavesInCheck || givesCheckInRacingKings) {
         return {
           valid: false,
           code: 'LEAVES_KING_IN_CHECK',
-          reason: 'Move would leave the king in check.',
+          reason: givesCheckInRacingKings
+            ? 'Racing Kings rule: Giving check is forbidden.'
+            : 'Move would leave the king in check.',
         };
       }
     }
@@ -513,6 +519,10 @@ export class RulesEngine {
         const leavesInCheck = kingCoord
           ? CheckValidator.isSquareAttacked(kingCoord, opponentId, evalState, topology)
           : false;
+        const givesCheckInRacingKings =
+          !leavesInCheck &&
+          variantConfig?.variantId === 'RACING_KINGS' &&
+          CheckValidator.isRoyalInCheck(opponentId, evalState, topology);
 
         // Restore occupancy if not frozen
         if (!isFrozen) {
@@ -527,8 +537,8 @@ export class RulesEngine {
           }
         }
 
-        if (leavesInCheck) {
-          continue; // Leaves king in check: ILLEGAL
+        if (leavesInCheck || givesCheckInRacingKings) {
+          continue; // Leaves king in check (or gives check in Racing Kings): ILLEGAL
         }
       }
 

@@ -120,7 +120,11 @@ export class SliderBehavior implements IMoveBehavior {
         // Check occupancy
         const occupantId = state.occupancy[next];
         if (occupantId) {
-          const occupant = state.boardEntities[occupantId] as IPieceEntity | undefined;
+          const rawOccupant = state.boardEntities[occupantId];
+          if (rawOccupant?.type === 'OBSTACLE') {
+            break;
+          }
+          const occupant = rawOccupant as IPieceEntity | undefined;
           if (occupant && occupant.type === 'PIECE' && !occupant.isCaptured) {
             // Friendly piece blocks sliding completely
             if (occupant.ownerId === piece.ownerId) {

@@ -144,6 +144,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
             name: entity.variantId,
             symbol: base.symbol,
             color: entity.ownerId === 'P1' ? 'white' : '#ed2fed',
+            ownerId: entity.ownerId,
           });
         } else {
           row.push(chessPieces.none);
@@ -189,8 +190,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
       domain.isGameOver ||
       domain.winnerId !== null ||
       isBotThinking ||
-      disabled ||
-      (botPlayer && domain.activePlayer === botPlayer)
+      disabled
     ) {
       return;
     }
@@ -210,6 +210,10 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
     const clickedCoord = asCoordinateKey(`${gameX},${gameY}`);
 
     if (onVariantSquareClick?.(clickedCoord)) {
+      return;
+    }
+
+    if (botPlayer && domain.activePlayer === botPlayer) {
       return;
     }
 

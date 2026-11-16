@@ -42,20 +42,63 @@ export class VariantPieceInitializer {
 
   /**
    * Spawns pieces for multiplayer arenas from composite arena definitions.
+   * Normalizes radial coordinates onto the [0, 15] x [0, 15] board when any
+   * raw coordinate lies outside non-negative board bounds.
    */
   private static createArenaPieces(layout: ReturnType<typeof CompositeArenaLayouts.getLayout> & object): IPieceEntity[] {
     const pieces: IPieceEntity[] = [];
+    const boardLimit = layout.boardType === 'SQUARE_CROSS' ? 14 : 16;
+
+    const hasOutOfBounds = layout.factions.some((f) =>
+      f.initialCoordinates.some((c) => {
+        const [x, y] = c.coordKey.split(',').map(Number);
+        return x < 0 || y < 0 || x >= boardLimit || y >= boardLimit;
+      })
+    );
+
+    const usedCoords = new Set<string>();
 
     layout.factions.forEach((faction, fIdx) => {
       const ownerId = `P${fIdx + 1}` as PlayerId;
+      const total = layout.factions.length;
+      const angle = (2 * Math.PI * fIdx) / total;
+      const center = Math.floor((boardLimit - 1) / 2);
+      const radius = Math.max(3, center - 1);
+      const baseX = Math.max(1, Math.min(boardLimit - 2, Math.round(center + Math.cos(angle) * radius)));
+      const baseY = Math.max(1, Math.min(boardLimit - 2, Math.round(center + Math.sin(angle) * radius)));
+      const offsets: ReadonlyArray<readonly [number, number]> = [
+        [0, 0],
+        [1, 0],
+        [-1, 0],
+        [0, baseY >= center ? -1 : 1],
+        [0, baseY >= center ? 1 : -1],
+        [1, 1],
+        [-1, 1],
+        [1, -1],
+        [-1, -1],
+      ];
 
       faction.initialCoordinates.forEach((coord, cIdx) => {
+        let finalCoord = coord.coordKey;
+        if (hasOutOfBounds || usedCoords.has(finalCoord)) {
+          for (const [dx, dy] of offsets) {
+            const cx = Math.max(0, Math.min(boardLimit - 1, baseX + dx));
+            const cy = Math.max(0, Math.min(boardLimit - 1, baseY + dy));
+            const candidate = `${cx},${cy}`;
+            if (!usedCoords.has(candidate)) {
+              finalCoord = candidate;
+              break;
+            }
+          }
+        }
+        usedCoords.add(finalCoord);
+
         pieces.push({
           id: asEntityId(`${ownerId.toLowerCase()}-${coord.pieceVariantId.toLowerCase()}-${cIdx}`),
           type: 'PIECE',
           ownerId,
           variantId: coord.pieceVariantId,
-          position: asCoordinateKey(coord.coordKey),
+          position: asCoordinateKey(finalCoord),
           hasMoved: false,
           isCaptured: false,
         });
@@ -133,34 +176,53 @@ export class VariantPieceInitializer {
   }
 
   /**
-   * Spawns pieces for Racing Kings.
+   * Spawns pieces for Racing Kings (canonical starting FEN: 8/8/8/8/8/8/krbnNBRK/qrbnNBRQ).
    */
   private static createRacingKingsPieces(): IPieceEntity[] {
     const pieces: IPieceEntity[] = [];
 
-    // White rank 0: Q, R, B, N, K, B, N, R
-    // White rank 1: P, P, P, P, P, P, P, P (or non-check setup)
-    const whitePieces = ['QUEEN', 'ROOK', 'BISHOP', 'KNIGHT', 'KING', 'BISHOP', 'KNIGHT', 'ROOK'];
+    // Rank 0 (y = 0): Black q(0,0), r(1,0), b(2,0), n(3,0) | White N(4,0), B(5,0), R(6,0), Q(7,0)
+    const rank0: ReadonlyArray<{ owner: PlayerId; variant: string }> = [
+      { owner: 'P2', variant: 'QUEEN' },
+      { owner: 'P2', variant: 'ROOK' },
+      { owner: 'P2', variant: 'BISHOP' },
+      { owner: 'P2', variant: 'KNIGHT' },
+      { owner: 'P1', variant: 'KNIGHT' },
+      { owner: 'P1', variant: 'BISHOP' },
+      { owner: 'P1', variant: 'ROOK' },
+      { owner: 'P1', variant: 'QUEEN' },
+    ];
+
+    // Rank 1 (y = 1): Black k(0,1), r(1,1), b(2,1), n(3,1) | White N(4,1), B(5,1), R(6,1), K(7,1)
+    const rank1: ReadonlyArray<{ owner: PlayerId; variant: string }> = [
+      { owner: 'P2', variant: 'KING' },
+      { owner: 'P2', variant: 'ROOK' },
+      { owner: 'P2', variant: 'BISHOP' },
+      { owner: 'P2', variant: 'KNIGHT' },
+      { owner: 'P1', variant: 'KNIGHT' },
+      { owner: 'P1', variant: 'BISHOP' },
+      { owner: 'P1', variant: 'ROOK' },
+      { owner: 'P1', variant: 'KING' },
+    ];
+
     for (let x = 0; x < 8; x++) {
+      const r0 = rank0[x];
       pieces.push({
-        id: asEntityId(`w-${whitePieces[x].toLowerCase()}-${x}`),
+        id: asEntityId(`${r0.owner === 'P1' ? 'w' : 'b'}-${r0.variant.toLowerCase()}-r0-${x}`),
         type: 'PIECE',
-        ownerId: 'P1',
-        variantId: whitePieces[x],
+        ownerId: r0.owner,
+        variantId: r0.variant,
         position: SquareCodec.encode(createSquareCoord(x, 0)),
         hasMoved: false,
         isCaptured: false,
       });
-    }
 
-    // Black rank 1: Q, R, B, N, K, B, N, R
-    const blackPieces = ['QUEEN', 'ROOK', 'BISHOP', 'KNIGHT', 'KING', 'BISHOP', 'KNIGHT', 'ROOK'];
-    for (let x = 0; x < 8; x++) {
+      const r1 = rank1[x];
       pieces.push({
-        id: asEntityId(`b-${blackPieces[x].toLowerCase()}-${x}`),
+        id: asEntityId(`${r1.owner === 'P1' ? 'w' : 'b'}-${r1.variant.toLowerCase()}-r1-${x}`),
         type: 'PIECE',
-        ownerId: 'P2',
-        variantId: blackPieces[x],
+        ownerId: r1.owner,
+        variantId: r1.variant,
         position: SquareCodec.encode(createSquareCoord(x, 1)),
         hasMoved: false,
         isCaptured: false,

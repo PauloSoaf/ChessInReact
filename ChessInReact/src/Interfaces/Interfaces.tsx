@@ -26,6 +26,7 @@ export interface IChessPiece {
   symbol?: string;
   color?: string;
   name: string;
+  ownerId?: string;
 }
 
 export interface IChessPieces {

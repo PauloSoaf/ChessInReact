@@ -11,7 +11,10 @@ import {
   UniversalMatchController,
   IUniversalMatchSnapshot,
 } from '../../controllers/UniversalMatchController';
-import { IMatchConfiguration } from '../../matchmaking/config/IMatchConfiguration';
+import {
+  IMatchConfiguration,
+  ParticipantRole,
+} from '../../matchmaking/config/IMatchConfiguration';
 import { ISpellCard } from '../../analysis/minigames/SpellChessEngine';
 
 export function useUniversalMatch(initialConfig?: IMatchConfiguration) {
@@ -83,11 +86,32 @@ export function useUniversalMatch(initialConfig?: IMatchConfiguration) {
     []
   );
 
-  const castExpandedSpell = useCallback((spell: ISpellCard, targetCoord: string) => {
+  const castExpandedSpell = useCallback((spell: ISpellCard, targetCoord: string, sourceCoord?: string) => {
     if (controllerRef.current) {
-      return controllerRef.current.castExpandedSpell(spell, targetCoord);
+      return controllerRef.current.castExpandedSpell(spell, targetCoord, sourceCoord);
     }
     return false;
+  }, []);
+
+  const updateSlotRole = useCallback(
+    (slotIndex: number, role: ParticipantRole, botDifficulty?: 1 | 2 | 3 | 4 | 5) => {
+      if (controllerRef.current) {
+        controllerRef.current.updateSlotRole(slotIndex, role, botDifficulty);
+      }
+    },
+    []
+  );
+
+  const updateBotDifficulty = useCallback((slotIndex: number, difficulty: 1 | 2 | 3 | 4 | 5) => {
+    if (controllerRef.current) {
+      controllerRef.current.updateBotDifficulty(slotIndex, difficulty);
+    }
+  }, []);
+
+  const resetUniversalMatch = useCallback(() => {
+    if (controllerRef.current) {
+      controllerRef.current.resetCurrentMatch();
+    }
   }, []);
 
   return {
@@ -101,6 +125,9 @@ export function useUniversalMatch(initialConfig?: IMatchConfiguration) {
     onHumanPieceMoved,
     castOfficialSpell,
     castExpandedSpell,
+    updateSlotRole,
+    updateBotDifficulty,
+    resetUniversalMatch,
   };
 }
 
