@@ -127,7 +127,7 @@ export class UniversalMatchController {
     }
 
     // Official Spell Chess
-    if (v === 'SPELL_CHESS_OFFICIAL') {
+    if (v === 'SPELL_CHESS_OFFICIAL' || v === 'SPELL_CHESS') {
       this.officialSpellState = OfficialSpellEngine.createInitialState();
     } else {
       this.officialSpellState = null;
