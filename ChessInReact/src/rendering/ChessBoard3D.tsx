@@ -228,6 +228,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
   const handleSquareClick = useCallback(
     (coord: string) => {
       if (disabled || isBotThinking) return;
+      if (onVariantSquareClick?.(coord)) return;
       if (botPlayer && domain.activePlayer === botPlayer) return;
       if (onVariantSquareClick?.(coord)) return;
 

@@ -40,6 +40,52 @@ export class GameOverDetector {
       }
     }
 
+    // 1.5. Duck Chess King Capture & Racing Kings 8th Rank Victory
+    if (variantConfig?.variantId === 'DUCK_CHESS') {
+      const p1King = CheckValidator.findRoyalPiece('P1', state);
+      const p2King = CheckValidator.findRoyalPiece('P2', state);
+      if (!p1King || !p2King) {
+        const winner = p1King ? 'P1' : p2King ? 'P2' : null;
+        return {
+          isGameOver: true,
+          status: 'CHECKMATE',
+          winnerId: winner,
+          reason: `Duck Chess victory: ${winner ?? 'Neither'} captured the opponent's King.`,
+        };
+      }
+    }
+
+    if (variantConfig?.variantId === 'RACING_KINGS') {
+      const p1King = CheckValidator.findRoyalPiece('P1', state);
+      const p2King = CheckValidator.findRoyalPiece('P2', state);
+      const p1OnGoal = Boolean(p1King?.position.endsWith(',7'));
+      const p2OnGoal = Boolean(p2King?.position.endsWith(',7'));
+      if (p1OnGoal && p2OnGoal) {
+        return {
+          isGameOver: true,
+          status: 'STALEMATE',
+          winnerId: null,
+          reason: 'Racing Kings draw: Both Kings reached the 8th rank.',
+        };
+      }
+      if (p2OnGoal) {
+        return {
+          isGameOver: true,
+          status: 'HILL_CONTROLLED',
+          winnerId: 'P2',
+          reason: 'Racing Kings victory: Black King reached the 8th rank.',
+        };
+      }
+      if (p1OnGoal && activePlayer === 'P1') {
+        return {
+          isGameOver: true,
+          status: 'HILL_CONTROLLED',
+          winnerId: 'P1',
+          reason: 'Racing Kings victory: White King reached the 8th rank uncontested.',
+        };
+      }
+    }
+
     // 2. Antichess / Giveaway win condition (RF-10)
     if (variantConfig?.variantId === 'ANTICHESS') {
       const activePieces = Object.values(state.boardEntities).filter(

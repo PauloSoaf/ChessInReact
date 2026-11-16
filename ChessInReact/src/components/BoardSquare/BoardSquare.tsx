@@ -254,7 +254,7 @@ const BoardSquare: React.FC<IBoardSquare> = ({
       {isPiecePresent ? (
         <PieceRenderer
           variantId={piece.name}
-          ownerId={piece.color === 'white' ? 'P1' : 'P2'}
+          ownerId={(piece.ownerId as 'P1' | 'P2' | undefined) ?? (piece.color === 'white' ? 'P1' : 'P2')}
           pieceSet={pieceSet}
         />
       ) : null}

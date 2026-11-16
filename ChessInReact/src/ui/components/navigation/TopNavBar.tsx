@@ -2,7 +2,7 @@ import React from 'react';
 import { useTheme } from '../../theme/ThemeContext';
 import { BrandMark } from '../primitives/BrandMark';
 
-export type AppView = 'HUB' | 'GAME' | 'PUZZLE_RUSH';
+export type AppView = 'HUB' | 'GAME' | 'PUZZLE_RUSH' | 'BUGHOUSE';
 
 export interface ITopNavBarProps {
   currentView: AppView;

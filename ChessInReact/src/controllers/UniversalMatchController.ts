@@ -21,7 +21,11 @@ import { ITopology } from '../core/topology/types';
 import { SquareTopology } from '../core/topology/SquareTopology';
 import { gameStore } from '../core/state/gameStore';
 import { bootstrapGame } from '../core/bootstrap/GameInitializer';
-import { IMatchConfiguration, IParticipantSlot } from '../matchmaking/config/IMatchConfiguration';
+import {
+  IMatchConfiguration,
+  IParticipantSlot,
+  ParticipantRole,
+} from '../matchmaking/config/IMatchConfiguration';
 import { MatchConfigurationManager } from '../matchmaking/config/MatchConfigurationManager';
 import { AIWorkerPool } from '../workers/ai/AIWorkerPool';
 import { VariantPieceInitializer } from '../engine/variants/VariantPieceInitializer';
@@ -79,6 +83,9 @@ export class UniversalMatchController {
   // Timers & listeners
   private autonomousTimer: number | null = null;
   private isDisposedFlag = false;
+  private matchGeneration = 0;
+  private botRequestSequence = 0;
+  private activeBotRequestId = 0;
   private listeners = new Set<(snapshot: IUniversalMatchSnapshot) => void>();
   private storeUnsubscribe: (() => void) | null = null;
 
@@ -149,6 +156,12 @@ export class UniversalMatchController {
    * Initializes and boots a new match with the provided configuration.
    */
   public startMatch(config?: IMatchConfiguration): void {
+    // A new configuration invalidates every decision produced for the prior
+    // match, including decisions that are still awaiting an async strategy.
+    this.matchGeneration++;
+    this.activeBotRequestId = 0;
+    this.isThinkingState = false;
+
     if (config) {
       this.config = config;
       this.topology = this.resolveTopology(config);
@@ -197,6 +210,44 @@ export class UniversalMatchController {
     return this.config;
   }
 
+  /**
+   * Dynamically updates a participant slot role (e.g. toggling P2 between AI_BOT and HUMAN_LOCAL)
+   * without resetting the board state.
+   */
+  public updateSlotRole(
+    slotIndex: number,
+    role: ParticipantRole,
+    botDifficulty?: 1 | 2 | 3 | 4 | 5
+  ): void {
+    this.config = MatchConfigurationManager.updateSlotRole(this.config, slotIndex, role);
+    if (botDifficulty !== undefined && (role === 'AI_BOT' || role === 'BOT_STANDIN')) {
+      this.config = MatchConfigurationManager.updateBotDifficulty(this.config, slotIndex, botDifficulty);
+    }
+    this.isSpectator = this.config.slots.every(
+      (s) => s.role === 'AI_BOT' || s.role === 'BOT_STANDIN'
+    );
+    this.activeBotRequestId = 0;
+    this.isThinkingState = false;
+    this.clearAutonomousTimer();
+    this.notify();
+    this.scheduleAutonomousTurnIfNeeded();
+  }
+
+  /**
+   * Updates bot difficulty level for a given slot in the active match.
+   */
+  public updateBotDifficulty(slotIndex: number, difficulty: 1 | 2 | 3 | 4 | 5): void {
+    this.config = MatchConfigurationManager.updateBotDifficulty(this.config, slotIndex, difficulty);
+    this.notify();
+  }
+
+  /**
+   * Resets the current match while preserving the active variant and participant slots.
+   */
+  public resetCurrentMatch(): void {
+    this.startMatch(this.config);
+  }
+
   public getTopology(): ITopology {
     return this.topology;
   }
@@ -211,6 +262,9 @@ export class UniversalMatchController {
 
   public togglePause(): void {
     this.isPausedState = !this.isPausedState;
+    if (this.isPausedState) {
+      this.activeBotRequestId = 0;
+    }
     this.notify();
     if (!this.isPausedState) {
       this.scheduleAutonomousTurnIfNeeded();
@@ -238,6 +292,16 @@ export class UniversalMatchController {
     if (!match) return this.config.slots[0];
     const slotIdx = parseInt(match[1], 10) - 1;
     return this.config.slots.find((s) => s.slotIndex === slotIdx) ?? this.config.slots[slotIdx];
+  }
+
+  /**
+   * Resolves bot ownership by the active player identity, never by a fixed
+   * P2 assumption. This is the single predicate used by autonomous turn
+   * scheduling and manual bot stepping.
+   */
+  public isBotPlayer(playerId: PlayerId): boolean {
+    const slot = this.getSlotForPlayer(playerId);
+    return slot?.role === 'AI_BOT' || slot?.role === 'BOT_STANDIN';
   }
 
   public getActiveSlot(): IParticipantSlot {
@@ -311,13 +375,13 @@ export class UniversalMatchController {
     if (this.isDisposedFlag || this.isPausedState || this.isThinkingState) return;
 
     const domain = gameStore.getState().domain;
-    if (domain.isGameOver) return;
+    if (domain.isGameOver || domain.matchId !== this.config.matchId) return;
+    if (this.duckState && this.duckState.currentPhase === 'PLACE_DUCK') return;
 
     const activeSlot = this.getSlotForPlayer(domain.activePlayer);
     if (!activeSlot) return;
 
-    const isBot = activeSlot.role === 'AI_BOT' || activeSlot.role === 'BOT_STANDIN';
-    if (!isBot) return;
+    if (!this.isBotPlayer(domain.activePlayer)) return;
 
     this.clearAutonomousTimer();
 
@@ -333,16 +397,26 @@ export class UniversalMatchController {
    * Executes a single step of bot deliberation and command dispatch.
    */
   public async stepBotTurn(): Promise<boolean> {
-    if (this.isDisposedFlag) return false;
+    if (this.isDisposedFlag || this.isThinkingState) return false;
 
     const domain = gameStore.getState().domain;
-    if (domain.isGameOver) return false;
+    if (domain.isGameOver || domain.matchId !== this.config.matchId) return false;
+    if (this.duckState && this.duckState.currentPhase === 'PLACE_DUCK') return false;
 
     const activeSlot = this.getSlotForPlayer(domain.activePlayer);
     if (!activeSlot) return false;
 
-    const isBot = activeSlot.role === 'AI_BOT' || activeSlot.role === 'BOT_STANDIN';
-    if (!isBot) return false;
+    if (!this.isBotPlayer(domain.activePlayer)) return false;
+
+    const requestId = ++this.botRequestSequence;
+    this.activeBotRequestId = requestId;
+    const generation = this.matchGeneration;
+    const requestContext = {
+      matchId: domain.matchId,
+      revision: domain.revision,
+      activePlayer: domain.activePlayer,
+      turnNumber: domain.turnNumber,
+    };
 
     this.isThinkingState = true;
     this.notify();
@@ -412,6 +486,23 @@ export class UniversalMatchController {
         domain,
         topology: this.topology,
       });
+
+      const currentDomain = gameStore.getState().domain;
+      const isStaleRequest =
+        this.isDisposedFlag ||
+        generation !== this.matchGeneration ||
+        requestId !== this.activeBotRequestId ||
+        currentDomain.matchId !== requestContext.matchId ||
+        currentDomain.revision !== requestContext.revision ||
+        currentDomain.activePlayer !== requestContext.activePlayer ||
+        currentDomain.turnNumber !== requestContext.turnNumber ||
+        currentDomain.isGameOver;
+
+      // Never apply a move, spell, duck placement, or turn transition after
+      // reset, undo, abandonment, participant change, or a newer request.
+      if (isStaleRequest) {
+        return false;
+      }
 
       // 3. Apply the secondary action before the move when it grants a
       // modifier to the move itself (for example Official Jump).
@@ -544,20 +635,46 @@ export class UniversalMatchController {
   }
 
   /**
-   * Triggered when a human makes a piece move in Duck Chess, entering Phase 2.
+   * Triggered when a human makes a piece move in Duck Chess or multiplayer arenas.
    */
   public onHumanPieceMoved(from: string, to: string, pieceId: string): void {
-    if (!this.duckState) return;
+    if (this.duckState) {
+      this.clearAutonomousTimer();
+      this.activeBotRequestId = 0;
+      try {
+        this.duckState = DuckChessEngine.executePieceMove(this.duckState, {
+          from,
+          to,
+          pieceId,
+        });
+        if (this.duckState.isGameOver) {
+          gameStore.setState((s) => ({
+            domain: {
+              ...s.domain,
+              isGameOver: true,
+              winnerId: this.duckState?.winner === 'WHITE' ? 'P1' : 'P2',
+            },
+          }));
+        }
+        this.notify();
+      } catch (err) {
+        console.warn('[UniversalMatchController] Duck Chess piece move error:', err);
+      }
+      return;
+    }
 
-    try {
-      this.duckState = DuckChessEngine.executePieceMove(this.duckState, {
-        from,
-        to,
-        pieceId,
-      });
+    if (this.config.totalParticipants > 2 && this.turnCycleState) {
+      this.turnCycleState = TurnCycleManager.advanceTurn(this.turnCycleState);
+      const nextFaction = TurnCycleManager.getActiveFaction(this.turnCycleState);
+      const nextPlayerId = this.factionToPlayerId(nextFaction);
+      gameStore.setState((s) => ({
+        domain: {
+          ...s.domain,
+          activePlayer: nextPlayerId,
+        },
+      }));
       this.notify();
-    } catch (err) {
-      console.warn('[UniversalMatchController] Duck Chess piece move error:', err);
+      this.scheduleAutonomousTurnIfNeeded();
     }
   }
 
@@ -574,10 +691,23 @@ export class UniversalMatchController {
     const player = domain.activePlayer === 'P1' ? 'WHITE' : 'BLACK';
 
     if (spellType === 'FREEZE') {
-      const center =
-        typeof target === 'string'
-          ? { file: target.charCodeAt(0) - 97, rank: parseInt(target[1], 10) - 1 }
-          : target;
+      let center: { file: number; rank: number };
+      if (typeof target === 'string') {
+        const trimmed = target.trim();
+        if (trimmed.includes(',')) {
+          const [f, r] = trimmed.split(',').map(Number);
+          center = { file: Number.isNaN(f) ? 3 : f, rank: Number.isNaN(r) ? 3 : r };
+        } else if (/^[a-j][1-9]\d?$/i.test(trimmed)) {
+          center = {
+            file: trimmed.toLowerCase().charCodeAt(0) - 97,
+            rank: parseInt(trimmed.slice(1), 10) - 1,
+          };
+        } else {
+          center = { file: 3, rank: 3 };
+        }
+      } else {
+        center = target;
+      }
 
       const res = OfficialSpellEngine.castFreeze(this.officialSpellState, player, center);
       if (res.success) {
@@ -586,7 +716,20 @@ export class UniversalMatchController {
         return true;
       }
     } else {
-      const pieceId = typeof target === 'string' ? target : '';
+      let pieceId = typeof target === 'string' ? target.trim() : '';
+      if (pieceId.includes(',')) {
+        pieceId = domain.occupancy[asCoordinateKey(pieceId)] ?? pieceId;
+      } else if (/^[a-j][1-9]\d?$/i.test(pieceId)) {
+        const file = pieceId.toLowerCase().charCodeAt(0) - 97;
+        const rank = parseInt(pieceId.slice(1), 10) - 1;
+        pieceId = domain.occupancy[asCoordinateKey(`${file},${rank}`)] ?? pieceId;
+      }
+      if (!pieceId) {
+        const fallbackPiece = Object.values(domain.boardEntities).find(
+          (e) => e.type === 'PIECE' && !e.isCaptured && e.ownerId === domain.activePlayer
+        );
+        pieceId = fallbackPiece?.id ?? '';
+      }
       const res = OfficialSpellEngine.castJump(this.officialSpellState, player, pieceId);
       if (res.success) {
         this.officialSpellState = res.state;
@@ -679,6 +822,8 @@ export class UniversalMatchController {
 
   public dispose(): void {
     this.isDisposedFlag = true;
+    this.matchGeneration++;
+    this.activeBotRequestId = 0;
     this.clearAutonomousTimer();
     if (this.storeUnsubscribe) {
       this.storeUnsubscribe();

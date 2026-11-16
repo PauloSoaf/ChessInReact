@@ -139,6 +139,10 @@ export class PuzzleRushEngine {
 
     const expectedMove = currentPuzzle.solutionMoves[session.currentMoveIndex];
     const isCorrect = moveUci.toLowerCase().trim() === expectedMove?.toLowerCase().trim();
+    const timeAfterMove =
+      session.timeRemainingMs === Infinity
+        ? Infinity
+        : Math.max(0, session.timeRemainingMs - Math.max(0, elapsedMs));
 
     if (!isCorrect) {
       // Incorrect move: deduct life in survival, register failure in history, move to next puzzle
@@ -164,7 +168,8 @@ export class PuzzleRushEngine {
           lives: nextLives,
           currentPuzzleIndex: nextPuzzleIndex,
           currentMoveIndex: 0,
-          isGameOver: isGameOver || allPuzzlesDone,
+          timeRemainingMs: timeAfterMove,
+          isGameOver: isGameOver || allPuzzlesDone || timeAfterMove === 0,
           history: updatedHistory,
         },
         isCorrect: false,
@@ -201,7 +206,8 @@ export class PuzzleRushEngine {
             score: session.score + 1,
             currentPuzzleIndex: nextPuzzleIndex,
             currentMoveIndex: 0,
-            isGameOver: session.isGameOver || allDone,
+            timeRemainingMs: timeAfterMove,
+            isGameOver: session.isGameOver || allDone || timeAfterMove === 0,
             history: updatedHistory,
           },
           isCorrect: true,
@@ -215,6 +221,8 @@ export class PuzzleRushEngine {
         nextSession: {
           ...session,
           currentMoveIndex: moveAfterBot,
+          timeRemainingMs: timeAfterMove,
+          isGameOver: timeAfterMove === 0,
         },
         isCorrect: true,
         isPuzzleCompleted: false,
@@ -242,7 +250,8 @@ export class PuzzleRushEngine {
         score: session.score + 1,
         currentPuzzleIndex: nextPuzzleIndex,
         currentMoveIndex: 0,
-        isGameOver: session.isGameOver || allDone,
+        timeRemainingMs: timeAfterMove,
+        isGameOver: session.isGameOver || allDone || timeAfterMove === 0,
         history: updatedHistory,
       },
       isCorrect: true,

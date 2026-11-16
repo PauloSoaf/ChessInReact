@@ -34,12 +34,16 @@ export class CheckValidator {
       if (!targetParsed) return false;
       const tx = targetParsed.x;
       const ty = targetParsed.y;
+      const maxX = (topology as { width?: number }).width ?? 8;
+      const maxY = (topology as { height?: number }).height ?? 8;
 
       // North
-      for (let y = ty + 1; y < 8; y++) {
+      for (let y = ty + 1; y < maxY; y++) {
         const occId = state.occupancy[toCoordKey(tx, y)];
         if (occId) {
-          const piece = state.boardEntities[occId] as IPieceEntity | undefined;
+          const rawEntity = state.boardEntities[occId];
+          if (rawEntity?.type === 'OBSTACLE') break;
+          const piece = rawEntity as IPieceEntity | undefined;
           if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
             if (piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
@@ -54,7 +58,9 @@ export class CheckValidator {
       for (let y = ty - 1; y >= 0; y--) {
         const occId = state.occupancy[toCoordKey(tx, y)];
         if (occId) {
-          const piece = state.boardEntities[occId] as IPieceEntity | undefined;
+          const rawEntity = state.boardEntities[occId];
+          if (rawEntity?.type === 'OBSTACLE') break;
+          const piece = rawEntity as IPieceEntity | undefined;
           if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
             if (piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
@@ -66,10 +72,12 @@ export class CheckValidator {
         }
       }
       // East
-      for (let x = tx + 1; x < 8; x++) {
+      for (let x = tx + 1; x < maxX; x++) {
         const occId = state.occupancy[toCoordKey(x, ty)];
         if (occId) {
-          const piece = state.boardEntities[occId] as IPieceEntity | undefined;
+          const rawEntity = state.boardEntities[occId];
+          if (rawEntity?.type === 'OBSTACLE') break;
+          const piece = rawEntity as IPieceEntity | undefined;
           if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
             if (piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
@@ -84,7 +92,9 @@ export class CheckValidator {
       for (let x = tx - 1; x >= 0; x--) {
         const occId = state.occupancy[toCoordKey(x, ty)];
         if (occId) {
-          const piece = state.boardEntities[occId] as IPieceEntity | undefined;
+          const rawEntity = state.boardEntities[occId];
+          if (rawEntity?.type === 'OBSTACLE') break;
+          const piece = rawEntity as IPieceEntity | undefined;
           if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
             if (piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
@@ -96,10 +106,12 @@ export class CheckValidator {
         }
       }
       // Northeast
-      for (let x = tx + 1, y = ty + 1; x < 8 && y < 8; x++, y++) {
+      for (let x = tx + 1, y = ty + 1; x < maxX && y < maxY; x++, y++) {
         const occId = state.occupancy[toCoordKey(x, y)];
         if (occId) {
-          const piece = state.boardEntities[occId] as IPieceEntity | undefined;
+          const rawEntity = state.boardEntities[occId];
+          if (rawEntity?.type === 'OBSTACLE') break;
+          const piece = rawEntity as IPieceEntity | undefined;
           if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
             if (piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
@@ -111,10 +123,12 @@ export class CheckValidator {
         }
       }
       // Northwest
-      for (let x = tx - 1, y = ty + 1; x >= 0 && y < 8; x--, y++) {
+      for (let x = tx - 1, y = ty + 1; x >= 0 && y < maxY; x--, y++) {
         const occId = state.occupancy[toCoordKey(x, y)];
         if (occId) {
-          const piece = state.boardEntities[occId] as IPieceEntity | undefined;
+          const rawEntity = state.boardEntities[occId];
+          if (rawEntity?.type === 'OBSTACLE') break;
+          const piece = rawEntity as IPieceEntity | undefined;
           if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
             if (piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
@@ -126,10 +140,12 @@ export class CheckValidator {
         }
       }
       // Southeast
-      for (let x = tx + 1, y = ty - 1; x < 8 && y >= 0; x++, y--) {
+      for (let x = tx + 1, y = ty - 1; x < maxX && y >= 0; x++, y--) {
         const occId = state.occupancy[toCoordKey(x, y)];
         if (occId) {
-          const piece = state.boardEntities[occId] as IPieceEntity | undefined;
+          const rawEntity = state.boardEntities[occId];
+          if (rawEntity?.type === 'OBSTACLE') break;
+          const piece = rawEntity as IPieceEntity | undefined;
           if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
             if (piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
@@ -144,7 +160,9 @@ export class CheckValidator {
       for (let x = tx - 1, y = ty - 1; x >= 0 && y >= 0; x--, y--) {
         const occId = state.occupancy[toCoordKey(x, y)];
         if (occId) {
-          const piece = state.boardEntities[occId] as IPieceEntity | undefined;
+          const rawEntity = state.boardEntities[occId];
+          if (rawEntity?.type === 'OBSTACLE') break;
+          const piece = rawEntity as IPieceEntity | undefined;
           if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
             if (piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
@@ -291,7 +309,27 @@ export class CheckValidator {
     if (!king) return false;
 
     // Detect attacker: any other player on board
-    const attackerId: PlayerId = playerId === 'P1' ? 'P2' : 'P1';
-    return this.isSquareAttacked(king.position, attackerId, state, topology);
+    const enemyOwners = new Set<PlayerId>();
+    for (const id in state.boardEntities) {
+      const entity = state.boardEntities[id as EntityId];
+      if (
+        entity &&
+        entity.type === 'PIECE' &&
+        !entity.isCaptured &&
+        entity.ownerId !== playerId &&
+        entity.ownerId !== 'NONE'
+      ) {
+        enemyOwners.add(entity.ownerId);
+      }
+    }
+    if (enemyOwners.size === 0) {
+      enemyOwners.add(playerId === 'P1' ? 'P2' : 'P1');
+    }
+    for (const attackerId of enemyOwners) {
+      if (this.isSquareAttacked(king.position, attackerId, state, topology)) {
+        return true;
+      }
+    }
+    return false;
   }
 }

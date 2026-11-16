@@ -29,19 +29,35 @@ export interface IInstancedPiecesProps {
  * The current procedural approach prioritizes individual raycasting responsiveness, per-piece
  * animation, and immediate check-constraint halo feedback while keeping total draw calls <= 32.
  */
+const FACTION_3D_COLORS: Record<string, string> = {
+  P1: '#f8fafc',
+  P2: '#1e293b',
+  P3: '#eab308',
+  P4: '#22c55e',
+  P5: '#a855f7',
+  P6: '#f97316',
+  P7: '#06b6d4',
+  P8: '#ec4899',
+  P9: '#14b8a6',
+  P10: '#6366f1',
+  P11: '#84cc16',
+  P12: '#f59e0b',
+};
+
 const Piece3DModel: React.FC<{
   coord?: string;
   type: string;
   isWhite: boolean;
+  ownerId?: string;
   isSelected: boolean;
   isCheckKing?: boolean;
   isCheckSource?: boolean;
   position: [number, number, number];
   onPointerDown: (e: { stopPropagation: () => void }) => void;
-}> = ({ coord, type, isWhite, isSelected, isCheckKing, isCheckSource, position, onPointerDown }) => {
+}> = ({ coord, type, isWhite, ownerId, isSelected, isCheckKing, isCheckSource, position, onPointerDown }) => {
   const normType = type.toUpperCase();
 
-  const bodyColor = isWhite ? '#f8fafc' : '#1e293b';
+  const bodyColor = (ownerId && FACTION_3D_COLORS[ownerId]) ?? (isWhite ? '#f8fafc' : '#1e293b');
   const metalness = isWhite ? 0.2 : 0.45;
   const roughness = isWhite ? 0.25 : 0.25;
 
@@ -216,6 +232,28 @@ const Piece3DModel: React.FC<{
         </group>
       )}
 
+      {!normType.includes('PAWN') &&
+        !normType.includes('ROOK') &&
+        !normType.includes('KNIGHT') &&
+        !normType.includes('BISHOP') &&
+        !normType.includes('QUEEN') &&
+        !normType.includes('KING') && (
+          <group position={[0, 0.12, 0]}>
+            <mesh castShadow position={[0, 0.38, 0]}>
+              <cylinderGeometry args={[0.22, 0.34, 0.72, 16]} />
+              <meshStandardMaterial color={effectivePedestalColor} metalness={metalness} roughness={roughness} />
+            </mesh>
+            <mesh castShadow position={[0, 0.84, 0]}>
+              <octahedronGeometry args={[0.22, 0]} />
+              <meshStandardMaterial
+                color={normType.includes('CHANCELLOR') ? '#06b6d4' : '#a855f7'}
+                metalness={0.75}
+                roughness={0.2}
+              />
+            </mesh>
+          </group>
+        )}
+
       {/* Selection Glow Disk (GLSL Hologram Pulse Shader - Spec 07 RF-10) */}
       {isSelected && (
         <HoloPulseRing
@@ -291,6 +329,7 @@ export const InstancedPieces: React.FC<IInstancedPiecesProps> = ({
             coord={piece.position}
             type={piece.variantId ?? 'PAWN'}
             isWhite={isWhite}
+            ownerId={piece.ownerId}
             isSelected={isSelected}
             isCheckKing={isCheckKing}
             isCheckSource={isCheckSource}

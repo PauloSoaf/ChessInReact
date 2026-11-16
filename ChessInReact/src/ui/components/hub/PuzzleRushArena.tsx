@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Card } from '../primitives/Card';
 import { ActionButton } from '../primitives/ActionButton';
 import {
@@ -8,16 +8,86 @@ import {
   PuzzleRushMode,
 } from '../../../analysis/minigames/PuzzleRushEngine';
 import { PuzzleBattleBotStrategy } from '../../../workers/ai/strategies/PuzzleBattleBotStrategy';
+import { PieceRenderer } from '../pieces/PieceRenderer';
+import { useTheme } from '../../theme/ThemeContext';
+import { PlayerId } from '../../../core/coordinates/types';
+import { AIDifficultyLevel } from '../../../workers/ai/interfaces/IAIEngineContracts';
 
 export interface IPuzzleRushArenaProps {
   onBackToHub: () => void;
   initialMode?: PuzzleRushMode;
 }
 
+interface IParsedFenPiece {
+  readonly variantId: string;
+  readonly ownerId: PlayerId;
+}
+
+const FEN_LETTER_TO_VARIANT: Record<string, string> = {
+  p: 'PAWN',
+  n: 'KNIGHT',
+  b: 'BISHOP',
+  r: 'ROOK',
+  q: 'QUEEN',
+  k: 'KING',
+};
+
+const BOT_DIFFICULTY_ELO: Record<AIDifficultyLevel, number> = {
+  1: 1000,
+  2: 1350,
+  3: 1650,
+  4: 2000,
+  5: 2400,
+};
+
+function parseFenBoard(
+  fen: string,
+  executedMoves: readonly string[] = []
+): Map<string, IParsedFenPiece> {
+  const map = new Map<string, IParsedFenPiece>();
+  const placement = fen.split(' ')[0] ?? '';
+  const ranks = placement.split('/');
+
+  for (let rIdx = 0; rIdx < ranks.length && rIdx < 8; rIdx++) {
+    const rank = 7 - rIdx;
+    let file = 0;
+    for (const ch of ranks[rIdx]) {
+      if (ch >= '1' && ch <= '8') {
+        file += parseInt(ch, 10);
+      } else {
+        const variantId = FEN_LETTER_TO_VARIANT[ch.toLowerCase()];
+        if (variantId && file < 8) {
+          const isWhite = ch === ch.toUpperCase();
+          const alg = `${String.fromCharCode(97 + file)}${rank + 1}`;
+          map.set(alg, {
+            variantId,
+            ownerId: isWhite ? 'P1' : 'P2',
+          });
+        }
+        file += 1;
+      }
+    }
+  }
+
+  for (const uci of executedMoves) {
+    if (uci.length >= 4) {
+      const from = uci.slice(0, 2).toLowerCase();
+      const to = uci.slice(2, 4).toLowerCase();
+      const moving = map.get(from);
+      if (moving) {
+        map.delete(from);
+        map.set(to, moving);
+      }
+    }
+  }
+  return map;
+}
+
 export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
   onBackToHub,
   initialMode = 'TIMED_3MIN',
 }) => {
+  const { pieceSet, activeBoardColors } = useTheme();
   const [puzzles] = useState<readonly ITacticalPuzzle[]>(() =>
     PuzzleRushEngine.getCanonicalPuzzleCatalog()
   );
@@ -27,6 +97,10 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
   const [candidateMove, setCandidateMove] = useState('');
   const [feedback, setFeedback] = useState<{ isCorrect: boolean; message: string } | null>(null);
   const [botPuzzleIndex, setBotPuzzleIndex] = useState(0);
+  const [selectedMode, setSelectedMode] = useState<PuzzleRushMode>(initialMode);
+  const [botDifficulty, setBotDifficulty] = useState<AIDifficultyLevel>(3);
+  const [viewMode, setViewMode] = useState<'2D' | '3D'>('2D');
+  const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -46,16 +120,16 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
     };
   }, [session.isGameOver, session.isPaused, session.timeRemainingMs]);
 
-  // Local Puzzle Battle opponent: the bot consumes the same ordered puzzle stream
-  // and publishes its score through the authoritative session transition.
+  // Local Puzzle Battle opponent: calibrated by selected botDifficulty ELO
   useEffect(() => {
     if (session.mode !== 'BATTLE' || session.isGameOver || session.isPaused) return;
 
     const puzzle = puzzles[botPuzzleIndex];
     if (!puzzle) return;
 
+    const botElo = BOT_DIFFICULTY_ELO[botDifficulty];
     const result = PuzzleBattleBotStrategy.simulatePuzzleAttempt(
-      1600,
+      botElo,
       puzzle.rating,
       puzzle.solutionMoves[0] ?? ''
     );
@@ -70,9 +144,19 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
     }, result.thinkTimeMs);
 
     return () => clearTimeout(timeout);
-  }, [botPuzzleIndex, puzzles, session.isGameOver, session.isPaused, session.mode]);
+  }, [botPuzzleIndex, puzzles, session.isGameOver, session.isPaused, session.mode, botDifficulty]);
 
   const currentPuzzle: ITacticalPuzzle | undefined = puzzles[session.currentPuzzleIndex];
+  const boardPiecesMap = useMemo(
+    () =>
+      currentPuzzle
+        ? parseFenBoard(
+            currentPuzzle.fen,
+            currentPuzzle.solutionMoves.slice(0, session.currentMoveIndex)
+          )
+        : new Map<string, IParsedFenPiece>(),
+    [currentPuzzle, session.currentMoveIndex]
+  );
 
   const handleSubmit = useCallback(
     (move: string) => {
@@ -80,6 +164,7 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
 
       const outcome = PuzzleRushEngine.submitMove(session, puzzles, move.trim());
       setSession(outcome.nextSession);
+      setSelectedSquare(null);
 
       if (outcome.isCorrect) {
         setFeedback({
@@ -100,12 +185,62 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
     [session, puzzles]
   );
 
+  const handleBoardSquareClick = useCallback(
+    (algebraicSq: string) => {
+      if (session.isGameOver || !currentPuzzle) return;
+      const pieceAtSq = boardPiecesMap.get(algebraicSq);
+
+      if (!selectedSquare) {
+        if (pieceAtSq) {
+          setSelectedSquare(algebraicSq);
+        }
+        return;
+      }
+
+      if (selectedSquare === algebraicSq) {
+        setSelectedSquare(null);
+        return;
+      }
+
+      let uci = `${selectedSquare}${algebraicSq}`;
+      const expectedSolution =
+        currentPuzzle.solutionMoves[session.currentMoveIndex] ??
+        currentPuzzle.solutionMoves[0] ??
+        '';
+      if (
+        expectedSolution.length === 5 &&
+        expectedSolution.slice(0, 4).toLowerCase() === uci.toLowerCase()
+      ) {
+        uci = expectedSolution;
+      }
+      handleSubmit(uci);
+    },
+    [
+      session.isGameOver,
+      session.currentMoveIndex,
+      currentPuzzle,
+      boardPiecesMap,
+      selectedSquare,
+      handleSubmit,
+    ]
+  );
+
   const handleRestart = useCallback(() => {
-    setSession(PuzzleRushEngine.createSession(initialMode));
+    setSession(PuzzleRushEngine.createSession(selectedMode));
     setFeedback(null);
     setCandidateMove('');
+    setSelectedSquare(null);
     setBotPuzzleIndex(0);
-  }, [initialMode]);
+  }, [selectedMode]);
+
+  const handleModeChange = useCallback((mode: PuzzleRushMode) => {
+    setSelectedMode(mode);
+    setSession(PuzzleRushEngine.createSession(mode));
+    setFeedback(null);
+    setCandidateMove('');
+    setSelectedSquare(null);
+    setBotPuzzleIndex(0);
+  }, []);
 
   const formatTime = (ms: number) => {
     if (ms === Infinity) return '∞';
@@ -125,7 +260,7 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
         display: 'flex',
         flexDirection: 'column',
         gap: '1.25rem',
-        maxWidth: '720px',
+        maxWidth: '760px',
         margin: '0 auto',
         padding: '1.25rem 1rem',
         width: '100%',
@@ -161,7 +296,55 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
           ← Voltar ao Hub
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
+          <label style={{ fontSize: '0.78rem' }}>
+            Modo{' '}
+            <select
+              aria-label="Modo Puzzle Rush"
+              value={selectedMode}
+              onChange={(event) => handleModeChange(event.target.value as PuzzleRushMode)}
+            >
+              <option value="SURVIVAL">Sobrevivência</option>
+              <option value="TIMED_3MIN">3 minutos</option>
+              <option value="TIMED_5MIN">5 minutos</option>
+              <option value="BATTLE">Battle vs Bot</option>
+            </select>
+          </label>
+
+          {selectedMode === 'BATTLE' && (
+            <label style={{ fontSize: '0.78rem' }}>
+              Nível Bot{' '}
+              <select
+                aria-label="Nível do Bot Puzzle Battle"
+                value={botDifficulty}
+                onChange={(e) => setBotDifficulty(Number(e.target.value) as AIDifficultyLevel)}
+              >
+                <option value={1}>N1 Iniciante (1000)</option>
+                <option value={2}>N2 Casual (1350)</option>
+                <option value={3}>N3 Tático (1650)</option>
+                <option value={4}>N4 Forte (2000)</option>
+                <option value={5}>N5 Mestre (2400)</option>
+              </select>
+            </label>
+          )}
+
+          <button
+            type="button"
+            data-testid="pr-view-toggle"
+            onClick={() => setViewMode((v) => (v === '2D' ? '3D' : '2D'))}
+            style={{
+              fontSize: '0.75rem',
+              padding: '0.25rem 0.6rem',
+              borderRadius: 'var(--radius-xs)',
+              border: '1px solid var(--border-prominent)',
+              backgroundColor: 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+            }}
+          >
+            Visão: {viewMode}
+          </button>
+
           <span
             id="pr-timer"
             style={{
@@ -283,6 +466,79 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
             </span>
           </div>
 
+          {/* Interactive 2D / 3D Tactical Chessboard for Puzzle Rush */}
+          <div
+            role="grid"
+            aria-label="Tabuleiro Tático do Puzzle"
+            data-testid="puzzle-rush-board"
+            style={{
+              width: '100%',
+              maxWidth: '380px',
+              margin: '0 auto',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(8, 1fr)',
+              aspectRatio: '1 / 1',
+              borderRadius: 'var(--radius-sm)',
+              overflow: 'hidden',
+              border: '2px solid var(--border-prominent)',
+              transform:
+                viewMode === '3D'
+                  ? 'perspective(760px) rotateX(22deg) scale(0.96)'
+                  : 'none',
+              boxShadow:
+                viewMode === '3D'
+                  ? '0 18px 32px rgba(0, 0, 0, 0.48), 0 6px 0 rgba(15, 23, 42, 0.9)'
+                  : 'var(--shadow-md)',
+              transition: 'transform 220ms ease, box-shadow 220ms ease',
+            }}
+          >
+            {Array.from({ length: 64 }, (_, idx) => {
+              const file = idx % 8;
+              const rank = 7 - Math.floor(idx / 8);
+              const alg = `${String.fromCharCode(97 + file)}${rank + 1}`;
+              const piece = boardPiecesMap.get(alg);
+              const isSelected = selectedSquare === alg;
+              const isDark = (file + rank) % 2 === 0;
+
+              return (
+                <button
+                  key={alg}
+                  type="button"
+                  role="gridcell"
+                  data-testid={`puzzle-sq-${alg}`}
+                  aria-label={`Casa ${alg}${piece ? ` ${piece.variantId}` : ''}`}
+                  onClick={() => handleBoardSquareClick(alg)}
+                  style={{
+                    position: 'relative',
+                    aspectRatio: '1',
+                    padding: 0,
+                    border: isSelected
+                      ? '2px solid var(--color-accent)'
+                      : '0.5px solid rgba(0,0,0,0.08)',
+                    background: isSelected
+                      ? activeBoardColors.selectedSquare
+                      : isDark
+                      ? activeBoardColors.darkSquare
+                      : activeBoardColors.lightSquare,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {piece ? (
+                    <PieceRenderer
+                      variantId={piece.variantId}
+                      ownerId={piece.ownerId}
+                      pieceSet={pieceSet}
+                      size="78%"
+                    />
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+
           <div
             style={{
               backgroundColor: 'var(--bg-sunken)',
@@ -303,7 +559,7 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
               htmlFor="pr-move-input"
               style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}
             >
-              Insira o melhor lance (formato UCI, ex: {currentPuzzle.solutionMoves[0]}):
+              Clique na peça e na casa de destino no tabuleiro acima, ou insira o lance (formato UCI, ex: {currentPuzzle.solutionMoves[0]}):
             </label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <input

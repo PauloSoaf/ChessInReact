@@ -91,6 +91,30 @@ export class VariantRegistry {
       topologyType: 'HEXAGONAL',
       config: { variantId: 'HEXAGONAL_GLINSKI', enforceCheck: true },
     });
+
+    this.registerVariant({
+      id: 'DUCK_CHESS',
+      name: 'Duck Chess',
+      description: 'Two-phase turn with neutral blocking duck; kings can be captured',
+      topologyType: 'SQUARE',
+      config: { variantId: 'DUCK_CHESS', enforceCheck: false },
+    });
+
+    this.registerVariant({
+      id: 'RACING_KINGS',
+      name: 'Racing Kings',
+      description: 'Race kings to the 8th rank; checks are forbidden',
+      topologyType: 'SQUARE',
+      config: { variantId: 'RACING_KINGS', enforceCheck: true },
+    });
+
+    this.registerVariant({
+      id: 'CAPABLANCA_CHESS',
+      name: 'Capablanca Chess (10x8)',
+      description: '10x8 board with Archbishop (BN) and Chancellor (RN)',
+      topologyType: 'SQUARE',
+      config: { variantId: 'CAPABLANCA_CHESS', enforceCheck: true },
+    });
   }
 
   public static registerPiece(piece: IPieceDefinition): void {
@@ -131,6 +155,9 @@ export class VariantRegistry {
     if (k.includes('ANTICHESS') || k.includes('GIVEAWAY')) return this.variants.get('ANTICHESS')?.config;
     if (k.includes('CRAZYHOUSE')) return this.variants.get('CRAZYHOUSE')?.config;
     if (k.includes('HILL')) return this.variants.get('KING_OF_THE_HILL')?.config;
+    if (k.includes('DUCK')) return this.variants.get('DUCK_CHESS')?.config;
+    if (k.includes('RACING')) return this.variants.get('RACING_KINGS')?.config;
+    if (k.includes('CAPABLANCA')) return this.variants.get('CAPABLANCA_CHESS')?.config;
     return undefined;
   }
 

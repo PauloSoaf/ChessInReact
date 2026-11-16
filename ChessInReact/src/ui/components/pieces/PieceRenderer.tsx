@@ -17,6 +17,27 @@ const UNICODE_GLYPHS: Record<string, string> = {
   BISHOP: '♝',
   KNIGHT: '♞',
   PAWN: '♟',
+  ARCHBISHOP: '♝',
+  CHANCELLOR: '♜',
+  AMAZON: '♛',
+  NIGHTRIDER: '♞',
+  CAMEL: '♞',
+  FERZ: '♝',
+  WAZIR: '♜',
+  GRASSHOPPER: '♛',
+};
+
+const FACTION_FILL_COLORS: Record<string, { fill: string; stroke: string; collar: string }> = {
+  P3: { fill: '#FACC15', stroke: '#422006', collar: '#713F12' },
+  P4: { fill: '#22C55E', stroke: '#052E16', collar: '#14532D' },
+  P5: { fill: '#A855F7', stroke: '#3B0764', collar: '#581C87' },
+  P6: { fill: '#F97316', stroke: '#431407', collar: '#7C2D12' },
+  P7: { fill: '#06B6D4', stroke: '#083344', collar: '#164E63' },
+  P8: { fill: '#EC4899', stroke: '#500724', collar: '#831843' },
+  P9: { fill: '#14B8A6', stroke: '#042F2E', collar: '#134E4A' },
+  P10: { fill: '#6366F1', stroke: '#1E1B4B', collar: '#312E81' },
+  P11: { fill: '#84CC16', stroke: '#1A2E05', collar: '#365314' },
+  P12: { fill: '#F59E0B', stroke: '#451A03', collar: '#78350F' },
 };
 
 interface IStauntonVectorSpec {
@@ -56,6 +77,21 @@ const STAUNTON_ATELIER_PIECES: Record<string, IStauntonVectorSpec> = {
     body: 'M 22.5,11.63 L 22.5,6 M 20,8 L 25,8 M 22.5,25 C 22.5,25 27,17.5 25.5,14.5 C 25.5,14.5 24.5,12 22.5,12 C 20.5,12 19.5,14.5 19.5,14.5 C 18,17.5 22.5,25 22.5,25 M 11.5,37 C 17,40.5 27,40.5 32.5,37 L 32.5,30 C 32.5,30 41.5,25.5 38.5,19.5 C 34.5,13 25,16 22.5,23.5 L 22.5,27 L 22.5,23.5 C 19,16 9.5,13 6.5,19.5 C 3.5,25.5 11.5,29.5 11.5,29.5 L 11.5,37 z',
     collar: 'M 11.5,30 C 17,27 27,27 32.5,30 M 11.5,33.5 C 17,30.5 27,30.5 32.5,33.5 M 11.5,37 C 17,34 27,34 32.5,37',
     detail: 'M 22.5,6 L 22.5,11.5 M 19.8,8.2 L 25.2,8.2',
+  },
+  ARCHBISHOP: {
+    body: 'M 15,32 C 17.5,34.5 27.5,34.5 30,32 C 30,27.5 27.5,26 27.5,26 C 33,24.5 33.5,14.5 22.5,10.5 C 11.5,14.5 12,24.5 17.5,26 C 17.5,26 15,27.5 15,32 z M 11.5,36 L 33.5,36 L 33.5,39.5 L 11.5,39.5 L 11.5,36 z',
+    collar: 'M 17.5,26 L 27.5,26 M 15,31 L 30,31',
+    detail: 'M 22.5,5.5 L 22.5,10.5 M 19.5,8 L 25.5,8 M 19.5,18 L 25.5,18',
+  },
+  CHANCELLOR: {
+    body: 'M 11,39.5 L 34,39.5 L 34,36 L 11,36 L 11,39.5 z M 14,14 L 14,9.5 L 18,9.5 L 18,12 L 22.5,8 L 27,12 L 27,9.5 L 31,9.5 L 31,14 L 28.5,17 L 28.5,32 L 16.5,32 L 16.5,17 L 14,14 z',
+    collar: 'M 14,14 L 31,14 M 16.5,17 L 28.5,17 M 16.5,31.5 L 28.5,31.5',
+    detail: 'M 22.5,19 L 22.5,27 M 19,23 L 26,23',
+  },
+  AMAZON: {
+    body: 'M 9,26 L 38.5,13.5 L 31,25 L 22.5,9 L 14,25 L 6.5,13.5 L 9,26 z M 11,38.5 L 34,38.5 L 33,30 L 12,30 L 11,38.5 z',
+    collar: 'M 12,30 L 33,30 M 11.5,34.5 L 33.5,34.5',
+    detail: 'M 22.5,16 L 22.5,24 M 18.5,20 L 26.5,20',
   },
 };
 
@@ -201,9 +237,10 @@ export const PieceRenderer: React.FC<IPieceRendererProps> = ({
 
   // 3. Default: Neo Classic Staunton Atelier (Sculpted Staunton Vector + Semantic Glyph)
   const staunton = STAUNTON_ATELIER_PIECES[normVariant] ?? STAUNTON_ATELIER_PIECES.PAWN;
-  const bodyFill = isWhite ? '#FAF8F4' : '#141B24';
-  const bodyStroke = isWhite ? '#18202A' : '#DFC9A6';
-  const collarStroke = isWhite ? '#475569' : '#C8AB82';
+  const factionTheme = FACTION_FILL_COLORS[ownerId];
+  const bodyFill = factionTheme ? factionTheme.fill : isWhite ? '#FAF8F4' : '#141B24';
+  const bodyStroke = factionTheme ? factionTheme.stroke : isWhite ? '#18202A' : '#DFC9A6';
+  const collarStroke = factionTheme ? factionTheme.collar : isWhite ? '#475569' : '#C8AB82';
 
   return (
     <span

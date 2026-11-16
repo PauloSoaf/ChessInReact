@@ -11,6 +11,7 @@ import { TopNavBar, AppView } from './ui/components/navigation/TopNavBar';
 import { ThemeCustomizerModal } from './ui/components/navigation/ThemeCustomizerModal';
 import { GameHub } from './ui/components/hub/GameHub';
 import { PuzzleRushArena } from './ui/components/hub/PuzzleRushArena';
+import { BughouseArena } from './ui/components/hub/BughouseArena';
 import { PlayerCard } from './ui/components/game/PlayerCard';
 import { EvaluationBar } from './ui/components/game/EvaluationBar';
 import { GameControlsBar } from './ui/components/game/GameControlsBar';
@@ -19,6 +20,7 @@ import { MultiplayerFactionRibbon } from './ui/components/game/MultiplayerFactio
 import { DuckChessBanner } from './ui/components/game/DuckChessBanner';
 import { OfficialSpellBar } from './ui/components/game/OfficialSpellBar';
 import { SpellCardHand } from './analysis/minigames/SpellCardHand';
+import { ISpellCard } from './analysis/minigames/SpellChessEngine';
 import { useUniversalMatch } from './bindings/react/useUniversalMatch';
 import { IMatchConfiguration } from './matchmaking/config/IMatchConfiguration';
 import { MatchConfigurationManager } from './matchmaking/config/MatchConfigurationManager';
@@ -92,11 +94,15 @@ const AppContent: React.FC = () => {
     if (typeof window !== 'undefined') {
       if (window.location.hash === '#game') return 'GAME';
       if (window.location.hash === '#puzzle_rush') return 'PUZZLE_RUSH';
+      if (window.location.hash === '#bughouse') return 'BUGHOUSE';
     }
     return 'HUB';
   });
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [pendingDrawOffer, setPendingDrawOffer] = useState<PlayerId | null>(null);
+  const [selectedOfficialSpell, setSelectedOfficialSpell] = useState<'FREEZE' | 'JUMP' | null>(null);
+  const [selectedExpandedSpell, setSelectedExpandedSpell] = useState<ISpellCard | null>(null);
+  const [portalFirstSquare, setPortalFirstSquare] = useState<string | null>(null);
 
   const { preferences, updatePreferences } = useTheme();
   const isBoardFlipped = Boolean(preferences.flipBoard);
@@ -134,7 +140,7 @@ const AppContent: React.FC = () => {
   const { undo, redo } = useGameActions();
 
   const {
-    isBotEnabled,
+    isBotEnabled: legacyBotEnabled,
     difficulty,
     isThinking,
     lastEval,
@@ -149,6 +155,18 @@ const AppContent: React.FC = () => {
   });
 
   const universalMatch = useUniversalMatch();
+  const isUniversalBotMatch = useMemo(
+    () =>
+      universalMatch.snapshot.config.matchId === domain.matchId &&
+      universalMatch.snapshot.config.slots.some(
+        (slot) => slot.role === 'AI_BOT' || slot.role === 'BOT_STANDIN'
+      ),
+    [domain.matchId, universalMatch.snapshot.config]
+  );
+  // Universal matches expose the same UI state without re-enabling the
+  // legacy controller. This keeps the presentation accurate while preserving
+  // one and only one bot command authority.
+  const isBotEnabled = isUniversalBotMatch || legacyBotEnabled;
   const duckCoordinate = useMemo(
     () => normalizeBoardCoordinate(universalMatch.snapshot.duckCoordinate),
     [universalMatch.snapshot.duckCoordinate]
@@ -198,7 +216,8 @@ const AppContent: React.FC = () => {
   const navigateTo = useCallback((view: AppView) => {
     setCurrentView(view);
     if (typeof window !== 'undefined') {
-      const targetHash = view === 'GAME' ? '#game' : view === 'PUZZLE_RUSH' ? '#puzzle_rush' : '#hub';
+      const targetHash =
+        view === 'GAME' ? '#game' : view === 'PUZZLE_RUSH' ? '#puzzle_rush' : view === 'BUGHOUSE' ? '#bughouse' : '#hub';
       if (window.location.hash !== targetHash) {
         window.location.hash = targetHash;
       }
@@ -209,8 +228,96 @@ const AppContent: React.FC = () => {
     cancelSearch();
     clearFeedback();
     setPendingDrawOffer(null);
-    bootstrapGame({ targetStore: gameStore });
-  }, [cancelSearch, clearFeedback]);
+    setSelectedOfficialSpell(null);
+    setSelectedExpandedSpell(null);
+    setPortalFirstSquare(null);
+    if (universalMatch.snapshot.config.matchId === gameStore.getState().domain.matchId) {
+      universalMatch.resetUniversalMatch();
+    } else {
+      bootstrapGame({ targetStore: gameStore });
+    }
+  }, [cancelSearch, clearFeedback, universalMatch]);
+
+  const handleToggleBot = useCallback(
+    (enabled: boolean) => {
+      if (universalMatch.snapshot.config.matchId === gameStore.getState().domain.matchId) {
+        universalMatch.updateSlotRole(1, enabled ? 'AI_BOT' : 'HUMAN_LOCAL', difficulty);
+        toggleBot(false);
+      } else {
+        toggleBot(enabled);
+      }
+    },
+    [universalMatch, difficulty, toggleBot]
+  );
+
+  const handleSetDifficulty = useCallback(
+    (level: AIDifficultyLevel) => {
+      setDifficulty(level);
+      if (universalMatch.snapshot.config.matchId === gameStore.getState().domain.matchId) {
+        universalMatch.updateBotDifficulty(1, level);
+      }
+    },
+    [setDifficulty, universalMatch]
+  );
+
+  const handleVariantSquareClick = useCallback(
+    (coord: string): boolean => {
+      if (universalMatch.snapshot.duckPhase === 'PLACE_DUCK') {
+        const placed = universalMatch.placeDuck(coord);
+        if (placed) {
+          clearFeedback();
+        }
+        return placed;
+      }
+
+      if (selectedOfficialSpell) {
+        const ok = universalMatch.castOfficialSpell(selectedOfficialSpell, coord);
+        if (ok) {
+          setSelectedOfficialSpell(null);
+          triggerFeedback('GAME_EVENT', {
+            message: `Feitiço ${selectedOfficialSpell} conjurado em ${coord}!`,
+          });
+          return true;
+        }
+        return false;
+      }
+
+      if (selectedExpandedSpell) {
+        if (selectedExpandedSpell.type === 'PORTAL' && !portalFirstSquare) {
+          setPortalFirstSquare(coord);
+          triggerFeedback('GAME_EVENT', {
+            message: `Primeira entrada do Portal em ${coord}. Clique na segunda casa vazia!`,
+          });
+          return true;
+        }
+        const ok = universalMatch.castExpandedSpell(
+          selectedExpandedSpell,
+          coord,
+          portalFirstSquare ?? undefined
+        );
+        if (ok) {
+          const spellName = selectedExpandedSpell.displayName;
+          const manaCost = selectedExpandedSpell.manaCost;
+          setSelectedExpandedSpell(null);
+          setPortalFirstSquare(null);
+          triggerFeedback('GAME_EVENT', {
+            message: `Feitiço ${spellName} conjurado em ${coord} (${manaCost} mana)!`,
+          });
+          return true;
+        }
+      }
+
+      return false;
+    },
+    [
+      universalMatch,
+      clearFeedback,
+      selectedOfficialSpell,
+      selectedExpandedSpell,
+      portalFirstSquare,
+      triggerFeedback,
+    ]
+  );
 
   const handleUndo = useCallback(() => {
     cancelSearch();
@@ -447,11 +554,13 @@ const AppContent: React.FC = () => {
         handleBoardSizeChange(8);
       }
 
-      // Sync bot difficulty if slot 1 has botConfig
+      // The universal controller is authoritative for launched Hub matches.
+      // The legacy controller stays disabled so it cannot dispatch a second
+      // command for the same player and turn.
       if (config.slots[1]?.botConfig) {
         setDifficulty(config.slots[1].botConfig.difficultyLevel as AIDifficultyLevel);
       }
-      toggleBot(config.slots[1]?.role === 'AI_BOT' || config.slots[1]?.role === 'BOT_STANDIN');
+      toggleBot(false);
 
       triggerFeedback('GAME_EVENT', {
         message: `Partida iniciada: ${config.variantId.replace(/_/g, ' ')} (${config.totalParticipants} jogadores).`,
@@ -463,12 +572,16 @@ const AppContent: React.FC = () => {
 
   const handleStartBotMatch = useCallback(
     (level: number) => {
-      toggleBot(true);
       setDifficulty(level as AIDifficultyLevel);
-      const cfg = MatchConfigurationManager.createDefaultMatch('standard', 2);
+      let cfg = MatchConfigurationManager.createDefaultMatch('standard', 2);
+      cfg = MatchConfigurationManager.updateBotDifficulty(
+        cfg,
+        1,
+        level as AIDifficultyLevel
+      );
       handleLaunchMatch(cfg);
     },
-    [toggleBot, setDifficulty, handleLaunchMatch]
+    [setDifficulty, handleLaunchMatch]
   );
 
   const handleStartLocalMatch = useCallback(() => {
@@ -483,6 +596,11 @@ const AppContent: React.FC = () => {
       if (minigameId === 'puzzle_rush') {
         clearFeedback();
         navigateTo('PUZZLE_RUSH');
+        return;
+      }
+      if (minigameId === 'bughouse') {
+        clearFeedback();
+        navigateTo('BUGHOUSE');
         return;
       }
       const participantCount = minigameId.includes('3P') ? 3 : minigameId.includes('4P') ? 4 : 2;
@@ -508,6 +626,8 @@ const AppContent: React.FC = () => {
       {/* Main Content Area */}
       {currentView === 'PUZZLE_RUSH' ? (
         <PuzzleRushArena onBackToHub={() => navigateTo('HUB')} />
+      ) : currentView === 'BUGHOUSE' ? (
+        <BughouseArena onBackToHub={() => navigateTo('HUB')} />
       ) : currentView === 'HUB' ? (
         <GameHub
           onStartBotMatch={handleStartBotMatch}
@@ -568,13 +688,39 @@ const AppContent: React.FC = () => {
                   <OfficialSpellBar
                     state={universalMatch.snapshot.officialSpellState}
                     activePlayer={activePlayer}
+                    selectedSpellType={selectedOfficialSpell}
                     onCastSpell={(spellType) => {
-                      const ok = universalMatch.castOfficialSpell(spellType, spellType === 'FREEZE' ? 'd4' : '');
-                      if (ok) {
-                        triggerFeedback('GAME_EVENT', {
-                          message: `Feitiço ${spellType} conjurado com sucesso!`,
-                        });
+                      const selectedPieceId = gameStore.getState().ui.selectedPieceId;
+                      if (spellType === 'JUMP' && selectedPieceId) {
+                        const ok = universalMatch.castOfficialSpell('JUMP', selectedPieceId);
+                        if (ok) {
+                          setSelectedOfficialSpell(null);
+                          triggerFeedback('GAME_EVENT', {
+                            message: 'Feitiço JUMP conjurado na peça selecionada!',
+                          });
+                          return;
+                        }
                       }
+                      if (selectedOfficialSpell === spellType) {
+                        const ok = universalMatch.castOfficialSpell(
+                          spellType,
+                          spellType === 'FREEZE' ? '3,3' : ''
+                        );
+                        setSelectedOfficialSpell(null);
+                        if (ok) {
+                          triggerFeedback('GAME_EVENT', {
+                            message: `Feitiço ${spellType} conjurado com sucesso!`,
+                          });
+                        }
+                        return;
+                      }
+                      setSelectedOfficialSpell(spellType);
+                      triggerFeedback('GAME_EVENT', {
+                        message:
+                          spellType === 'FREEZE'
+                            ? 'Feitiço FREEZE preparado! Clique na casa central 3×3 no tabuleiro (ou clique novamente no botão).'
+                            : 'Feitiço JUMP preparado! Clique na peça aliada no tabuleiro (ou clique novamente no botão).',
+                      });
                     }}
                   />
                 )}
@@ -586,13 +732,28 @@ const AppContent: React.FC = () => {
                     <SpellCardHand
                       state={universalMatch.snapshot.expandedSpellState}
                       activePlayer={activePlayer === 'P1' ? 'WHITE' : 'BLACK'}
+                      selectedSpellType={selectedExpandedSpell?.type ?? null}
                       onSelectSpell={(spell) => {
-                        const ok = universalMatch.castExpandedSpell(spell, 'e4');
-                        if (ok) {
-                          triggerFeedback('GAME_EVENT', {
-                            message: `Feitiço ${spell.displayName} conjurado por ${spell.manaCost} mana!`,
-                          });
+                        if (selectedExpandedSpell?.id === spell.id) {
+                          const ok = universalMatch.castExpandedSpell(
+                            spell,
+                            '4,3',
+                            spell.type === 'PORTAL' ? '3,3' : undefined
+                          );
+                          setSelectedExpandedSpell(null);
+                          setPortalFirstSquare(null);
+                          if (ok) {
+                            triggerFeedback('GAME_EVENT', {
+                              message: `Feitiço ${spell.displayName} conjurado por ${spell.manaCost} mana!`,
+                            });
+                          }
+                          return;
                         }
+                        setSelectedExpandedSpell(spell);
+                        setPortalFirstSquare(null);
+                        triggerFeedback('GAME_EVENT', {
+                          message: `Feitiço ${spell.displayName} preparado! Clique na casa-alvo no tabuleiro (ou clique novamente na carta).`,
+                        });
                       }}
                     />
                   </div>
@@ -794,13 +955,14 @@ const AppContent: React.FC = () => {
                     >
                       <LazyChessBoard3D
                         boardSize={boardSize}
-                        isBotThinking={isThinking}
+                        isBotThinking={isThinking || universalMatch.snapshot.isThinking}
                         botPlayer={isBotEnabled ? 'P2' : undefined}
                         disabled={
                           universalMatch.snapshot.isSpectatorMatch ||
-                          universalMatch.snapshot.activeSlot?.role === 'AI_BOT' ||
-                          universalMatch.snapshot.activeSlot?.role === 'BOT_STANDIN' ||
-                          (isBotEnabled && activePlayer === 'P2')
+                          (universalMatch.snapshot.duckPhase !== 'PLACE_DUCK' &&
+                            (universalMatch.snapshot.activeSlot?.role === 'AI_BOT' ||
+                              universalMatch.snapshot.activeSlot?.role === 'BOT_STANDIN' ||
+                              (isBotEnabled && activePlayer === 'P2')))
                         }
                         isFlipped={isBoardFlipped}
                         invalidMoveFeedback={invalidMoveFeedback}
@@ -811,8 +973,10 @@ const AppContent: React.FC = () => {
                         frozenCoordinates={frozenCoordinates}
                         onHumanPieceMoved={universalMatch.onHumanPieceMoved}
                         onVariantSquareClick={
-                          universalMatch.snapshot.duckPhase === 'PLACE_DUCK'
-                            ? universalMatch.placeDuck
+                          universalMatch.snapshot.duckPhase === 'PLACE_DUCK' ||
+                          Boolean(selectedOfficialSpell) ||
+                          Boolean(selectedExpandedSpell)
+                            ? handleVariantSquareClick
                             : undefined
                         }
                       />
@@ -833,13 +997,14 @@ const AppContent: React.FC = () => {
                   >
                     <ChessBoard
                       boardSize={boardSize}
-                      isBotThinking={isThinking}
+                      isBotThinking={isThinking || universalMatch.snapshot.isThinking}
                       botPlayer={isBotEnabled ? 'P2' : undefined}
                       disabled={
                         universalMatch.snapshot.isSpectatorMatch ||
-                        universalMatch.snapshot.activeSlot?.role === 'AI_BOT' ||
-                        universalMatch.snapshot.activeSlot?.role === 'BOT_STANDIN' ||
-                        (isBotEnabled && activePlayer === 'P2')
+                        (universalMatch.snapshot.duckPhase !== 'PLACE_DUCK' &&
+                          (universalMatch.snapshot.activeSlot?.role === 'AI_BOT' ||
+                            universalMatch.snapshot.activeSlot?.role === 'BOT_STANDIN' ||
+                            (isBotEnabled && activePlayer === 'P2')))
                       }
                       invalidMoveFeedback={invalidMoveFeedback}
                       onTriggerInvalidMove={triggerFeedback}
@@ -848,8 +1013,10 @@ const AppContent: React.FC = () => {
                       frozenCoordinates={frozenCoordinates}
                       onHumanPieceMoved={universalMatch.onHumanPieceMoved}
                       onVariantSquareClick={
-                        universalMatch.snapshot.duckPhase === 'PLACE_DUCK'
-                          ? universalMatch.placeDuck
+                        universalMatch.snapshot.duckPhase === 'PLACE_DUCK' ||
+                        Boolean(selectedOfficialSpell) ||
+                        Boolean(selectedExpandedSpell)
+                          ? handleVariantSquareClick
                           : undefined
                       }
                     />
@@ -1058,11 +1225,11 @@ const AppContent: React.FC = () => {
               <GameControlsBar
                 isBotEnabled={isBotEnabled}
                 difficulty={difficulty}
-                isThinking={isThinking}
+                isThinking={isThinking || universalMatch.snapshot.isThinking}
                 lastEval={lastEval}
                 boardSize={boardSize}
-                onToggleBot={toggleBot}
-                onSetDifficulty={setDifficulty}
+                onToggleBot={handleToggleBot}
+                onSetDifficulty={handleSetDifficulty}
                 onBoardSizeChange={handleBoardSizeChange}
                 onUndo={handleUndo}
                 onRedo={handleRedo}
@@ -1075,7 +1242,9 @@ const AppContent: React.FC = () => {
                   clearFeedback();
                   updatePreferences({ boardViewMode: mode });
                 }}
-                onForceBotMove={forceBotMove}
+                onForceBotMove={
+                  isUniversalBotMatch ? () => void universalMatch.stepForward() : forceBotMove
+                }
                 onOfferDraw={handleOfferDraw}
                 onResign={handleResign}
                 isGameOver={isGameOver}

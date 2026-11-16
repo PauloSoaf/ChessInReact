@@ -105,6 +105,46 @@ export class MatchConfigurationManager {
   }
 
   /**
+   * Updates only the authoritative difficulty for a bot slot.
+   *
+   * The match configuration is the source of truth consumed by
+   * UniversalMatchController and AIWorkerPool. Keeping this operation here
+   * prevents UI state from silently replacing a selected level with the
+   * default N3 value when a match is launched.
+   */
+  public static updateBotDifficulty(
+    config: IMatchConfiguration,
+    slotIndex: number,
+    difficultyLevel: IBotSlotConfig['difficultyLevel']
+  ): IMatchConfiguration {
+    const nextSlots = config.slots.map((slot) => {
+      if (slot.slotIndex !== slotIndex) return slot;
+
+      const currentBotConfig = slot.botConfig ?? {
+        difficultyLevel: 3 as const,
+        archetype: 'TACTICAL' as const,
+        thinkTimeMs: 1000,
+      };
+
+      return {
+        ...slot,
+        role:
+          slot.role === 'BOT_STANDIN' || slot.role === 'AI_BOT' ? slot.role : 'AI_BOT',
+        displayName: slot.displayName.replace(/\(N[1-5]\)$/, `(N${difficultyLevel})`),
+        botConfig: {
+          ...currentBotConfig,
+          difficultyLevel,
+        },
+      };
+    });
+
+    return {
+      ...config,
+      slots: nextSlots,
+    };
+  }
+
+  /**
    * Handles player disconnection with automatic Stand-in Bot takeover (RF-16-04).
    */
   public static handleDisconnectTakeover(
