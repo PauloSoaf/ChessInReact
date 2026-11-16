@@ -18,6 +18,7 @@ import { GameControlsBar } from './ui/components/game/GameControlsBar';
 import { SpectatorControlsBar } from './ui/components/game/SpectatorControlsBar';
 import { MultiplayerFactionRibbon } from './ui/components/game/MultiplayerFactionRibbon';
 import { DuckChessBanner } from './ui/components/game/DuckChessBanner';
+import { VariantMatchBanner } from './ui/components/game/VariantMatchBanner';
 import { OfficialSpellBar } from './ui/components/game/OfficialSpellBar';
 import { SpellCardHand } from './analysis/minigames/SpellCardHand';
 import { ISpellCard } from './analysis/minigames/SpellChessEngine';
@@ -662,6 +663,13 @@ const AppContent: React.FC = () => {
                 />
               )}
 
+              {/* Variant Match Header Banner (Spec 06, Spec 12, Spec 16) */}
+              <VariantMatchBanner
+                variantId={universalMatch.snapshot.config.variantId}
+                participantCount={universalMatch.snapshot.config.totalParticipants}
+                activePlayerLabel={activePlayer === 'P1' ? 'Brancas' : 'Pretas'}
+              />
+
               {/* Multiplayer Faction Ribbon (3 to 12 participants) */}
               {universalMatch.snapshot.config.totalParticipants > 2 && (
                 <MultiplayerFactionRibbon
@@ -683,7 +691,8 @@ const AppContent: React.FC = () => {
               )}
 
               {/* Official Spell Chess Toolbar */}
-              {universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_OFFICIAL' &&
+              {(universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_OFFICIAL' ||
+                universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS') &&
                 universalMatch.snapshot.officialSpellState && (
                   <OfficialSpellBar
                     state={universalMatch.snapshot.officialSpellState}

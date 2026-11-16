@@ -33,7 +33,11 @@ export class VariantCatalog {
 
   public static getById(id: string): IVariantDefinition | undefined {
     this.ensureInitialized();
-    return this.registry.get(id.toUpperCase());
+    const upper = id.toUpperCase();
+    if (upper === 'SPELL_CHESS') {
+      return this.registry.get('SPELL_CHESS_OFFICIAL');
+    }
+    return this.registry.get(upper);
   }
 
   public static getByFamily(family: VariantFamily): readonly IVariantDefinition[] {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { ThemeProvider } from '../theme/ThemeContext';
 import ChessBoard from '../../components/ChessBoard/ChessBoard';
 import { VariantMapConfig } from '../../engine/variants/VariantMapConfig';
@@ -15,6 +15,10 @@ import { VariantSpecializedStrategy } from '../../workers/ai/strategies/VariantS
 import { DuckChessPlannerStrategy } from '../../workers/ai/strategies/DuckChessPlannerStrategy';
 import { SpellOptimizationStrategy } from '../../workers/ai/strategies/SpellOptimizationStrategy';
 import { VariantOverlays3D } from '../../rendering/mesh/VariantOverlays3D';
+import { VariantCatalog } from '../../engine/variants/catalog/VariantCatalog';
+import { VariantMatchBanner } from '../components/game/VariantMatchBanner';
+import { OfficialSpellBar } from '../components/game/OfficialSpellBar';
+import { GameHub } from '../components/hub/GameHub';
 
 describe('Variable Variant Maps, Spell Chess Skins & Gameplay Mechanics, and Rule-Aware Bots', () => {
   beforeEach(() => {
@@ -372,6 +376,81 @@ describe('Variable Variant Maps, Spell Chess Skins & Gameplay Mechanics, and Rul
     expect(container.querySelector('[name="stealth-trap-3d-4,4"]')).not.toBeNull();
     expect(container.querySelector('[name="duck-3d"]')).not.toBeNull();
     unmount();
+    controller.dispose();
+  });
+
+  it('7. Spell Chess Integration: alias resolution, VariantMatchBanner, OfficialSpellBar Freeze/Jump buttons and GameHub cards', () => {
+    // 1. VariantCatalog alias resolution
+    const spellDef = VariantCatalog.getById('SPELL_CHESS');
+    expect(spellDef).toBeDefined();
+    expect(spellDef?.id).toBe('SPELL_CHESS_OFFICIAL');
+    expect(spellDef?.name).toBe('Spell Chess (Regras Oficiais)');
+
+    // 2. Controller initialized with alias 'SPELL_CHESS' activates officialSpellState
+    const controller = new UniversalMatchController();
+    const cfg = MatchConfigurationManager.createDefaultMatch('SPELL_CHESS', 2);
+    controller.startMatch(cfg);
+    const snap = controller.getSnapshot();
+    expect(snap.officialSpellState).not.toBeNull();
+    expect(snap.officialSpellState?.whiteCharges.freezeCharges).toBe(2);
+    expect(snap.officialSpellState?.whiteCharges.jumpCharges).toBe(2);
+
+    // 3. VariantMatchBanner renders mode title, badge and description
+    const { container: bannerContainer, unmount: unmountBanner } = render(
+      <VariantMatchBanner variantId="SPELL_CHESS_OFFICIAL" activePlayerLabel="Brancas" />
+    );
+    expect(screen.getByTestId('variant-match-banner')).toBeDefined();
+    expect(bannerContainer.textContent).toContain('Spell Chess (Regras Oficiais Chess.com)');
+    expect(bannerContainer.textContent).toContain('Freeze & Jump (2 Cargas)');
+    unmountBanner();
+
+    // 4. OfficialSpellBar renders Freeze (3x3) and Jump (Salto) buttons with remaining charges
+    let castType: string | null = null;
+    const { unmount: unmountBar } = render(
+      <OfficialSpellBar
+        state={snap.officialSpellState!}
+        activePlayer="P1"
+        selectedSpellType="FREEZE"
+        onCastSpell={(type) => {
+          castType = type;
+        }}
+      />
+    );
+    const freezeBtn = screen.getByTestId('btn-cast-freeze');
+    const jumpBtn = screen.getByTestId('btn-cast-jump');
+    expect(freezeBtn).toBeDefined();
+    expect(jumpBtn).toBeDefined();
+    expect(screen.getByTestId('official-spell-instruction').textContent).toContain('Freeze ativado');
+
+    freezeBtn.click();
+    expect(castType).toBe('FREEZE');
+    jumpBtn.click();
+    expect(castType).toBe('JUMP');
+    unmountBar();
+
+    // 5. GameHub renders both Official and Expanded Spell Chess cards in MINIGAMES tab
+    const { container: hubContainer, unmount: unmountHub } = render(
+      <ThemeProvider>
+        <GameHub
+          onStartBotMatch={() => {}}
+          onStartLocalMatch={() => {}}
+          onResumeMatch={() => {}}
+          hasActiveMatch={false}
+          turnNumber={1}
+          botEnabled={true}
+          botDifficulty={3}
+          onSelectDifficulty={() => {}}
+          onOpenThemeModal={() => {}}
+        />
+      </ThemeProvider>
+    );
+    // Switch to MINIGAMES tab
+    const minigamesTab = screen.getByTestId('hub-tab-minigames');
+    fireEvent.click(minigamesTab);
+    expect(hubContainer.textContent).toContain('Spell Chess Oficial (Chess.com)');
+    expect(hubContainer.textContent).toContain('Spell Chess RPG Expandido');
+    unmountHub();
+
     controller.dispose();
   });
 });

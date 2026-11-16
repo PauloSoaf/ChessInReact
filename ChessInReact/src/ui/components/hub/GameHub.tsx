@@ -144,15 +144,27 @@ const MINIGAMES_CATALOG = [
     disabled: false,
   },
   {
-    id: 'spell_chess',
-    title: 'Spell Chess (Xadrez dos Feitiços)',
-    badge: 'Pronto para Jogar (SPEC13/16)',
+    id: 'spell_chess_official',
+    title: 'Spell Chess Oficial (Chess.com)',
+    badge: 'Freeze & Jump (2 Cargas)',
+    accentColor: '#06b6d4',
+    icon: '❄️',
+    desc: 'Regras Oficiais do Chess.com: 2 cargas de Freeze (congelamento 3×3) e 2 cargas de Jump (salto de peça) por jogador, com recarga de 3 turnos.',
+    features: ['Freeze 3×3 (2 Cargas)', 'Jump sobre Peças (2 Cargas)', 'Recarga de 3 Turnos'],
+    status: 'READY' as const,
+    buttonText: 'Configurar / Jogar Spell Chess Oficial',
+    disabled: false,
+  },
+  {
+    id: 'spell_chess_expanded',
+    title: 'Spell Chess RPG Expandido',
+    badge: '7 Feitiços & Mana (SPEC12)',
     accentColor: '#9333ea',
     icon: '🧙‍♂️',
-    desc: 'Cartas arcanas de magia com mana compartilhado: Congelamento em área (Freeze), Salto sobre peças (Jump), Camuflagem furtiva e Portais dimensionais.',
-    features: ['Deck de Feitiços & Mana', 'Topologia Clássica & Hexagonal', 'Cartas Colecionáveis'],
+    desc: 'Cartas arcanas de magia com mana compartilhado: Congelamento em área (Freeze), Salto sobre peças (Jump), Camuflagem furtiva, Portais dimensionais e Ressurreição.',
+    features: ['Deck de 7 Feitiços & Mana', 'Topologia Clássica & Hexagonal', 'Cartas Colecionáveis'],
     status: 'READY' as const,
-    buttonText: 'Configurar / Jogar Spell Chess',
+    buttonText: 'Configurar / Jogar Spell Chess RPG',
     disabled: false,
   },
   {
@@ -664,6 +676,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
 
             <button
               id="hub-tab-minigames"
+              data-testid="hub-tab-minigames"
               type="button"
               role="tab"
               aria-selected={activeHubTab === 'MINIGAMES'}
@@ -1263,7 +1276,11 @@ export const GameHub: React.FC<IGameHubProps> = ({
                       onStartBotMatch(botDifficulty);
                     }
                   } else {
-                    setStagingVariantId(mg.id.toUpperCase());
+                    const resolvedVariantId =
+                      mg.id === 'spell_chess'
+                        ? 'SPELL_CHESS_OFFICIAL'
+                        : mg.id.toUpperCase();
+                    setStagingVariantId(resolvedVariantId);
                     setStagingParticipants(mg.id === 'bughouse' ? 4 : 2);
                   }
                 }}
