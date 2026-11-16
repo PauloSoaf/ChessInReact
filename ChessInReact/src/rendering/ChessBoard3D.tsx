@@ -31,6 +31,10 @@ export interface IChessBoard3DProps {
   duckCoordinate?: string | null;
   /** Spell Chess frozen squares ("x,y") */
   frozenCoordinates?: readonly string[];
+  /** Spell Chess active portals */
+  activePortals?: ReadonlyArray<{ readonly coordA: string; readonly coordB: string }>;
+  /** Spell Chess stealth traps */
+  stealthTraps?: Readonly<Record<string, string>>;
   onHumanPieceMoved?: (from: string, to: string, pieceId: string) => void;
   onVariantSquareClick?: (coordinate: string) => boolean;
 }
@@ -179,6 +183,8 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
   onFallbackTo2D,
   duckCoordinate,
   frozenCoordinates,
+  activePortals,
+  stealthTraps,
   onHumanPieceMoved,
   onVariantSquareClick,
 }) => {
@@ -426,6 +432,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
         {/* 3D Board Surface (InstancedMesh) */}
         <InstancedBoard
           boardSize={boardSize}
+          variantId={domain.variantId}
           lightColor={activeBoardColors.lightSquare}
           darkColor={activeBoardColors.darkSquare}
           selectedCoord={selectedPiece?.position}
@@ -446,6 +453,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
         ) : (
           <InstancedPieces
             boardSize={boardSize}
+            variantId={domain.variantId}
             pieces={activePieces}
             selectedPieceId={ui.selectedPieceId}
             checkConstraintCoords={checkConstraintCoords}
@@ -453,11 +461,14 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           />
         )}
 
-        {/* Variant mechanics: Duck Chess duck and Spell Chess frozen squares */}
+        {/* Variant mechanics: Duck Chess duck, Spell Chess frozen squares/portals/traps, and Hill Sanctuary */}
         <VariantOverlays3D
           boardSize={boardSize}
+          variantId={domain.variantId}
           duckCoordinate={duckCoordinate}
           frozenCoordinates={frozenCoordinates}
+          activePortals={activePortals}
+          stealthTraps={stealthTraps}
         />
       </Canvas>
 

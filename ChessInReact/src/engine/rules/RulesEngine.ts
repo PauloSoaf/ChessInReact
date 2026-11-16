@@ -14,6 +14,7 @@ import { BetzaParser } from './behaviors/BetzaParser';
 import { CheckValidator } from './CheckValidator';
 import { GameOverDetector } from './GameOverDetector';
 import { VariantRegistry } from './VariantRegistry';
+import { VariantMapConfig } from '../variants/VariantMapConfig';
 import { parseCoord, toCoordKey } from './utils/CoordinateHelper';
 
 const PROMOTION_OPTIONS: readonly PieceVariantId[] = ['QUEEN', 'ROOK', 'BISHOP', 'KNIGHT'];
@@ -49,6 +50,14 @@ export class RulesEngine {
     if (piece.isCaptured) {
       return { valid: false, code: 'PIECE_IS_CAPTURED', reason: `Piece "${intent.pieceId}" is already captured.` };
     }
+    if (piece.metadata?.isFrozen) {
+      return { valid: false, code: 'GEOMETRICALLY_INVALID', reason: `Piece "${intent.pieceId}" is frozen.` };
+    }
+    const originTerrainId = state.terrain?.[piece.position];
+    const originTerrain = originTerrainId ? state.boardEntities[originTerrainId] : undefined;
+    if (originTerrain?.type === 'TERRAIN' && originTerrain.variantId === 'FROZEN') {
+      return { valid: false, code: 'GEOMETRICALLY_INVALID', reason: `Origin square ${piece.position} is frozen.` };
+    }
 
     // 2. Ownership & Turn
     const actingPlayer = intent.actingPlayer ?? piece.ownerId;
@@ -82,23 +91,51 @@ export class RulesEngine {
       return { valid: false, code: 'DESTINATION_OUT_OF_BOUNDS', reason: `Destination ${intent.to} out of bounds.` };
     }
 
+    const parsedFrom = parseCoord(piece.position);
+    const parsedTo = parseCoord(intent.to);
+    const boardWidth = (topology as { readonly width?: number }).width ?? 8;
+    if (parsedTo && VariantMapConfig.isVoidSquare(state.variantId, parsedTo.x, parsedTo.y, boardWidth)) {
+      return { valid: false, code: 'DESTINATION_OUT_OF_BOUNDS', reason: `Destination ${intent.to} is a void cutout square.` };
+    }
+
+    const destTerrainId = state.terrain?.[intent.to];
+    const destTerrain = destTerrainId ? state.boardEntities[destTerrainId] : undefined;
+    if (destTerrain?.type === 'TERRAIN' && destTerrain.variantId === 'FROZEN') {
+      return { valid: false, code: 'GEOMETRICALLY_INVALID', reason: `Destination ${intent.to} is frozen.` };
+    }
+
     // 4. Check destination occupancy
     const destOccupantId = state.occupancy[intent.to];
     if (destOccupantId) {
-      const destPiece = state.boardEntities[destOccupantId] as IPieceEntity | undefined;
-      if (destPiece && destPiece.type === 'PIECE' && !destPiece.isCaptured && destPiece.ownerId === intent.actingPlayer) {
+      const rawDest = state.boardEntities[destOccupantId];
+      if (rawDest?.type === 'OBSTACLE') {
         return {
           valid: false,
-          code: 'DESTINATION_FRIENDLY_OCCUPIED',
-          reason: `Destination occupied by friendly piece ${destOccupantId}.`,
+          code: 'GEOMETRICALLY_INVALID',
+          reason: `Destination occupied by obstacle ${destOccupantId}.`,
         };
+      }
+      const destPiece = rawDest as IPieceEntity | undefined;
+      if (destPiece && destPiece.type === 'PIECE' && !destPiece.isCaptured) {
+        if (destPiece.ownerId === intent.actingPlayer) {
+          return {
+            valid: false,
+            code: 'DESTINATION_FRIENDLY_OCCUPIED',
+            reason: `Destination occupied by friendly piece ${destOccupantId}.`,
+          };
+        }
+        if (destPiece.metadata?.isShielded) {
+          return {
+            valid: false,
+            code: 'GEOMETRICALLY_INVALID',
+            reason: `Destination piece ${destOccupantId} is protected by Mirror Shield.`,
+          };
+        }
       }
     }
 
     // 5. Fast Direct Destination Validation (RNF-02 < 0.05ms)
     const isWhite = piece.ownerId === 'P1';
-    const parsedFrom = parseCoord(piece.position);
-    const parsedTo = parseCoord(intent.to);
     const vUpper = piece.variantId.toUpperCase();
 
     const isPawn = vUpper === 'PAWN' || vUpper === 'P';
@@ -106,6 +143,7 @@ export class RulesEngine {
     let isReachable = false;
     let isCastling: 'KINGSIDE' | 'QUEENSIDE' | undefined;
     let isEnPassant = false;
+    const hasJumpBuff = Boolean(piece.metadata?.hasJump);
 
     if (isPawn && parsedFrom && parsedTo) {
       const advanceDy = isWhite ? 1 : -1;
@@ -115,16 +153,15 @@ export class RulesEngine {
       if (parsedTo.x === parsedFrom.x && parsedTo.y === parsedFrom.y + advanceDy && !destOccupantId) {
         isReachable = true;
       }
-      // 2-step forward
+      // 2-step forward (or Jump leap over 1 square)
       else if (
         parsedTo.x === parsedFrom.x &&
-        parsedFrom.y === startRank &&
+        ((parsedFrom.y === startRank && !piece.hasMoved) || hasJumpBuff) &&
         parsedTo.y === parsedFrom.y + advanceDy * 2 &&
-        !piece.hasMoved &&
         !destOccupantId
       ) {
         const intermediate = toCoordKey(parsedFrom.x, parsedFrom.y + advanceDy);
-        if (!state.occupancy[intermediate]) {
+        if (!state.occupancy[intermediate] || hasJumpBuff) {
           isReachable = true;
         }
       }
@@ -198,6 +235,34 @@ export class RulesEngine {
       };
     }
 
+    const capturedPieceId: EntityId | undefined = isEnPassant
+      ? (parsedFrom && parsedTo ? state.occupancy[toCoordKey(parsedTo.x, parsedFrom.y)] : undefined)
+      : destOccupantId;
+
+    const isCapture = Boolean(capturedPieceId);
+
+    // Atomic Chess rule: Kings cannot capture, and captures cannot blow up friendly King
+    if (variantConfig?.variantId === 'ATOMIC' && isCapture) {
+      if (isKing) {
+        return {
+          valid: false,
+          code: 'GEOMETRICALLY_INVALID',
+          reason: 'Atomic Chess rule: Kings are not allowed to capture.',
+        };
+      }
+      const friendlyKing = CheckValidator.findRoyalPiece(piece.ownerId, state);
+      if (friendlyKing && parsedTo) {
+        const kParsed = parseCoord(friendlyKing.position);
+        if (kParsed && Math.max(Math.abs(kParsed.x - parsedTo.x), Math.abs(kParsed.y - parsedTo.y)) <= 1) {
+          return {
+            valid: false,
+            code: 'LEAVES_KING_IN_CHECK',
+            reason: 'Atomic Chess rule: Capture would detonate the friendly king.',
+          };
+        }
+      }
+    }
+
     // 6. King safety check on in-place simulated move (RF-04, RNF-02 < 0.05ms)
     const enforceCheck = variantConfig?.enforceCheck ?? (variantConfig?.variantId !== 'ANTICHESS');
     if (enforceCheck) {
@@ -259,12 +324,6 @@ export class RulesEngine {
     }
 
     // 7. Antichess forced capture check (RF-10)
-    const capturedPieceId: EntityId | undefined = isEnPassant
-      ? (parsedFrom && parsedTo ? state.occupancy[toCoordKey(parsedTo.x, parsedFrom.y)] : undefined)
-      : destOccupantId;
-
-    const isCapture = Boolean(capturedPieceId);
-
     if (variantConfig?.variantId === 'ANTICHESS' && !isCapture) {
       const allLegal = this.getLegalMoves(state, topology, variantConfig);
       if (allLegal.some((m) => m.isCapture)) {
@@ -343,10 +402,21 @@ export class RulesEngine {
     precomputedOpponentId?: PlayerId
   ): ILegalMove[] {
     variantConfig = variantConfig ?? VariantRegistry.resolveRulesConfig(state.variantId);
+    if (piece.metadata?.isFrozen) {
+      return [];
+    }
+    const originTerrainId = state.terrain?.[piece.position];
+    const originTerrain = originTerrainId ? state.boardEntities[originTerrainId] : undefined;
+    if (originTerrain?.type === 'TERRAIN' && originTerrain.variantId === 'FROZEN') {
+      return [];
+    }
+
     const isWhite = piece.ownerId === 'P1';
     const parsedFrom = parseCoord(piece.position);
     const vUpper = piece.variantId.toUpperCase();
     const isPawn = parsedFrom && (vUpper === 'PAWN' || vUpper === 'P');
+    const hasJumpBuff = Boolean(piece.metadata?.hasJump);
+    const boardWidth = (topology as { readonly width?: number }).width ?? 8;
     const candidateDestinations: CoordinateKey[] = [];
 
     // 1. Direct handling for PAWN (bypassing Betza loop for 10x faster execution)
@@ -366,6 +436,11 @@ export class RulesEngine {
             candidateDestinations.push(f2);
           }
         }
+      } else if (hasJumpBuff) {
+        const f2 = toCoordKey(parsedFrom.x, parsedFrom.y + advanceDy * 2);
+        if (topology.isValidCoordinate(f2) && !state.occupancy[f2]) {
+          candidateDestinations.push(f2);
+        }
       }
 
       // Diagonal captures & En Passant
@@ -375,7 +450,13 @@ export class RulesEngine {
           const occId = state.occupancy[diag];
           if (occId) {
             const victim = state.boardEntities[occId] as IPieceEntity | undefined;
-            if (victim && victim.type === 'PIECE' && !victim.isCaptured && victim.ownerId !== piece.ownerId) {
+            if (
+              victim &&
+              victim.type === 'PIECE' &&
+              !victim.isCaptured &&
+              victim.ownerId !== piece.ownerId &&
+              !victim.metadata?.isShielded
+            ) {
               candidateDestinations.push(diag);
             }
           } else if (diag === state.turnState.enPassantTarget) {
@@ -466,6 +547,22 @@ export class RulesEngine {
 
     for (const dest of candidateDestinations) {
       const destParsed = parseCoord(dest);
+      if (destParsed && VariantMapConfig.isVoidSquare(state.variantId, destParsed.x, destParsed.y, boardWidth)) {
+        continue;
+      }
+      const destTerrainId = state.terrain?.[dest];
+      const destTerrain = destTerrainId ? state.boardEntities[destTerrainId] : undefined;
+      if (destTerrain?.type === 'TERRAIN' && destTerrain.variantId === 'FROZEN') {
+        continue;
+      }
+      const rawOccupant = state.occupancy[dest] ? state.boardEntities[state.occupancy[dest]!] : undefined;
+      if (rawOccupant?.type === 'OBSTACLE') {
+        continue;
+      }
+      if (rawOccupant?.type === 'PIECE' && (rawOccupant as IPieceEntity).metadata?.isShielded) {
+        continue;
+      }
+
       const isCastling =
         (vUpper === 'KING' || vUpper === 'K') && parsedFrom && Math.abs((destParsed?.x ?? 0) - parsedFrom.x) === 2
           ? (destParsed?.x ?? 0) > parsedFrom.x
@@ -483,6 +580,19 @@ export class RulesEngine {
         : state.occupancy[dest];
 
       const isCapture = Boolean(capturedPieceId);
+
+      if (variantConfig?.variantId === 'ATOMIC' && isCapture) {
+        if (vUpper === 'KING' || vUpper === 'K') {
+          continue;
+        }
+        const royalForAtomic = precomputedKing ?? CheckValidator.findRoyalPiece(piece.ownerId, state);
+        if (royalForAtomic && destParsed) {
+          const kParsed = parseCoord(royalForAtomic.position);
+          if (kParsed && Math.max(Math.abs(kParsed.x - destParsed.x), Math.abs(kParsed.y - destParsed.y)) <= 1) {
+            continue;
+          }
+        }
+      }
 
       // Pawn promotion check
       const promotionRank = isWhite ? 7 : 0;
@@ -603,6 +713,39 @@ export class RulesEngine {
     simulatedOccupancy[to] = piece.id;
     simulatedEntities[piece.id] = { ...piece, position: to, hasMoved: true };
 
+    const wasCapture = Boolean(isEnPassant || state.occupancy[to]);
+    let atomicWinnerId: PlayerId | null = state.winnerId;
+    let atomicGameOver = state.isGameOver;
+
+    if (state.variantId === 'ATOMIC' && wasCapture) {
+      const toCoord = parseCoord(to);
+      // Capturing piece also explodes
+      delete simulatedOccupancy[to];
+      simulatedEntities[piece.id] = { ...simulatedEntities[piece.id], isCaptured: true };
+
+      if (toCoord) {
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            if (dx === 0 && dy === 0) continue;
+            const adjKey = toCoordKey(toCoord.x + dx, toCoord.y + dy);
+            const adjId = simulatedOccupancy[adjKey];
+            if (!adjId) continue;
+            const adjEntity = simulatedEntities[adjId];
+            if (!adjEntity || adjEntity.type !== 'PIECE' || adjEntity.isCaptured) continue;
+            const adjVar = adjEntity.variantId.toUpperCase();
+            if (adjVar === 'PAWN' || adjVar === 'P') continue; // Pawns survive collateral blast
+
+            delete simulatedOccupancy[adjKey];
+            simulatedEntities[adjId] = { ...adjEntity, isCaptured: true };
+            if (adjVar === 'KING' || adjVar === 'K') {
+              atomicGameOver = true;
+              atomicWinnerId = adjEntity.ownerId === 'P1' ? 'P2' : 'P1';
+            }
+          }
+        }
+      }
+    }
+
     // Move the Rook during castling in simulation
     if (isCastling) {
       const rank = piece.position.endsWith(',0') ? 0 : 7;
@@ -635,6 +778,8 @@ export class RulesEngine {
 
     return {
       ...state,
+      isGameOver: atomicGameOver,
+      winnerId: atomicWinnerId,
       boardEntities: simulatedEntities,
       occupancy: simulatedOccupancy,
     };

@@ -16,6 +16,7 @@ import {
   IAIDecisionRequest,
   IAIDecisionResponse,
 } from '../interfaces/IUniversalAIEngine';
+import { decideWithSearch } from './SearchBackedDecision';
 
 export class DuckChessPlannerStrategy implements IUniversalAIStrategy {
   public readonly strategyId = 'JOINT_MOVE_DUCK_PLANNER';
@@ -76,30 +77,43 @@ export class DuckChessPlannerStrategy implements IUniversalAIStrategy {
       };
     }
 
-    // 2. Multi-level search
-    for (const move of moves) {
-      let score = 0;
-
-      if (level === 1) {
-        // Novice: simple randomized moves
-        score = move.isCapture ? 80 : Math.random() * 50;
-      } else {
-        // Intermediate & Master
-        if (move.isCapture) score += 250;
-
-        // Center control
-        const [toX, toY] = this.parseCoord(move.to);
-        score += (4 - Math.abs(toX - 3.5)) * 12 + (4 - Math.abs(toY - 3.5)) * 12;
-
-        // Avoid exposing royal piece
-        if (move.pieceId.toLowerCase().includes('k') && !move.pieceId.toLowerCase().includes('kn')) {
-          score += 10;
-        }
+    // 2. Multi-level search (use Negamax tree search for level >= 2 when domain is provided)
+    const searched = level >= 2 ? decideWithSearch(request, this.strategyId) : null;
+    if (searched) {
+      const matched = moves.find(
+        (m) => m.from === searched.move.from && m.to === searched.move.to && m.pieceId === searched.move.pieceId
+      );
+      if (matched) {
+        selectedMove = matched;
+        bestScore = searched.evaluationCentipawns;
       }
+    }
 
-      if (score > bestScore) {
-        bestScore = score;
-        selectedMove = move;
+    if (bestScore === -Infinity) {
+      for (const move of moves) {
+        let score = 0;
+
+        if (level === 1) {
+          // Novice: simple randomized moves
+          score = move.isCapture ? 80 : Math.random() * 50;
+        } else {
+          // Intermediate & Master
+          if (move.isCapture) score += 250;
+
+          // Center control
+          const [toX, toY] = this.parseCoord(move.to);
+          score += (4 - Math.abs(toX - 3.5)) * 12 + (4 - Math.abs(toY - 3.5)) * 12;
+
+          // Avoid exposing royal piece
+          if (move.pieceId.toLowerCase().includes('k') && !move.pieceId.toLowerCase().includes('kn')) {
+            score += 10;
+          }
+        }
+
+        if (score > bestScore) {
+          bestScore = score;
+          selectedMove = move;
+        }
       }
     }
 

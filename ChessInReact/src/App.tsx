@@ -734,7 +734,7 @@ const AppContent: React.FC = () => {
                       activePlayer={activePlayer === 'P1' ? 'WHITE' : 'BLACK'}
                       selectedSpellType={selectedExpandedSpell?.type ?? null}
                       onSelectSpell={(spell) => {
-                        if (selectedExpandedSpell?.id === spell.id) {
+                        if (spell.type === 'RESURRECTION' || selectedExpandedSpell?.id === spell.id) {
                           const ok = universalMatch.castExpandedSpell(
                             spell,
                             '4,3',
@@ -769,7 +769,7 @@ const AppContent: React.FC = () => {
                   }
                   subtitle={
                     universalMatch.snapshot.config.slots[1]?.role === 'AI_BOT' ||
-                    universalMatch.snapshot.config.slots[1]?.role === 'BOT_STANDIN'
+                      universalMatch.snapshot.config.slots[1]?.role === 'BOT_STANDIN'
                       ? `Peças Pretas • IA (N${universalMatch.snapshot.config.slots[1]?.botConfig?.difficultyLevel ?? difficulty})`
                       : 'Peças Pretas • Controle Manual Local'
                   }
@@ -784,8 +784,8 @@ const AppContent: React.FC = () => {
                     universalMatch.snapshot.config.slots[1]?.botConfig
                       ? DIFFICULTY_LABELS[universalMatch.snapshot.config.slots[1].botConfig!.difficultyLevel]
                       : isBotEnabled
-                      ? DIFFICULTY_LABELS[difficulty]
-                      : undefined
+                        ? DIFFICULTY_LABELS[difficulty]
+                        : undefined
                   }
                   isInCheck={!isGameOver && isP2InCheck}
                 />
@@ -971,11 +971,13 @@ const AppContent: React.FC = () => {
                         onFallbackTo2D={() => updatePreferences({ boardViewMode: '2D' })}
                         duckCoordinate={duckCoordinate}
                         frozenCoordinates={frozenCoordinates}
+                        activePortals={universalMatch.snapshot.expandedSpellState?.activePortals}
+                        stealthTraps={universalMatch.snapshot.expandedSpellState?.stealthTraps}
                         onHumanPieceMoved={universalMatch.onHumanPieceMoved}
                         onVariantSquareClick={
                           universalMatch.snapshot.duckPhase === 'PLACE_DUCK' ||
-                          Boolean(selectedOfficialSpell) ||
-                          Boolean(selectedExpandedSpell)
+                            Boolean(selectedOfficialSpell) ||
+                            Boolean(selectedExpandedSpell)
                             ? handleVariantSquareClick
                             : undefined
                         }
@@ -1011,11 +1013,13 @@ const AppContent: React.FC = () => {
                       onClearInvalidMove={clearFeedback}
                       duckCoordinate={duckCoordinate}
                       frozenCoordinates={frozenCoordinates}
+                      activePortals={universalMatch.snapshot.expandedSpellState?.activePortals}
+                      stealthTraps={universalMatch.snapshot.expandedSpellState?.stealthTraps}
                       onHumanPieceMoved={universalMatch.onHumanPieceMoved}
                       onVariantSquareClick={
                         universalMatch.snapshot.duckPhase === 'PLACE_DUCK' ||
-                        Boolean(selectedOfficialSpell) ||
-                        Boolean(selectedExpandedSpell)
+                          Boolean(selectedOfficialSpell) ||
+                          Boolean(selectedExpandedSpell)
                           ? handleVariantSquareClick
                           : undefined
                       }
@@ -1031,7 +1035,7 @@ const AppContent: React.FC = () => {
                   displayName={universalMatch.snapshot.config.slots[0]?.displayName ?? 'Você (Brancas)'}
                   subtitle={
                     universalMatch.snapshot.config.slots[0]?.role === 'AI_BOT' ||
-                    universalMatch.snapshot.config.slots[0]?.role === 'BOT_STANDIN'
+                      universalMatch.snapshot.config.slots[0]?.role === 'BOT_STANDIN'
                       ? `Peças Brancas • IA (N${universalMatch.snapshot.config.slots[0]?.botConfig?.difficultyLevel ?? difficulty})`
                       : 'Peças Brancas • Perspectiva Principal'
                   }
@@ -1059,15 +1063,14 @@ const AppContent: React.FC = () => {
                   role="status"
                   aria-live="polite"
                   data-testid="check-constraint-banner"
-                  className={`check-constraint-banner ${
-                    invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
+                  className={`check-constraint-banner ${invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
                       ? 'check-constraint-banner--danger'
                       : invalidMoveFeedback.reason === 'GAME_TERMINATION'
-                      ? 'check-constraint-banner--info'
-                      : invalidMoveFeedback.reason === 'GAME_EVENT'
-                      ? 'check-constraint-banner--event'
-                      : 'check-constraint-banner--warning'
-                  }`}
+                        ? 'check-constraint-banner--info'
+                        : invalidMoveFeedback.reason === 'GAME_EVENT'
+                          ? 'check-constraint-banner--event'
+                          : 'check-constraint-banner--warning'
+                    }`}
                   style={{
                     display: 'flex',
                     alignItems: 'flex-start',
@@ -1078,18 +1081,18 @@ const AppContent: React.FC = () => {
                       invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
                         ? 'var(--color-danger-bg)'
                         : invalidMoveFeedback.reason === 'GAME_TERMINATION'
-                        ? 'rgba(79, 140, 255, 0.12)'
-                        : invalidMoveFeedback.reason === 'GAME_EVENT'
-                        ? 'var(--bg-sunken)'
-                        : 'rgba(212, 155, 75, 0.14)',
+                          ? 'rgba(79, 140, 255, 0.12)'
+                          : invalidMoveFeedback.reason === 'GAME_EVENT'
+                            ? 'var(--bg-sunken)'
+                            : 'rgba(212, 155, 75, 0.14)',
                     border:
                       invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
                         ? '1.5px solid var(--color-danger)'
                         : invalidMoveFeedback.reason === 'GAME_TERMINATION'
-                        ? '1.5px solid var(--color-accent)'
-                        : invalidMoveFeedback.reason === 'GAME_EVENT'
-                        ? '1.5px solid var(--border-prominent)'
-                        : '1.5px solid var(--color-warning)',
+                          ? '1.5px solid var(--color-accent)'
+                          : invalidMoveFeedback.reason === 'GAME_EVENT'
+                            ? '1.5px solid var(--border-prominent)'
+                            : '1.5px solid var(--color-warning)',
                     boxShadow:
                       invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
                         ? '0 4px 16px rgba(239, 68, 68, 0.22)'
@@ -1101,10 +1104,10 @@ const AppContent: React.FC = () => {
                     {invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
                       ? '⚠️'
                       : invalidMoveFeedback.reason === 'GAME_TERMINATION'
-                      ? '🏁'
-                      : invalidMoveFeedback.reason === 'GAME_EVENT'
-                      ? '📢'
-                      : '⚠️'}
+                        ? '🏁'
+                        : invalidMoveFeedback.reason === 'GAME_EVENT'
+                          ? '📢'
+                          : '⚠️'}
                   </span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0 }}>
                     <strong
@@ -1116,19 +1119,19 @@ const AppContent: React.FC = () => {
                           invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
                             ? 'var(--color-danger)'
                             : invalidMoveFeedback.reason === 'GAME_TERMINATION'
-                            ? 'var(--color-accent)'
-                            : invalidMoveFeedback.reason === 'GAME_EVENT'
-                            ? 'var(--text-primary)'
-                            : 'var(--color-warning)',
+                              ? 'var(--color-accent)'
+                              : invalidMoveFeedback.reason === 'GAME_EVENT'
+                                ? 'var(--text-primary)'
+                                : 'var(--color-warning)',
                       }}
                     >
                       {invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
                         ? 'MOVIMENTO INVÁLIDO: REI EM XEQUE'
                         : invalidMoveFeedback.reason === 'GAME_TERMINATION'
-                        ? 'DESFECHO DA PARTIDA'
-                        : invalidMoveFeedback.reason === 'GAME_EVENT'
-                        ? 'AVISO DA PARTIDA'
-                        : 'MOVIMENTO NÃO PERMITIDO'}
+                          ? 'DESFECHO DA PARTIDA'
+                          : invalidMoveFeedback.reason === 'GAME_EVENT'
+                            ? 'AVISO DA PARTIDA'
+                            : 'MOVIMENTO NÃO PERMITIDO'}
                     </strong>
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
                       {invalidMoveFeedback.message}

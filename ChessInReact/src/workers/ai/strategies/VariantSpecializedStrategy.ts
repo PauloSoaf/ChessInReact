@@ -35,15 +35,29 @@ export class VariantSpecializedStrategy implements IUniversalAIStrategy {
 
     if (variant.includes('ATOMIC')) {
       ({ bestMove, bestScore } = this.evaluateAtomic(moves, level, request));
+      if (bestScore < 50000 && level >= 2) {
+        const searched = decideWithSearch(request, this.strategyId);
+        if (searched) return searched;
+      }
     } else if (variant.includes('RACING')) {
       ({ bestMove, bestScore } = this.evaluateRacingKings(moves, level));
+      if (bestScore < 40000 && level >= 2) {
+        const searched = decideWithSearch(request, this.strategyId);
+        if (searched) return searched;
+      }
     } else if (variant.includes('ANTICHESS') || variant.includes('GIVEAWAY')) {
       ({ bestMove, bestScore } = this.evaluateAntichess(moves, level));
+      if (level >= 3) {
+        const searched = decideWithSearch(request, this.strategyId);
+        if (searched) return searched;
+      }
     } else if (variant.includes('CAPABLANCA') || variant.includes('CRAZYHOUSE')) {
       const searched = decideWithSearch(request, this.strategyId);
       if (searched) return searched;
       ({ bestMove, bestScore } = this.evaluateCapablanca(moves, level));
     } else {
+      const searched = decideWithSearch(request, this.strategyId);
+      if (searched) return searched;
       ({ bestMove, bestScore } = this.evaluateGenericVariant(moves, level));
     }
 

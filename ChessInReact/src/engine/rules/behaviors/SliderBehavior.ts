@@ -92,10 +92,12 @@ export class SliderBehavior implements IMoveBehavior {
     const directions = this.resolveDirections(topology, isWhite);
     const canMove = this.options.canMove ?? true;
     const canCapture = this.options.canCapture ?? true;
+    const canJumpOnce = Boolean(piece.metadata?.hasJump);
 
     for (const dir of directions) {
       let current: CoordinateKey = startCoord;
       let dist = 0;
+      let jumpedBlockers = 0;
 
       while (dist < this.maxDistance) {
         const next = topology.getNeighbor(current, dir);
@@ -113,7 +115,15 @@ export class SliderBehavior implements IMoveBehavior {
               (typeof terrainEntity.metadata?.elevation === 'number'
                 ? (terrainEntity.metadata.elevation as number)
                 : undefined);
-            if (elev !== undefined && elev > 0.5) break;
+            if (elev !== undefined && elev > 0.5) {
+              if (canJumpOnce && jumpedBlockers < 1) {
+                jumpedBlockers++;
+                current = next;
+                dist++;
+                continue;
+              }
+              break;
+            }
           }
         }
 
@@ -122,18 +132,36 @@ export class SliderBehavior implements IMoveBehavior {
         if (occupantId) {
           const rawOccupant = state.boardEntities[occupantId];
           if (rawOccupant?.type === 'OBSTACLE') {
+            if (canJumpOnce && jumpedBlockers < 1) {
+              jumpedBlockers++;
+              current = next;
+              dist++;
+              continue;
+            }
             break;
           }
           const occupant = rawOccupant as IPieceEntity | undefined;
           if (occupant && occupant.type === 'PIECE' && !occupant.isCaptured) {
-            // Friendly piece blocks sliding completely
+            // Friendly piece blocks sliding unless piece has Jump buff (1 leap allowed)
             if (occupant.ownerId === piece.ownerId) {
+              if (canJumpOnce && jumpedBlockers < 1) {
+                jumpedBlockers++;
+                current = next;
+                dist++;
+                continue;
+              }
               break;
             }
 
-            // Enemy piece: can capture if canCapture is true, then ray terminates
-            if (canCapture) {
+            // Enemy piece: can capture if canCapture is true (and not shielded), then ray terminates unless jumping over it
+            if (canCapture && !occupant.metadata?.isShielded) {
               pseudoLegals.push(next);
+            }
+            if (canJumpOnce && jumpedBlockers < 1) {
+              jumpedBlockers++;
+              current = next;
+              dist++;
+              continue;
             }
             break;
           }
