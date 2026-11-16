@@ -16,6 +16,7 @@ import {
   IAIDecisionRequest,
   IAIDecisionResponse,
 } from '../interfaces/IUniversalAIEngine';
+import { decideWithSearch } from './SearchBackedDecision';
 
 export class SpellOptimizationStrategy implements IUniversalAIStrategy {
   public readonly strategyId = 'SPELL_OPTIMIZER';
@@ -38,21 +39,34 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
     let bestMove = moves[0];
     let bestScore = -Infinity;
 
-    // 1. Select best piece move
-    for (const move of moves) {
-      let score = 0;
-      if (level === 1) {
-        score = move.isCapture ? 100 : Math.random() * 50;
-      } else {
-        if (move.isCapture) score += 300;
-        const [toX, toY] = this.parseCoord(move.to);
-        score += (4 - Math.abs(toX - 3.5)) * 10 + (4 - Math.abs(toY - 3.5)) * 10;
-        if (move.promotion) score += 400;
+    // 1. Select best piece move (via multi-ply search when level >= 2 and domain is available)
+    const searched = level >= 2 ? decideWithSearch(request, this.strategyId) : null;
+    if (searched) {
+      const matched = moves.find(
+        (m) => m.from === searched.move.from && m.to === searched.move.to && m.pieceId === searched.move.pieceId
+      );
+      if (matched) {
+        bestMove = matched;
+        bestScore = searched.evaluationCentipawns;
       }
+    }
 
-      if (score > bestScore) {
-        bestScore = score;
-        bestMove = move;
+    if (bestScore === -Infinity) {
+      for (const move of moves) {
+        let score = 0;
+        if (level === 1) {
+          score = move.isCapture ? 100 : Math.random() * 50;
+        } else {
+          if (move.isCapture) score += 300;
+          const [toX, toY] = this.parseCoord(move.to);
+          score += (4 - Math.abs(toX - 3.5)) * 10 + (4 - Math.abs(toY - 3.5)) * 10;
+          if (move.promotion) score += 400;
+        }
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestMove = move;
+        }
       }
     }
 

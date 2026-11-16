@@ -41,6 +41,8 @@ import { TurnCycleManager, ITurnCycleState } from '../engine/multiplayer/arenas/
 import { FFAScoringEngine, IFFAPlayerScore } from '../engine/multiplayer/arenas/FFAScoringEngine';
 import { CompositeArenaLayouts } from '../engine/multiplayer/arenas/CompositeArenaLayouts';
 import { ArenaModeId } from '../engine/multiplayer/arenas/interfaces/IArenaContracts';
+import { VariantMapConfig } from '../engine/variants/VariantMapConfig';
+import { IEntity, IPieceEntity } from '../core/entities/types';
 
 export interface IUniversalMatchSnapshot {
   readonly config: IMatchConfiguration;
@@ -510,6 +512,7 @@ export class UniversalMatchController {
 
       // 4. Execute MovePieceCommand on core domain
       const best = decision.move;
+      const movingPlayerSide: 'WHITE' | 'BLACK' = domain.activePlayer === 'P1' ? 'WHITE' : 'BLACK';
       const targetEntityId = domain.occupancy[asCoordinateKey(best.to)];
       const capturedEntity = targetEntityId
         ? domain.boardEntities[targetEntityId]
@@ -528,6 +531,9 @@ export class UniversalMatchController {
 
       gameStore.getState().executeCommand(cmd);
       this.lastMoveSummaryStr = `${best.from} → ${best.to}`;
+
+      // 4b. Apply post-move Spell Chess triggers (traps, portals, mana/cooldown advance)
+      this.applySpellEffectsAfterMove(best.pieceId, best.to, movingPlayerSide);
 
       // 5. Complete Duck Chess' mandatory second phase through its engine.
       if (this.duckState) {
@@ -621,10 +627,15 @@ export class UniversalMatchController {
     }
 
     const domain = gameStore.getState().domain;
-    const occupied = new Set(Object.keys(domain.occupancy));
+    const occupied = new Set(
+      Object.entries(domain.occupancy)
+        .filter(([, entityId]) => entityId !== 'duck_obstacle')
+        .map(([coord]) => coord)
+    );
 
     try {
       this.duckState = DuckChessEngine.executePlaceDuck(this.duckState, targetCoord, occupied);
+      this.syncVariantModifiersToDomain();
       this.notify();
       this.scheduleAutonomousTurnIfNeeded();
       return true;
@@ -635,9 +646,13 @@ export class UniversalMatchController {
   }
 
   /**
-   * Triggered when a human makes a piece move in Duck Chess or multiplayer arenas.
+   * Triggered when a human makes a piece move in Duck Chess, Spell Chess, or multiplayer arenas.
    */
   public onHumanPieceMoved(from: string, to: string, pieceId: string): void {
+    const postMoveDomain = gameStore.getState().domain;
+    const movedPlayerSide: 'WHITE' | 'BLACK' = postMoveDomain.activePlayer === 'P2' ? 'WHITE' : 'BLACK';
+    this.applySpellEffectsAfterMove(pieceId, to, movedPlayerSide);
+
     if (this.duckState) {
       this.clearAutonomousTimer();
       this.activeBotRequestId = 0;
@@ -712,6 +727,7 @@ export class UniversalMatchController {
       const res = OfficialSpellEngine.castFreeze(this.officialSpellState, player, center);
       if (res.success) {
         this.officialSpellState = res.state;
+        this.syncVariantModifiersToDomain();
         this.notify();
         return true;
       }
@@ -733,6 +749,7 @@ export class UniversalMatchController {
       const res = OfficialSpellEngine.castJump(this.officialSpellState, player, pieceId);
       if (res.success) {
         this.officialSpellState = res.state;
+        this.syncVariantModifiersToDomain();
         this.notify();
         return true;
       }
@@ -753,21 +770,44 @@ export class UniversalMatchController {
 
     const domain = gameStore.getState().domain;
     const player = domain.activePlayer === 'P1' ? 'WHITE' : 'BLACK';
+    const normTarget = this.normalizeToGameCoord(targetCoord);
+    const normSource = sourceCoord ? this.normalizeToGameCoord(sourceCoord) : undefined;
 
     try {
       let nextState = this.expandedSpellState;
       if (spell.type === 'FREEZE') {
         nextState = SpellChessEngine.castFreeze(nextState, player, targetCoord);
       } else if (spell.type === 'JUMP') {
-        const entityId = domain.occupancy[asCoordinateKey(targetCoord)] ?? '';
+        const entityId =
+          domain.occupancy[asCoordinateKey(normTarget)] ??
+          domain.occupancy[asCoordinateKey(targetCoord)] ??
+          Object.values(domain.boardEntities).find(
+            (e) => e.type === 'PIECE' && !e.isCaptured && e.ownerId === domain.activePlayer
+          )?.id ??
+          '';
+        if (!entityId) return false;
         nextState = SpellChessEngine.castJump(nextState, player, entityId);
       } else if (spell.type === 'STEALTH_TRAP') {
         nextState = SpellChessEngine.castStealthTrap(nextState, player, targetCoord);
       } else if (spell.type === 'INVISIBILITY') {
-        const entityId = domain.occupancy[asCoordinateKey(targetCoord)] ?? '';
+        const entityId =
+          domain.occupancy[asCoordinateKey(normTarget)] ??
+          domain.occupancy[asCoordinateKey(targetCoord)] ??
+          Object.values(domain.boardEntities).find(
+            (e) => e.type === 'PIECE' && !e.isCaptured && e.ownerId === domain.activePlayer
+          )?.id ??
+          '';
+        if (!entityId) return false;
         nextState = SpellChessEngine.castInvisibility(nextState, player, entityId);
       } else if (spell.type === 'MIRROR_SHIELD') {
-        const entityId = domain.occupancy[asCoordinateKey(targetCoord)] ?? '';
+        const entityId =
+          domain.occupancy[asCoordinateKey(normTarget)] ??
+          domain.occupancy[asCoordinateKey(targetCoord)] ??
+          Object.values(domain.boardEntities).find(
+            (e) => e.type === 'PIECE' && !e.isCaptured && e.ownerId === domain.activePlayer
+          )?.id ??
+          '';
+        if (!entityId) return false;
         nextState = SpellChessEngine.castMirrorShield(nextState, player, entityId);
       } else if (spell.type === 'PORTAL') {
         const firstCoord = sourceCoord ?? '';
@@ -776,20 +816,298 @@ export class UniversalMatchController {
           return false;
         }
         if (
-          domain.occupancy[asCoordinateKey(firstCoord)] ||
-          domain.occupancy[asCoordinateKey(destinationCoord)]
+          domain.occupancy[asCoordinateKey(normSource ?? firstCoord)] ||
+          domain.occupancy[asCoordinateKey(normTarget)]
         ) {
           return false;
         }
         nextState = SpellChessEngine.castPortal(nextState, player, firstCoord, destinationCoord);
+      } else if (spell.type === 'RESURRECTION') {
+        nextState = SpellChessEngine.castResurrection(nextState, player);
+        const backRank = player === 'WHITE' ? 0 : 7;
+        let spawnCoord = normTarget;
+        if (domain.occupancy[asCoordinateKey(spawnCoord)]) {
+          spawnCoord = '';
+          for (let fx = 0; fx < 8; fx++) {
+            const candidate = `${fx},${backRank}`;
+            if (!domain.occupancy[asCoordinateKey(candidate)]) {
+              spawnCoord = candidate;
+              break;
+            }
+          }
+        }
+        if (spawnCoord) {
+          const capturedFriendly = Object.values(domain.boardEntities).find(
+            (e): e is IPieceEntity =>
+              e.type === 'PIECE' &&
+              e.isCaptured &&
+              e.ownerId === domain.activePlayer &&
+              e.variantId.toUpperCase() !== 'KING'
+          );
+          const revivedId = capturedFriendly?.id ?? asEntityId(`resurrected_${domain.activePlayer}_${Date.now()}`);
+          const revivedPiece: IPieceEntity = capturedFriendly
+            ? {
+                ...capturedFriendly,
+                position: asCoordinateKey(spawnCoord),
+                isCaptured: false,
+                hasMoved: true,
+              }
+            : {
+                id: revivedId,
+                type: 'PIECE',
+                ownerId: domain.activePlayer,
+                position: asCoordinateKey(spawnCoord),
+                variantId: 'KNIGHT',
+                isCaptured: false,
+                hasMoved: true,
+              };
+          gameStore.setState((s) => ({
+            domain: {
+              ...s.domain,
+              boardEntities: {
+                ...s.domain.boardEntities,
+                [revivedId]: revivedPiece,
+              },
+              occupancy: {
+                ...s.domain.occupancy,
+                [asCoordinateKey(spawnCoord)]: revivedId,
+              },
+            },
+          }));
+        }
       }
       this.expandedSpellState = nextState;
+      this.syncVariantModifiersToDomain();
       this.notify();
       return true;
     } catch (err) {
       console.warn('[UniversalMatchController] Expanded spell error:', err);
       return false;
     }
+  }
+
+  private normalizeToGameCoord(raw: string): string {
+    const trimmed = raw.trim();
+    if (/^\d+,\d+$/.test(trimmed)) return trimmed;
+    if (/^[a-p][1-9]\d?$/i.test(trimmed)) {
+      const file = trimmed.toLowerCase().charCodeAt(0) - 97;
+      const rank = parseInt(trimmed.slice(1), 10) - 1;
+      return `${file},${rank}`;
+    }
+    return trimmed;
+  }
+
+  /**
+   * Synchronizes Duck Chess obstacle and Spell Chess frozen squares & piece buffs
+   * directly into gameStore.domain so RulesEngine and 2D/3D renderers share a single source of truth.
+   */
+  private syncVariantModifiersToDomain(): void {
+    const s = gameStore.getState();
+    const domain = s.domain;
+    const nextEntities: Record<string, IEntity> = { ...domain.boardEntities };
+    const nextOccupancy: Record<string, ReturnType<typeof asEntityId>> = { ...domain.occupancy };
+    const nextTerrain: Record<string, ReturnType<typeof asEntityId>> = {};
+
+    // 1. Remove previous synthetic duck & frozen terrain entities
+    for (const [coord, occId] of Object.entries(nextOccupancy)) {
+      if (occId === 'duck_obstacle') {
+        delete nextOccupancy[coord];
+      }
+    }
+    delete nextEntities['duck_obstacle'];
+    for (const key of Object.keys(nextEntities)) {
+      if (key.startsWith('frozen_terrain_')) {
+        delete nextEntities[key];
+      }
+    }
+
+    // 2. Sync Duck Chess obstacle
+    if (this.duckState?.duckCoordinate) {
+      const duckCoord = asCoordinateKey(this.normalizeToGameCoord(this.duckState.duckCoordinate));
+      const duckId = asEntityId('duck_obstacle');
+      nextEntities[duckId] = {
+        id: duckId,
+        type: 'OBSTACLE',
+        position: duckCoord,
+        destructible: false,
+        provenance: 'GAMEPLAY',
+        metadata: { variantId: 'DUCK' },
+      };
+      if (!nextOccupancy[duckCoord]) {
+        nextOccupancy[duckCoord] = duckId;
+      }
+    }
+
+    // 3. Collect Frozen Squares
+    const frozenSet = new Set<string>();
+    if (this.officialSpellState) {
+      for (const [coord, turns] of Object.entries(this.officialSpellState.activeFrozenCoordinates)) {
+        if (turns > 0) frozenSet.add(this.normalizeToGameCoord(coord));
+      }
+    }
+    if (this.expandedSpellState) {
+      for (const [coord, turns] of Object.entries(this.expandedSpellState.frozenCoordinates)) {
+        if (turns > 0) frozenSet.add(this.normalizeToGameCoord(coord));
+      }
+    }
+
+    for (const coord of frozenSet) {
+      const terrainId = asEntityId(`frozen_terrain_${coord}`);
+      const cKey = asCoordinateKey(coord);
+      nextEntities[terrainId] = {
+        id: terrainId,
+        type: 'TERRAIN',
+        position: cKey,
+        variantId: 'FROZEN',
+        elevation: 1,
+        provenance: 'GAMEPLAY',
+        metadata: { elevation: 1, isFrozen: true },
+      };
+      nextTerrain[cKey] = terrainId;
+    }
+
+    // 4. Sync Piece Buffs (hasJump, isFrozen, isShielded, isInvisible)
+    const jumpSet = new Set<string>();
+    if (this.officialSpellState) {
+      for (const [pid, turns] of Object.entries(this.officialSpellState.activeJumpPieceIds)) {
+        if (turns > 0) jumpSet.add(pid);
+      }
+    }
+    if (this.expandedSpellState) {
+      for (const [pid, turns] of Object.entries(this.expandedSpellState.jumpPieces)) {
+        if (turns > 0) jumpSet.add(pid);
+      }
+    }
+    const shieldSet = new Set<string>(
+      this.expandedSpellState
+        ? Object.entries(this.expandedSpellState.shieldedPieces)
+            .filter(([, turns]) => turns > 0)
+            .map(([pid]) => pid)
+        : []
+    );
+    const invisibleSet = new Set<string>(this.expandedSpellState?.invisiblePieces ?? []);
+
+    for (const [id, entity] of Object.entries(nextEntities)) {
+      if (entity && entity.type === 'PIECE') {
+        const piece = entity as IPieceEntity;
+        const isFrozen = frozenSet.has(piece.position);
+        const hasJump = jumpSet.has(piece.id);
+        const isShielded = shieldSet.has(piece.id);
+        const isInvisible = invisibleSet.has(piece.id);
+        nextEntities[id] = {
+          ...piece,
+          metadata: {
+            ...(piece.metadata ?? {}),
+            isFrozen,
+            hasJump,
+            isShielded,
+            isInvisible,
+          },
+        };
+      }
+    }
+
+    gameStore.setState((prev) => ({
+      domain: {
+        ...prev.domain,
+        boardEntities: nextEntities as typeof prev.domain.boardEntities,
+        occupancy: nextOccupancy,
+        terrain: nextTerrain,
+      },
+    }));
+  }
+
+  /**
+   * Resolves post-move Spell Chess interactions:
+   * - Consumes Jump charge on moved piece
+   * - Triggers Stealth Trap detonation if opponent stepped onto a trap
+   * - Teleports piece through linked Portal if destination is vacant
+   * - Advances turn cooldowns and mana economy
+   */
+  private applySpellEffectsAfterMove(
+    movedPieceId: string,
+    toCoordRaw: string,
+    movingPlayer: 'WHITE' | 'BLACK'
+  ): void {
+    if (!this.officialSpellState && !this.expandedSpellState) return;
+
+    const toCoord = this.normalizeToGameCoord(toCoordRaw);
+
+    if (this.officialSpellState) {
+      const nextJumps = { ...this.officialSpellState.activeJumpPieceIds };
+      delete nextJumps[movedPieceId];
+      this.officialSpellState = OfficialSpellEngine.advanceTurn(
+        {
+          ...this.officialSpellState,
+          activeJumpPieceIds: nextJumps,
+        },
+        movingPlayer
+      );
+    }
+
+    if (this.expandedSpellState) {
+      let state = this.expandedSpellState;
+
+      // 1. Stealth Trap check
+      const trapRes = SpellChessEngine.resolveTrapTrigger(state, toCoord, movingPlayer);
+      state = trapRes.updatedState;
+
+      if (trapRes.detonated) {
+        const domain = gameStore.getState().domain;
+        const piece = domain.boardEntities[asEntityId(movedPieceId)] as IPieceEntity | undefined;
+        if (piece && !piece.metadata?.isShielded) {
+          const nextOcc = { ...domain.occupancy };
+          delete nextOcc[asCoordinateKey(toCoord)];
+          gameStore.setState((prev) => ({
+            domain: {
+              ...prev.domain,
+              boardEntities: {
+                ...prev.domain.boardEntities,
+                [asEntityId(movedPieceId)]: {
+                  ...piece,
+                  isCaptured: true,
+                },
+              },
+              occupancy: nextOcc,
+            },
+          }));
+        }
+      } else {
+        // 2. Dimensional Portal check
+        const portalDest = SpellChessEngine.resolvePortalDestination(state, toCoord);
+        if (portalDest) {
+          const normDest = this.normalizeToGameCoord(portalDest);
+          const domain = gameStore.getState().domain;
+          const destKey = asCoordinateKey(normDest);
+          const srcKey = asCoordinateKey(toCoord);
+          const piece = domain.boardEntities[asEntityId(movedPieceId)] as IPieceEntity | undefined;
+          if (piece && !piece.isCaptured && !domain.occupancy[destKey]) {
+            const nextOcc = { ...domain.occupancy };
+            delete nextOcc[srcKey];
+            nextOcc[destKey] = asEntityId(movedPieceId);
+            gameStore.setState((prev) => ({
+              domain: {
+                ...prev.domain,
+                boardEntities: {
+                  ...prev.domain.boardEntities,
+                  [asEntityId(movedPieceId)]: {
+                    ...piece,
+                    position: destKey,
+                  },
+                },
+                occupancy: nextOcc,
+              },
+            }));
+          }
+        }
+      }
+
+      // 3. Advance turn mana (+1 up to 6) and tick durations
+      const nextActive: 'WHITE' | 'BLACK' = movingPlayer === 'WHITE' ? 'BLACK' : 'WHITE';
+      this.expandedSpellState = SpellChessEngine.advanceTurn(state, nextActive);
+    }
+
+    this.syncVariantModifiersToDomain();
   }
 
   private getEmptySquares(): string[] {
@@ -802,6 +1120,9 @@ export class UniversalMatchController {
 
     for (let x = 0; x < size; x++) {
       for (let y = 0; y < size; y++) {
+        if (VariantMapConfig.isVoidSquare(this.config.variantId, x, y, size)) {
+          continue;
+        }
         const key = SquareCodec.encode(createSquareCoord(x, y));
         if (!domain.occupancy[key]) {
           empty.push(key);

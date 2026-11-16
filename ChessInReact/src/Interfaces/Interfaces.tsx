@@ -13,9 +13,17 @@ export interface IBoardSquare {
   isCheckKingError?: boolean;
   isCheckSourceError?: boolean;
   isCheckTargetError?: boolean;
-  /** Variant overlays (Duck Chess duck / Spell Chess frozen square). */
+  /** Variant overlays (Duck Chess duck / Spell Chess frozen square / Portals / Traps / Zones / Skins). */
   hasDuck?: boolean;
   isFrozen?: boolean;
+  isVoid?: boolean;
+  specialZone?: 'NORMAL' | 'VOID' | 'HILL_SANCTUARY' | 'FINISH_LINE' | 'ARCANE_CONDUIT' | 'CITADEL_RING';
+  hasPortal?: boolean;
+  hasTrap?: boolean;
+  hasJump?: boolean;
+  isShielded?: boolean;
+  isInvisible?: boolean;
+  isArcaneSkin?: boolean;
   rankLabel?: string;
   fileLabel?: string;
   tabIndex?: number;

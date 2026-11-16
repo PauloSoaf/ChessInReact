@@ -6,6 +6,7 @@ import { HoloPulseRing } from '../shaders/HoloPulseRing';
 
 export interface IInstancedPiecesProps {
   boardSize?: number;
+  variantId?: string | null;
   pieces: readonly IPieceEntity[];
   selectedPieceId?: string | null;
   checkConstraintCoords?: {
@@ -52,23 +53,45 @@ const Piece3DModel: React.FC<{
   isSelected: boolean;
   isCheckKing?: boolean;
   isCheckSource?: boolean;
+  hasJump?: boolean;
+  isShielded?: boolean;
+  isInvisible?: boolean;
+  isArcaneSkin?: boolean;
   position: [number, number, number];
   onPointerDown: (e: { stopPropagation: () => void }) => void;
-}> = ({ coord, type, isWhite, ownerId, isSelected, isCheckKing, isCheckSource, position, onPointerDown }) => {
+}> = ({
+  coord,
+  type,
+  isWhite,
+  ownerId,
+  isSelected,
+  isCheckKing,
+  isCheckSource,
+  hasJump,
+  isShielded,
+  isInvisible,
+  isArcaneSkin,
+  position,
+  onPointerDown,
+}) => {
   const normType = type.toUpperCase();
 
   const bodyColor = (ownerId && FACTION_3D_COLORS[ownerId]) ?? (isWhite ? '#f8fafc' : '#1e293b');
-  const metalness = isWhite ? 0.2 : 0.45;
-  const roughness = isWhite ? 0.25 : 0.25;
+  const metalness = isArcaneSkin ? 0.55 : isWhite ? 0.2 : 0.45;
+  const roughness = isArcaneSkin ? 0.18 : 0.25;
 
-  const yPos = position[1] + (isSelected ? 0.22 : 0);
+  const yPos = position[1] + (isSelected ? 0.22 : hasJump ? 0.16 : 0);
   const effectivePedestalColor = isCheckKing
     ? '#dc2626'
     : isCheckSource
       ? '#ef4444'
       : isSelected
         ? '#f59e0b'
-        : bodyColor;
+        : hasJump
+          ? '#a855f7'
+          : isShielded
+            ? '#38bdf8'
+            : bodyColor;
 
   const { invalidate } = useThree();
   const groupRef = useRef<THREE.Group>(null);
@@ -288,12 +311,66 @@ const Piece3DModel: React.FC<{
           name="check-source-3d-ring"
         />
       )}
+
+      {/* Spell Chess: Arcane Piece Skin Collar Ring */}
+      {isArcaneSkin && (
+        <mesh name="arcane-skin-3d-ring" position={[0, 0.13, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.37, 0.025, 10, 24]} />
+          <meshStandardMaterial
+            color={isWhite ? '#38bdf8' : '#c084fc'}
+            emissive={isWhite ? '#0284c7' : '#9333ea'}
+            emissiveIntensity={0.75}
+            metalness={0.8}
+            roughness={0.15}
+          />
+        </mesh>
+      )}
+
+      {/* Spell Chess: Jump Buff Levitation Halo */}
+      {hasJump && (
+        <HoloPulseRing
+          color="#a855f7"
+          pulseSpeed={4.2}
+          innerRadius={0.38}
+          outerRadius={0.54}
+          opacity={0.9}
+          name="jump-buff-3d-ring"
+        />
+      )}
+
+      {/* Spell Chess: Mirror Shield Protective Forcefield Dome */}
+      {isShielded && (
+        <mesh name="shield-dome-3d" position={[0, 0.52, 0]}>
+          <sphereGeometry args={[0.48, 18, 16]} />
+          <meshStandardMaterial
+            color="#38bdf8"
+            emissive="#0284c7"
+            emissiveIntensity={0.45}
+            transparent
+            opacity={0.32}
+            roughness={0.1}
+          />
+        </mesh>
+      )}
+
+      {/* Spell Chess: Invisibility Shimmer Ring */}
+      {isInvisible && (
+        <HoloPulseRing
+          color="#67e8f9"
+          pulseSpeed={2.5}
+          innerRadius={0.4}
+          outerRadius={0.52}
+          opacity={0.65}
+          name="invisible-buff-3d-ring"
+        />
+      )}
     </group>
   );
 };
 
 export const InstancedPieces: React.FC<IInstancedPiecesProps> = ({
   boardSize = 8,
+  variantId,
   pieces,
   selectedPieceId,
   checkConstraintCoords,
@@ -301,10 +378,11 @@ export const InstancedPieces: React.FC<IInstancedPiecesProps> = ({
 }) => {
   const { invalidate } = useThree();
   const offset = (boardSize - 1) / 2;
+  const isArcaneSkin = Boolean(variantId && variantId.toUpperCase().includes('SPELL'));
 
   useEffect(() => {
     invalidate();
-  }, [pieces, selectedPieceId, checkConstraintCoords, invalidate]);
+  }, [pieces, selectedPieceId, checkConstraintCoords, variantId, invalidate]);
 
   return (
     <group>
@@ -333,6 +411,10 @@ export const InstancedPieces: React.FC<IInstancedPiecesProps> = ({
             isSelected={isSelected}
             isCheckKing={isCheckKing}
             isCheckSource={isCheckSource}
+            hasJump={Boolean(piece.metadata?.hasJump)}
+            isShielded={Boolean(piece.metadata?.isShielded)}
+            isInvisible={Boolean(piece.metadata?.isInvisible)}
+            isArcaneSkin={isArcaneSkin}
             position={[wx, 0, wz]}
             onPointerDown={(e) => {
               e.stopPropagation();

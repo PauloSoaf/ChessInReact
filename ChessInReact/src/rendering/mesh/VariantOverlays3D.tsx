@@ -2,10 +2,15 @@ import React from 'react';
 
 export interface IVariantOverlays3DProps {
   boardSize: number;
+  variantId?: string | null;
   /** Duck Chess duck square, "x,y" game coordinate key */
   duckCoordinate?: string | null;
   /** Spell Chess frozen squares, "x,y" game coordinate keys */
   frozenCoordinates?: readonly string[];
+  /** Spell Chess active portals */
+  activePortals?: ReadonlyArray<{ readonly coordA: string; readonly coordB: string }>;
+  /** Spell Chess stealth traps */
+  stealthTraps?: Readonly<Record<string, string>>;
 }
 
 function toWorld(coord: string, boardSize: number): [number, number] | null {
@@ -16,19 +21,48 @@ function toWorld(coord: string, boardSize: number): [number, number] | null {
 }
 
 /**
- * Spec 07 / Spec 12: 3D overlays for variant mechanics.
+ * Spec 07 / Spec 12 / Spec 13: 3D overlays for variant mechanics.
  * - Duck Chess: neutral yellow duck blocking a square.
- * - Spell Chess: translucent ice slab on frozen squares.
+ * - Spell Chess: translucent ice slab on frozen squares, glowing violet/cyan portal rings,
+ *   and crimson rune disks on stealth traps.
+ * - King of the Hill: golden sanctuary crown ring on central 2x2 hill.
  */
 export const VariantOverlays3D: React.FC<IVariantOverlays3DProps> = ({
   boardSize,
+  variantId,
   duckCoordinate,
   frozenCoordinates,
+  activePortals,
+  stealthTraps,
 }) => {
   const duckPos = duckCoordinate ? toWorld(duckCoordinate, boardSize) : null;
+  const isKingOfTheHill = Boolean(
+    variantId && (variantId.toUpperCase() === 'KING_OF_THE_HILL' || variantId.toUpperCase().includes('HILL'))
+  );
+
+  const portalCoords: string[] = [];
+  for (const portal of activePortals ?? []) {
+    portalCoords.push(portal.coordA, portal.coordB);
+  }
+  const trapCoords = Object.keys(stealthTraps ?? {});
 
   return (
     <group name="variant-overlays-3d">
+      {/* King of the Hill: Golden Sanctuary Crown Pillar Ring */}
+      {isKingOfTheHill && (
+        <mesh name="hill-sanctuary-3d-ring" position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.92, 1.08, 32]} />
+          <meshStandardMaterial
+            color="#fbbf24"
+            emissive="#f59e0b"
+            emissiveIntensity={0.6}
+            metalness={0.8}
+            roughness={0.2}
+          />
+        </mesh>
+      )}
+
+      {/* Spell Chess: Frozen Ice Slabs */}
       {(frozenCoordinates ?? []).map((coord) => {
         const p = toWorld(coord, boardSize);
         if (!p) return null;
@@ -48,6 +82,60 @@ export const VariantOverlays3D: React.FC<IVariantOverlays3DProps> = ({
         );
       })}
 
+      {/* Spell Chess: Dimensional Portal Vortex Rings */}
+      {portalCoords.map((coord, idx) => {
+        const p = toWorld(coord, boardSize);
+        if (!p) return null;
+        return (
+          <group key={`portal-${coord}-${idx}`} name={`portal-3d-${coord}`} position={[p[0], 0.08, p[1]]}>
+            <mesh rotation={[-Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[0.36, 0.05, 12, 28]} />
+              <meshStandardMaterial
+                color="#c084fc"
+                emissive="#a855f7"
+                emissiveIntensity={0.85}
+                metalness={0.6}
+                roughness={0.15}
+              />
+            </mesh>
+            <mesh rotation={[-Math.PI / 2, 0, 0]}>
+              <circleGeometry args={[0.31, 24]} />
+              <meshStandardMaterial
+                color="#38bdf8"
+                emissive="#0284c7"
+                emissiveIntensity={0.55}
+                transparent
+                opacity={0.45}
+              />
+            </mesh>
+          </group>
+        );
+      })}
+
+      {/* Spell Chess: Stealth Trap Rune Disks */}
+      {trapCoords.map((coord) => {
+        const p = toWorld(coord, boardSize);
+        if (!p) return null;
+        return (
+          <mesh
+            key={`trap-${coord}`}
+            name={`stealth-trap-3d-${coord}`}
+            position={[p[0], 0.04, p[1]]}
+            rotation={[-Math.PI / 2, 0, 0]}
+          >
+            <ringGeometry args={[0.18, 0.34, 16]} />
+            <meshStandardMaterial
+              color="#f43f5e"
+              emissive="#e11d48"
+              emissiveIntensity={0.75}
+              transparent
+              opacity={0.78}
+            />
+          </mesh>
+        );
+      })}
+
+      {/* Duck Chess: 3D Rubber Duck */}
       {duckPos && (
         <group name="duck-3d" position={[duckPos[0], 0.12, duckPos[1]]}>
           {/* Body */}

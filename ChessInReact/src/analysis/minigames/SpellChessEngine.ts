@@ -351,6 +351,21 @@ export class SpellChessEngine {
   }
 
   /**
+   * Casts RESURRECTION to revive a captured friendly minor piece (cost: 5 mana).
+   */
+  public static castResurrection(
+    state: ISpellGameState,
+    player: 'WHITE' | 'BLACK'
+  ): ISpellGameState {
+    const validation = this.canCast(state, player, 'RESURRECTION');
+    if (!validation.allowed) {
+      throw new Error(validation.reason);
+    }
+
+    return this.deductMana(state, player, 5);
+  }
+
+  /**
    * Checks if a coordinate is currently frozen.
    */
   public static isCoordinateFrozen(state: ISpellGameState, coord: string): boolean {

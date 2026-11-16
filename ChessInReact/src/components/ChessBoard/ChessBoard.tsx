@@ -11,6 +11,7 @@ import { RulesEngine } from '../../engine/rules/RulesEngine';
 import { PlayerId } from '../../core/coordinates/types';
 import { useTheme } from '../../ui/theme/ThemeContext';
 import { CheckValidator } from '../../engine/rules/CheckValidator';
+import { VariantMapConfig } from '../../engine/variants/VariantMapConfig';
 import { IInvalidMoveFeedback, ITriggerFeedbackOptions, InvalidMoveReason } from '../../bindings/react/useMoveFeedback';
 
 export interface IChessBoardProps {
@@ -28,9 +29,13 @@ export interface IChessBoardProps {
   duckCoordinate?: string | null;
   /** Spell Chess frozen squares (game coordinate keys) */
   frozenCoordinates?: readonly string[];
+  /** Spell Chess active linked portals */
+  activePortals?: ReadonlyArray<{ readonly coordA: string; readonly coordB: string }>;
+  /** Spell Chess stealth traps */
+  stealthTraps?: Readonly<Record<string, string>>;
   /** Called after a successful human move in a variant with a secondary phase. */
   onHumanPieceMoved?: (from: string, to: string, pieceId: string) => void;
-  /** Handles a variant-specific click such as Duck Chess placement. */
+  /** Handles a variant-specific click such as Duck Chess placement or Spell targeting. */
   onVariantSquareClick?: (coordinate: string) => boolean;
 }
 
@@ -44,6 +49,8 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
   onClearInvalidMove,
   duckCoordinate,
   frozenCoordinates,
+  activePortals,
+  stealthTraps,
   onHumanPieceMoved,
   onVariantSquareClick,
 }) => {
@@ -179,7 +186,26 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
     return map;
   }, [preferences.showLegalMoves, selectedEntity, domain, topology]);
 
+  const variantTheme = useMemo(
+    () => VariantMapConfig.getVariantTheme(domain.variantId),
+    [domain.variantId]
+  );
+
+  const portalCoordSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of activePortals ?? []) {
+      set.add(p.coordA);
+      set.add(p.coordB);
+    }
+    return set;
+  }, [activePortals]);
+
   const getSquareBackground = (gameX: number, gameY: number) => {
+    if (variantTheme.themeId !== 'CLASSIC') {
+      return (gameX + gameY) % 2 === 0
+        ? variantTheme.darkSquare
+        : variantTheme.lightSquare;
+    }
     return (gameX + gameY) % 2 === 0
       ? activeBoardColors.darkSquare
       : activeBoardColors.lightSquare;
@@ -199,15 +225,19 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
       squareInfo.gameX !== undefined
         ? squareInfo.gameX
         : isFlipped
-        ? boardSize - 1 - squareInfo.column
-        : squareInfo.column;
+          ? boardSize - 1 - squareInfo.column
+          : squareInfo.column;
     const gameY =
       squareInfo.gameY !== undefined
         ? squareInfo.gameY
         : isFlipped
-        ? squareInfo.row
-        : boardSize - 1 - squareInfo.row;
+          ? squareInfo.row
+          : boardSize - 1 - squareInfo.row;
     const clickedCoord = asCoordinateKey(`${gameX},${gameY}`);
+
+    if (VariantMapConfig.isVoidSquare(domain.variantId, gameX, gameY, boardSize)) {
+      return;
+    }
 
     if (onVariantSquareClick?.(clickedCoord)) {
       return;
@@ -341,9 +371,12 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
     }
   };
 
+  const isSpellVariant = Boolean(domain.variantId && domain.variantId.toUpperCase().includes('SPELL'));
+
   return (
     <div
       data-testid="chess-board"
+      data-variant-theme={variantTheme.themeId}
       className="chess-board-grid"
       style={{
         display: 'grid',
@@ -362,7 +395,12 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
           const gameX = isFlipped ? boardSize - 1 - columnIndex : columnIndex;
           const coordKey = asCoordinateKey(`${gameX},${gameY}`);
           const entityId = domain.occupancy[coordKey];
+          const rawEntity = entityId ? domain.boardEntities[entityId] : undefined;
+          const pieceEntity = rawEntity?.type === 'PIECE' ? (rawEntity as IPieceEntity) : undefined;
           const isSelected = Boolean(ui.selectedPieceId && entityId === ui.selectedPieceId);
+
+          const specialZone = VariantMapConfig.getSquareZone(domain.variantId, gameX, gameY, boardSize);
+          const isVoid = specialZone === 'VOID';
 
           const legalMoveInfo = legalMovesMap.get(coordKey);
           const isMoveDestination = legalMoveInfo !== undefined && !legalMoveInfo;
@@ -373,16 +411,20 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
           const isCheckTargetError = invalidMoveFeedback?.targetCoord === coordKey;
 
           const rankLabel =
-            preferences.showCoordinates && columnIndex === 0
+            !isVoid && preferences.showCoordinates && columnIndex === 0
               ? String(gameY + 1)
               : undefined;
           const fileLabel =
-            preferences.showCoordinates && rowIndex === boardSize - 1
+            !isVoid && preferences.showCoordinates && rowIndex === boardSize - 1
               ? String.fromCharCode(97 + gameX)
               : undefined;
 
           const isRovingActive =
             activeVisualCoord.col === columnIndex && activeVisualCoord.row === rowIndex;
+
+          const isFrozenSquare =
+            Boolean(frozenCoordinates?.includes(coordKey)) ||
+            Boolean(pieceEntity?.metadata?.isFrozen);
 
           return (
             <BoardSquare
@@ -407,7 +449,15 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               isCheckSourceError={isCheckSourceError}
               isCheckTargetError={isCheckTargetError}
               hasDuck={Boolean(duckCoordinate) && duckCoordinate === coordKey}
-              isFrozen={Boolean(frozenCoordinates?.includes(coordKey))}
+              isFrozen={isFrozenSquare}
+              isVoid={isVoid}
+              specialZone={specialZone}
+              hasPortal={portalCoordSet.has(coordKey)}
+              hasTrap={Boolean(stealthTraps && stealthTraps[coordKey])}
+              hasJump={Boolean(pieceEntity?.metadata?.hasJump)}
+              isShielded={Boolean(pieceEntity?.metadata?.isShielded)}
+              isInvisible={Boolean(pieceEntity?.metadata?.isInvisible)}
+              isArcaneSkin={isSpellVariant}
               rankLabel={rankLabel}
               fileLabel={fileLabel}
               tabIndex={isRovingActive ? 0 : -1}

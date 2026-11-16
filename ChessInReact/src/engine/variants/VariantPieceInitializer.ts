@@ -12,6 +12,7 @@ import { IPieceEntity } from '../../core/entities/types';
 import { createStandardChessPieces } from '../../core/bootstrap/GameInitializer';
 import { CompositeArenaLayouts } from '../multiplayer/arenas/CompositeArenaLayouts';
 import { ArenaModeId } from '../multiplayer/arenas/interfaces/IArenaContracts';
+import { VariantMapConfig } from './VariantMapConfig';
 
 export class VariantPieceInitializer {
   /**
@@ -80,14 +81,46 @@ export class VariantPieceInitializer {
 
       faction.initialCoordinates.forEach((coord, cIdx) => {
         let finalCoord = coord.coordKey;
-        if (hasOutOfBounds || usedCoords.has(finalCoord)) {
+        const [rawX, rawY] = finalCoord.split(',').map(Number);
+        const isCurrentVoid = VariantMapConfig.isVoidSquare(layout.id, rawX, rawY, boardLimit);
+        if (hasOutOfBounds || isCurrentVoid || usedCoords.has(finalCoord)) {
           for (const [dx, dy] of offsets) {
             const cx = Math.max(0, Math.min(boardLimit - 1, baseX + dx));
             const cy = Math.max(0, Math.min(boardLimit - 1, baseY + dy));
             const candidate = `${cx},${cy}`;
-            if (!usedCoords.has(candidate)) {
+            if (
+              !usedCoords.has(candidate) &&
+              !VariantMapConfig.isVoidSquare(layout.id, cx, cy, boardLimit)
+            ) {
               finalCoord = candidate;
               break;
+            }
+          }
+          // Secondary spiral search if all immediate offsets were void or occupied
+          if (
+            usedCoords.has(finalCoord) ||
+            VariantMapConfig.isVoidSquare(
+              layout.id,
+              Number(finalCoord.split(',')[0]),
+              Number(finalCoord.split(',')[1]),
+              boardLimit
+            )
+          ) {
+            outer: for (let r = 1; r < boardLimit; r++) {
+              for (let sx = -r; sx <= r; sx++) {
+                for (let sy = -r; sy <= r; sy++) {
+                  const cx = Math.max(0, Math.min(boardLimit - 1, baseX + sx));
+                  const cy = Math.max(0, Math.min(boardLimit - 1, baseY + sy));
+                  const candidate = `${cx},${cy}`;
+                  if (
+                    !usedCoords.has(candidate) &&
+                    !VariantMapConfig.isVoidSquare(layout.id, cx, cy, boardLimit)
+                  ) {
+                    finalCoord = candidate;
+                    break outer;
+                  }
+                }
+              }
             }
           }
         }

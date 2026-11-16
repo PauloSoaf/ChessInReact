@@ -18,6 +18,14 @@ const BoardSquare: React.FC<IBoardSquare> = ({
   isCheckTargetError,
   hasDuck,
   isFrozen,
+  isVoid,
+  specialZone,
+  hasPortal,
+  hasTrap,
+  hasJump,
+  isShielded,
+  isInvisible,
+  isArcaneSkin,
   rankLabel,
   fileLabel,
   tabIndex,
@@ -25,6 +33,26 @@ const BoardSquare: React.FC<IBoardSquare> = ({
 }) => {
   const { pieceSet, activeBoardColors } = useTheme();
   const isPiecePresent = Boolean(piece && piece.name && piece.name !== 'none');
+
+  if (isVoid) {
+    return (
+      <div
+        data-testid={testId}
+        data-void-square="true"
+        data-square-col={squareInfo.column}
+        data-square-row={squareInfo.row}
+        aria-hidden="true"
+        style={{
+          aspectRatio: '1 / 1',
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'transparent',
+          pointerEvents: 'none',
+          opacity: 0,
+        }}
+      />
+    );
+  }
 
   const coordLabelColor =
     backgroundColor === activeBoardColors.darkSquare
@@ -250,13 +278,198 @@ const BoardSquare: React.FC<IBoardSquare> = ({
         />
       )}
 
-      {/* Chess Piece */}
-      {isPiecePresent ? (
-        <PieceRenderer
-          variantId={piece.name}
-          ownerId={(piece.ownerId as 'P1' | 'P2' | undefined) ?? (piece.color === 'white' ? 'P1' : 'P2')}
-          pieceSet={pieceSet}
+      {/* Special Variant Zone Overlays (Hill Sanctuary, Finish Line, Arcane Conduit, Citadel Ring) */}
+      {specialZone === 'HILL_SANCTUARY' && (
+        <div
+          data-testid="hill-sanctuary-marker"
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'radial-gradient(circle, rgba(251, 191, 36, 0.34) 0%, rgba(217, 119, 6, 0.16) 100%)',
+            boxShadow: 'inset 0 0 0 2px #f59e0b, inset 0 0 10px rgba(251, 191, 36, 0.45)',
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'flex-end',
+            padding: '2px 3px',
+            fontSize: '0.62rem',
+            zIndex: 1,
+          }}
+        >
+          <span style={{ opacity: 0.78 }}>👑</span>
+        </div>
+      )}
+
+      {specialZone === 'FINISH_LINE' && (
+        <div
+          data-testid="finish-line-marker"
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background:
+              'repeating-linear-gradient(45deg, rgba(16, 185, 129, 0.22), rgba(16, 185, 129, 0.22) 6px, rgba(251, 191, 36, 0.22) 6px, rgba(251, 191, 36, 0.22) 12px)',
+            boxShadow: 'inset 0 3px 0 0 #10b981',
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'flex-end',
+            padding: '2px 3px',
+            fontSize: '0.58rem',
+            zIndex: 1,
+          }}
+        >
+          <span style={{ opacity: 0.8 }}>🏁</span>
+        </div>
+      )}
+
+      {specialZone === 'ARCANE_CONDUIT' && (
+        <div
+          data-testid="arcane-conduit-marker"
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'radial-gradient(circle, rgba(168, 85, 247, 0.28) 0%, rgba(56, 189, 248, 0.1) 100%)',
+            boxShadow: 'inset 0 0 0 1.5px rgba(168, 85, 247, 0.55)',
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'flex-end',
+            padding: '2px 3px',
+            fontSize: '0.58rem',
+            color: '#c084fc',
+            zIndex: 1,
+          }}
+        >
+          <span>✦</span>
+        </div>
+      )}
+
+      {specialZone === 'CITADEL_RING' && (
+        <div
+          data-testid="citadel-ring-marker"
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            boxShadow: 'inset 0 0 0 1.5px rgba(245, 158, 11, 0.42)',
+            backgroundColor: 'rgba(245, 158, 11, 0.08)',
+            pointerEvents: 'none',
+            zIndex: 1,
+          }}
         />
+      )}
+
+      {/* Spell Chess: Dimensional Portal Vortex */}
+      {hasPortal && (
+        <div
+          data-testid="portal-marker"
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: '3px',
+            borderRadius: '50%',
+            border: '2.5px dashed #c084fc',
+            background: 'radial-gradient(circle, rgba(168, 85, 247, 0.38) 0%, rgba(56, 189, 248, 0.2) 100%)',
+            boxShadow: '0 0 12px rgba(168, 85, 247, 0.75), inset 0 0 10px rgba(56, 189, 248, 0.65)',
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '0.95rem',
+            zIndex: 2,
+          }}
+        >
+          🌀
+        </div>
+      )}
+
+      {/* Spell Chess: Stealth Trap Rune */}
+      {hasTrap && (
+        <div
+          data-testid="stealth-trap-marker"
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            bottom: '2px',
+            left: '3px',
+            fontSize: '0.72rem',
+            pointerEvents: 'none',
+            zIndex: 3,
+            filter: 'drop-shadow(0 0 4px rgba(244, 63, 94, 0.85))',
+          }}
+        >
+          💣
+        </div>
+      )}
+
+      {/* Chess Piece with Spell Skins / Enchantments */}
+      {isPiecePresent ? (
+        <div
+          data-testid={
+            hasJump
+              ? 'jump-buff-marker'
+              : isShielded
+                ? 'shield-buff-marker'
+                : isInvisible
+                  ? 'invisible-buff-marker'
+                  : undefined
+          }
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+             zIndex: 2,
+            opacity: isInvisible ? 0.48 : 1,
+            transform: hasJump ? 'translateY(-3px) scale(1.06)' : 'none',
+            filter: hasJump
+              ? 'drop-shadow(0 0 8px rgba(168, 85, 247, 0.95))'
+              : isShielded
+                ? 'drop-shadow(0 0 8px rgba(56, 189, 248, 0.95))'
+                : isArcaneSkin
+                  ? 'drop-shadow(0 0 5px rgba(139, 92, 246, 0.65))'
+                  : 'none',
+          }}
+        >
+          <PieceRenderer
+            variantId={piece.name}
+            ownerId={(piece.ownerId as 'P1' | 'P2' | undefined) ?? (piece.color === 'white' ? 'P1' : 'P2')}
+            pieceSet={pieceSet}
+          />
+          {hasJump && (
+            <span
+              style={{
+                position: 'absolute',
+                top: '1px',
+                right: '2px',
+                fontSize: '0.62rem',
+                lineHeight: 1,
+                pointerEvents: 'none',
+              }}
+            >
+              ⚡
+            </span>
+          )}
+          {isShielded && (
+            <span
+              style={{
+                position: 'absolute',
+                top: '1px',
+                left: '2px',
+                fontSize: '0.62rem',
+                lineHeight: 1,
+                pointerEvents: 'none',
+              }}
+            >
+              🛡️
+            </span>
+          )}
+        </div>
       ) : null}
 
       {/* Spell Chess: frozen square overlay */}

@@ -100,11 +100,32 @@ export class NegamaxSearch {
       }
     }
 
-    // Leaf node: check game over or depth limit
+    // Leaf node: check game over or variant instant terminal conditions
     if (state.isGameOver) {
       if (state.winnerId === activePlayer) return 100000 + depth;
       if (state.winnerId === opponentPlayer) return -100000 - depth;
       return 0; // Draw
+    }
+
+    const vUpper = (variantConfig?.variantId ?? state.variantId ?? '').toUpperCase();
+    if (vUpper === 'KING_OF_THE_HILL' || vUpper === 'RACING_KINGS') {
+      for (const e of Object.values(state.boardEntities)) {
+        if (e && e.type === 'PIECE' && !(e as IPieceEntity).isCaptured) {
+          const p = e as IPieceEntity;
+          const pv = p.variantId.toUpperCase();
+          if (pv === 'KING' || pv === 'K') {
+            if (
+              vUpper === 'KING_OF_THE_HILL' &&
+              (p.position === '3,3' || p.position === '4,3' || p.position === '3,4' || p.position === '4,4')
+            ) {
+              return p.ownerId === activePlayer ? 100000 + depth : -100000 - depth;
+            }
+            if (vUpper === 'RACING_KINGS' && p.position.endsWith(',7')) {
+              return p.ownerId === activePlayer ? 100000 + depth : -100000 - depth;
+            }
+          }
+        }
+      }
     }
 
     if (depth <= 0) {
@@ -121,10 +142,15 @@ export class NegamaxSearch {
 
     const legalMoves = RulesEngine.getLegalMoves(state, topology, variantConfig);
     if (legalMoves.length === 0) {
+      if (vUpper === 'ANTICHESS') {
+        // In Antichess, having 0 pieces or being stalemated is a WIN for activePlayer!
+        return 100000 + depth;
+      }
       // Stalemate or Checkmate
       const royalPiece = Object.values(state.boardEntities).find(
         (e) =>
           e.type === 'PIECE' &&
+          !(e as IPieceEntity).isCaptured &&
           (e as IPieceEntity).ownerId === activePlayer &&
           (e as IPieceEntity).variantId.toUpperCase() === 'KING'
       ) as IPieceEntity | undefined;
