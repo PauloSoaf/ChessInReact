@@ -71,7 +71,7 @@ export class MovePieceCommand implements ICommand {
     const initialPositionKey = draft.turnState ? computePositionKey(draft) : undefined;
 
     const activeConfig: IVariantConfiguration | undefined =
-      this.variantConfig ?? (draft.variantId ? VariantRegistry.getVariant(draft.variantId)?.config : undefined);
+      this.variantConfig ?? VariantRegistry.resolveRulesConfig(draft.variantId);
 
     // Crazyhouse drop move execution
     if (this.isDropMove) {
@@ -450,11 +450,11 @@ export class MovePieceCommand implements ICommand {
     (piece as { position: CoordinateKey }).position = this.to;
     draft.occupancy[this.to] = this.pieceId;
 
-    // Atomic variant explosion handling (RF-08)
+    // Atomic variant explosion handling (RF-08, RF-13-05)
     const isAtomic = Boolean(
       activeConfig?.captureExplosion ||
-      activeConfig?.variantId === 'ATOMIC' ||
-      draft.variantId === 'ATOMIC'
+      activeConfig?.variantId?.toUpperCase().includes('ATOMIC') ||
+      draft.variantId?.toUpperCase().includes('ATOMIC')
     );
     if (isCapture && isAtomic) {
       // 1. Epicenter: Capturing piece itself is destroyed in the explosion

@@ -51,6 +51,12 @@ export class VariantSpecializedStrategy implements IUniversalAIStrategy {
         const searched = decideWithSearch(request, this.strategyId);
         if (searched) return searched;
       }
+    } else if (variant.includes('HILL') || variant.includes('KOTH')) {
+      ({ bestMove, bestScore } = this.evaluateKingOfTheHill(moves, level, request));
+      if (bestScore < 50000 && level >= 2) {
+        const searched = decideWithSearch(request, this.strategyId);
+        if (searched) return searched;
+      }
     } else if (variant.includes('CAPABLANCA') || variant.includes('CRAZYHOUSE')) {
       const searched = decideWithSearch(request, this.strategyId);
       if (searched) return searched;
@@ -238,6 +244,80 @@ export class VariantSpecializedStrategy implements IUniversalAIStrategy {
         // When not capturing, advance pieces toward opponent territory to provoke captures
         const [, toY] = this.parseCoord(move.to);
         score += toY * 15;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestMove = move;
+      }
+    }
+
+    return { bestMove, bestScore };
+  }
+
+  /**
+   * KING OF THE HILL: Move king to central squares {d4, e4, d5, e5} (3,3; 4,3; 3,4; 4,4).
+   */
+  private evaluateKingOfTheHill(
+    moves: IAIDecisionRequest['legalMoves'],
+    level: number,
+    request: IAIDecisionRequest
+  ): { bestMove: (typeof moves)[0]; bestScore: number } {
+    let bestMove = moves[0];
+    let bestScore = -Infinity;
+
+    const hillCoords = new Set(['3,3', '4,3', '3,4', '4,4']);
+    const opponentKing = (request.specializedContext?.opponentKingCoord as string) ?? null;
+
+    for (const move of moves) {
+      let score = 0;
+      const pid = move.pieceId.toLowerCase();
+      const isKingMove = pid.includes('k') && !pid.includes('kn');
+      const [toX, toY] = this.parseCoord(move.to);
+      const coordKey = `${toX},${toY}`;
+
+      // Level 1: Random step or capture
+      if (level === 1) {
+        score = move.isCapture ? 100 : Math.random() * 50;
+        if (isKingMove && hillCoords.has(coordKey)) score += 500;
+        if (score > bestScore) {
+          bestScore = score;
+          bestMove = move;
+        }
+        continue;
+      }
+
+      // INSTANT WIN: King reaches the Hill!
+      if (isKingMove && hillCoords.has(coordKey)) {
+        return { bestMove: move, bestScore: 100000 };
+      }
+
+      if (move.isCapture) {
+        score += 250;
+      }
+
+      // King march towards center
+      if (isKingMove) {
+        const distFromCenter = Math.max(Math.abs(toX - 3.5), Math.abs(toY - 3.5));
+        score += (4 - distFromCenter) * 150;
+      } else {
+        // Pieces guarding or controlling the hill
+        if (hillCoords.has(coordKey)) {
+          score += 60;
+        }
+        const distToCenter = Math.max(Math.abs(toX - 3.5), Math.abs(toY - 3.5));
+        if (distToCenter <= 2) {
+          score += 30;
+        }
+      }
+
+      // Block opponent king approach if close
+      if (opponentKing && level >= 3) {
+        const [opKx, opKy] = this.parseCoord(opponentKing);
+        const distToOpKing = Math.max(Math.abs(toX - opKx), Math.abs(toY - opKy));
+        if (distToOpKing <= 1) {
+          score += 50; // Challenge enemy king
+        }
       }
 
       if (score > bestScore) {

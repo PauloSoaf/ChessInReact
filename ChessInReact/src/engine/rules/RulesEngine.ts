@@ -242,7 +242,12 @@ export class RulesEngine {
     const isCapture = Boolean(capturedPieceId);
 
     // Atomic Chess rule: Kings cannot capture, and captures cannot blow up friendly King
-    if (variantConfig?.variantId === 'ATOMIC' && isCapture) {
+    const isAtomicVariant = Boolean(
+      variantConfig?.variantId?.toUpperCase().includes('ATOMIC') ||
+      variantConfig?.captureExplosion ||
+      state.variantId?.toUpperCase().includes('ATOMIC')
+    );
+    if (isAtomicVariant && isCapture) {
       if (isKing) {
         return {
           valid: false,
@@ -581,7 +586,12 @@ export class RulesEngine {
 
       const isCapture = Boolean(capturedPieceId);
 
-      if (variantConfig?.variantId === 'ATOMIC' && isCapture) {
+      const isAtomicRule = Boolean(
+        variantConfig?.variantId?.toUpperCase().includes('ATOMIC') ||
+        variantConfig?.captureExplosion ||
+        state.variantId?.toUpperCase().includes('ATOMIC')
+      );
+      if (isAtomicRule && isCapture) {
         if (vUpper === 'KING' || vUpper === 'K') {
           continue;
         }
@@ -717,7 +727,14 @@ export class RulesEngine {
     let atomicWinnerId: PlayerId | null = state.winnerId;
     let atomicGameOver = state.isGameOver;
 
-    if (state.variantId === 'ATOMIC' && wasCapture) {
+    const rulesCfg = VariantRegistry.resolveRulesConfig(state.variantId);
+    const isSimAtomic = Boolean(
+      state.variantId?.toUpperCase().includes('ATOMIC') ||
+      rulesCfg?.variantId?.toUpperCase().includes('ATOMIC') ||
+      rulesCfg?.captureExplosion
+    );
+
+    if (isSimAtomic && wasCapture) {
       const toCoord = parseCoord(to);
       // Capturing piece also explodes
       delete simulatedOccupancy[to];

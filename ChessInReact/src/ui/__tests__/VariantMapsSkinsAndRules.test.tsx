@@ -453,4 +453,31 @@ describe('Variable Variant Maps, Spell Chess Skins & Gameplay Mechanics, and Rul
 
     controller.dispose();
   });
+
+  it('8. Atomic Chess & King of the Hill rules, catalog aliases and bot evaluation', () => {
+    // 1. VariantCatalog aliases
+    expect(VariantCatalog.getById('ATOMIC')?.id).toBe('ATOMIC_CHESS');
+    expect(VariantCatalog.getById('HILL')?.id).toBe('KING_OF_THE_HILL');
+    expect(VariantCatalog.getById('KOTH')?.id).toBe('KING_OF_THE_HILL');
+    expect(VariantCatalog.getById('RACING')?.id).toBe('RACING_KINGS');
+    expect(VariantCatalog.getById('FOG')?.id).toBe('FOG_OF_WAR');
+    expect(VariantCatalog.getById('CAPA')?.id).toBe('CAPABLANCA_CHESS');
+
+    // 2. King of the Hill AI detects instant win on hill squares
+    const hillStrategy = new VariantSpecializedStrategy();
+    const hillDecision = hillStrategy.decideMove({
+      matchId: 'hill-test',
+      variantId: 'KING_OF_THE_HILL',
+      actingPlayer: 'P1',
+      difficultyLevel: 3,
+      timeBudgetMs: 100,
+      legalMoves: [
+        { from: '4,2', to: '4,3', pieceId: 'w_k', isCapture: false }, // King stepping onto e4 (hill!)
+        { from: '1,0', to: '2,2', pieceId: 'w_n', isCapture: false },
+      ],
+      specializedContext: {},
+    });
+    expect(hillDecision.move.to).toBe('4,3');
+    expect(hillDecision.evaluationCentipawns).toBe(100000);
+  });
 });
