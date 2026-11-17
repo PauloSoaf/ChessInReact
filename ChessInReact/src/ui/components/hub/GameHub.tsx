@@ -227,6 +227,78 @@ const MINIGAMES_CATALOG = [
     buttonText: 'Configurar / Jogar Antichess',
     disabled: false,
   },
+  {
+    id: 'king_of_the_hill',
+    title: 'King of the Hill',
+    badge: 'Centro d4/e4/d5/e5 (SPEC13)',
+    accentColor: '#d97706',
+    icon: '⛰️',
+    desc: 'Guie seu Rei até uma das 4 casas do santuário central (d4, e4, d5, e5) para vencer instantaneamente a partida ou vença por mate!',
+    features: ['Santuário Central 2×2', 'Vitória Instantânea de Rei', 'IA Especializada em Rush'],
+    status: 'READY' as const,
+    buttonText: 'Configurar / Jogar King of the Hill',
+    disabled: false,
+  },
+  {
+    id: 'racing_kings',
+    title: 'Racing Kings',
+    badge: 'Corrida até Fileira 8',
+    accentColor: '#8b5cf6',
+    icon: '🏁',
+    desc: 'Corrida tática: o primeiro rei a alcançar a oitava fileira vence a partida! Xeques ao rei adversário são estritamente proibidos.',
+    features: ['Proibição Total de Xeque', 'Corrida de Reis', 'Compensação de Lance Preto'],
+    status: 'READY' as const,
+    buttonText: 'Configurar / Jogar Racing Kings',
+    disabled: false,
+  },
+  {
+    id: 'three_check',
+    title: 'Three-Check Chess',
+    badge: '3 Xeques = Vitória',
+    accentColor: '#f59e0b',
+    icon: '🎯',
+    desc: 'Disputa agressiva onde aplicar 3 xeques acumulados no rei adversário concede a vitória imediata antes do xeque-mate!',
+    features: ['Contador de Xeques ao Vivo', 'Ataque Implacável', 'Finalizações Rápidas'],
+    status: 'READY' as const,
+    buttonText: 'Configurar / Jogar Three-Check',
+    disabled: false,
+  },
+  {
+    id: 'crazyhouse',
+    title: 'Crazyhouse (Drops de Reserva)',
+    badge: 'Drops de Peças (SPEC13)',
+    accentColor: '#a855f7',
+    icon: '📦',
+    desc: 'Peças capturadas entram no seu bolso de reservas. No seu turno, faça o drop de qualquer peça em uma casa desocupada!',
+    features: ['Bolso de Peças Capturadas', 'Drops Livres no Turno', 'Reviravoltas Constantes'],
+    status: 'READY' as const,
+    buttonText: 'Configurar / Jogar Crazyhouse',
+    disabled: false,
+  },
+  {
+    id: 'capablanca',
+    title: 'Capablanca Chess (10×8)',
+    badge: 'Arcebispo & Chanceler',
+    accentColor: '#0284c7',
+    icon: '🏰',
+    desc: 'Tabuleiro expandido de 10×8 criado pelo campeão mundial José Raúl Capablanca, apresentando o Arcebispo (Bispo+Cavalo) e o Chanceler (Torre+Cavalo).',
+    features: ['Grade 10×8 Expandida', 'Peças Compostas Lendárias', 'Domínio Espacial'],
+    status: 'READY' as const,
+    buttonText: 'Configurar / Jogar Capablanca',
+    disabled: false,
+  },
+  {
+    id: 'horde',
+    title: 'Horde Chess (36 Peões vs Exército)',
+    badge: 'Batalha Assimétrica',
+    accentColor: '#e11d48',
+    icon: '🛡️',
+    desc: 'Disputa assimétrica épica: uma legião de 36 peões brancos avançando em muralha contra as peças tradicionais das pretas!',
+    features: ['Muralha de 36 Peões', 'Sem Rei Branco (Extinção)', 'Defesa vs Ofensiva Total'],
+    status: 'READY' as const,
+    buttonText: 'Configurar / Jogar Horde Chess',
+    disabled: false,
+  },
 ];
 
 export const GameHub: React.FC<IGameHubProps> = ({
@@ -1269,7 +1341,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                 title={mg.disabled ? 'Variante em desenvolvimento especializado na SPEC12' : `Jogar ${mg.title}`}
                 onClick={() => {
                   if (mg.disabled) return;
-                  if (mg.id === 'puzzle_rush') {
+                  if (mg.id === 'puzzle_rush' || mg.id === 'bughouse') {
                     if (onLaunchMinigame) {
                       onLaunchMinigame(mg.id);
                     } else {
@@ -1279,9 +1351,15 @@ export const GameHub: React.FC<IGameHubProps> = ({
                     const resolvedVariantId =
                       mg.id === 'spell_chess'
                         ? 'SPELL_CHESS_OFFICIAL'
-                        : mg.id.toUpperCase();
+                        : mg.id === 'atomic'
+                          ? 'ATOMIC_CHESS'
+                          : mg.id === 'capablanca'
+                            ? 'CAPABLANCA_CHESS'
+                            : mg.id === 'horde'
+                              ? 'HORDE_CHESS'
+                              : mg.id.toUpperCase();
                     setStagingVariantId(resolvedVariantId);
-                    setStagingParticipants(mg.id === 'bughouse' ? 4 : 2);
+                    setStagingParticipants(2);
                   }
                 }}
               >
