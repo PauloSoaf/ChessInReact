@@ -7,6 +7,7 @@ import { CLASSIC_VARIANTS } from './ClassicVariantsCatalog';
 import { MAGICAL_VARIANTS } from './MagicalVariantsCatalog';
 import { GEOMETRIC_VARIANTS } from './GeometricVariantsCatalog';
 import { HISTORICAL_VARIANTS } from './HistoricalVariantsCatalog';
+import { CompositeArenaLayouts } from '../../multiplayer/arenas/CompositeArenaLayouts';
 
 export class VariantCatalog {
   private static readonly registry = new Map<string, IVariantDefinition>();
@@ -22,6 +23,33 @@ export class VariantCatalog {
     ];
     for (const variant of all) {
       this.registry.set(variant.id.toUpperCase(), variant);
+    }
+    for (const arena of CompositeArenaLayouts.getAllLayouts()) {
+      if (!this.registry.has(arena.id.toUpperCase())) {
+        this.registry.set(arena.id.toUpperCase(), {
+          id: arena.id,
+          name: arena.name,
+          family: 'GEOMETRIC_FAIRY',
+          description: `Arena multijogador de ${arena.totalParticipants} participantes em topologia ${arena.boardType}. Políticas: ${arena.allowedEliminationPolicies.join(', ')}.`,
+          badge: `${arena.totalParticipants}P ${arena.boardType.split('_')[0]}`,
+          boardDimensions: {
+            width: arena.totalParticipants > 4 ? 16 : 14,
+            height: arena.totalParticipants > 4 ? 16 : 14,
+          },
+          topologyType: arena.boardType.includes('HEX')
+            ? 'HEXAGONAL'
+            : arena.boardType.includes('TRI')
+              ? 'TRIANGULAR'
+              : 'SQUARE',
+          maxPlayers: arena.totalParticipants,
+          hasDrops: false,
+          hasSpells: false,
+          hasDuck: false,
+          hasFogOfWar: false,
+          victoryConditions: ['CHECKMATE'],
+          specialRules: {},
+        });
+      }
     }
     this.initialized = true;
   }
@@ -51,6 +79,9 @@ export class VariantCatalog {
     }
     if (upper === 'CAPA') {
       return this.registry.get('CAPABLANCA_CHESS');
+    }
+    if (upper === 'OCTAGONAL_CITADEL_8P') {
+      return this.registry.get('OCTAGON_FFA');
     }
     return this.registry.get(upper);
   }

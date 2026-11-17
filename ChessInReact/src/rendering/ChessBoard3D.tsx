@@ -14,6 +14,8 @@ import { InstancedBoard } from './mesh/InstancedBoard';
 import { InstancedPieces } from './mesh/InstancedPieces';
 import { InstancedPieceBatcher } from './mesh/InstancedPieceBatcher.tsx';
 import { VariantOverlays3D } from './mesh/VariantOverlays3D';
+import { ToroidalChessBoard3D } from './mesh/ToroidalChessBoard3D';
+import { CubicChessBoard3D } from './mesh/CubicChessBoard3D';
 import { IInvalidMoveFeedback, ITriggerFeedbackOptions, InvalidMoveReason } from '../bindings/react/useMoveFeedback';
 
 export interface IChessBoard3DProps {
@@ -429,36 +431,63 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           color={rimLightColor}
         />
 
-        {/* 3D Board Surface (InstancedMesh) */}
-        <InstancedBoard
-          boardSize={boardSize}
-          variantId={domain.variantId}
-          lightColor={activeBoardColors.lightSquare}
-          darkColor={activeBoardColors.darkSquare}
-          selectedCoord={selectedPiece?.position}
-          legalMoveCoords={legalMoveCoords}
-          checkConstraintCoords={checkConstraintCoords}
-          onSquareClick={handleSquareClick}
-        />
-
-        {/* 3D Pieces (GPU Matrix Batched InstancedMesh vs Procedural PBR Meshes) */}
-        {useInstancedBatching ? (
-          <InstancedPieceBatcher
+        {/* Non-Euclidean 3D Boards (Torus Donut 3D vs Cube 3D vs Standard Instanced) */}
+        {domain.variantId?.toUpperCase().includes('TORUS') || domain.variantId?.toUpperCase().includes('TOROIDAL') ? (
+          <ToroidalChessBoard3D
             boardSize={boardSize}
+            lightColor={activeBoardColors.lightSquare}
+            darkColor={activeBoardColors.darkSquare}
             pieces={activePieces}
             selectedPieceId={ui.selectedPieceId}
-            checkKingCoord={checkConstraintCoords?.kingCoord}
+            legalMoveCoords={legalMoveCoords}
+            onSquareClick={handleSquareClick}
+            onPieceClick={handlePieceClick}
+          />
+        ) : domain.variantId?.toUpperCase().includes('CUBE') || domain.variantId?.toUpperCase().includes('CUBIC') ? (
+          <CubicChessBoard3D
+            boardSize={boardSize}
+            lightColor={activeBoardColors.lightSquare}
+            darkColor={activeBoardColors.darkSquare}
+            pieces={activePieces}
+            selectedPieceId={ui.selectedPieceId}
+            legalMoveCoords={legalMoveCoords}
+            onSquareClick={handleSquareClick}
             onPieceClick={handlePieceClick}
           />
         ) : (
-          <InstancedPieces
-            boardSize={boardSize}
-            variantId={domain.variantId}
-            pieces={activePieces}
-            selectedPieceId={ui.selectedPieceId}
-            checkConstraintCoords={checkConstraintCoords}
-            onPieceClick={handlePieceClick}
-          />
+          <>
+            {/* 3D Board Surface (InstancedMesh) */}
+            <InstancedBoard
+              boardSize={boardSize}
+              variantId={domain.variantId}
+              lightColor={activeBoardColors.lightSquare}
+              darkColor={activeBoardColors.darkSquare}
+              selectedCoord={selectedPiece?.position}
+              legalMoveCoords={legalMoveCoords}
+              checkConstraintCoords={checkConstraintCoords}
+              onSquareClick={handleSquareClick}
+            />
+
+            {/* 3D Pieces (GPU Matrix Batched InstancedMesh vs Procedural PBR Meshes) */}
+            {useInstancedBatching ? (
+              <InstancedPieceBatcher
+                boardSize={boardSize}
+                pieces={activePieces}
+                selectedPieceId={ui.selectedPieceId}
+                checkKingCoord={checkConstraintCoords?.kingCoord}
+                onPieceClick={handlePieceClick}
+              />
+            ) : (
+              <InstancedPieces
+                boardSize={boardSize}
+                variantId={domain.variantId}
+                pieces={activePieces}
+                selectedPieceId={ui.selectedPieceId}
+                checkConstraintCoords={checkConstraintCoords}
+                onPieceClick={handlePieceClick}
+              />
+            )}
+          </>
         )}
 
         {/* Variant mechanics: Duck Chess duck, Spell Chess frozen squares/portals/traps, and Hill Sanctuary */}

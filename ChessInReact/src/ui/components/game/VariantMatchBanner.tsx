@@ -102,6 +102,24 @@ export const VariantMatchBanner: React.FC<IVariantMatchBannerProps> = ({
     badge = '36 Peões vs Exército';
     subtitle = 'Uma muralha assimétrica de 36 peões brancos marchando contra as peças tradicionais das pretas.';
     accentColor = '#e11d48';
+  } else if (normId.includes('TORUS') || normId.includes('TOROIDAL')) {
+    icon = '🍩';
+    title = 'Toroidal Chess (Rosquinha 3D)';
+    badge = 'Torus 3D';
+    subtitle = 'Geometria não-euclidiana em um Torus 3D. Bordas opostas conectadas continuamente!';
+    accentColor = '#f59e0b';
+  } else if (normId.includes('CUBE') || normId.includes('CUBIC')) {
+    icon = '🎲';
+    title = 'Cubic Chess (Cubo 3D)';
+    badge = 'Cubo 3D (6 Faces)';
+    subtitle = 'Batalha tridimensional contínua nas 6 faces de um Cubo 3D. Marcha livre através das arestas!';
+    accentColor = '#06b6d4';
+  } else if (normId.includes('PROCEDURAL') || normId.includes('ENDLESS')) {
+    icon = '🌌';
+    title = 'Endless Procedural Conquest';
+    badge = 'Procedural ∞';
+    subtitle = 'Mundo aberto gerado continuamente por Simplex Noise. Expanda e conquiste novos macro-chunks!';
+    accentColor = '#10b981';
   } else if (participantCount > 2) {
     icon = '⚔️';
     title = `${participantCount} Jogadores - Arena Massiva`;
