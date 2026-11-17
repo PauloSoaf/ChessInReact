@@ -37,6 +37,21 @@ export class VariantCatalog {
     if (upper === 'SPELL_CHESS') {
       return this.registry.get('SPELL_CHESS_OFFICIAL');
     }
+    if (upper === 'ATOMIC') {
+      return this.registry.get('ATOMIC_CHESS');
+    }
+    if (upper === 'FOG') {
+      return this.registry.get('FOG_OF_WAR');
+    }
+    if (upper === 'HILL' || upper === 'KOTH') {
+      return this.registry.get('KING_OF_THE_HILL');
+    }
+    if (upper === 'RACING') {
+      return this.registry.get('RACING_KINGS');
+    }
+    if (upper === 'CAPA') {
+      return this.registry.get('CAPABLANCA_CHESS');
+    }
     return this.registry.get(upper);
   }
 
