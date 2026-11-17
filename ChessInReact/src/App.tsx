@@ -594,12 +594,13 @@ const AppContent: React.FC = () => {
 
   const handleLaunchMinigame = useCallback(
     (minigameId: string) => {
-      if (minigameId === 'puzzle_rush') {
+      const lower = minigameId.toLowerCase();
+      if (lower === 'puzzle_rush') {
         clearFeedback();
         navigateTo('PUZZLE_RUSH');
         return;
       }
-      if (minigameId === 'bughouse') {
+      if (lower === 'bughouse') {
         clearFeedback();
         navigateTo('BUGHOUSE');
         return;

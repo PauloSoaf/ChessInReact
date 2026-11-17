@@ -449,6 +449,14 @@ describe('Variable Variant Maps, Spell Chess Skins & Gameplay Mechanics, and Rul
     fireEvent.click(minigamesTab);
     expect(hubContainer.textContent).toContain('Spell Chess Oficial (Chess.com)');
     expect(hubContainer.textContent).toContain('Spell Chess RPG Expandido');
+    expect(hubContainer.textContent).toContain('Duck Chess (Xadrez do Pato)');
+    expect(hubContainer.textContent).toContain('Bughouse (Xadrez Duplo 2v2)');
+    expect(hubContainer.textContent).toContain('King of the Hill');
+    expect(hubContainer.textContent).toContain('Racing Kings');
+    expect(hubContainer.textContent).toContain('Three-Check Chess');
+    expect(hubContainer.textContent).toContain('Crazyhouse (Drops de Reserva)');
+    expect(hubContainer.textContent).toContain('Capablanca Chess (10×8)');
+    expect(hubContainer.textContent).toContain('Horde Chess (36 Peões vs Exército)');
     unmountHub();
 
     controller.dispose();

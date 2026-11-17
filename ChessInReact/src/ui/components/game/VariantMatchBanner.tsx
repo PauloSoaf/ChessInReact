@@ -84,6 +84,24 @@ export const VariantMatchBanner: React.FC<IVariantMatchBannerProps> = ({
     badge = 'Arcebispo & Chanceler';
     subtitle = 'Tabuleiro expandido 10×8 com as lendárias peças compostas Arcebispo e Chanceler.';
     accentColor = '#0284c7';
+  } else if (normId.includes('ANTICHESS') || normId.includes('GIVEAWAY')) {
+    icon = '🔄';
+    title = 'Antichess (Losing Chess)';
+    badge = 'Captura Forçada';
+    subtitle = 'Perca todas as suas peças ou fique sem lances legais para triunfar! Capturas são obrigatórias.';
+    accentColor = '#10b981';
+  } else if (normId.includes('CRAZYHOUSE')) {
+    icon = '📦';
+    title = 'Crazyhouse (Drops)';
+    badge = 'Drops de Reserva';
+    subtitle = 'Peças capturadas vão para seu inventário de reservas para serem recolocadas no tabuleiro.';
+    accentColor = '#a855f7';
+  } else if (normId.includes('HORDE')) {
+    icon = '🛡️';
+    title = 'Horde Chess';
+    badge = '36 Peões vs Exército';
+    subtitle = 'Uma muralha assimétrica de 36 peões brancos marchando contra as peças tradicionais das pretas.';
+    accentColor = '#e11d48';
   } else if (participantCount > 2) {
     icon = '⚔️';
     title = `${participantCount} Jogadores - Arena Massiva`;
