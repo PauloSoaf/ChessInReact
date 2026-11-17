@@ -488,4 +488,38 @@ describe('Variable Variant Maps, Spell Chess Skins & Gameplay Mechanics, and Rul
     expect(hillDecision.move.to).toBe('4,3');
     expect(hillDecision.evaluationCentipawns).toBe(100000);
   });
+
+  it('9. Non-Euclidean 3D Boards (Torus Rosquinha & Cubo) and Massive Multiplayer Arenas (3P to 8P & Endless Procedural)', () => {
+    // 1. Non-Euclidean & Procedural catalog definitions
+    expect(VariantCatalog.getById('TOROIDAL_CHESS')?.name).toContain('Toroidal');
+    expect(VariantCatalog.getById('CUBIC_CHESS')?.name).toContain('Cubic');
+    expect(VariantCatalog.getById('PROCEDURAL_ENDLESS')?.name).toContain('Procedural');
+
+    // 2. Multiplayer arena layouts in VariantCatalog
+    expect(VariantCatalog.getById('THREE_PLAYER_CHESS')?.maxPlayers).toBe(3);
+    expect(VariantCatalog.getById('FOUR_PLAYER_FFA')?.maxPlayers).toBe(4);
+    expect(VariantCatalog.getById('FORTRESS_5P')?.maxPlayers).toBe(5);
+    expect(VariantCatalog.getById('HEXAGON_SIX_PLAYER')?.maxPlayers).toBe(6);
+    expect(VariantCatalog.getById('SEVEN_PLAYER_FFA')?.maxPlayers).toBe(7);
+    expect(VariantCatalog.getById('OCTAGONAL_CITADEL_8P')?.maxPlayers).toBe(8);
+
+    // 3. VariantMatchBanner renders Non-Euclidean and Arenas correctly
+    const { container: torusBanner, unmount: unmountTorus } = render(
+      <VariantMatchBanner variantId="TOROIDAL_CHESS" />
+    );
+    expect(torusBanner.textContent).toContain('Toroidal Chess (Rosquinha 3D)');
+    unmountTorus();
+
+    const { container: cubeBanner, unmount: unmountCube } = render(
+      <VariantMatchBanner variantId="CUBIC_CHESS" />
+    );
+    expect(cubeBanner.textContent).toContain('Cubic Chess (Cubo 3D)');
+    unmountCube();
+
+    const { container: procBanner, unmount: unmountProc } = render(
+      <VariantMatchBanner variantId="PROCEDURAL_ENDLESS" />
+    );
+    expect(procBanner.textContent).toContain('Endless Procedural Conquest');
+    unmountProc();
+  });
 });
