@@ -238,7 +238,6 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
       if (disabled || isBotThinking) return;
       if (onVariantSquareClick?.(coord)) return;
       if (botPlayer && domain.activePlayer === botPlayer) return;
-      if (onVariantSquareClick?.(coord)) return;
 
       const entityAtCoord = activePieces.find((p) => p.position === coord);
 
