@@ -57,6 +57,12 @@ export class VariantSpecializedStrategy implements IUniversalAIStrategy {
         const searched = decideWithSearch(request, this.strategyId);
         if (searched) return searched;
       }
+    } else if (variant.includes('THREE_CHECK') || variant.includes('THREECHECK')) {
+      ({ bestMove, bestScore } = this.evaluateThreeCheck(moves, level, request));
+      if (bestScore < 50000 && level >= 2) {
+        const searched = decideWithSearch(request, this.strategyId);
+        if (searched) return searched;
+      }
     } else if (variant.includes('CAPABLANCA') || variant.includes('CRAZYHOUSE')) {
       const searched = decideWithSearch(request, this.strategyId);
       if (searched) return searched;
@@ -369,6 +375,34 @@ export class VariantSpecializedStrategy implements IUniversalAIStrategy {
     }
 
     return { bestMove, bestScore };
+  }
+
+  private evaluateThreeCheck(
+    moves: IAIDecisionRequest['legalMoves'],
+    level: number,
+    request: IAIDecisionRequest
+  ): { bestMove: (typeof moves)[0]; bestScore: number } {
+    let best = moves[0];
+    let bestScore = -Infinity;
+
+    for (const m of moves) {
+      let score = m.isCapture ? 250 : 20;
+      if (request.specializedContext?.opponentKingCoord) {
+        const [kx, ky] = this.parseCoord(String(request.specializedContext.opponentKingCoord));
+        const [tx, ty] = this.parseCoord(m.to);
+        const dist = Math.abs(kx - tx) + Math.abs(ky - ty);
+        score += Math.max(0, 14 - dist) * 15;
+      }
+      if (level >= 3) {
+        score += Math.random() * 5;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        best = m;
+      }
+    }
+
+    return { bestMove: best, bestScore };
   }
 
   private evaluateGenericVariant(

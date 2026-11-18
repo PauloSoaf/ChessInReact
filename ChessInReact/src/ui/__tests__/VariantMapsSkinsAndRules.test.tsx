@@ -19,6 +19,11 @@ import { VariantCatalog } from '../../engine/variants/catalog/VariantCatalog';
 import { VariantMatchBanner } from '../components/game/VariantMatchBanner';
 import { OfficialSpellBar } from '../components/game/OfficialSpellBar';
 import { GameHub } from '../components/hub/GameHub';
+import { CubicTopology } from '../../core/topology/CubicTopology';
+import { VariantPieceInitializer } from '../../engine/variants/VariantPieceInitializer';
+import { ThreeCheckTracker } from '../../engine/variants/modifiers/ThreeCheckTracker';
+import { IPieceEntity } from '../../core/entities/types';
+import { IDomainState } from '../../core/state/gameState';
 
 describe('Variable Variant Maps, Spell Chess Skins & Gameplay Mechanics, and Rule-Aware Bots', () => {
   beforeEach(() => {
@@ -521,5 +526,70 @@ describe('Variable Variant Maps, Spell Chess Skins & Gameplay Mechanics, and Rul
     );
     expect(procBanner.textContent).toContain('Endless Procedural Conquest');
     unmountProc();
+  });
+
+  it('10. Real Rules Execution: Toroidal wrap, Cubic 6-face topology, Horde 36-pawn army, Chess960, and Three-Check', () => {
+    // 1. Toroidal wrap: Knight jumps across board edge
+    const torusTopology = new SquareTopology({ width: 8, height: 8, toroidal: true });
+    // Neighbor North from (0, 7) wraps to (0, 0)
+    const northNeighbor = torusTopology.getNeighbor(asCoordinateKey('0,7'), 0);
+    expect(northNeighbor).toBe('0,0');
+    // Neighbor West from (0, 0) wraps to (7, 0)
+    const westNeighbor = torusTopology.getNeighbor(asCoordinateKey('0,0'), 6);
+    expect(westNeighbor).toBe('7,0');
+
+    // 2. CubicTopology: 6 faces and edge crossing
+    const cubeTopology = new CubicTopology({ boardSize: 8 });
+    expect(cubeTopology.isValidCoordinate(asCoordinateKey('2:3,4'))).toBe(true);
+    expect(cubeTopology.isValidCoordinate(asCoordinateKey('6:3,4'))).toBe(false); // only 6 faces (0..5)
+
+    // Moving North from Front (Face 2, y=7) transitions to Top (Face 0, y=0)
+    const frontToTop = cubeTopology.getNeighbor(asCoordinateKey('2:3,7'), 0);
+    expect(frontToTop).toBe('0:3,0');
+
+    // 3. Horde Chess Piece Initializer
+    const hordePieces = VariantPieceInitializer.createPiecesForVariant('HORDE');
+    const whitePawns = hordePieces.filter((p: IPieceEntity) => p.ownerId === 'P1' && p.variantId === 'PAWN');
+    const blackPieces = hordePieces.filter((p: IPieceEntity) => p.ownerId === 'P2');
+    expect(whitePawns.length).toBe(36);
+    expect(blackPieces.length).toBe(16);
+
+    // 4. Chess960 Piece Initializer: Bishops on different color squares and King between Rooks
+    const chess960Pieces = VariantPieceInitializer.createPiecesForVariant('CHESS960');
+    const whiteBackRank = chess960Pieces.filter((p: IPieceEntity) => p.ownerId === 'P1' && p.position.endsWith(',0'));
+    expect(whiteBackRank.length).toBe(8);
+    const bishops = whiteBackRank.filter((p: IPieceEntity) => p.variantId === 'BISHOP');
+    expect(bishops.length).toBe(2);
+    const [b1x, b2x] = bishops.map((b: IPieceEntity) => parseInt(b.position.split(',')[0], 10));
+    expect((b1x + b2x) % 2).toBe(1); // One even, one odd file
+
+    // 5. No Castling rule enforcement
+    const mockDomainState: Partial<IDomainState> = {
+      variantId: 'NO_CASTLING',
+      activePlayer: 'P1',
+      turnNumber: 1,
+      boardEntities: {
+        [asEntityId('w_k')]: { id: asEntityId('w_k'), type: 'PIECE', ownerId: 'P1', variantId: 'KING', position: asCoordinateKey('4,0'), hasMoved: false, isCaptured: false },
+        [asEntityId('w_r')]: { id: asEntityId('w_r'), type: 'PIECE', ownerId: 'P1', variantId: 'ROOK', position: asCoordinateKey('7,0'), hasMoved: false, isCaptured: false },
+      },
+      occupancy: { [asCoordinateKey('4,0')]: asEntityId('w_k'), [asCoordinateKey('7,0')]: asEntityId('w_r') },
+      terrain: {},
+      turnState: { phase: 'COMMIT', lastActionTimestamp: 0, enPassantTarget: null, fiftyMoveCounter: 0 },
+    };
+    const noCastlingRules = RulesEngine.validateMove(
+      mockDomainState as IDomainState,
+      { pieceId: asEntityId('w_k'), from: asCoordinateKey('4,0'), to: asCoordinateKey('6,0'), actingPlayer: 'P1' },
+      new SquareTopology({ width: 8, height: 8 })
+    );
+    expect(noCastlingRules.valid).toBe(false);
+
+    // 6. Three-Check tracker integration
+    let tc = ThreeCheckTracker.createInitialState(3);
+    tc = ThreeCheckTracker.registerCheck(tc, 'WHITE');
+    tc = ThreeCheckTracker.registerCheck(tc, 'WHITE');
+    expect(tc.isGameOver).toBe(false);
+    tc = ThreeCheckTracker.registerCheck(tc, 'WHITE');
+    expect(tc.isGameOver).toBe(true);
+    expect(tc.winner).toBe('WHITE');
   });
 });

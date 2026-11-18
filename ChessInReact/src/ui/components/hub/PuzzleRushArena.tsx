@@ -332,6 +332,7 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
             type="button"
             data-testid="pr-view-toggle"
             onClick={() => setViewMode((v) => (v === '2D' ? '3D' : '2D'))}
+            title="Alterna entre tabuleiro plano 2D e perspectiva isométrica inclinada"
             style={{
               fontSize: '0.75rem',
               padding: '0.25rem 0.6rem',
@@ -342,7 +343,7 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
               cursor: 'pointer',
             }}
           >
-            Visão: {viewMode}
+            Visão: {viewMode === '3D' ? 'Perspectiva Isométrica' : '2D Plana'}
           </button>
 
           <span
@@ -559,7 +560,7 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
               htmlFor="pr-move-input"
               style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}
             >
-              Clique na peça e na casa de destino no tabuleiro acima, ou insira o lance (formato UCI, ex: {currentPuzzle.solutionMoves[0]}):
+              Clique na peça e na casa de destino no tabuleiro acima, ou insira o lance no formato UCI (ex: e2e4):
             </label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <input
@@ -571,7 +572,7 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSubmit(candidateMove);
                 }}
-                placeholder={`ex: ${currentPuzzle.solutionMoves[0]}`}
+                placeholder="ex: e2e4, d7d8q"
                 style={{
                   flex: 1,
                   padding: '0.65rem 0.85rem',
@@ -592,30 +593,6 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
                 Enviar
               </ActionButton>
             </div>
-          </div>
-
-          {/* Quick Click Suggested Move Shortcuts */}
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Atalhos:</span>
-            {currentPuzzle.solutionMoves.map((m, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => handleSubmit(m)}
-                style={{
-                  background: 'var(--bg-sunken)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-xs)',
-                  color: 'var(--text-secondary)',
-                  fontSize: '0.75rem',
-                  fontFamily: 'var(--font-mono)',
-                  padding: '0.2rem 0.5rem',
-                  cursor: 'pointer',
-                }}
-              >
-                {m}
-              </button>
-            ))}
           </div>
 
           {feedback && (

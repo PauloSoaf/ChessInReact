@@ -1,3 +1,4 @@
+import { PlayerId } from '../../core/coordinates';
 import { ITopology } from '../../core/topology/types';
 import { IDomainState } from '../../core/state/gameState';
 import { IPieceEntity } from '../../core/entities/types';
@@ -86,6 +87,20 @@ export class GameOverDetector {
       }
     }
 
+    // 1.8. Three-Check and Five-Check victory (Spec 13 § 4.1, RF-13-07)
+    const threeCheckMeta = (state as { metadata?: Record<string, unknown> }).metadata?.threeCheckState as
+      | { isGameOver?: boolean; winner?: string; whiteChecksDelivered?: number; blackChecksDelivered?: number }
+      | undefined;
+    if (threeCheckMeta?.isGameOver) {
+      const winnerId: PlayerId = threeCheckMeta.winner === 'WHITE' ? 'P1' : 'P2';
+      return {
+        isGameOver: true,
+        status: 'CHECKMATE',
+        winnerId,
+        reason: `Three-Check victory: Player ${winnerId} delivered required checks.`,
+      };
+    }
+
     // 2. Antichess / Giveaway win condition (RF-10)
     if (variantConfig?.variantId === 'ANTICHESS') {
       const activePieces = Object.values(state.boardEntities).filter(
@@ -109,10 +124,43 @@ export class GameOverDetector {
       }
     }
 
-    // 3. Checkmate or Stalemate when no legal moves exist (RF-05)
+    // 3. Checkmate or Stalemate when no legal moves exist (RF-05, RF-14-03)
     if (legalMovesCount === 0) {
       const isCheck = CheckValidator.isRoyalInCheck(activePlayer, state, topology);
       if (isCheck) {
+        // Collect all distinct players with active Kings on the board
+        const livingKings = new Map<PlayerId, IPieceEntity>();
+        for (const e of Object.values(state.boardEntities)) {
+          if (
+            e.type === 'PIECE' &&
+            !e.isCaptured &&
+            (e.variantId.toUpperCase() === 'KING' || e.variantId.toUpperCase() === 'K')
+          ) {
+            livingKings.set(e.ownerId, e);
+          }
+        }
+
+        // Active player is mated
+        livingKings.delete(activePlayer);
+
+        if (livingKings.size === 1) {
+          const soleSurvivor = Array.from(livingKings.keys())[0];
+          return {
+            isGameOver: true,
+            status: 'CHECKMATE',
+            winnerId: soleSurvivor,
+            reason: `Checkmate: Player ${activePlayer}'s King is trapped in check. Player ${soleSurvivor} is the last king standing.`,
+          };
+        } else if (livingKings.size > 1) {
+          // Multiplayer elimination: active player eliminated, game continues for survivors
+          return {
+            isGameOver: false,
+            status: 'CHECKMATE',
+            winnerId: null,
+            reason: `Player ${activePlayer} has been checkmated and eliminated. Match continues for remaining factions.`,
+          };
+        }
+
         return {
           isGameOver: true,
           status: 'CHECKMATE',

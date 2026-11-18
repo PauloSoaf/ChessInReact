@@ -175,20 +175,33 @@ export class RulesEngine {
         }
       }
     } else if (isKing && parsedFrom && parsedTo && Math.abs(parsedTo.x - parsedFrom.x) === 2 && !piece.hasMoved) {
+      if (
+        state.variantId?.toUpperCase().includes('NO_CASTLING') ||
+        Boolean((variantConfig as { specialRules?: { noCastling?: boolean } })?.specialRules?.noCastling)
+      ) {
+        return {
+          valid: false,
+          reason: 'Roque estritamente proibido na variante No Castling.',
+        };
+      }
       // Castling attempt
       const rank = isWhite ? 0 : 7;
       const initialKingPos = toCoordKey(4, rank);
-      const opponentId: PlayerId = piece.ownerId === 'P1' ? 'P2' : 'P1';
+      const enemyIds = (Object.values(state.boardEntities) as IPieceEntity[])
+        .filter((e) => e.type === 'PIECE' && !e.isCaptured && e.ownerId !== piece.ownerId && e.ownerId !== 'NONE')
+        .map((e) => e.ownerId);
+      const isSquareThreatened = (coord: CoordinateKey) =>
+        enemyIds.some((eid) => CheckValidator.isSquareAttacked(coord, eid, state, topology));
 
-      if (piece.position === initialKingPos && !CheckValidator.isSquareAttacked(initialKingPos, opponentId, state, topology)) {
+      if (piece.position === initialKingPos && !isSquareThreatened(initialKingPos)) {
         if (parsedTo.x === 6) {
           // Kingside
           const rookId = state.occupancy[toCoordKey(7, rank)];
           const rook = rookId ? (state.boardEntities[rookId] as IPieceEntity | undefined) : undefined;
           if (rook && !rook.hasMoved && !state.occupancy[toCoordKey(5, rank)] && !state.occupancy[toCoordKey(6, rank)]) {
             if (
-              !CheckValidator.isSquareAttacked(toCoordKey(5, rank), opponentId, state, topology) &&
-              !CheckValidator.isSquareAttacked(toCoordKey(6, rank), opponentId, state, topology)
+              !isSquareThreatened(toCoordKey(5, rank)) &&
+              !isSquareThreatened(toCoordKey(6, rank))
             ) {
               isReachable = true;
               isCastling = 'KINGSIDE';
@@ -206,8 +219,8 @@ export class RulesEngine {
             !state.occupancy[toCoordKey(3, rank)]
           ) {
             if (
-              !CheckValidator.isSquareAttacked(toCoordKey(3, rank), opponentId, state, topology) &&
-              !CheckValidator.isSquareAttacked(toCoordKey(2, rank), opponentId, state, topology)
+              !isSquareThreatened(toCoordKey(3, rank)) &&
+              !isSquareThreatened(toCoordKey(2, rank))
             ) {
               isReachable = true;
               isCastling = 'QUEENSIDE';
@@ -426,23 +439,29 @@ export class RulesEngine {
 
     // 1. Direct handling for PAWN (bypassing Betza loop for 10x faster execution)
     if (isPawn && parsedFrom) {
+      const isToroidal = Boolean((topology as { readonly isToroidal?: boolean }).isToroidal);
+      const tw = (topology as { readonly width?: number }).width ?? 8;
+      const th = (topology as { readonly height?: number }).height ?? 8;
+      const wrapY = (y: number) => (isToroidal ? ((y % th) + th) % th : y);
+      const wrapX = (x: number) => (isToroidal ? ((x % tw) + tw) % tw : x);
+
       const advanceDy = isWhite ? 1 : -1;
       const startRank = isWhite ? 1 : 6;
 
       // 1-step forward
-      const f1 = toCoordKey(parsedFrom.x, parsedFrom.y + advanceDy);
+      const f1 = toCoordKey(parsedFrom.x, wrapY(parsedFrom.y + advanceDy));
       if (topology.isValidCoordinate(f1) && !state.occupancy[f1]) {
         candidateDestinations.push(f1);
 
         // 2-step forward
         if (parsedFrom.y === startRank && !piece.hasMoved) {
-          const f2 = toCoordKey(parsedFrom.x, parsedFrom.y + advanceDy * 2);
+          const f2 = toCoordKey(parsedFrom.x, wrapY(parsedFrom.y + advanceDy * 2));
           if (topology.isValidCoordinate(f2) && !state.occupancy[f2]) {
             candidateDestinations.push(f2);
           }
         }
       } else if (hasJumpBuff) {
-        const f2 = toCoordKey(parsedFrom.x, parsedFrom.y + advanceDy * 2);
+        const f2 = toCoordKey(parsedFrom.x, wrapY(parsedFrom.y + advanceDy * 2));
         if (topology.isValidCoordinate(f2) && !state.occupancy[f2]) {
           candidateDestinations.push(f2);
         }
@@ -450,7 +469,7 @@ export class RulesEngine {
 
       // Diagonal captures & En Passant
       for (const dx of [-1, 1]) {
-        const diag = toCoordKey(parsedFrom.x + dx, parsedFrom.y + advanceDy);
+        const diag = toCoordKey(wrapX(parsedFrom.x + dx), wrapY(parsedFrom.y + advanceDy));
         if (topology.isValidCoordinate(diag)) {
           const occId = state.occupancy[diag];
           if (occId) {
@@ -481,15 +500,26 @@ export class RulesEngine {
     }
 
     // 3. Special Moves for KING: Castling (FIDE Article 3.8 & RF-06)
-    if (parsedFrom && (vUpper === 'KING' || vUpper === 'K') && !piece.hasMoved) {
-      const opponentId: PlayerId = piece.ownerId === 'P1' ? 'P2' : 'P1';
+    if (
+      parsedFrom &&
+      (vUpper === 'KING' || vUpper === 'K') &&
+      !piece.hasMoved &&
+      !state.variantId?.toUpperCase().includes('NO_CASTLING') &&
+      !(variantConfig as { specialRules?: { noCastling?: boolean } })?.specialRules?.noCastling
+    ) {
+      const enemyIds = (Object.values(state.boardEntities) as IPieceEntity[])
+        .filter((e) => e.type === 'PIECE' && !e.isCaptured && e.ownerId !== piece.ownerId && e.ownerId !== 'NONE')
+        .map((e) => e.ownerId);
+      const isSquareThreatened = (coord: CoordinateKey) =>
+        enemyIds.some((eid) => CheckValidator.isSquareAttacked(coord, eid, state, topology));
+
       const rank = isWhite ? 0 : 7;
       const initialKingPos = toCoordKey(4, rank);
 
       // Only allow castling if King is on standard starting square and not in check
       if (
         piece.position === initialKingPos &&
-        !CheckValidator.isSquareAttacked(initialKingPos, opponentId, state, topology)
+        !isSquareThreatened(initialKingPos)
       ) {
         // Kingside Castling: Rook at (7, rank), empty at (5, rank) and (6, rank)
         const kingsideRookCoord = toCoordKey(7, rank);
@@ -508,8 +538,8 @@ export class RulesEngine {
             const sq6 = toCoordKey(6, rank);
             if (!state.occupancy[sq5] && !state.occupancy[sq6]) {
               if (
-                !CheckValidator.isSquareAttacked(sq5, opponentId, state, topology) &&
-                !CheckValidator.isSquareAttacked(sq6, opponentId, state, topology)
+                !isSquareThreatened(sq5) &&
+                !isSquareThreatened(sq6)
               ) {
                 candidateDestinations.push(sq6);
               }
@@ -535,8 +565,8 @@ export class RulesEngine {
             const sq3 = toCoordKey(3, rank);
             if (!state.occupancy[sq1] && !state.occupancy[sq2] && !state.occupancy[sq3]) {
               if (
-                !CheckValidator.isSquareAttacked(sq3, opponentId, state, topology) &&
-                !CheckValidator.isSquareAttacked(sq2, opponentId, state, topology)
+                !isSquareThreatened(sq3) &&
+                !isSquareThreatened(sq2)
               ) {
                 candidateDestinations.push(sq2);
               }

@@ -23,6 +23,20 @@ export function parseCoord(coord: string | CoordinateKey): ICoord2D | null {
 
   const trimmed = coord.trim();
 
+  // 0. Cubic coordinate format "face:x,y" (e.g. "2:3,4")
+  const colonIdx = trimmed.indexOf(':');
+  if (colonIdx !== -1) {
+    const afterColon = trimmed.substring(colonIdx + 1);
+    const cIdx = afterColon.indexOf(',');
+    if (cIdx !== -1) {
+      const x = Number(afterColon.substring(0, cIdx));
+      const y = Number(afterColon.substring(cIdx + 1));
+      if (Number.isInteger(x) && Number.isInteger(y) && Number.isFinite(x) && Number.isFinite(y)) {
+        return { x, y };
+      }
+    }
+  }
+
   // 1. Cartesian "x,y" format
   const commaIdx = trimmed.indexOf(',');
   if (commaIdx !== -1) {
@@ -82,4 +96,11 @@ export function toAlgebraic(x: number, y: number): string {
   const file = String.fromCharCode(97 + x);
   const rank = y + 1;
   return `${file}${rank}`;
+}
+
+/**
+ * Converts face index and { x, y } to Cubic CoordinateKey ("face:x,y").
+ */
+export function toCubicCoordKey(face: number, x: number, y: number): CoordinateKey {
+  return asCoordinateKey(`${face}:${Math.trunc(x)},${Math.trunc(y)}`);
 }

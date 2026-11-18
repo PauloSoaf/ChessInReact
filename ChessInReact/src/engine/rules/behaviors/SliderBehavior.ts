@@ -94,16 +94,24 @@ export class SliderBehavior implements IMoveBehavior {
     const canCapture = this.options.canCapture ?? true;
     const canJumpOnce = Boolean(piece.metadata?.hasJump);
 
+    const maxStepLimit = Math.min(
+      this.maxDistance,
+      (topology as { readonly width?: number }).width ??
+      (topology as { readonly boardSize?: number }).boardSize ??
+      16
+    );
+
     for (const dir of directions) {
       let current: CoordinateKey = startCoord;
       let dist = 0;
       let jumpedBlockers = 0;
 
-      while (dist < this.maxDistance) {
+      while (dist < maxStepLimit) {
         const next = topology.getNeighbor(current, dir);
         if (!next) break;
 
         if (!topology.isValidCoordinate(next)) break;
+        if (next === startCoord) break; // Reached full loop back to starting square on closed manifold
 
         // Check terrain passability
         const terrainId = state.terrain?.[next];

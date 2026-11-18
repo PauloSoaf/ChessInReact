@@ -28,6 +28,8 @@ import { MatchConfigurationManager } from './matchmaking/config/MatchConfigurati
 import { RulesEngine } from './engine/rules/RulesEngine';
 import { CheckValidator } from './engine/rules/CheckValidator';
 import { SquareTopology } from './core/topology/SquareTopology';
+import { CompositeArenaLayouts } from './engine/multiplayer/arenas/CompositeArenaLayouts';
+import { ArenaModeId } from './engine/multiplayer/arenas/interfaces/IArenaContracts';
 import { isWebGLAvailable } from './rendering/webglCapabilities';
 import { PlayerId } from './core/coordinates/types';
 import './ui/theme/theme.css';
@@ -549,10 +551,15 @@ const AppContent: React.FC = () => {
       const v = config.variantId.toUpperCase();
       if (v === 'CAPABLANCA_CHESS') {
         handleBoardSizeChange(10);
-      } else if (v.includes('FFA') || v.includes('4P') || config.totalParticipants > 2) {
-        handleBoardSizeChange(14);
       } else {
-        handleBoardSizeChange(8);
+        const arenaLayout = CompositeArenaLayouts.getLayout(v as ArenaModeId);
+        if (arenaLayout) {
+          handleBoardSizeChange(arenaLayout.boardType === 'SQUARE_CROSS' ? 14 : 16);
+        } else if (config.totalParticipants > 2) {
+          handleBoardSizeChange(16);
+        } else {
+          handleBoardSizeChange(8);
+        }
       }
 
       // The universal controller is authoritative for launched Hub matches.

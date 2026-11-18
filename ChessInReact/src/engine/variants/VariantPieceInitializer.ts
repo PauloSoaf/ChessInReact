@@ -37,7 +37,22 @@ export class VariantPieceInitializer {
       return this.createRacingKingsPieces();
     }
 
-    // 4. Standard 8x8 square board pieces (Classic, Duck, Spells, Atomic, Antichess, etc.)
+    // 4. Horde Chess (36 White pawns vs standard Black army)
+    if (v === 'HORDE' || v === 'HORDE_CHESS') {
+      return this.createHordePieces();
+    }
+
+    // 5. Chess960 / Fischer Random
+    if (v === 'CHESS960' || v === 'FISCHER_RANDOM') {
+      return this.createChess960Pieces();
+    }
+
+    // 6. 3D Cubic Chessboard (Pieces mapped across faces)
+    if (v === 'CUBIC_CHESS' || v.includes('CUBIC')) {
+      return this.createCubicPieces();
+    }
+
+    // 7. Standard 8x8 square board pieces (Classic, Duck, Spells, Atomic, Antichess, etc.)
     return createStandardChessPieces();
   }
 
@@ -257,6 +272,205 @@ export class VariantPieceInitializer {
         ownerId: r1.owner,
         variantId: r1.variant,
         position: SquareCodec.encode(createSquareCoord(x, 1)),
+        hasMoved: false,
+        isCaptured: false,
+      });
+    }
+
+    return pieces;
+  }
+
+  /**
+   * Spawns pieces for Horde Chess (36 White pawns vs 16 Black classical pieces).
+   */
+  private static createHordePieces(): IPieceEntity[] {
+    const pieces: IPieceEntity[] = [];
+
+    // White: 36 pawns across ranks 1-4 (y=0..3, all files) and rank 5 (y=4, files b,c,f,g)
+    let pIdx = 0;
+    for (let y = 0; y < 4; y++) {
+      for (let x = 0; x < 8; x++) {
+        pieces.push({
+          id: asEntityId(`w-pawn-horde-${pIdx++}`),
+          type: 'PIECE',
+          ownerId: 'P1',
+          variantId: 'PAWN',
+          position: SquareCodec.encode(createSquareCoord(x, y)),
+          hasMoved: false,
+          isCaptured: false,
+        });
+      }
+    }
+    for (const x of [1, 2, 5, 6]) {
+      pieces.push({
+        id: asEntityId(`w-pawn-horde-${pIdx++}`),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: 'PAWN',
+        position: SquareCodec.encode(createSquareCoord(x, 4)),
+        hasMoved: false,
+        isCaptured: false,
+      });
+    }
+
+    // Black: standard 16 classical pieces on ranks 7 and 8
+    for (let x = 0; x < 8; x++) {
+      pieces.push({
+        id: asEntityId(`b-pawn-${x}`),
+        type: 'PIECE',
+        ownerId: 'P2',
+        variantId: 'PAWN',
+        position: SquareCodec.encode(createSquareCoord(x, 6)),
+        hasMoved: false,
+        isCaptured: false,
+      });
+    }
+    const backRank = ['ROOK', 'KNIGHT', 'BISHOP', 'QUEEN', 'KING', 'BISHOP', 'KNIGHT', 'ROOK'];
+    for (let x = 0; x < 8; x++) {
+      pieces.push({
+        id: asEntityId(`b-${backRank[x].toLowerCase()}-${x}`),
+        type: 'PIECE',
+        ownerId: 'P2',
+        variantId: backRank[x],
+        position: SquareCodec.encode(createSquareCoord(x, 7)),
+        hasMoved: false,
+        isCaptured: false,
+      });
+    }
+
+    return pieces;
+  }
+
+  /**
+   * Spawns pieces for Chess960 (Fischer Random).
+   */
+  private static createChess960Pieces(): IPieceEntity[] {
+    const pieces: IPieceEntity[] = [];
+    const backRank: (string | null)[] = Array(8).fill(null);
+
+    // 1. Dark bishop (odd index: 1, 3, 5, 7)
+    const darkFiles = [1, 3, 5, 7];
+    const b1 = darkFiles[Math.floor(Math.random() * darkFiles.length)];
+    backRank[b1] = 'BISHOP';
+
+    // 2. Light bishop (even index: 0, 2, 4, 6)
+    const lightFiles = [0, 2, 4, 6];
+    const b2 = lightFiles[Math.floor(Math.random() * lightFiles.length)];
+    backRank[b2] = 'BISHOP';
+
+    // 3. Queen in one of the 6 remaining slots
+    const empty1: number[] = [];
+    for (let i = 0; i < 8; i++) if (!backRank[i]) empty1.push(i);
+    const qPos = empty1[Math.floor(Math.random() * empty1.length)];
+    backRank[qPos] = 'QUEEN';
+
+    // 4. Two Knights in the 5 remaining slots
+    const empty2: number[] = [];
+    for (let i = 0; i < 8; i++) if (!backRank[i]) empty2.push(i);
+    const n1 = empty2.splice(Math.floor(Math.random() * empty2.length), 1)[0];
+    const n2 = empty2.splice(Math.floor(Math.random() * empty2.length), 1)[0];
+    backRank[n1] = 'KNIGHT';
+    backRank[n2] = 'KNIGHT';
+
+    // 5. Remaining 3 slots: Rook, King, Rook (King between the two Rooks)
+    backRank[empty2[0]] = 'ROOK';
+    backRank[empty2[1]] = 'KING';
+    backRank[empty2[2]] = 'ROOK';
+
+    // Pawns
+    for (let x = 0; x < 8; x++) {
+      pieces.push({
+        id: asEntityId(`w-pawn-${x}`),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: 'PAWN',
+        position: SquareCodec.encode(createSquareCoord(x, 1)),
+        hasMoved: false,
+        isCaptured: false,
+      });
+      pieces.push({
+        id: asEntityId(`b-pawn-${x}`),
+        type: 'PIECE',
+        ownerId: 'P2',
+        variantId: 'PAWN',
+        position: SquareCodec.encode(createSquareCoord(x, 6)),
+        hasMoved: false,
+        isCaptured: false,
+      });
+    }
+
+    // Back ranks
+    for (let x = 0; x < 8; x++) {
+      const v = backRank[x]!;
+      pieces.push({
+        id: asEntityId(`w-${v.toLowerCase()}-${x}`),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: v,
+        position: SquareCodec.encode(createSquareCoord(x, 0)),
+        hasMoved: false,
+        isCaptured: false,
+      });
+      pieces.push({
+        id: asEntityId(`b-${v.toLowerCase()}-${x}`),
+        type: 'PIECE',
+        ownerId: 'P2',
+        variantId: v,
+        position: SquareCodec.encode(createSquareCoord(x, 7)),
+        hasMoved: false,
+        isCaptured: false,
+      });
+    }
+
+    return pieces;
+  }
+
+  /**
+   * Spawns pieces for 3D Cubic Chess across the Front (Face 2) and Back (Face 3) surfaces.
+   */
+  private static createCubicPieces(): IPieceEntity[] {
+    const pieces: IPieceEntity[] = [];
+    const backRank = ['ROOK', 'KNIGHT', 'BISHOP', 'QUEEN', 'KING', 'BISHOP', 'KNIGHT', 'ROOK'];
+
+    // White pieces on Face 2 (FRONT)
+    for (let x = 0; x < 8; x++) {
+      pieces.push({
+        id: asEntityId(`w-cube-${backRank[x].toLowerCase()}-${x}`),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: backRank[x],
+        position: asCoordinateKey(`2:${x},0`),
+        hasMoved: false,
+        isCaptured: false,
+      });
+      pieces.push({
+        id: asEntityId(`w-cube-pawn-${x}`),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: 'PAWN',
+        position: asCoordinateKey(`2:${x},1`),
+        hasMoved: false,
+        isCaptured: false,
+      });
+    }
+
+    // Black pieces on Face 3 (BACK)
+    for (let x = 0; x < 8; x++) {
+      pieces.push({
+        id: asEntityId(`b-cube-${backRank[x].toLowerCase()}-${x}`),
+        type: 'PIECE',
+        ownerId: 'P2',
+        variantId: backRank[x],
+        position: asCoordinateKey(`3:${x},7`),
+        hasMoved: false,
+        isCaptured: false,
+      });
+      pieces.push({
+        id: asEntityId(`b-cube-pawn-${x}`),
+        type: 'PIECE',
+        ownerId: 'P2',
+        variantId: 'PAWN',
+        position: asCoordinateKey(`3:${x},6`),
         hasMoved: false,
         isCaptured: false,
       });

@@ -1,4 +1,4 @@
-import { CoordinateKey } from '../../../core/coordinates';
+import { CoordinateKey, asCoordinateKey } from '../../../core/coordinates';
 import { ITopology } from '../../../core/topology/types';
 import { IDomainState } from '../../../core/state/gameState';
 import { IPieceEntity } from '../../../core/entities/types';
@@ -86,9 +86,19 @@ export class LeaperBehavior implements IMoveBehavior {
       if (this.options.rightOnly && rightX <= 0) continue;
       if (this.options.leftOnly && rightX >= 0) continue;
 
-      const targetX = parsed.x + dx;
-      const targetY = parsed.y + dy;
-      const targetCoord = toCoordKey(targetX, targetY);
+      let targetX = parsed.x + dx;
+      let targetY = parsed.y + dy;
+
+      if ((topology as { readonly isToroidal?: boolean }).isToroidal) {
+        const w = (topology as { readonly width?: number }).width ?? 8;
+        const h = (topology as { readonly height?: number }).height ?? 8;
+        targetX = ((targetX % w) + w) % w;
+        targetY = ((targetY % h) + h) % h;
+      }
+
+      const targetCoord = startCoord.includes(':')
+        ? asCoordinateKey(`${startCoord.split(':')[0]}:${targetX},${targetY}`)
+        : toCoordKey(targetX, targetY);
 
       // Validate bounds via topology
       if (!topology.isValidCoordinate(targetCoord)) continue;
