@@ -12,21 +12,21 @@
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Spec 01 (Core State & ECS)** | 16 | 16 | 0 | 0 | 0 |
 | **Spec 02 (Procedural & Topology)** | 18 | 18 | 0 | 0 | 0 |
-| **Spec 03 (Multiplayer Colyseus)** | 14 | 13 | 0 | 0 | 1 (Cloud Deploy) |
+| **Spec 03 (Multiplayer Colyseus)** | 14 | 12 | 1 | 0 | 1 (Cloud Deploy) |
 | **Spec 04 (Rules & Variants)** | 15 | 15 | 0 | 0 | 0 |
 | **Spec 05 (AI Engines & Bots)** | 16 | 16 | 0 | 0 | 0 |
 | **Spec 06 (UI/UX, HUD & Design)** | 19 | 19 | 0 | 0 | 0 |
-| **Spec 07 (3D WebGL Rendering)** | 16 | 16 | 0 | 0 | 0 |
+| **Spec 07 (3D WebGL Rendering)** | 16 | 15 | 1 | 0 | 0 |
 | **Spec 08 (Matchmaking & Redis)** | 12 | 12 | 0 | 0 | 0 |
 | **Spec 09 (Event Sourcing & PGN)** | 12 | 12 | 0 | 0 | 0 |
 | **Spec 10 (Modding API & CI/CD)** | 10 | 10 | 0 | 0 | 0 |
 | **Spec 11 (Bot Ecosystem & Rating)**| 12 | 12 | 0 | 0 | 0 |
-| **Spec 12 (Game Review & Analysis)**| 13 | 13 | 0 | 0 | 0 |
-| **Spec 13 (Expanded Variant Universe)**| 12 | 12 | 0 | 0 | 0 |
-| **Spec 14 (Massive Multiplayer 3-12P)**| 7 | 7 | 0 | 0 | 0 |
+| **Spec 12 (Game Review & Analysis)**| 13 | 11 | 2 | 0 | 0 |
+| **Spec 13 (Expanded Variant Universe)**| 12 | 10 | 2 | 0 | 0 |
+| **Spec 14 (Massive Multiplayer 3-12P)**| 7 | 5 | 2 | 0 | 0 |
 | **Spec 15 (Universal Bot Intelligence)**| 8 | 8 | 0 | 0 | 0 |
-| **Spec 16 (Lobby & Configurator)**| 7 | 7 | 0 | 0 | 0 |
-| **TOTAL** | **207** | **206** | **0** | **0** | **1** |
+| **Spec 16 (Lobby & Configurator)**| 7 | 6 | 1 | 0 | 0 |
+| **TOTAL** | **207** | **197** | **9** | **0** | **1** |
 
 ---
 
