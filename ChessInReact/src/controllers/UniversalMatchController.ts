@@ -19,6 +19,7 @@ import { VariantRegistry } from '../engine/rules/VariantRegistry';
 import { CheckValidator } from '../engine/rules/CheckValidator';
 import { ITopology } from '../core/topology/types';
 import { SquareTopology } from '../core/topology/SquareTopology';
+import { CubicTopology } from '../core/topology/CubicTopology';
 import { gameStore } from '../core/state/gameStore';
 import { bootstrapGame } from '../core/bootstrap/GameInitializer';
 import {
@@ -42,6 +43,7 @@ import { FFAScoringEngine, IFFAPlayerScore } from '../engine/multiplayer/arenas/
 import { CompositeArenaLayouts } from '../engine/multiplayer/arenas/CompositeArenaLayouts';
 import { ArenaModeId } from '../engine/multiplayer/arenas/interfaces/IArenaContracts';
 import { VariantMapConfig } from '../engine/variants/VariantMapConfig';
+import { ThreeCheckTracker, ICheckCountState } from '../engine/variants/modifiers/ThreeCheckTracker';
 import { IEntity, IPieceEntity } from '../core/entities/types';
 
 export interface IUniversalMatchSnapshot {
@@ -77,6 +79,7 @@ export class UniversalMatchController {
   // Spell Chess states
   private officialSpellState: IOfficialSpellState | null = null;
   private expandedSpellState: ISpellGameState | null = null;
+  private threeCheckState: ICheckCountState | null = null;
 
   // Multiplayer Arena states
   private turnCycleState: ITurnCycleState | null = null;
@@ -106,6 +109,12 @@ export class UniversalMatchController {
     if (v === 'CAPABLANCA_CHESS') {
       return new SquareTopology({ width: 10, height: 8 });
     }
+    if (v === 'TOROIDAL_CHESS' || v.includes('TORUS') || v.includes('TOROIDAL')) {
+      return new SquareTopology({ width: 8, height: 8, toroidal: true });
+    }
+    if (v === 'CUBIC_CHESS' || v.includes('CUBIC')) {
+      return new CubicTopology({ boardSize: 8 });
+    }
     const arenaLayout = CompositeArenaLayouts.getLayout(v as ArenaModeId);
     if (arenaLayout) {
       if (arenaLayout.boardType === 'SQUARE_CROSS') {
@@ -118,6 +127,15 @@ export class UniversalMatchController {
 
   private initializeVariantStates(): void {
     const v = this.config.variantId.toUpperCase();
+
+    // Three-Check / Five-Check
+    if (v === 'THREE_CHECK') {
+      this.threeCheckState = ThreeCheckTracker.createInitialState(3);
+    } else if (v === 'FIVE_CHECK') {
+      this.threeCheckState = ThreeCheckTracker.createInitialState(5);
+    } else {
+      this.threeCheckState = null;
+    }
 
     // Duck Chess initialization
     if (v.includes('DUCK')) {
@@ -535,6 +553,28 @@ export class UniversalMatchController {
       // 4b. Apply post-move Spell Chess triggers (traps, portals, mana/cooldown advance)
       this.applySpellEffectsAfterMove(best.pieceId, best.to, movingPlayerSide);
 
+      // Three-Check / Five-Check evaluation
+      if (this.threeCheckState) {
+        const currentDomain = gameStore.getState().domain;
+        const isCheck = CheckValidator.isRoyalInCheck(currentDomain.activePlayer, currentDomain, this.topology);
+        if (isCheck) {
+          this.threeCheckState = ThreeCheckTracker.registerCheck(this.threeCheckState, movingPlayerSide);
+          gameStore.setState((s) => ({
+            domain: {
+              ...s.domain,
+              metadata: {
+                ...(s.domain as { metadata?: Record<string, unknown> }).metadata,
+                threeCheckState: this.threeCheckState,
+              },
+              isGameOver: this.threeCheckState?.isGameOver || s.domain.isGameOver,
+              winnerId: this.threeCheckState?.isGameOver
+                ? (this.threeCheckState.winner === 'WHITE' ? 'P1' : 'P2')
+                : s.domain.winnerId,
+            },
+          }));
+        }
+      }
+
       // 5. Complete Duck Chess' mandatory second phase through its engine.
       if (this.duckState) {
         this.duckState = DuckChessEngine.executePieceMove(this.duckState, {
@@ -653,6 +693,27 @@ export class UniversalMatchController {
     const movedPlayerSide: 'WHITE' | 'BLACK' = postMoveDomain.activePlayer === 'P2' ? 'WHITE' : 'BLACK';
     this.applySpellEffectsAfterMove(pieceId, to, movedPlayerSide);
 
+    // Three-Check / Five-Check evaluation
+    if (this.threeCheckState) {
+      const isCheck = CheckValidator.isRoyalInCheck(postMoveDomain.activePlayer, postMoveDomain, this.topology);
+      if (isCheck) {
+        this.threeCheckState = ThreeCheckTracker.registerCheck(this.threeCheckState, movedPlayerSide);
+        gameStore.setState((s) => ({
+          domain: {
+            ...s.domain,
+            metadata: {
+              ...(s.domain as { metadata?: Record<string, unknown> }).metadata,
+              threeCheckState: this.threeCheckState,
+            },
+            isGameOver: this.threeCheckState?.isGameOver || s.domain.isGameOver,
+            winnerId: this.threeCheckState?.isGameOver
+              ? (this.threeCheckState.winner === 'WHITE' ? 'P1' : 'P2')
+              : s.domain.winnerId,
+          },
+        }));
+      }
+    }
+
     if (this.duckState) {
       this.clearAutonomousTimer();
       this.activeBotRequestId = 0;
@@ -741,10 +802,7 @@ export class UniversalMatchController {
         pieceId = domain.occupancy[asCoordinateKey(`${file},${rank}`)] ?? pieceId;
       }
       if (!pieceId) {
-        const fallbackPiece = Object.values(domain.boardEntities).find(
-          (e) => e.type === 'PIECE' && !e.isCaptured && e.ownerId === domain.activePlayer
-        );
-        pieceId = fallbackPiece?.id ?? '';
+        return false;
       }
       const res = OfficialSpellEngine.castJump(this.officialSpellState, player, pieceId);
       if (res.success) {
@@ -781,9 +839,6 @@ export class UniversalMatchController {
         const entityId =
           domain.occupancy[asCoordinateKey(normTarget)] ??
           domain.occupancy[asCoordinateKey(targetCoord)] ??
-          Object.values(domain.boardEntities).find(
-            (e) => e.type === 'PIECE' && !e.isCaptured && e.ownerId === domain.activePlayer
-          )?.id ??
           '';
         if (!entityId) return false;
         nextState = SpellChessEngine.castJump(nextState, player, entityId);
@@ -793,9 +848,6 @@ export class UniversalMatchController {
         const entityId =
           domain.occupancy[asCoordinateKey(normTarget)] ??
           domain.occupancy[asCoordinateKey(targetCoord)] ??
-          Object.values(domain.boardEntities).find(
-            (e) => e.type === 'PIECE' && !e.isCaptured && e.ownerId === domain.activePlayer
-          )?.id ??
           '';
         if (!entityId) return false;
         nextState = SpellChessEngine.castInvisibility(nextState, player, entityId);
@@ -803,9 +855,6 @@ export class UniversalMatchController {
         const entityId =
           domain.occupancy[asCoordinateKey(normTarget)] ??
           domain.occupancy[asCoordinateKey(targetCoord)] ??
-          Object.values(domain.boardEntities).find(
-            (e) => e.type === 'PIECE' && !e.isCaptured && e.ownerId === domain.activePlayer
-          )?.id ??
           '';
         if (!entityId) return false;
         nextState = SpellChessEngine.castMirrorShield(nextState, player, entityId);

@@ -253,14 +253,46 @@ export class CheckValidator {
     }
 
     // 4. Pawn attacks
-    // For an attacker pawn to attack targetCoord:
-    // If attacker is White (moves +y), pawn must be at targetCoord.y - 1, targetCoord.x ± 1
-    // If attacker is Black (moves -y), pawn must be at targetCoord.y + 1, targetCoord.x ± 1
-    const isAttackerWhite = attackerPlayerId === 'P1';
-    const pawnSourceY = isAttackerWhite ? targetParsed.y - 1 : targetParsed.y + 1;
+    // Support multi-player orientations and toroidal wrapping:
+    const isToroidal = Boolean((topology as { readonly isToroidal?: boolean }).isToroidal);
+    const tw = (topology as { readonly width?: number }).width ?? 8;
+    const th = (topology as { readonly height?: number }).height ?? 8;
 
-    for (const pawnDx of [-1, 1]) {
-      const pawnCoord = toCoordKey(targetParsed.x + pawnDx, pawnSourceY);
+    const wrapCoord = (x: number, y: number): CoordinateKey => {
+      let wx = x;
+      let wy = y;
+      if (isToroidal) {
+        wx = ((wx % tw) + tw) % tw;
+        wy = ((wy % th) + th) % th;
+      }
+      return toCoordKey(wx, wy);
+    };
+
+    const pawnSourceCandidates: CoordinateKey[] = [];
+    if (attackerPlayerId === 'P1') {
+      pawnSourceCandidates.push(wrapCoord(targetParsed.x - 1, targetParsed.y - 1));
+      pawnSourceCandidates.push(wrapCoord(targetParsed.x + 1, targetParsed.y - 1));
+    } else if (attackerPlayerId === 'P2') {
+      // 2P: advances down from y+1; 4P West: advances right from x-1
+      pawnSourceCandidates.push(wrapCoord(targetParsed.x - 1, targetParsed.y + 1));
+      pawnSourceCandidates.push(wrapCoord(targetParsed.x + 1, targetParsed.y + 1));
+      pawnSourceCandidates.push(wrapCoord(targetParsed.x - 1, targetParsed.y - 1));
+    } else if (attackerPlayerId === 'P3') {
+      pawnSourceCandidates.push(wrapCoord(targetParsed.x - 1, targetParsed.y + 1));
+      pawnSourceCandidates.push(wrapCoord(targetParsed.x + 1, targetParsed.y + 1));
+    } else if (attackerPlayerId === 'P4') {
+      pawnSourceCandidates.push(wrapCoord(targetParsed.x + 1, targetParsed.y - 1));
+      pawnSourceCandidates.push(wrapCoord(targetParsed.x + 1, targetParsed.y + 1));
+    } else {
+      // General multiplayer radial/angular fallback
+      for (const dx of [-1, 1]) {
+        for (const dy of [-1, 1]) {
+          pawnSourceCandidates.push(wrapCoord(targetParsed.x + dx, targetParsed.y + dy));
+        }
+      }
+    }
+
+    for (const pawnCoord of pawnSourceCandidates) {
       if (!topology.isValidCoordinate(pawnCoord)) continue;
 
       const occId = state.occupancy[pawnCoord];
@@ -268,7 +300,7 @@ export class CheckValidator {
         const piece = state.boardEntities[occId] as IPieceEntity | undefined;
         if (piece && piece.type === 'PIECE' && !piece.isCaptured && piece.ownerId === attackerPlayerId) {
           const v = piece.variantId.toUpperCase();
-          if (v === 'PAWN') {
+          if (v === 'PAWN' || v === 'P') {
             return true;
           }
         }

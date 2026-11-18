@@ -11,8 +11,8 @@ import { AIEngine } from '../AIEngine';
 
 const sharedEngine = new AIEngine();
 
-/** Hard cap so a synchronous in-process search can never freeze the UI for long. */
-const MAX_IN_PROCESS_BUDGET_MS = 600;
+/** Hard cap so a synchronous in-process search can never freeze the UI thread (RNF-15-01 / 60 FPS frame budget). */
+const MAX_IN_PROCESS_BUDGET_MS = 35;
 
 export function decideWithSearch(
   request: IAIDecisionRequest,

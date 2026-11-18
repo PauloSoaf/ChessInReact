@@ -59,7 +59,7 @@ export const CubicChessBoard3D: React.FC<ICubicChessBoard3DProps> = ({
       </mesh>
 
       {/* 6 Cube Faces with Checkered Grids */}
-      {faces.map((face) => {
+      {faces.map((face, faceIdx) => {
         return (
           <group
             key={`face-${face.name}`}
@@ -69,7 +69,7 @@ export const CubicChessBoard3D: React.FC<ICubicChessBoard3DProps> = ({
           >
             {Array.from({ length: boardSize }, (_, r) =>
               Array.from({ length: boardSize }, (_, c) => {
-                const coord = `${c},${r}`;
+                const coord = `${faceIdx}:${c},${r}`;
                 const isLight = (c + r) % 2 !== 0;
                 const offset = (boardSize - 1) / 2;
                 const step = (cubeHalfSize * 1.88) / boardSize;
@@ -77,7 +77,7 @@ export const CubicChessBoard3D: React.FC<ICubicChessBoard3DProps> = ({
                 const ty = (r - offset) * step;
 
                 const isSelected = selectedPieceId && pieces.find((p) => p.id === selectedPieceId)?.position === coord;
-                const isLegal = legalSet.has(coord);
+                const isLegal = legalSet.has(coord) || legalSet.has(`${c},${r}`);
 
                 const tileColor = isSelected
                   ? '#f59e0b'
@@ -112,42 +112,58 @@ export const CubicChessBoard3D: React.FC<ICubicChessBoard3DProps> = ({
         );
       })}
 
-      {/* Top Face Pieces Rendering */}
+      {/* 3D Pieces mapped onto respective 3D Cube faces */}
       {pieces.map((piece) => {
         if (!piece.position) return null;
-        const [cStr, rStr] = piece.position.split(',');
+        let faceIdx = 0;
+        let cStr = '0';
+        let rStr = '0';
+        if (piece.position.includes(':')) {
+          const [fPart, rest] = piece.position.split(':');
+          faceIdx = parseInt(fPart, 10) || 0;
+          [cStr, rStr] = rest.split(',');
+        } else {
+          [cStr, rStr] = piece.position.split(',');
+        }
         const c = parseInt(cStr, 10);
         const r = parseInt(rStr, 10);
         if (isNaN(c) || isNaN(r)) return null;
 
+        const face = faces[faceIdx] ?? faces[0];
         const offset = (boardSize - 1) / 2;
         const step = (cubeHalfSize * 1.88) / boardSize;
-        const tx = (c - offset) * step;
-        const tz = -(r - offset) * step;
-        const ty = cubeHalfSize + 0.35;
+        const localX = (c - offset) * step;
+        const localY = (r - offset) * step;
 
         const isWhite = piece.ownerId === 'P1';
 
         return (
-          <mesh
-            key={`cube-piece-${piece.id}`}
-            name={`cube-piece-${piece.id}`}
-            position={[tx, ty, tz]}
-            castShadow
-            onClick={(e) => {
-              e.stopPropagation();
-              onPieceClick?.(piece.id, piece.position);
-            }}
+          <group
+            key={`cube-piece-grp-${piece.id}`}
+            position={face.position}
+            rotation={face.rotation}
           >
-            <cylinderGeometry args={[0.24, 0.3, 0.65, 16]} />
-            <meshStandardMaterial
-              color={isWhite ? '#f8fafc' : '#0f172a'}
-              emissive={piece.id === selectedPieceId ? '#f59e0b' : '#000000'}
-              emissiveIntensity={piece.id === selectedPieceId ? 0.6 : 0}
-              roughness={0.3}
-              metalness={0.2}
-            />
-          </mesh>
+            <mesh
+              key={`cube-piece-${piece.id}`}
+              name={`cube-piece-${piece.id}`}
+              position={[localX, localY, 0.35]}
+              rotation={[Math.PI / 2, 0, 0]}
+              castShadow
+              onClick={(e) => {
+                e.stopPropagation();
+                onPieceClick?.(piece.id, piece.position);
+              }}
+            >
+              <cylinderGeometry args={[0.24, 0.3, 0.65, 16]} />
+              <meshStandardMaterial
+                color={isWhite ? '#f8fafc' : '#0f172a'}
+                emissive={piece.id === selectedPieceId ? '#f59e0b' : '#000000'}
+                emissiveIntensity={piece.id === selectedPieceId ? 0.6 : 0}
+                roughness={0.3}
+                metalness={0.2}
+              />
+            </mesh>
+          </group>
         );
       })}
     </group>

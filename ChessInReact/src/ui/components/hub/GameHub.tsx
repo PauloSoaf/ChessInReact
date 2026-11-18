@@ -138,7 +138,7 @@ const MINIGAMES_CATALOG = [
     accentColor: '#ef4444',
     icon: '⚡',
     desc: 'Resolva o maior número de combinações táticas e problemas de mate contra o relógio em 3 ou 5 minutos antes de esgotar suas 3 vidas.',
-    features: ['Modo 3 Minutos & 5 Minutos', 'Modo Sobrevivência Sem Limite', 'Banco de 100k Puzzles'],
+    features: ['Modo 3 Minutos & 5 Minutos', 'Modo Sobrevivência Sem Limite', 'Catálogo Calibrado de Puzzles'],
     status: 'READY' as const,
     buttonText: 'Jogar Puzzle Rush',
     disabled: false,

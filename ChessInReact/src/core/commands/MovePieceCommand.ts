@@ -202,7 +202,14 @@ export class MovePieceCommand implements ICommand {
       if (this.advanceTurn) {
         this.previousActivePlayer = draft.activePlayer;
         this.previousTurnNumber = draft.turnNumber;
-        (draft as { activePlayer: PlayerId }).activePlayer = draft.activePlayer === 'P1' ? 'P2' : 'P1';
+        const total = (draft as { totalParticipants?: number }).totalParticipants;
+        if (total && total > 2) {
+          const currentNum = parseInt(draft.activePlayer.replace('P', ''), 10) || 1;
+          const nextNum = (currentNum % total) + 1;
+          (draft as { activePlayer: PlayerId }).activePlayer = `P${nextNum}` as PlayerId;
+        } else {
+          (draft as { activePlayer: PlayerId }).activePlayer = draft.activePlayer === 'P1' ? 'P2' : 'P1';
+        }
         (draft as { turnNumber: number }).turnNumber += 1;
       }
 
@@ -531,7 +538,14 @@ export class MovePieceCommand implements ICommand {
     if (this.advanceTurn) {
       this.previousActivePlayer = draft.activePlayer;
       this.previousTurnNumber = draft.turnNumber;
-      (draft as { activePlayer: PlayerId }).activePlayer = draft.activePlayer === 'P1' ? 'P2' : 'P1';
+      const total = (draft as { totalParticipants?: number }).totalParticipants;
+      if (total && total > 2) {
+        const currentNum = parseInt(draft.activePlayer.replace('P', ''), 10) || 1;
+        const nextNum = (currentNum % total) + 1;
+        (draft as { activePlayer: PlayerId }).activePlayer = `P${nextNum}` as PlayerId;
+      } else {
+        (draft as { activePlayer: PlayerId }).activePlayer = draft.activePlayer === 'P1' ? 'P2' : 'P1';
+      }
       (draft as { turnNumber: number }).turnNumber += 1;
     }
 
