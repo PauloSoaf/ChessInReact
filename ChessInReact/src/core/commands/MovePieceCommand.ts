@@ -397,13 +397,26 @@ export class MovePieceCommand implements ICommand {
     }
 
     // Castling execution: Move corresponding Rook (only when enforceRules is active)
-    if (this.enforceRules && isKing && parsedFrom && parsedTo && Math.abs(parsedTo.x - parsedFrom.x) === 2) {
+    if (this.enforceRules && isKing && parsedFrom && parsedTo && (Math.abs(parsedTo.x - parsedFrom.x) === 2 || parsedTo.x === 6 || parsedTo.x === 2)) {
       const rank = parsedFrom.y;
       if (parsedTo.x === 6) {
         // Kingside castling
-        const rookCoord = toCoordKey(7, rank);
+        let rookCoord = toCoordKey(7, rank);
+        let rookId = draft.occupancy[rookCoord];
+        if (!rookId) {
+          for (let x = parsedFrom.x + 1; x < 8; x++) {
+            const id = draft.occupancy[toCoordKey(x, rank)];
+            if (id) {
+              const r = draft.boardEntities[id] as IPieceEntity | undefined;
+              if (r && (r.variantId.toUpperCase() === 'ROOK' || r.variantId.toUpperCase() === 'R') && r.ownerId === this.actingPlayer) {
+                rookCoord = toCoordKey(x, rank);
+                rookId = id;
+                break;
+              }
+            }
+          }
+        }
         const rookTarget = toCoordKey(5, rank);
-        const rookId = draft.occupancy[rookCoord];
         if (rookId) {
           const rook = draft.boardEntities[rookId] as IPieceEntity | undefined;
           if (rook) {
@@ -421,9 +434,22 @@ export class MovePieceCommand implements ICommand {
         }
       } else if (parsedTo.x === 2) {
         // Queenside castling
-        const rookCoord = toCoordKey(0, rank);
+        let rookCoord = toCoordKey(0, rank);
+        let rookId = draft.occupancy[rookCoord];
+        if (!rookId) {
+          for (let x = 0; x < parsedFrom.x; x++) {
+            const id = draft.occupancy[toCoordKey(x, rank)];
+            if (id) {
+              const r = draft.boardEntities[id] as IPieceEntity | undefined;
+              if (r && (r.variantId.toUpperCase() === 'ROOK' || r.variantId.toUpperCase() === 'R') && r.ownerId === this.actingPlayer) {
+                rookCoord = toCoordKey(x, rank);
+                rookId = id;
+                break;
+              }
+            }
+          }
+        }
         const rookTarget = toCoordKey(3, rank);
-        const rookId = draft.occupancy[rookCoord];
         if (rookId) {
           const rook = draft.boardEntities[rookId] as IPieceEntity | undefined;
           if (rook) {

@@ -152,10 +152,13 @@ export class SquareTopology implements ITopology {
   public getRay(start: CoordinateKey, dir: DirectionIndex | number, maxDistance = 64): CoordinateKey[] {
     const ray: CoordinateKey[] = [];
     let current: CoordinateKey | null = start;
+    const limit = this.isToroidal
+      ? Math.min(maxDistance, Math.max(this.width ?? maxDistance, this.height ?? maxDistance))
+      : maxDistance;
 
-    for (let i = 0; i < maxDistance; i++) {
+    for (let i = 0; i < limit; i++) {
       current = this.getNeighbor(current, dir);
-      if (current === null) break;
+      if (current === null || current === start) break;
       ray.push(current);
     }
 

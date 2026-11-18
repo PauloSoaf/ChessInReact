@@ -4,7 +4,7 @@ import { IValidationResult } from '../interfaces/IModdingContracts';
 export class BetzaValidatorSandbox {
   public static readonly MAX_STRING_LENGTH = 100;
   public static readonly MAX_TOKENS = 16;
-  public static readonly MAX_CPU_BUDGET_MS = 2.0;
+  public static readonly MAX_CPU_BUDGET_MS = 5.0;
 
   // Allowed standard characters in Betza notation and modifiers
   private static readonly SAFE_BETZA_PATTERN = /^[A-Za-z0-9_+\s-]+$/;

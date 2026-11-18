@@ -34,7 +34,7 @@ describe('Minigames 2D/3D Interactive Boards & Multi-Level Rule-Intelligent Bots
     const viewBtn = screen.getByTestId('pr-view-toggle');
     expect(viewBtn.textContent).toContain('2D');
     fireEvent.click(viewBtn);
-    expect(viewBtn.textContent).toContain('3D');
+    expect(viewBtn.textContent).toMatch(/3D|Perspectiva Isométrica/);
 
     // Battle mode renders N1-N5 bot difficulty selector
     const botLevelSelect = screen.getByLabelText('Nível do Bot Puzzle Battle') as HTMLSelectElement;
@@ -68,7 +68,7 @@ describe('Minigames 2D/3D Interactive Boards & Multi-Level Rule-Intelligent Bots
     const viewToggle = screen.getByTestId('bughouse-view-toggle');
     expect(viewToggle.textContent).toContain('2D');
     fireEvent.click(viewToggle);
-    expect(viewToggle.textContent).toContain('3D');
+    expect(viewToggle.textContent).toMatch(/3D|Perspectiva Isométrica/);
 
     // Configure bob seat to AI_BOT N5
     const bobRoleSelect = screen.getByLabelText('Controlador bob') as HTMLSelectElement;

@@ -972,6 +972,7 @@ const AppContent: React.FC = () => {
                     >
                       <LazyChessBoard3D
                         boardSize={boardSize}
+                        topology={universalMatch.controller?.getTopology()}
                         isBotThinking={isThinking || universalMatch.snapshot.isThinking}
                         botPlayer={isBotEnabled ? 'P2' : undefined}
                         disabled={
@@ -1016,6 +1017,7 @@ const AppContent: React.FC = () => {
                   >
                     <ChessBoard
                       boardSize={boardSize}
+                      topology={universalMatch.controller?.getTopology()}
                       isBotThinking={isThinking || universalMatch.snapshot.isThinking}
                       botPlayer={isBotEnabled ? 'P2' : undefined}
                       disabled={

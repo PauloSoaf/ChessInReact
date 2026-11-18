@@ -7,6 +7,8 @@ import { asCoordinateKey } from '../../core/coordinates';
 import { MovePieceCommand } from '../../core/commands/MovePieceCommand';
 import { IPieceEntity } from '../../core/entities/types';
 import { SquareTopology } from '../../core/topology/SquareTopology';
+import { CubicTopology } from '../../core/topology/CubicTopology';
+import { ITopology } from '../../core/topology/types';
 import { RulesEngine } from '../../engine/rules/RulesEngine';
 import { PlayerId } from '../../core/coordinates/types';
 import { useTheme } from '../../ui/theme/ThemeContext';
@@ -16,6 +18,7 @@ import { IInvalidMoveFeedback, ITriggerFeedbackOptions, InvalidMoveReason } from
 
 export interface IChessBoardProps {
   boardSize?: number;
+  topology?: ITopology;
   isBotThinking?: boolean;
   disabled?: boolean;
   botPlayer?: PlayerId;
@@ -41,6 +44,7 @@ export interface IChessBoardProps {
 
 export const ChessBoard: React.FC<IChessBoardProps> = ({
   boardSize = 8,
+  topology: propTopology,
   isBotThinking = false,
   disabled = false,
   botPlayer,
@@ -123,10 +127,32 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
     });
   };
 
-  const topology = useMemo(
-    () => new SquareTopology({ width: boardSize, height: boardSize }),
-    [boardSize]
-  );
+  const topology = useMemo(() => {
+    if (propTopology) return propTopology;
+    const v = domain.variantId?.toUpperCase() ?? '';
+    if (v.includes('CUBIC')) {
+      return new CubicTopology({ boardSize });
+    }
+    if (v.includes('TORUS') || v.includes('TOROIDAL')) {
+      return new SquareTopology({ width: boardSize, height: boardSize, toroidal: true });
+    }
+    return new SquareTopology({ width: boardSize, height: boardSize });
+  }, [propTopology, domain.variantId, boardSize]);
+
+  const isCubic = Boolean((topology as { readonly isCubic?: boolean }).isCubic);
+  const [selectedFace, setSelectedFace] = React.useState<number>(2); // Default face 2: FRONT
+
+  // Automatically switch face to match selected piece
+  React.useEffect(() => {
+    if (!isCubic || !ui.selectedPieceId) return;
+    const entity = domain.boardEntities[ui.selectedPieceId] as IPieceEntity | undefined;
+    if (entity?.position?.includes(':')) {
+      const f = parseInt(entity.position.split(':')[0], 10);
+      if (!isNaN(f) && f >= 0 && f <= 5) {
+        setSelectedFace(f);
+      }
+    }
+  }, [isCubic, ui.selectedPieceId, domain.boardEntities]);
 
   // Derive board display matrix reactively from Core domain state (Single Source of Truth - AUDIT-04)
   const derivedBoard = useMemo(() => {
@@ -138,7 +164,9 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
 
       for (let colIndex = 0; colIndex < boardSize; colIndex++) {
         const gameX = isFlipped ? boardSize - 1 - colIndex : colIndex;
-        const coordKey = asCoordinateKey(`${gameX},${gameY}`);
+        const coordKey = isCubic
+          ? asCoordinateKey(`${selectedFace}:${gameX},${gameY}`)
+          : asCoordinateKey(`${gameX},${gameY}`);
         const entityId = domain.occupancy[coordKey];
         const entity = entityId
           ? (domain.boardEntities[entityId] as IPieceEntity | undefined)
@@ -160,7 +188,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
       grid.push(row);
     }
     return grid;
-  }, [domain.occupancy, domain.boardEntities, boardSize, isFlipped]);
+  }, [domain.occupancy, domain.boardEntities, boardSize, isFlipped, isCubic, selectedFace]);
 
   // Currently selected entity
   const selectedEntity = useMemo(() => {
@@ -233,7 +261,9 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
         : isFlipped
           ? squareInfo.row
           : boardSize - 1 - squareInfo.row;
-    const clickedCoord = asCoordinateKey(`${gameX},${gameY}`);
+    const clickedCoord = isCubic
+      ? asCoordinateKey(`${selectedFace}:${gameX},${gameY}`)
+      : asCoordinateKey(`${gameX},${gameY}`);
 
     if (VariantMapConfig.isVoidSquare(domain.variantId, gameX, gameY, boardSize)) {
       return;
@@ -374,26 +404,69 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
   const isSpellVariant = Boolean(domain.variantId && domain.variantId.toUpperCase().includes('SPELL'));
 
   return (
-    <div
-      data-testid="chess-board"
-      data-variant-theme={variantTheme.themeId}
-      className="chess-board-grid"
-      style={{
-        display: 'grid',
-        width: '100%',
-        height: '100%',
-        aspectRatio: '1 / 1',
-        gridTemplateColumns: `repeat(${boardSize}, minmax(0, 1fr))`,
-        gridTemplateRows: `repeat(${boardSize}, minmax(0, 1fr))`,
-        position: 'relative',
-        userSelect: 'none',
-      }}
-    >
-      {derivedBoard.map((row, rowIndex) =>
-        row.map((piece, columnIndex) => {
-          const gameY = isFlipped ? rowIndex : boardSize - 1 - rowIndex;
-          const gameX = isFlipped ? boardSize - 1 - columnIndex : columnIndex;
-          const coordKey = asCoordinateKey(`${gameX},${gameY}`);
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', position: 'relative' }}>
+      {isCubic && (
+        <div
+          data-testid="cubic-face-selector"
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '4px',
+            marginBottom: '6px',
+            justifyContent: 'center',
+          }}
+        >
+          {[
+            { id: 0, name: 'TOP (Superior)' },
+            { id: 1, name: 'BOTTOM (Inferior)' },
+            { id: 2, name: 'FRONT (Frontal)' },
+            { id: 3, name: 'BACK (Traseira)' },
+            { id: 4, name: 'LEFT (Esquerda)' },
+            { id: 5, name: 'RIGHT (Direita)' },
+          ].map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              data-testid={`cubic-face-${f.id}`}
+              onClick={() => setSelectedFace(f.id)}
+              style={{
+                fontSize: '0.72rem',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                border: selectedFace === f.id ? '2px solid #38bdf8' : '1px solid var(--border-subtle, #555)',
+                backgroundColor: selectedFace === f.id ? 'var(--color-primary, #6366f1)' : 'var(--bg-card, #222)',
+                color: '#fff',
+                cursor: 'pointer',
+                fontWeight: selectedFace === f.id ? 'bold' : 'normal',
+              }}
+            >
+              {f.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <div
+        data-testid="chess-board"
+        data-variant-theme={variantTheme.themeId}
+        className="chess-board-grid"
+        style={{
+          display: 'grid',
+          width: '100%',
+          height: '100%',
+          aspectRatio: '1 / 1',
+          gridTemplateColumns: `repeat(${boardSize}, minmax(0, 1fr))`,
+          gridTemplateRows: `repeat(${boardSize}, minmax(0, 1fr))`,
+          position: 'relative',
+          userSelect: 'none',
+        }}
+      >
+        {derivedBoard.map((row, rowIndex) =>
+          row.map((piece, columnIndex) => {
+            const gameY = isFlipped ? rowIndex : boardSize - 1 - rowIndex;
+            const gameX = isFlipped ? boardSize - 1 - columnIndex : columnIndex;
+            const coordKey = isCubic
+              ? asCoordinateKey(`${selectedFace}:${gameX},${gameY}`)
+              : asCoordinateKey(`${gameX},${gameY}`);
           const entityId = domain.occupancy[coordKey];
           const rawEntity = entityId ? domain.boardEntities[entityId] : undefined;
           const pieceEntity = rawEntity?.type === 'PIECE' ? (rawEntity as IPieceEntity) : undefined;
@@ -466,6 +539,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
           );
         })
       )}
+      </div>
     </div>
   );
 };

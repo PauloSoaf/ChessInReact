@@ -15,7 +15,7 @@ import { CheckValidator } from './CheckValidator';
 import { GameOverDetector } from './GameOverDetector';
 import { VariantRegistry } from './VariantRegistry';
 import { VariantMapConfig } from '../variants/VariantMapConfig';
-import { parseCoord, toCoordKey } from './utils/CoordinateHelper';
+import { parseCoord, toCoordKey, toCubicCoordKey } from './utils/CoordinateHelper';
 
 const PROMOTION_OPTIONS: readonly PieceVariantId[] = ['QUEEN', 'ROOK', 'BISHOP', 'KNIGHT'];
 
@@ -146,35 +146,59 @@ export class RulesEngine {
     const hasJumpBuff = Boolean(piece.metadata?.hasJump);
 
     if (isPawn && parsedFrom && parsedTo) {
-      const advanceDy = isWhite ? 1 : -1;
+      const isCubic = Boolean((topology as { readonly isCubic?: boolean }).isCubic);
+      const forwardDir = isWhite ? 0 : 4;
       const startRank = isWhite ? 1 : 6;
+      const f1 = isCubic
+        ? topology.getNeighbor(piece.position, forwardDir)
+        : toCoordKey(parsedFrom.x, parsedFrom.y + (isWhite ? 1 : -1));
+      const f2 = isCubic
+        ? (f1 ? topology.getNeighbor(f1, forwardDir) : null)
+        : toCoordKey(parsedFrom.x, parsedFrom.y + (isWhite ? 2 : -2));
 
       // 1-step forward
-      if (parsedTo.x === parsedFrom.x && parsedTo.y === parsedFrom.y + advanceDy && !destOccupantId) {
+      if (intent.to === f1 && !destOccupantId) {
         isReachable = true;
       }
       // 2-step forward (or Jump leap over 1 square)
       else if (
-        parsedTo.x === parsedFrom.x &&
+        intent.to === f2 &&
         ((parsedFrom.y === startRank && !piece.hasMoved) || hasJumpBuff) &&
-        parsedTo.y === parsedFrom.y + advanceDy * 2 &&
         !destOccupantId
       ) {
-        const intermediate = toCoordKey(parsedFrom.x, parsedFrom.y + advanceDy);
-        if (!state.occupancy[intermediate] || hasJumpBuff) {
-          isReachable = true;
+        if (!isCubic) {
+          const intermediate = toCoordKey(parsedFrom.x, parsedFrom.y + (isWhite ? 1 : -1));
+          if (!state.occupancy[intermediate] || hasJumpBuff) {
+            isReachable = true;
+          }
+        } else {
+          if (!f1 || !state.occupancy[f1] || hasJumpBuff) {
+            isReachable = true;
+          }
         }
       }
       // Diagonal capture
-      else if (Math.abs(parsedTo.x - parsedFrom.x) === 1 && parsedTo.y === parsedFrom.y + advanceDy) {
-        if (destOccupantId) {
-          isReachable = true;
-        } else if (intent.to === state.turnState.enPassantTarget) {
-          isReachable = true;
-          isEnPassant = true;
+      else {
+        const diagTargets = isCubic
+          ? (isWhite ? [topology.getNeighbor(piece.position, 7), topology.getNeighbor(piece.position, 1)] : [topology.getNeighbor(piece.position, 5), topology.getNeighbor(piece.position, 3)])
+          : [toCoordKey(parsedFrom.x - 1, parsedFrom.y + (isWhite ? 1 : -1)), toCoordKey(parsedFrom.x + 1, parsedFrom.y + (isWhite ? 1 : -1))];
+        if (diagTargets.includes(intent.to)) {
+          if (destOccupantId) {
+            isReachable = true;
+          } else if (intent.to === state.turnState.enPassantTarget) {
+            isReachable = true;
+            isEnPassant = true;
+          }
         }
       }
-    } else if (isKing && parsedFrom && parsedTo && Math.abs(parsedTo.x - parsedFrom.x) === 2 && !piece.hasMoved) {
+    } else if (
+      isKing &&
+      parsedFrom &&
+      parsedTo &&
+      !piece.hasMoved &&
+      (parsedTo.x === 6 || parsedTo.x === 2) &&
+      Math.abs(parsedTo.x - parsedFrom.x) >= 2
+    ) {
       if (
         state.variantId?.toUpperCase().includes('NO_CASTLING') ||
         Boolean((variantConfig as { specialRules?: { noCastling?: boolean } })?.specialRules?.noCastling)
@@ -184,46 +208,109 @@ export class RulesEngine {
           reason: 'Roque estritamente proibido na variante No Castling.',
         };
       }
-      // Castling attempt
+      // Castling attempt (Classic & Chess960)
       const rank = isWhite ? 0 : 7;
-      const initialKingPos = toCoordKey(4, rank);
+      const isChess960 = Boolean(
+        state.variantId?.toUpperCase().includes('960') ||
+        (variantConfig as { variantId?: string })?.variantId?.toUpperCase().includes('960')
+      );
       const enemyIds = (Object.values(state.boardEntities) as IPieceEntity[])
         .filter((e) => e.type === 'PIECE' && !e.isCaptured && e.ownerId !== piece.ownerId && e.ownerId !== 'NONE')
         .map((e) => e.ownerId);
       const isSquareThreatened = (coord: CoordinateKey) =>
         enemyIds.some((eid) => CheckValidator.isSquareAttacked(coord, eid, state, topology));
 
-      if (piece.position === initialKingPos && !isSquareThreatened(initialKingPos)) {
+      if (parsedFrom.y === rank && !isSquareThreatened(piece.position)) {
         if (parsedTo.x === 6) {
           // Kingside
-          const rookId = state.occupancy[toCoordKey(7, rank)];
+          let rookCoord = toCoordKey(7, rank);
+          let rookId = state.occupancy[rookCoord];
+          if (!rookId && isChess960) {
+            for (let x = parsedFrom.x + 1; x < 8; x++) {
+              const id = state.occupancy[toCoordKey(x, rank)];
+              if (id) {
+                const r = state.boardEntities[id] as IPieceEntity | undefined;
+                if (r && !r.hasMoved && (r.variantId.toUpperCase() === 'ROOK' || r.variantId.toUpperCase() === 'R') && r.ownerId === piece.ownerId) {
+                  rookCoord = toCoordKey(x, rank);
+                  rookId = id;
+                  break;
+                }
+              }
+            }
+          }
           const rook = rookId ? (state.boardEntities[rookId] as IPieceEntity | undefined) : undefined;
-          if (rook && !rook.hasMoved && !state.occupancy[toCoordKey(5, rank)] && !state.occupancy[toCoordKey(6, rank)]) {
-            if (
-              !isSquareThreatened(toCoordKey(5, rank)) &&
-              !isSquareThreatened(toCoordKey(6, rank))
-            ) {
-              isReachable = true;
-              isCastling = 'KINGSIDE';
+          if (rook && !rook.hasMoved) {
+            const rookX = parseCoord(rookCoord)?.x ?? 7;
+            const minX = Math.min(parsedFrom.x, 6, rookX, 5);
+            const maxX = Math.max(parsedFrom.x, 6, rookX, 5);
+            let pathClear = true;
+            for (let x = minX; x <= maxX; x++) {
+              const c = toCoordKey(x, rank);
+              if (c !== piece.position && c !== rookCoord && state.occupancy[c]) {
+                pathClear = false;
+                break;
+              }
+            }
+            if (pathClear) {
+              const stepMin = Math.min(parsedFrom.x, 6);
+              const stepMax = Math.max(parsedFrom.x, 6);
+              let safeTransit = true;
+              for (let x = stepMin; x <= stepMax; x++) {
+                if (isSquareThreatened(toCoordKey(x, rank))) {
+                  safeTransit = false;
+                  break;
+                }
+              }
+              if (safeTransit) {
+                isReachable = true;
+                isCastling = 'KINGSIDE';
+              }
             }
           }
         } else if (parsedTo.x === 2) {
           // Queenside
-          const rookId = state.occupancy[toCoordKey(0, rank)];
+          let rookCoord = toCoordKey(0, rank);
+          let rookId = state.occupancy[rookCoord];
+          if (!rookId && isChess960) {
+            for (let x = 0; x < parsedFrom.x; x++) {
+              const id = state.occupancy[toCoordKey(x, rank)];
+              if (id) {
+                const r = state.boardEntities[id] as IPieceEntity | undefined;
+                if (r && !r.hasMoved && (r.variantId.toUpperCase() === 'ROOK' || r.variantId.toUpperCase() === 'R') && r.ownerId === piece.ownerId) {
+                  rookCoord = toCoordKey(x, rank);
+                  rookId = id;
+                  break;
+                }
+              }
+            }
+          }
           const rook = rookId ? (state.boardEntities[rookId] as IPieceEntity | undefined) : undefined;
-          if (
-            rook &&
-            !rook.hasMoved &&
-            !state.occupancy[toCoordKey(1, rank)] &&
-            !state.occupancy[toCoordKey(2, rank)] &&
-            !state.occupancy[toCoordKey(3, rank)]
-          ) {
-            if (
-              !isSquareThreatened(toCoordKey(3, rank)) &&
-              !isSquareThreatened(toCoordKey(2, rank))
-            ) {
-              isReachable = true;
-              isCastling = 'QUEENSIDE';
+          if (rook && !rook.hasMoved) {
+            const rookX = parseCoord(rookCoord)?.x ?? 0;
+            const minX = Math.min(parsedFrom.x, 2, rookX, 3);
+            const maxX = Math.max(parsedFrom.x, 2, rookX, 3);
+            let pathClear = true;
+            for (let x = minX; x <= maxX; x++) {
+              const c = toCoordKey(x, rank);
+              if (c !== piece.position && c !== rookCoord && state.occupancy[c]) {
+                pathClear = false;
+                break;
+              }
+            }
+            if (pathClear) {
+              const stepMin = Math.min(parsedFrom.x, 2);
+              const stepMax = Math.max(parsedFrom.x, 2);
+              let safeTransit = true;
+              for (let x = stepMin; x <= stepMax; x++) {
+                if (isSquareThreatened(toCoordKey(x, rank))) {
+                  safeTransit = false;
+                  break;
+                }
+              }
+              if (safeTransit) {
+                isReachable = true;
+                isCastling = 'QUEENSIDE';
+              }
             }
           }
         }
@@ -307,15 +394,17 @@ export class RulesEngine {
       const isMovingKing = vUpper === 'KING' || vUpper === 'K';
       const royalPiece = isMovingKing ? piece : CheckValidator.findRoyalPiece(piece.ownerId, evalState);
       const kingCoord = isMovingKing ? intent.to : royalPiece?.position;
-      const opponentId: PlayerId = piece.ownerId === 'P1' ? 'P2' : 'P1';
+      const enemyOwners = (Object.values(evalState.boardEntities) as IPieceEntity[])
+        .filter((e) => e.type === 'PIECE' && !e.isCaptured && e.ownerId !== piece.ownerId && e.ownerId !== 'NONE')
+        .map((e) => e.ownerId);
 
       const leavesInCheck = kingCoord
-        ? CheckValidator.isSquareAttacked(kingCoord, opponentId, evalState, topology)
+        ? enemyOwners.some((eid) => CheckValidator.isSquareAttacked(kingCoord, eid, evalState, topology))
         : false;
       const givesCheckInRacingKings =
         !leavesInCheck &&
         variantConfig?.variantId === 'RACING_KINGS' &&
-        CheckValidator.isRoyalInCheck(opponentId, evalState, topology);
+        enemyOwners.some((eid) => CheckValidator.isRoyalInCheck(eid, evalState, topology));
 
       // Restore occupancy if not frozen
       if (!isFrozen) {
@@ -379,7 +468,13 @@ export class RulesEngine {
     const activePlayer = state.activePlayer;
 
     const king = CheckValidator.findRoyalPiece(activePlayer, state);
-    const opponentId: PlayerId = activePlayer === 'P1' ? 'P2' : 'P1';
+    const livingEnemyOwners = Array.from(
+      new Set(
+        (Object.values(state.boardEntities) as IPieceEntity[])
+          .filter((e) => e.type === 'PIECE' && !e.isCaptured && e.ownerId !== activePlayer && e.ownerId !== 'NONE')
+          .map((e) => e.ownerId)
+      )
+    );
 
     for (const id in state.boardEntities) {
       const entity = state.boardEntities[id as EntityId];
@@ -391,7 +486,7 @@ export class RulesEngine {
             topology,
             variantConfig,
             king,
-            opponentId
+            livingEnemyOwners
           )
         );
       }
@@ -417,7 +512,7 @@ export class RulesEngine {
     topology: ITopology,
     variantConfig?: IVariantConfiguration,
     precomputedKing?: IPieceEntity | null,
-    precomputedOpponentId?: PlayerId
+    precomputedOpponentIds?: readonly PlayerId[] | PlayerId
   ): ILegalMove[] {
     variantConfig = variantConfig ?? VariantRegistry.resolveRulesConfig(state.variantId);
     if (piece.metadata?.isFrozen) {
@@ -439,52 +534,89 @@ export class RulesEngine {
 
     // 1. Direct handling for PAWN (bypassing Betza loop for 10x faster execution)
     if (isPawn && parsedFrom) {
+      const isCubic = Boolean((topology as { readonly isCubic?: boolean }).isCubic);
       const isToroidal = Boolean((topology as { readonly isToroidal?: boolean }).isToroidal);
       const tw = (topology as { readonly width?: number }).width ?? 8;
       const th = (topology as { readonly height?: number }).height ?? 8;
       const wrapY = (y: number) => (isToroidal ? ((y % th) + th) % th : y);
       const wrapX = (x: number) => (isToroidal ? ((x % tw) + tw) % tw : x);
 
-      const advanceDy = isWhite ? 1 : -1;
-      const startRank = isWhite ? 1 : 6;
+      const makeCoord = (x: number, y: number): CoordinateKey => {
+        return parsedFrom.face !== undefined
+          ? toCubicCoordKey(parsedFrom.face, x, y)
+          : toCoordKey(x, y);
+      };
 
-      // 1-step forward
-      const f1 = toCoordKey(parsedFrom.x, wrapY(parsedFrom.y + advanceDy));
-      if (topology.isValidCoordinate(f1) && !state.occupancy[f1]) {
+      const forwardDir = isWhite ? 0 : 4;
+      const f1 = isCubic
+        ? topology.getNeighbor(piece.position, forwardDir)
+        : makeCoord(parsedFrom.x, wrapY(parsedFrom.y + (isWhite ? 1 : -1)));
+
+      if (f1 && topology.isValidCoordinate(f1) && !state.occupancy[f1]) {
         candidateDestinations.push(f1);
 
         // 2-step forward
+        const startRank = isWhite ? 1 : 6;
         if (parsedFrom.y === startRank && !piece.hasMoved) {
-          const f2 = toCoordKey(parsedFrom.x, wrapY(parsedFrom.y + advanceDy * 2));
-          if (topology.isValidCoordinate(f2) && !state.occupancy[f2]) {
+          const f2 = isCubic
+            ? topology.getNeighbor(f1, forwardDir)
+            : makeCoord(parsedFrom.x, wrapY(parsedFrom.y + (isWhite ? 2 : -2)));
+          if (f2 && topology.isValidCoordinate(f2) && !state.occupancy[f2]) {
             candidateDestinations.push(f2);
           }
         }
       } else if (hasJumpBuff) {
-        const f2 = toCoordKey(parsedFrom.x, wrapY(parsedFrom.y + advanceDy * 2));
-        if (topology.isValidCoordinate(f2) && !state.occupancy[f2]) {
+        const f2 = isCubic
+          ? (f1 ? topology.getNeighbor(f1, forwardDir) : null)
+          : makeCoord(parsedFrom.x, wrapY(parsedFrom.y + (isWhite ? 2 : -2)));
+        if (f2 && topology.isValidCoordinate(f2) && !state.occupancy[f2]) {
           candidateDestinations.push(f2);
         }
       }
 
       // Diagonal captures & En Passant
-      for (const dx of [-1, 1]) {
-        const diag = toCoordKey(wrapX(parsedFrom.x + dx), wrapY(parsedFrom.y + advanceDy));
-        if (topology.isValidCoordinate(diag)) {
-          const occId = state.occupancy[diag];
-          if (occId) {
-            const victim = state.boardEntities[occId] as IPieceEntity | undefined;
-            if (
-              victim &&
-              victim.type === 'PIECE' &&
-              !victim.isCaptured &&
-              victim.ownerId !== piece.ownerId &&
-              !victim.metadata?.isShielded
-            ) {
+      if (isCubic) {
+        const diagDirs = isWhite ? [7, 1] : [5, 3];
+        for (const dir of diagDirs) {
+          const diag = topology.getNeighbor(piece.position, dir);
+          if (diag && topology.isValidCoordinate(diag)) {
+            const occId = state.occupancy[diag];
+            if (occId) {
+              const victim = state.boardEntities[occId] as IPieceEntity | undefined;
+              if (
+                victim &&
+                victim.type === 'PIECE' &&
+                !victim.isCaptured &&
+                victim.ownerId !== piece.ownerId &&
+                !victim.metadata?.isShielded
+              ) {
+                candidateDestinations.push(diag);
+              }
+            } else if (diag === state.turnState.enPassantTarget) {
               candidateDestinations.push(diag);
             }
-          } else if (diag === state.turnState.enPassantTarget) {
-            candidateDestinations.push(diag);
+          }
+        }
+      } else {
+        const advanceDy = isWhite ? 1 : -1;
+        for (const dx of [-1, 1]) {
+          const diag = makeCoord(wrapX(parsedFrom.x + dx), wrapY(parsedFrom.y + advanceDy));
+          if (topology.isValidCoordinate(diag)) {
+            const occId = state.occupancy[diag];
+            if (occId) {
+              const victim = state.boardEntities[occId] as IPieceEntity | undefined;
+              if (
+                victim &&
+                victim.type === 'PIECE' &&
+                !victim.isCaptured &&
+                victim.ownerId !== piece.ownerId &&
+                !victim.metadata?.isShielded
+              ) {
+                candidateDestinations.push(diag);
+              }
+            } else if (diag === state.turnState.enPassantTarget) {
+              candidateDestinations.push(diag);
+            }
           }
         }
       }
@@ -499,7 +631,7 @@ export class RulesEngine {
       }
     }
 
-    // 3. Special Moves for KING: Castling (FIDE Article 3.8 & RF-06)
+    // 3. Special Moves for KING: Castling (FIDE Article 3.8 & RF-06, Classic & Chess960)
     if (
       parsedFrom &&
       (vUpper === 'KING' || vUpper === 'K') &&
@@ -514,61 +646,101 @@ export class RulesEngine {
         enemyIds.some((eid) => CheckValidator.isSquareAttacked(coord, eid, state, topology));
 
       const rank = isWhite ? 0 : 7;
-      const initialKingPos = toCoordKey(4, rank);
+      const isChess960 = Boolean(
+        state.variantId?.toUpperCase().includes('960') ||
+        (variantConfig as { variantId?: string })?.variantId?.toUpperCase().includes('960')
+      );
 
-      // Only allow castling if King is on standard starting square and not in check
-      if (
-        piece.position === initialKingPos &&
-        !isSquareThreatened(initialKingPos)
-      ) {
-        // Kingside Castling: Rook at (7, rank), empty at (5, rank) and (6, rank)
-        const kingsideRookCoord = toCoordKey(7, rank);
-        const kingsideRookId = state.occupancy[kingsideRookCoord];
+      if (parsedFrom.y === rank && !isSquareThreatened(piece.position)) {
+        // Kingside Castling
+        let kingsideRookCoord = toCoordKey(7, rank);
+        let kingsideRookId = state.occupancy[kingsideRookCoord];
+        if (!kingsideRookId && isChess960) {
+          for (let x = parsedFrom.x + 1; x < 8; x++) {
+            const id = state.occupancy[toCoordKey(x, rank)];
+            if (id) {
+              const r = state.boardEntities[id] as IPieceEntity | undefined;
+              if (r && !r.hasMoved && (r.variantId.toUpperCase() === 'ROOK' || r.variantId.toUpperCase() === 'R') && r.ownerId === piece.ownerId) {
+                kingsideRookCoord = toCoordKey(x, rank);
+                kingsideRookId = id;
+                break;
+              }
+            }
+          }
+        }
         if (kingsideRookId) {
           const rook = state.boardEntities[kingsideRookId] as IPieceEntity | undefined;
-          if (
-            rook &&
-            rook.type === 'PIECE' &&
-            !rook.isCaptured &&
-            rook.ownerId === piece.ownerId &&
-            !rook.hasMoved &&
-            (rook.variantId.toUpperCase() === 'ROOK' || rook.variantId.toUpperCase() === 'R')
-          ) {
-            const sq5 = toCoordKey(5, rank);
-            const sq6 = toCoordKey(6, rank);
-            if (!state.occupancy[sq5] && !state.occupancy[sq6]) {
-              if (
-                !isSquareThreatened(sq5) &&
-                !isSquareThreatened(sq6)
-              ) {
-                candidateDestinations.push(sq6);
+          if (rook && !rook.hasMoved && (rook.variantId.toUpperCase() === 'ROOK' || rook.variantId.toUpperCase() === 'R')) {
+            const rookX = parseCoord(kingsideRookCoord)?.x ?? 7;
+            const minX = Math.min(parsedFrom.x, 6, rookX, 5);
+            const maxX = Math.max(parsedFrom.x, 6, rookX, 5);
+            let pathClear = true;
+            for (let x = minX; x <= maxX; x++) {
+              const c = toCoordKey(x, rank);
+              if (c !== piece.position && c !== kingsideRookCoord && state.occupancy[c]) {
+                pathClear = false;
+                break;
+              }
+            }
+            if (pathClear) {
+              const stepMin = Math.min(parsedFrom.x, 6);
+              const stepMax = Math.max(parsedFrom.x, 6);
+              let safeTransit = true;
+              for (let x = stepMin; x <= stepMax; x++) {
+                if (isSquareThreatened(toCoordKey(x, rank))) {
+                  safeTransit = false;
+                  break;
+                }
+              }
+              if (safeTransit) {
+                candidateDestinations.push(toCoordKey(6, rank));
               }
             }
           }
         }
 
-        // Queenside Castling: Rook at (0, rank), empty at (1, rank), (2, rank), (3, rank)
-        const queensideRookCoord = toCoordKey(0, rank);
-        const queensideRookId = state.occupancy[queensideRookCoord];
+        // Queenside Castling
+        let queensideRookCoord = toCoordKey(0, rank);
+        let queensideRookId = state.occupancy[queensideRookCoord];
+        if (!queensideRookId && isChess960) {
+          for (let x = 0; x < parsedFrom.x; x++) {
+            const id = state.occupancy[toCoordKey(x, rank)];
+            if (id) {
+              const r = state.boardEntities[id] as IPieceEntity | undefined;
+              if (r && !r.hasMoved && (r.variantId.toUpperCase() === 'ROOK' || r.variantId.toUpperCase() === 'R') && r.ownerId === piece.ownerId) {
+                queensideRookCoord = toCoordKey(x, rank);
+                queensideRookId = id;
+                break;
+              }
+            }
+          }
+        }
         if (queensideRookId) {
           const rook = state.boardEntities[queensideRookId] as IPieceEntity | undefined;
-          if (
-            rook &&
-            rook.type === 'PIECE' &&
-            !rook.isCaptured &&
-            rook.ownerId === piece.ownerId &&
-            !rook.hasMoved &&
-            (rook.variantId.toUpperCase() === 'ROOK' || rook.variantId.toUpperCase() === 'R')
-          ) {
-            const sq1 = toCoordKey(1, rank);
-            const sq2 = toCoordKey(2, rank);
-            const sq3 = toCoordKey(3, rank);
-            if (!state.occupancy[sq1] && !state.occupancy[sq2] && !state.occupancy[sq3]) {
-              if (
-                !isSquareThreatened(sq3) &&
-                !isSquareThreatened(sq2)
-              ) {
-                candidateDestinations.push(sq2);
+          if (rook && !rook.hasMoved && (rook.variantId.toUpperCase() === 'ROOK' || rook.variantId.toUpperCase() === 'R')) {
+            const rookX = parseCoord(queensideRookCoord)?.x ?? 0;
+            const minX = Math.min(parsedFrom.x, 2, rookX, 3);
+            const maxX = Math.max(parsedFrom.x, 2, rookX, 3);
+            let pathClear = true;
+            for (let x = minX; x <= maxX; x++) {
+              const c = toCoordKey(x, rank);
+              if (c !== piece.position && c !== queensideRookCoord && state.occupancy[c]) {
+                pathClear = false;
+                break;
+              }
+            }
+            if (pathClear) {
+              const stepMin = Math.min(parsedFrom.x, 2);
+              const stepMax = Math.max(parsedFrom.x, 2);
+              let safeTransit = true;
+              for (let x = stepMin; x <= stepMax; x++) {
+                if (isSquareThreatened(toCoordKey(x, rank))) {
+                  safeTransit = false;
+                  break;
+                }
+              }
+              if (safeTransit) {
+                candidateDestinations.push(toCoordKey(2, rank));
               }
             }
           }
@@ -664,15 +836,21 @@ export class RulesEngine {
         const isMovingKing = vUpper === 'KING' || vUpper === 'K';
         const royalPiece = isMovingKing ? piece : (precomputedKing ?? CheckValidator.findRoyalPiece(piece.ownerId, evalState));
         const kingCoord = isMovingKing ? dest : royalPiece?.position;
-        const opponentId: PlayerId = precomputedOpponentId ?? (piece.ownerId === 'P1' ? 'P2' : 'P1');
+        const enemyOwners: readonly PlayerId[] = Array.isArray(precomputedOpponentIds)
+          ? precomputedOpponentIds
+          : precomputedOpponentIds
+            ? [precomputedOpponentIds]
+            : (Object.values(evalState.boardEntities) as IPieceEntity[])
+                .filter((e) => e.type === 'PIECE' && !e.isCaptured && e.ownerId !== piece.ownerId && e.ownerId !== 'NONE')
+                .map((e) => e.ownerId);
 
         const leavesInCheck = kingCoord
-          ? CheckValidator.isSquareAttacked(kingCoord, opponentId, evalState, topology)
+          ? enemyOwners.some((eid) => CheckValidator.isSquareAttacked(kingCoord, eid, evalState, topology))
           : false;
         const givesCheckInRacingKings =
           !leavesInCheck &&
           variantConfig?.variantId === 'RACING_KINGS' &&
-          CheckValidator.isRoyalInCheck(opponentId, evalState, topology);
+          enemyOwners.some((eid) => CheckValidator.isRoyalInCheck(eid, evalState, topology));
 
         // Restore occupancy if not frozen
         if (!isFrozen) {

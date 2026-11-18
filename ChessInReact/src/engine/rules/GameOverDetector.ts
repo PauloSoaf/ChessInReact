@@ -101,6 +101,51 @@ export class GameOverDetector {
       };
     }
 
+    // 1.9. Horde Chess victory condition (White horde vs Black army)
+    const isHorde = Boolean(
+      state.variantId?.toUpperCase().includes('HORDE') ||
+      variantConfig?.variantId?.toUpperCase().includes('HORDE')
+    );
+    if (isHorde) {
+      const whitePieces = Object.values(state.boardEntities).filter(
+        (e) => e.type === 'PIECE' && !e.isCaptured && e.ownerId === 'P1'
+      );
+      if (whitePieces.length === 0) {
+        return {
+          isGameOver: true,
+          status: 'CHECKMATE',
+          winnerId: 'P2',
+          reason: 'Horde victory: Black eliminated the entire White horde.',
+        };
+      }
+      const blackKing = CheckValidator.findRoyalPiece('P2', state);
+      if (!blackKing) {
+        return {
+          isGameOver: true,
+          status: 'CHECKMATE',
+          winnerId: 'P1',
+          reason: 'Horde victory: White captured Black King.',
+        };
+      }
+      if (activePlayer === 'P2' && legalMovesCount === 0) {
+        const inCheck = CheckValidator.isRoyalInCheck('P2', state, topology);
+        return {
+          isGameOver: true,
+          status: inCheck ? 'CHECKMATE' : 'STALEMATE',
+          winnerId: inCheck ? 'P1' : null,
+          reason: inCheck ? 'Horde victory: Black King is checkmated.' : 'Stalemate: Black has no legal moves.',
+        };
+      }
+      if (activePlayer === 'P1' && legalMovesCount === 0) {
+        return {
+          isGameOver: true,
+          status: 'STALEMATE',
+          winnerId: null,
+          reason: 'Stalemate: White horde has no legal moves remaining.',
+        };
+      }
+    }
+
     // 2. Antichess / Giveaway win condition (RF-10)
     if (variantConfig?.variantId === 'ANTICHESS') {
       const activePieces = Object.values(state.boardEntities).filter(

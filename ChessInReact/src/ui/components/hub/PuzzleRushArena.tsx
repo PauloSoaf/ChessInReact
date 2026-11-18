@@ -343,7 +343,7 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
               cursor: 'pointer',
             }}
           >
-            Visão: {viewMode === '3D' ? 'Perspectiva Isométrica' : '2D Plana'}
+            Visão: {viewMode === '3D' ? '3D (Perspectiva Isométrica)' : '2D Plana'}
           </button>
 
           <span

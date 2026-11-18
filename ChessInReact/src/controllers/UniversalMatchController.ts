@@ -448,6 +448,41 @@ export class UniversalMatchController {
       if (legalMoves.length === 0) {
         // Stalemate or Checkmate resolution
         const inCheck = CheckValidator.isRoyalInCheck(domain.activePlayer, domain, this.topology);
+
+        if (this.config.totalParticipants > 2 && this.turnCycleState) {
+          const currentFaction = `FACTION_${domain.activePlayer.replace('P', '')}`;
+          this.turnCycleState = TurnCycleManager.eliminateFaction(this.turnCycleState, currentFaction);
+          const surviving = TurnCycleManager.getSurvivingFactions(this.turnCycleState);
+
+          if (surviving.length <= 1) {
+            const winner = surviving.length === 1 ? this.factionToPlayerId(surviving[0]) : null;
+            gameStore.setState((s) => ({
+              domain: {
+                ...s.domain,
+                isGameOver: true,
+                winnerId: winner,
+              },
+            }));
+            this.isThinkingState = false;
+            this.notify();
+            return false;
+          }
+
+          const nextFaction = TurnCycleManager.getActiveFaction(this.turnCycleState);
+          const nextPlayerId = this.factionToPlayerId(nextFaction);
+          gameStore.setState((s) => ({
+            domain: {
+              ...s.domain,
+              activePlayer: nextPlayerId,
+            },
+          }));
+
+          this.isThinkingState = false;
+          this.notify();
+          this.scheduleAutonomousTurnIfNeeded();
+          return true;
+        }
+
         const opponent: PlayerId = domain.activePlayer === 'P1' ? 'P2' : 'P1';
 
         gameStore.setState((s) => ({

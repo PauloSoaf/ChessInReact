@@ -7,6 +7,8 @@ import { useTheme } from '../ui/theme/ThemeContext';
 import { asCoordinateKey } from '../core/coordinates';
 import { IPieceEntity } from '../core/entities/types';
 import { SquareTopology } from '../core/topology/SquareTopology';
+import { CubicTopology } from '../core/topology/CubicTopology';
+import { ITopology } from '../core/topology/types';
 import { RulesEngine } from '../engine/rules/RulesEngine';
 import { CheckValidator } from '../engine/rules/CheckValidator';
 import { MovePieceCommand } from '../core/commands/MovePieceCommand';
@@ -20,6 +22,7 @@ import { IInvalidMoveFeedback, ITriggerFeedbackOptions, InvalidMoveReason } from
 
 export interface IChessBoard3DProps {
   boardSize?: number;
+  topology?: ITopology;
   isBotThinking?: boolean;
   botPlayer?: string;
   disabled?: boolean;
@@ -174,6 +177,7 @@ function SmoothCameraController({ isFlipped }: { isFlipped: boolean }) {
  */
 export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
   boardSize = 8,
+  topology: propTopology,
   isBotThinking = false,
   botPlayer,
   disabled = false,
@@ -196,10 +200,17 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
   const ui = useGameStore((state) => state.ui);
   const { executeCommand, selectPiece } = useGameActions();
 
-  const topology = useMemo(
-    () => new SquareTopology({ width: boardSize, height: boardSize }),
-    [boardSize]
-  );
+  const topology = useMemo(() => {
+    if (propTopology) return propTopology;
+    const v = domain.variantId?.toUpperCase() ?? '';
+    if (v.includes('CUBIC')) {
+      return new CubicTopology({ boardSize });
+    }
+    if (v.includes('TORUS') || v.includes('TOROIDAL')) {
+      return new SquareTopology({ width: boardSize, height: boardSize, toroidal: true });
+    }
+    return new SquareTopology({ width: boardSize, height: boardSize });
+  }, [propTopology, domain.variantId, boardSize]);
 
   // Filter active, uncaptured pieces
   const activePieces = useMemo(() => {

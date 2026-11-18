@@ -441,7 +441,7 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
             data-testid="bughouse-view-toggle"
             title="Alterna entre visualização plana 2D e perspectiva isométrica inclinada"
           >
-            Visão: {viewMode === '3D' ? 'Perspectiva Isométrica' : '2D Plana'}
+            Visão: {viewMode === '3D' ? '3D (Perspectiva Isométrica)' : '2D Plana'}
           </ActionButton>
           <ActionButton variant="secondary" onClick={() => setIsPaused((p) => !p)}>
             {isPaused ? '▶ Retomar Bots' : '⏸ Pausar Bots'}

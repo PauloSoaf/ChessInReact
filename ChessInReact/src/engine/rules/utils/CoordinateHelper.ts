@@ -3,11 +3,12 @@ import { CoordinateKey, asCoordinateKey } from '../../../core/coordinates';
 export interface ICoord2D {
   readonly x: number;
   readonly y: number;
+  readonly face?: number;
 }
 
 /**
- * Parses either algebraic ("e4", "a1") or Cartesian ("4,3", "0,0") coordinate formats.
- * Returns { x, y } in integer board coordinates.
+ * Parses either algebraic ("e4", "a1"), Cartesian ("4,3", "0,0") or Cubic ("2:4,3") coordinate formats.
+ * Returns { x, y, face? } in integer board coordinates.
  */
 export function parseCoord(coord: string | CoordinateKey): ICoord2D | null {
   if (!coord || typeof coord !== 'string') return null;
@@ -26,13 +27,14 @@ export function parseCoord(coord: string | CoordinateKey): ICoord2D | null {
   // 0. Cubic coordinate format "face:x,y" (e.g. "2:3,4")
   const colonIdx = trimmed.indexOf(':');
   if (colonIdx !== -1) {
+    const face = Number(trimmed.substring(0, colonIdx));
     const afterColon = trimmed.substring(colonIdx + 1);
     const cIdx = afterColon.indexOf(',');
     if (cIdx !== -1) {
       const x = Number(afterColon.substring(0, cIdx));
       const y = Number(afterColon.substring(cIdx + 1));
       if (Number.isInteger(x) && Number.isInteger(y) && Number.isFinite(x) && Number.isFinite(y)) {
-        return { x, y };
+        return { x, y, face: Number.isInteger(face) ? face : undefined };
       }
     }
   }

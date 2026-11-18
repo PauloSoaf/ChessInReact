@@ -16,6 +16,15 @@
 import { asCoordinateKey, CoordinateKey } from '../coordinates';
 import { DirectionIndex, ITopology, IWorldPosition, TopologyType } from './types';
 
+export enum CubeFace {
+  TOP = 0,
+  BOTTOM = 1,
+  FRONT = 2,
+  BACK = 3,
+  LEFT = 4,
+  RIGHT = 5,
+}
+
 export interface ICubicTopologyOptions {
   readonly boardSize?: number;
   readonly cellSize?: number;
@@ -32,17 +41,39 @@ const DELTAS: readonly (readonly [number, number])[] = [
   [-1, 1],  // NORTHWEST = 7
 ];
 
+export interface ICubicStep {
+  readonly coord: CoordinateKey;
+  readonly dir: number;
+}
+
 export class CubicTopology implements ITopology {
   public readonly type: TopologyType = 'SQUARE';
   public readonly coordinateFormat = 'CUBIC';
   public readonly isToroidal = false;
   public readonly isCubic = true;
+  public readonly isBounded = true;
   public readonly boardSize: number;
   public readonly cellSize: number;
+
+  public get width(): number {
+    return this.boardSize;
+  }
+
+  public get height(): number {
+    return this.boardSize;
+  }
+
+  public get faceCount(): number {
+    return 6;
+  }
 
   constructor(options?: ICubicTopologyOptions) {
     this.boardSize = options?.boardSize ?? 8;
     this.cellSize = options?.cellSize ?? 1.0;
+  }
+
+  public getFaceFromCoordinate(coord: CoordinateKey): number {
+    return this.parse(coord).face;
   }
 
   public parse(coord: CoordinateKey): { face: number; x: number; y: number } {
@@ -76,9 +107,9 @@ export class CubicTopology implements ITopology {
   }
 
   /**
-   * Resolves adjacent cell crossing edges between cube faces.
+   * Resolves adjacent cell crossing edges between cube faces with direction transport.
    */
-  public getNeighbor(coord: CoordinateKey, dir: DirectionIndex | number): CoordinateKey | null {
+  public getStepWithDirection(coord: CoordinateKey, dir: DirectionIndex | number): ICubicStep | null {
     if (dir < 0 || dir >= DELTAS.length) return null;
     const { face, x, y } = this.parse(coord);
     const [dx, dy] = DELTAS[dir];
@@ -86,66 +117,77 @@ export class CubicTopology implements ITopology {
     const ny = y + dy;
     const N = this.boardSize;
 
-    // Within same face
+    // Within same face: coordinate changes, direction remains constant
     if (nx >= 0 && nx < N && ny >= 0 && ny < N) {
-      return asCoordinateKey(`${face}:${nx},${ny}`);
+      return {
+        coord: asCoordinateKey(`${face}:${nx},${ny}`),
+        dir,
+      };
     }
 
-    // Edge crossing transitions:
-    // Only orthogonal transitions fold cleanly across cube edges;
-    // diagonal transitions off an edge corner fold via primary axis.
     const crossX = nx < 0 ? -1 : nx >= N ? 1 : 0;
     const crossY = ny < 0 ? -1 : ny >= N ? 1 : 0;
 
     let targetFace = face;
     let targetX = nx;
     let targetY = ny;
+    let targetDir = dir;
 
-    // Face transitions based on unfolding cube net
+    // Face transitions based on unfolding cube net with direction orientation transport
     // Face 0: TOP, 1: BOTTOM, 2: FRONT, 3: BACK, 4: LEFT, 5: RIGHT
     if (face === 2) {
       // FRONT
-      if (crossY === 1) { targetFace = 0; targetY = 0; } // to TOP
-      else if (crossY === -1) { targetFace = 1; targetY = N - 1; } // to BOTTOM
-      else if (crossX === -1) { targetFace = 4; targetX = N - 1; } // to LEFT
-      else if (crossX === 1) { targetFace = 5; targetX = 0; } // to RIGHT
+      if (crossY === 1) { targetFace = 0; targetY = 0; targetDir = 0; }
+      else if (crossY === -1) { targetFace = 1; targetY = N - 1; targetDir = 4; }
+      else if (crossX === -1) { targetFace = 4; targetX = N - 1; targetDir = 6; }
+      else if (crossX === 1) { targetFace = 5; targetX = 0; targetDir = 2; }
     } else if (face === 0) {
       // TOP
-      if (crossY === 1) { targetFace = 3; targetY = N - 1; targetX = N - 1 - nx; } // to BACK (flipped)
-      else if (crossY === -1) { targetFace = 2; targetY = N - 1; } // to FRONT
-      else if (crossX === -1) { targetFace = 4; targetX = ny; targetY = N - 1; } // to LEFT
-      else if (crossX === 1) { targetFace = 5; targetX = N - 1 - ny; targetY = N - 1; } // to RIGHT
+      if (crossY === 1) { targetFace = 3; targetY = N - 1; targetX = N - 1 - nx; targetDir = 4; }
+      else if (crossY === -1) { targetFace = 2; targetY = N - 1; targetDir = 4; }
+      else if (crossX === -1) { targetFace = 4; targetX = ny; targetY = N - 1; targetDir = 4; }
+      else if (crossX === 1) { targetFace = 5; targetX = N - 1 - ny; targetY = N - 1; targetDir = 4; }
     } else if (face === 1) {
       // BOTTOM
-      if (crossY === 1) { targetFace = 2; targetY = 0; } // to FRONT
-      else if (crossY === -1) { targetFace = 3; targetY = 0; targetX = N - 1 - nx; } // to BACK
-      else if (crossX === -1) { targetFace = 4; targetX = N - 1 - ny; targetY = 0; } // to LEFT
-      else if (crossX === 1) { targetFace = 5; targetX = ny; targetY = 0; } // to RIGHT
+      if (crossY === 1) { targetFace = 2; targetY = 0; targetDir = 0; }
+      else if (crossY === -1) { targetFace = 3; targetY = 0; targetX = N - 1 - nx; targetDir = 0; }
+      else if (crossX === -1) { targetFace = 4; targetX = N - 1 - ny; targetY = 0; targetDir = 0; }
+      else if (crossX === 1) { targetFace = 5; targetX = ny; targetY = 0; targetDir = 0; }
     } else if (face === 3) {
       // BACK
-      if (crossY === 1) { targetFace = 0; targetY = N - 1; targetX = N - 1 - nx; } // to TOP
-      else if (crossY === -1) { targetFace = 1; targetY = 0; targetX = N - 1 - nx; } // to BOTTOM
-      else if (crossX === -1) { targetFace = 5; targetX = N - 1; } // to RIGHT
-      else if (crossX === 1) { targetFace = 4; targetX = 0; } // to LEFT
+      if (crossY === 1) { targetFace = 0; targetY = N - 1; targetX = N - 1 - nx; targetDir = 4; }
+      else if (crossY === -1) { targetFace = 1; targetY = 0; targetX = N - 1 - nx; targetDir = 0; }
+      else if (crossX === -1) { targetFace = 5; targetX = N - 1; targetDir = 6; }
+      else if (crossX === 1) { targetFace = 4; targetX = 0; targetDir = 2; }
     } else if (face === 4) {
       // LEFT
-      if (crossY === 1) { targetFace = 0; targetY = nx; targetX = 0; } // to TOP
-      else if (crossY === -1) { targetFace = 1; targetY = N - 1 - nx; targetX = 0; } // to BOTTOM
-      else if (crossX === -1) { targetFace = 3; targetX = N - 1; } // to BACK
-      else if (crossX === 1) { targetFace = 2; targetX = 0; } // to FRONT
+      if (crossY === 1) { targetFace = 0; targetY = nx; targetX = 0; targetDir = 2; }
+      else if (crossY === -1) { targetFace = 1; targetY = N - 1 - nx; targetX = 0; targetDir = 2; }
+      else if (crossX === -1) { targetFace = 3; targetX = N - 1; targetDir = 6; }
+      else if (crossX === 1) { targetFace = 2; targetX = 0; targetDir = 2; }
     } else if (face === 5) {
       // RIGHT
-      if (crossY === 1) { targetFace = 0; targetY = N - 1 - nx; targetX = N - 1; } // to TOP
-      else if (crossY === -1) { targetFace = 1; targetY = nx; targetX = N - 1; } // to BOTTOM
-      else if (crossX === -1) { targetFace = 2; targetX = N - 1; } // to FRONT
-      else if (crossX === 1) { targetFace = 3; targetX = 0; } // to BACK
+      if (crossY === 1) { targetFace = 0; targetY = N - 1 - nx; targetX = N - 1; targetDir = 6; }
+      else if (crossY === -1) { targetFace = 1; targetY = nx; targetX = N - 1; targetDir = 6; }
+      else if (crossX === -1) { targetFace = 2; targetX = N - 1; targetDir = 6; }
+      else if (crossX === 1) { targetFace = 3; targetX = 0; targetDir = 2; }
     }
 
-    // Clamp coordinates safely into target face
     targetX = Math.max(0, Math.min(N - 1, targetX));
     targetY = Math.max(0, Math.min(N - 1, targetY));
 
-    return asCoordinateKey(`${targetFace}:${targetX},${targetY}`);
+    return {
+      coord: asCoordinateKey(`${targetFace}:${targetX},${targetY}`),
+      dir: targetDir,
+    };
+  }
+
+  /**
+   * Resolves adjacent cell crossing edges between cube faces.
+   */
+  public getNeighbor(coord: CoordinateKey, dir: DirectionIndex | number): CoordinateKey | null {
+    const step = this.getStepWithDirection(coord, dir);
+    return step ? step.coord : null;
   }
 
   public getAllNeighbors(coord: CoordinateKey): CoordinateKey[] {
@@ -162,13 +204,21 @@ export class CubicTopology implements ITopology {
   }
 
   public distance(a: CoordinateKey, b: CoordinateKey): number {
+    if (a === b) return 0;
     const pa = this.parse(a);
     const pb = this.parse(b);
     if (pa.face === pb.face) {
       return Math.max(Math.abs(pa.x - pb.x), Math.abs(pa.y - pb.y));
     }
-    // Across faces: Chebyshev distance on face plus face distance offset
-    return 1 + Math.max(Math.abs(pa.x - pb.x), Math.abs(pa.y - pb.y));
+    for (let d = 0; d < 8; d++) {
+      if (this.getNeighbor(a, d) === b) return 1;
+    }
+    const wa = this.toWorldPosition(a);
+    const wb = this.toWorldPosition(b);
+    const dx = Math.abs(wa.x - wb.x) / this.cellSize;
+    const dy = Math.abs(wa.y - wb.y) / this.cellSize;
+    const dz = Math.abs(wa.z - wb.z) / this.cellSize;
+    return Math.max(dx, dy, dz);
   }
 
   public toWorldPosition(coord: CoordinateKey): IWorldPosition {
@@ -196,12 +246,20 @@ export class CubicTopology implements ITopology {
 
   public getRay(start: CoordinateKey, dir: DirectionIndex | number, maxDistance = 64): CoordinateKey[] {
     const ray: CoordinateKey[] = [];
-    let current: CoordinateKey | null = start;
+    let current: CoordinateKey = start;
+    let currentDir = dir;
+    const visited = new Set<string>();
+    visited.add(`${current}@${currentDir}`);
 
     for (let i = 0; i < maxDistance; i++) {
-      current = this.getNeighbor(current, dir);
-      if (current === null) break;
-      ray.push(current);
+      const step = this.getStepWithDirection(current, currentDir);
+      if (!step) break;
+      const stateKey = `${step.coord}@${step.dir}`;
+      if (visited.has(stateKey)) break;
+      visited.add(stateKey);
+      ray.push(step.coord);
+      current = step.coord;
+      currentDir = step.dir;
     }
 
     return ray;

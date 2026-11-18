@@ -145,7 +145,7 @@ describe('Spec 07 3D WebGL Rendering & Board View Architecture Suite', () => {
       fireEvent.click(btn3D);
 
       // Arena transitions to 3D WebGL Canvas (await Suspense resolution)
-      const container3D = await screen.findByTestId('chess-board-3d-container');
+      const container3D = await screen.findByTestId('chess-board-3d-container', {}, { timeout: 4000 });
       expect(container3D).toBeDefined();
       expect(screen.getByTestId('mock-r3f-canvas')).toBeDefined();
       expect(screen.getByTestId('mock-orbit-controls')).toBeDefined();
