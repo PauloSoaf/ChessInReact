@@ -20,6 +20,7 @@ import { MultiplayerFactionRibbon } from './ui/components/game/MultiplayerFactio
 import { DuckChessBanner } from './ui/components/game/DuckChessBanner';
 import { VariantMatchBanner } from './ui/components/game/VariantMatchBanner';
 import { OfficialSpellBar } from './ui/components/game/OfficialSpellBar';
+import { ReserveDropsBar } from './ui/components/game/ReserveDropsBar';
 import { SpellCardHand } from './analysis/minigames/SpellCardHand';
 import { ISpellCard } from './analysis/minigames/SpellChessEngine';
 import { useUniversalMatch } from './bindings/react/useUniversalMatch';
@@ -105,6 +106,7 @@ const AppContent: React.FC = () => {
   const [pendingDrawOffer, setPendingDrawOffer] = useState<PlayerId | null>(null);
   const [selectedOfficialSpell, setSelectedOfficialSpell] = useState<'FREEZE' | 'JUMP' | null>(null);
   const [selectedExpandedSpell, setSelectedExpandedSpell] = useState<ISpellCard | null>(null);
+  const [selectedDropPiece, setSelectedDropPiece] = useState<string | null>(null);
   const [portalFirstSquare, setPortalFirstSquare] = useState<string | null>(null);
 
   const { preferences, updatePreferences } = useTheme();
@@ -233,6 +235,7 @@ const AppContent: React.FC = () => {
     setPendingDrawOffer(null);
     setSelectedOfficialSpell(null);
     setSelectedExpandedSpell(null);
+    setSelectedDropPiece(null);
     setPortalFirstSquare(null);
     if (universalMatch.snapshot.config.matchId === gameStore.getState().domain.matchId) {
       universalMatch.resetUniversalMatch();
@@ -265,6 +268,19 @@ const AppContent: React.FC = () => {
 
   const handleVariantSquareClick = useCallback(
     (coord: string): boolean => {
+      if (selectedDropPiece) {
+        const ok = universalMatch.dropPiece(selectedDropPiece, coord);
+        if (ok) {
+          const pName = selectedDropPiece;
+          setSelectedDropPiece(null);
+          triggerFeedback('GAME_EVENT', {
+            message: `Peça ${pName} inserida na casa ${coord}!`,
+          });
+          return true;
+        }
+        return false;
+      }
+
       if (universalMatch.snapshot.duckPhase === 'PLACE_DUCK') {
         const placed = universalMatch.placeDuck(coord);
         if (placed) {
@@ -317,6 +333,7 @@ const AppContent: React.FC = () => {
       clearFeedback,
       selectedOfficialSpell,
       selectedExpandedSpell,
+      selectedDropPiece,
       portalFirstSquare,
       triggerFeedback,
     ]
@@ -779,6 +796,27 @@ const AppContent: React.FC = () => {
                     />
                   </div>
                 )}
+
+              {/* Shogi, Crazyhouse & Seirawan Reserve Drops Bar */}
+              {(universalMatch.snapshot.config.variantId.toUpperCase().includes('SHOGI') ||
+                universalMatch.snapshot.config.variantId.toUpperCase().includes('CRAZYHOUSE') ||
+                universalMatch.snapshot.config.variantId.toUpperCase().includes('SEIRAWAN')) && (
+                <ReserveDropsBar
+                  activePlayer={activePlayer}
+                  playerLabel={activePlayer === 'P1' ? 'Brancas' : 'Pretas'}
+                  reservePieces={
+                    activePlayer === 'P1'
+                      ? Object.values(domain.boardEntities).filter(
+                          (e): e is IPieceEntity => e.type === 'PIECE' && e.isCaptured && e.ownerId === 'P2'
+                        )
+                      : Object.values(domain.boardEntities).filter(
+                          (e): e is IPieceEntity => e.type === 'PIECE' && e.isCaptured && e.ownerId === 'P1'
+                        )
+                  }
+                  selectedPieceVariant={selectedDropPiece}
+                  onSelectDropPiece={setSelectedDropPiece}
+                />
+              )}
 
               {/* Top Player Strip (Opponent - Black P2 or Bot 2) */}
               <div className="match-stage-player-wrap">

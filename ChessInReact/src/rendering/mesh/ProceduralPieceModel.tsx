@@ -177,3 +177,4 @@ export const ProceduralPieceModel: React.FC<IProceduralPieceModelProps> = ({
     </group>
   );
 };
+

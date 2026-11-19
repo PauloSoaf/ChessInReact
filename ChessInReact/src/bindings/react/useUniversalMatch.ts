@@ -70,6 +70,13 @@ export function useUniversalMatch(initialConfig?: IMatchConfiguration) {
     return false;
   }, []);
 
+  const dropPiece = useCallback((pieceVariant: string, targetCoord: string) => {
+    if (controllerRef.current) {
+      return controllerRef.current.dropPiece(pieceVariant, targetCoord);
+    }
+    return false;
+  }, []);
+
   const onHumanPieceMoved = useCallback((from: string, to: string, pieceId: string) => {
     if (controllerRef.current) {
       controllerRef.current.onHumanPieceMoved(from, to, pieceId);
@@ -122,6 +129,7 @@ export function useUniversalMatch(initialConfig?: IMatchConfiguration) {
     setSpeed,
     stepForward,
     placeDuck,
+    dropPiece,
     onHumanPieceMoved,
     castOfficialSpell,
     castExpandedSpell,

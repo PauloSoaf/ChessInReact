@@ -45,6 +45,11 @@ export class VariantMapConfig {
       return col < 0 || col >= 10 || row < 0 || row >= 8;
     }
 
+    // 2. Xiangqi (Chinese Chess): 9 columns x 10 ranks (column 9 is void when rendered in a 10x10 grid)
+    if (v.includes('XIANGQI')) {
+      return col < 0 || col >= 9 || row < 0 || row >= 10;
+    }
+
     // 2. 4-Player Cross Arena (14x14 with 3x3 corner cutouts = 160 active squares)
     if (
       v === 'FOUR_PLAYER_FFA' ||

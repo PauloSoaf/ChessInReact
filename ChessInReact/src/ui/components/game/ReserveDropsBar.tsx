@@ -1,0 +1,91 @@
+import React from 'react';
+import { IPieceEntity } from '../../../core/entities/types';
+import { PlayerId } from '../../../core/coordinates/types';
+import { chessPieces } from '../../../constants/chessPieces';
+
+export interface IReserveDropsBarProps {
+  activePlayer: PlayerId;
+  reservePieces: readonly IPieceEntity[];
+  selectedPieceVariant: string | null;
+  onSelectDropPiece: (variantId: string | null) => void;
+  playerLabel: string;
+}
+
+export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
+  reservePieces,
+  selectedPieceVariant,
+  onSelectDropPiece,
+  playerLabel,
+}) => {
+  if (reservePieces.length === 0) return null;
+
+  // Group by variantId
+  const counts = new Map<string, number>();
+  for (const p of reservePieces) {
+    const key = p.variantId.toUpperCase();
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  return (
+    <div
+      data-testid="reserve-drops-bar"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '6px 12px',
+        borderRadius: 'var(--radius-md, 8px)',
+        backgroundColor: 'var(--bg-card, #1e293b)',
+        border: '1px solid var(--border-prominent, #475569)',
+        margin: '6px 0',
+      }}
+    >
+      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary, #94a3b8)' }}>
+        Reserva ({playerLabel}):
+      </span>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+        {Array.from(counts.entries()).map(([variant, count]) => {
+          const isSelected = selectedPieceVariant === variant;
+          const pieceInfo = chessPieces[variant.toLowerCase()] ?? { symbol: variant[0] };
+          return (
+            <button
+              key={`drop-btn-${variant}`}
+              data-testid={`drop-btn-${variant.toLowerCase()}`}
+              aria-pressed={isSelected}
+              onClick={() => onSelectDropPiece(isSelected ? null : variant)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 8px',
+                fontSize: '0.85rem',
+                borderRadius: 'var(--radius-sm, 4px)',
+                border: isSelected ? '2px solid #10b981' : '1px solid var(--border-subtle, #334155)',
+                backgroundColor: isSelected ? '#065f46' : 'var(--bg-secondary, #0f172a)',
+                color: '#fff',
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              <span>{pieceInfo.symbol}</span>
+              <span>{variant}</span>
+              {count > 1 && (
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    backgroundColor: 'rgba(255,255,255,0.2)',
+                    padding: '1px 5px',
+                    borderRadius: '10px',
+                  }}
+                >
+                  ×{count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+

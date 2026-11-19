@@ -136,6 +136,15 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
     if (v.includes('TORUS') || v.includes('TOROIDAL')) {
       return new SquareTopology({ width: boardSize, height: boardSize, toroidal: true });
     }
+    if (v.includes('CAPABLANCA')) {
+      return new SquareTopology({ width: 10, height: 8 });
+    }
+    if (v.includes('XIANGQI')) {
+      return new SquareTopology({ width: 9, height: 10 });
+    }
+    if (v.includes('SHOGI')) {
+      return new SquareTopology({ width: 9, height: 9 });
+    }
     return new SquareTopology({ width: boardSize, height: boardSize });
   }, [propTopology, domain.variantId, boardSize]);
 
