@@ -158,7 +158,7 @@ const Piece3DModel: React.FC<{
       </mesh>
 
       {/* Piece Specific Geometries */}
-      {normType.includes('PAWN') && (
+      {(normType.includes('PAWN') || normType.includes('SOLDIER')) && (
         <group position={[0, 0.12, 0]}>
           <mesh castShadow position={[0, 0.24, 0]}>
             <cylinderGeometry args={[0.16, 0.32, 0.44, 16]} />
@@ -171,7 +171,7 @@ const Piece3DModel: React.FC<{
         </group>
       )}
 
-      {normType.includes('ROOK') && (
+      {(normType.includes('ROOK') || normType.includes('CHARIOT') || normType.includes('LANCE')) && (
         <group position={[0, 0.12, 0]}>
           <mesh castShadow position={[0, 0.32, 0]}>
             <cylinderGeometry args={[0.26, 0.34, 0.6, 16]} />
@@ -184,7 +184,7 @@ const Piece3DModel: React.FC<{
         </group>
       )}
 
-      {normType.includes('KNIGHT') && (
+      {(normType.includes('KNIGHT') || normType.includes('HORSE')) && (
         <group position={[0, 0.12, 0]}>
           <mesh castShadow position={[0, 0.32, 0]} rotation={[0.12, isWhite ? 0 : Math.PI, 0]}>
             <cylinderGeometry args={[0.22, 0.34, 0.6, 16]} />
@@ -197,7 +197,11 @@ const Piece3DModel: React.FC<{
         </group>
       )}
 
-      {normType.includes('BISHOP') && (
+      {(normType.includes('BISHOP') ||
+        normType.includes('ELEPHANT') ||
+        normType.includes('SILVER') ||
+        normType.includes('GOLD') ||
+        normType.includes('ADVISOR')) && (
         <group position={[0, 0.12, 0]}>
           <mesh castShadow position={[0, 0.36, 0]}>
             <cylinderGeometry args={[0.2, 0.34, 0.7, 16]} />
@@ -231,7 +235,11 @@ const Piece3DModel: React.FC<{
         </group>
       )}
 
-      {normType.includes('KING') && (
+      {(normType.includes('KING') ||
+        normType.includes('GENERAL') ||
+        normType.includes('GYOKU') ||
+        normType.includes('JIANG') ||
+        normType.includes('SHUAI')) && (
         <group position={[0, 0.12, 0]}>
           <mesh castShadow position={[0, 0.46, 0]}>
             <cylinderGeometry args={[0.26, 0.36, 0.9, 16]} />
@@ -255,12 +263,38 @@ const Piece3DModel: React.FC<{
         </group>
       )}
 
+      {normType.includes('CANNON') && (
+        <group position={[0, 0.12, 0]}>
+          <mesh castShadow position={[0, 0.32, 0]}>
+            <cylinderGeometry args={[0.24, 0.32, 0.52, 16]} />
+            <meshStandardMaterial color={effectivePedestalColor} metalness={metalness} roughness={roughness} />
+          </mesh>
+          <mesh castShadow position={[0, 0.65, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.14, 0.16, 0.6, 16]} />
+            <meshStandardMaterial color="#475569" metalness={0.8} roughness={0.2} />
+          </mesh>
+        </group>
+      )}
+
       {!normType.includes('PAWN') &&
+        !normType.includes('SOLDIER') &&
         !normType.includes('ROOK') &&
+        !normType.includes('CHARIOT') &&
+        !normType.includes('LANCE') &&
         !normType.includes('KNIGHT') &&
+        !normType.includes('HORSE') &&
         !normType.includes('BISHOP') &&
+        !normType.includes('ELEPHANT') &&
+        !normType.includes('SILVER') &&
+        !normType.includes('GOLD') &&
+        !normType.includes('ADVISOR') &&
         !normType.includes('QUEEN') &&
-        !normType.includes('KING') && (
+        !normType.includes('KING') &&
+        !normType.includes('GENERAL') &&
+        !normType.includes('GYOKU') &&
+        !normType.includes('JIANG') &&
+        !normType.includes('SHUAI') &&
+        !normType.includes('CANNON') && (
           <group position={[0, 0.12, 0]}>
             <mesh castShadow position={[0, 0.38, 0]}>
               <cylinderGeometry args={[0.22, 0.34, 0.72, 16]} />

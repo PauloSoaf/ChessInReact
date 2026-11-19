@@ -103,11 +103,23 @@ export class SliderBehavior implements IMoveBehavior {
 
     for (const dir of directions) {
       let current: CoordinateKey = startCoord;
+      let currentDir: number = dir;
       let dist = 0;
       let jumpedBlockers = 0;
 
       while (dist < maxStepLimit) {
-        const next = topology.getNeighbor(current, dir);
+        let next: CoordinateKey | null = null;
+        const topoWithDir = topology as unknown as {
+          getStepWithDirection?(coord: CoordinateKey, dir: number): { coord: CoordinateKey; dir: number } | null;
+        };
+        if (typeof topoWithDir.getStepWithDirection === 'function') {
+          const step = topoWithDir.getStepWithDirection(current, currentDir);
+          if (!step) break;
+          next = step.coord;
+          currentDir = step.dir;
+        } else {
+          next = topology.getNeighbor(current, currentDir);
+        }
         if (!next) break;
 
         if (!topology.isValidCoordinate(next)) break;

@@ -147,47 +147,107 @@ export class RulesEngine {
 
     if (isPawn && parsedFrom && parsedTo) {
       const isCubic = Boolean((topology as { readonly isCubic?: boolean }).isCubic);
-      const forwardDir = isWhite ? 0 : 4;
-      const startRank = isWhite ? 1 : 6;
-      const f1 = isCubic
-        ? topology.getNeighbor(piece.position, forwardDir)
-        : toCoordKey(parsedFrom.x, parsedFrom.y + (isWhite ? 1 : -1));
-      const f2 = isCubic
-        ? (f1 ? topology.getNeighbor(f1, forwardDir) : null)
-        : toCoordKey(parsedFrom.x, parsedFrom.y + (isWhite ? 2 : -2));
+      const isShogi = Boolean(
+        variantConfig?.variantId?.toUpperCase().includes('SHOGI') ||
+        state.variantId?.toUpperCase().includes('SHOGI')
+      );
+      const isXiangqi = Boolean(
+        variantConfig?.variantId?.toUpperCase().includes('XIANGQI') ||
+        state.variantId?.toUpperCase().includes('XIANGQI')
+      );
 
-      // 1-step forward
-      if (intent.to === f1 && !destOccupantId) {
-        isReachable = true;
-      }
-      // 2-step forward (or Jump leap over 1 square)
-      else if (
-        intent.to === f2 &&
-        ((parsedFrom.y === startRank && !piece.hasMoved) || hasJumpBuff) &&
-        !destOccupantId
-      ) {
-        if (!isCubic) {
-          const intermediate = toCoordKey(parsedFrom.x, parsedFrom.y + (isWhite ? 1 : -1));
-          if (!state.occupancy[intermediate] || hasJumpBuff) {
-            isReachable = true;
-          }
-        } else {
-          if (!f1 || !state.occupancy[f1] || hasJumpBuff) {
-            isReachable = true;
+      // Multi-directional pawn advancement vector [pdx, pdy]
+      let pdx = 0;
+      let pdy = isWhite ? 1 : -1;
+      if (!isCubic && !isShogi && !isXiangqi) {
+        const bw = (topology as { readonly width?: number }).width ?? 8;
+        const bh = (topology as { readonly height?: number }).height ?? 8;
+        const cx = (bw - 1) / 2;
+        const cy = (bh - 1) / 2;
+
+        if (bw > 8 || bh > 8) {
+          if (piece.ownerId === 'P3' || (piece.ownerId as string) === 'FACTION_3') {
+            pdx = 0;
+            pdy = -1; // North flank advances South
+          } else if (piece.ownerId === 'P4' || (piece.ownerId as string) === 'FACTION_4') {
+            pdx = -1;
+            pdy = 0; // East flank advances West
+          } else if (piece.ownerId === 'P2' || (piece.ownerId as string) === 'FACTION_2') {
+            pdx = 1;
+            pdy = 0; // West flank advances East
+          } else {
+            const diffX = parsedFrom.x - cx;
+            const diffY = parsedFrom.y - cy;
+            if (Math.abs(diffX) > Math.abs(diffY) + 0.5) {
+              pdx = diffX < 0 ? 1 : -1;
+              pdy = 0;
+            }
           }
         }
       }
-      // Diagonal capture
-      else {
-        const diagTargets = isCubic
-          ? (isWhite ? [topology.getNeighbor(piece.position, 7), topology.getNeighbor(piece.position, 1)] : [topology.getNeighbor(piece.position, 5), topology.getNeighbor(piece.position, 3)])
-          : [toCoordKey(parsedFrom.x - 1, parsedFrom.y + (isWhite ? 1 : -1)), toCoordKey(parsedFrom.x + 1, parsedFrom.y + (isWhite ? 1 : -1))];
-        if (diagTargets.includes(intent.to)) {
-          if (destOccupantId) {
-            isReachable = true;
-          } else if (intent.to === state.turnState.enPassantTarget) {
-            isReachable = true;
-            isEnPassant = true;
+
+      if (isShogi) {
+        // Shogi pawn: 1 step straight forward, captures straight forward
+        const target = toCoordKey(parsedFrom.x, parsedFrom.y + (isWhite ? 1 : -1));
+        if (intent.to === target) {
+          isReachable = true;
+        }
+      } else if (isXiangqi) {
+        // Xiangqi soldier: 1 step forward; after crossing the river, also 1 step sideways
+        const forwardStep = toCoordKey(parsedFrom.x, parsedFrom.y + (isWhite ? 1 : -1));
+        const crossedRiver = isWhite ? parsedFrom.y >= 5 : parsedFrom.y <= 4;
+        const sidewaysSteps = crossedRiver
+          ? [toCoordKey(parsedFrom.x - 1, parsedFrom.y), toCoordKey(parsedFrom.x + 1, parsedFrom.y)]
+          : [];
+        if (intent.to === forwardStep || sidewaysSteps.includes(intent.to)) {
+          isReachable = true;
+        }
+      } else {
+        const forwardDir = isWhite ? 0 : 4;
+        const startRank = isWhite ? 1 : 6;
+        const f1 = isCubic
+          ? topology.getNeighbor(piece.position, forwardDir)
+          : toCoordKey(parsedFrom.x + pdx, parsedFrom.y + pdy);
+        const f2 = isCubic
+          ? (f1 ? topology.getNeighbor(f1, forwardDir) : null)
+          : toCoordKey(parsedFrom.x + 2 * pdx, parsedFrom.y + 2 * pdy);
+
+        // 1-step forward
+        if (intent.to === f1 && !destOccupantId) {
+          isReachable = true;
+        }
+        // 2-step forward (or Jump leap over 1 square)
+        else if (
+          intent.to === f2 &&
+          ((((pdx === 0 && parsedFrom.y === startRank) || (!piece.hasMoved && pdx !== 0)) && !piece.hasMoved) || hasJumpBuff) &&
+          !destOccupantId
+        ) {
+          if (!isCubic) {
+            const intermediate = toCoordKey(parsedFrom.x + pdx, parsedFrom.y + pdy);
+            if (!state.occupancy[intermediate] || hasJumpBuff) {
+              isReachable = true;
+            }
+          } else {
+            if (!f1 || !state.occupancy[f1] || hasJumpBuff) {
+              isReachable = true;
+            }
+          }
+        }
+        // Diagonal capture
+        else {
+          const diagTargets = isCubic
+            ? (isWhite ? [topology.getNeighbor(piece.position, 7), topology.getNeighbor(piece.position, 1)] : [topology.getNeighbor(piece.position, 5), topology.getNeighbor(piece.position, 3)])
+            : [
+                toCoordKey(parsedFrom.x + pdx - pdy, parsedFrom.y + pdy + pdx),
+                toCoordKey(parsedFrom.x + pdx + pdy, parsedFrom.y + pdy - pdx),
+              ];
+          if (diagTargets.includes(intent.to)) {
+            if (destOccupantId) {
+              isReachable = true;
+            } else if (intent.to === state.turnState.enPassantTarget) {
+              isReachable = true;
+              isEnPassant = true;
+            }
           }
         }
       }
@@ -333,6 +393,39 @@ export class RulesEngine {
         code: 'GEOMETRICALLY_INVALID',
         reason: `Move from ${intent.from} to ${intent.to} is geometrically invalid.`,
       };
+    }
+
+    if (parsedFrom && parsedTo) {
+      const isXiangqi = Boolean(
+        variantConfig?.variantId?.toUpperCase().includes('XIANGQI') ||
+        state.variantId?.toUpperCase().includes('XIANGQI')
+      );
+      if (isXiangqi) {
+        if (vUpper === 'ELEPHANT') {
+          if (piece.ownerId === 'P1' && parsedTo.y > 4) {
+            return { valid: false, code: 'GEOMETRICALLY_INVALID', reason: 'Xiangqi: Elefante não pode atravessar o rio.' };
+          }
+          if (piece.ownerId === 'P2' && parsedTo.y < 5) {
+            return { valid: false, code: 'GEOMETRICALLY_INVALID', reason: 'Xiangqi: Elefante não pode atravessar o rio.' };
+          }
+          const midX = (parsedFrom.x + parsedTo.x) / 2;
+          const midY = (parsedFrom.y + parsedTo.y) / 2;
+          if (state.occupancy[toCoordKey(midX, midY)]) {
+            return { valid: false, code: 'PATH_OBSTRUCTED', reason: 'Xiangqi: Olho do Elefante bloqueado.' };
+          }
+        }
+        if (vUpper === 'GENERAL' || vUpper === 'JIANG' || vUpper === 'SHUAI' || vUpper === 'ADVISOR') {
+          if (parsedTo.x < 3 || parsedTo.x > 5) {
+            return { valid: false, code: 'GEOMETRICALLY_INVALID', reason: 'Xiangqi: Peça real/conselheiro não pode sair do palácio.' };
+          }
+          if (piece.ownerId === 'P1' && (parsedTo.y < 0 || parsedTo.y > 2)) {
+            return { valid: false, code: 'GEOMETRICALLY_INVALID', reason: 'Xiangqi: Peça real/conselheiro não pode sair do palácio.' };
+          }
+          if (piece.ownerId === 'P2' && (parsedTo.y < 7 || parsedTo.y > 9)) {
+            return { valid: false, code: 'GEOMETRICALLY_INVALID', reason: 'Xiangqi: Peça real/conselheiro não pode sair do palácio.' };
+          }
+        }
+      }
     }
 
     const capturedPieceId: EntityId | undefined = isEnPassant
@@ -536,6 +629,15 @@ export class RulesEngine {
     if (isPawn && parsedFrom) {
       const isCubic = Boolean((topology as { readonly isCubic?: boolean }).isCubic);
       const isToroidal = Boolean((topology as { readonly isToroidal?: boolean }).isToroidal);
+      const isShogi = Boolean(
+        variantConfig?.variantId?.toUpperCase().includes('SHOGI') ||
+        state.variantId?.toUpperCase().includes('SHOGI')
+      );
+      const isXiangqi = Boolean(
+        variantConfig?.variantId?.toUpperCase().includes('XIANGQI') ||
+        state.variantId?.toUpperCase().includes('XIANGQI')
+      );
+
       const tw = (topology as { readonly width?: number }).width ?? 8;
       const th = (topology as { readonly height?: number }).height ?? 8;
       const wrapY = (y: number) => (isToroidal ? ((y % th) + th) % th : y);
@@ -547,75 +649,130 @@ export class RulesEngine {
           : toCoordKey(x, y);
       };
 
-      const forwardDir = isWhite ? 0 : 4;
-      const f1 = isCubic
-        ? topology.getNeighbor(piece.position, forwardDir)
-        : makeCoord(parsedFrom.x, wrapY(parsedFrom.y + (isWhite ? 1 : -1)));
-
-      if (f1 && topology.isValidCoordinate(f1) && !state.occupancy[f1]) {
-        candidateDestinations.push(f1);
-
-        // 2-step forward
-        const startRank = isWhite ? 1 : 6;
-        if (parsedFrom.y === startRank && !piece.hasMoved) {
-          const f2 = isCubic
-            ? topology.getNeighbor(f1, forwardDir)
-            : makeCoord(parsedFrom.x, wrapY(parsedFrom.y + (isWhite ? 2 : -2)));
-          if (f2 && topology.isValidCoordinate(f2) && !state.occupancy[f2]) {
-            candidateDestinations.push(f2);
+      if (isShogi) {
+        const f1 = makeCoord(parsedFrom.x, parsedFrom.y + (isWhite ? 1 : -1));
+        if (topology.isValidCoordinate(f1)) {
+          const occId = state.occupancy[f1];
+          if (!occId || (state.boardEntities[occId] as IPieceEntity | undefined)?.ownerId !== piece.ownerId) {
+            candidateDestinations.push(f1);
           }
         }
-      } else if (hasJumpBuff) {
-        const f2 = isCubic
-          ? (f1 ? topology.getNeighbor(f1, forwardDir) : null)
-          : makeCoord(parsedFrom.x, wrapY(parsedFrom.y + (isWhite ? 2 : -2)));
-        if (f2 && topology.isValidCoordinate(f2) && !state.occupancy[f2]) {
-          candidateDestinations.push(f2);
+      } else if (isXiangqi) {
+        const forwardCoord = makeCoord(parsedFrom.x, parsedFrom.y + (isWhite ? 1 : -1));
+        const crossedRiver = isWhite ? parsedFrom.y >= 5 : parsedFrom.y <= 4;
+        const candidates = [forwardCoord];
+        if (crossedRiver) {
+          candidates.push(makeCoord(parsedFrom.x - 1, parsedFrom.y), makeCoord(parsedFrom.x + 1, parsedFrom.y));
         }
-      }
-
-      // Diagonal captures & En Passant
-      if (isCubic) {
-        const diagDirs = isWhite ? [7, 1] : [5, 3];
-        for (const dir of diagDirs) {
-          const diag = topology.getNeighbor(piece.position, dir);
-          if (diag && topology.isValidCoordinate(diag)) {
-            const occId = state.occupancy[diag];
-            if (occId) {
-              const victim = state.boardEntities[occId] as IPieceEntity | undefined;
-              if (
-                victim &&
-                victim.type === 'PIECE' &&
-                !victim.isCaptured &&
-                victim.ownerId !== piece.ownerId &&
-                !victim.metadata?.isShielded
-              ) {
-                candidateDestinations.push(diag);
-              }
-            } else if (diag === state.turnState.enPassantTarget) {
-              candidateDestinations.push(diag);
+        for (const c of candidates) {
+          if (topology.isValidCoordinate(c)) {
+            const occId = state.occupancy[c];
+            if (!occId || (state.boardEntities[occId] as IPieceEntity | undefined)?.ownerId !== piece.ownerId) {
+              candidateDestinations.push(c);
             }
           }
         }
       } else {
-        const advanceDy = isWhite ? 1 : -1;
-        for (const dx of [-1, 1]) {
-          const diag = makeCoord(wrapX(parsedFrom.x + dx), wrapY(parsedFrom.y + advanceDy));
-          if (topology.isValidCoordinate(diag)) {
-            const occId = state.occupancy[diag];
-            if (occId) {
-              const victim = state.boardEntities[occId] as IPieceEntity | undefined;
-              if (
-                victim &&
-                victim.type === 'PIECE' &&
-                !victim.isCaptured &&
-                victim.ownerId !== piece.ownerId &&
-                !victim.metadata?.isShielded
-              ) {
+        // Multi-directional pawn advancement vector [pdx, pdy]
+        let pdx = 0;
+        let pdy = isWhite ? 1 : -1;
+        if (!isCubic) {
+          const cx = (tw - 1) / 2;
+          const cy = (th - 1) / 2;
+          if (tw > 8 || th > 8) {
+            if (piece.ownerId === 'P3' || (piece.ownerId as string) === 'FACTION_3') {
+              pdx = 0;
+              pdy = -1; // North in 4P
+            } else if (piece.ownerId === 'P4' || (piece.ownerId as string) === 'FACTION_4') {
+              pdx = -1;
+              pdy = 0; // East in 4P
+            } else if (piece.ownerId === 'P2' || (piece.ownerId as string) === 'FACTION_2') {
+              pdx = 1;
+              pdy = 0; // West in 4P
+            } else {
+              const diffX = parsedFrom.x - cx;
+              const diffY = parsedFrom.y - cy;
+              if (Math.abs(diffX) > Math.abs(diffY) + 0.5) {
+                pdx = diffX < 0 ? 1 : -1;
+                pdy = 0;
+              }
+            }
+          }
+        }
+
+        const forwardDir = isWhite ? 0 : 4;
+        const f1 = isCubic
+          ? topology.getNeighbor(piece.position, forwardDir)
+          : makeCoord(wrapX(parsedFrom.x + pdx), wrapY(parsedFrom.y + pdy));
+
+        if (f1 && topology.isValidCoordinate(f1) && !state.occupancy[f1]) {
+          candidateDestinations.push(f1);
+
+          // 2-step forward
+          const startRank = isWhite ? 1 : 6;
+          const isAtStart = (pdx === 0 && parsedFrom.y === startRank) || (!piece.hasMoved && pdx !== 0);
+          if (isAtStart && !piece.hasMoved) {
+            const f2 = isCubic
+              ? topology.getNeighbor(f1, forwardDir)
+              : makeCoord(wrapX(parsedFrom.x + 2 * pdx), wrapY(parsedFrom.y + 2 * pdy));
+            if (f2 && topology.isValidCoordinate(f2) && !state.occupancy[f2]) {
+              candidateDestinations.push(f2);
+            }
+          }
+        } else if (hasJumpBuff) {
+          const f2 = isCubic
+            ? (f1 ? topology.getNeighbor(f1, forwardDir) : null)
+            : makeCoord(wrapX(parsedFrom.x + 2 * pdx), wrapY(parsedFrom.y + 2 * pdy));
+          if (f2 && topology.isValidCoordinate(f2) && !state.occupancy[f2]) {
+            candidateDestinations.push(f2);
+          }
+        }
+
+        // Diagonal captures & En Passant
+        if (isCubic) {
+          const diagDirs = isWhite ? [7, 1] : [5, 3];
+          for (const dir of diagDirs) {
+            const diag = topology.getNeighbor(piece.position, dir);
+            if (diag && topology.isValidCoordinate(diag)) {
+              const occId = state.occupancy[diag];
+              if (occId) {
+                const victim = state.boardEntities[occId] as IPieceEntity | undefined;
+                if (
+                  victim &&
+                  victim.type === 'PIECE' &&
+                  !victim.isCaptured &&
+                  victim.ownerId !== piece.ownerId &&
+                  !victim.metadata?.isShielded
+                ) {
+                  candidateDestinations.push(diag);
+                }
+              } else if (diag === state.turnState.enPassantTarget) {
                 candidateDestinations.push(diag);
               }
-            } else if (diag === state.turnState.enPassantTarget) {
-              candidateDestinations.push(diag);
+            }
+          }
+        } else {
+          const diagTargets = [
+            makeCoord(wrapX(parsedFrom.x + pdx - pdy), wrapY(parsedFrom.y + pdy + pdx)),
+            makeCoord(wrapX(parsedFrom.x + pdx + pdy), wrapY(parsedFrom.y + pdy - pdx)),
+          ];
+          for (const diag of diagTargets) {
+            if (topology.isValidCoordinate(diag)) {
+              const occId = state.occupancy[diag];
+              if (occId) {
+                const victim = state.boardEntities[occId] as IPieceEntity | undefined;
+                if (
+                  victim &&
+                  victim.type === 'PIECE' &&
+                  !victim.isCaptured &&
+                  victim.ownerId !== piece.ownerId &&
+                  !victim.metadata?.isShielded
+                ) {
+                  candidateDestinations.push(diag);
+                }
+              } else if (diag === state.turnState.enPassantTarget) {
+                candidateDestinations.push(diag);
+              }
             }
           }
         }
@@ -756,6 +913,24 @@ export class RulesEngine {
       const destParsed = parseCoord(dest);
       if (destParsed && VariantMapConfig.isVoidSquare(state.variantId, destParsed.x, destParsed.y, boardWidth)) {
         continue;
+      }
+      const isXiangqi = Boolean(
+        variantConfig?.variantId?.toUpperCase().includes('XIANGQI') ||
+        state.variantId?.toUpperCase().includes('XIANGQI')
+      );
+      if (isXiangqi && parsedFrom && destParsed) {
+        if (vUpper === 'ELEPHANT') {
+          if (piece.ownerId === 'P1' && destParsed.y > 4) continue;
+          if (piece.ownerId === 'P2' && destParsed.y < 5) continue;
+          const midX = (parsedFrom.x + destParsed.x) / 2;
+          const midY = (parsedFrom.y + destParsed.y) / 2;
+          if (state.occupancy[toCoordKey(midX, midY)]) continue;
+        }
+        if (vUpper === 'GENERAL' || vUpper === 'JIANG' || vUpper === 'SHUAI' || vUpper === 'ADVISOR') {
+          if (destParsed.x < 3 || destParsed.x > 5) continue;
+          if (piece.ownerId === 'P1' && (destParsed.y < 0 || destParsed.y > 2)) continue;
+          if (piece.ownerId === 'P2' && (destParsed.y < 7 || destParsed.y > 9)) continue;
+        }
       }
       const destTerrainId = state.terrain?.[dest];
       const destTerrain = destTerrainId ? state.boardEntities[destTerrainId] : undefined;

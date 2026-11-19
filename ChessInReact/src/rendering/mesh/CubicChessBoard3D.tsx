@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
 import { IPieceEntity } from '../../core/entities/types';
+import { ProceduralPieceModel } from './ProceduralPieceModel';
 
 export interface ICubicChessBoard3DProps {
   boardSize?: number;
@@ -143,26 +144,23 @@ export const CubicChessBoard3D: React.FC<ICubicChessBoard3DProps> = ({
             position={face.position}
             rotation={face.rotation}
           >
-            <mesh
+            <group
               key={`cube-piece-${piece.id}`}
               name={`cube-piece-${piece.id}`}
-              position={[localX, localY, 0.35]}
+              position={[localX, localY, 0.05]}
               rotation={[Math.PI / 2, 0, 0]}
-              castShadow
               onClick={(e) => {
                 e.stopPropagation();
                 onPieceClick?.(piece.id, piece.position);
               }}
             >
-              <cylinderGeometry args={[0.24, 0.3, 0.65, 16]} />
-              <meshStandardMaterial
-                color={isWhite ? '#f8fafc' : '#0f172a'}
-                emissive={piece.id === selectedPieceId ? '#f59e0b' : '#000000'}
-                emissiveIntensity={piece.id === selectedPieceId ? 0.6 : 0}
-                roughness={0.3}
-                metalness={0.2}
+              <ProceduralPieceModel
+                variantId={piece.variantId}
+                isWhite={isWhite}
+                ownerId={piece.ownerId}
+                isSelected={piece.id === selectedPieceId}
               />
-            </mesh>
+            </group>
           </group>
         );
       })}

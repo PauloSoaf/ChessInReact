@@ -675,7 +675,18 @@ export class UniversalMatchController {
       readonly payload: Readonly<Record<string, unknown>>;
     } | undefined
   ): void {
-    if (!action || action.type !== 'CAST_SPELL') return;
+    if (!action) return;
+
+    if (action.type === 'DROP_PIECE') {
+      const pieceVariant = action.payload.pieceVariant as string;
+      const targetCoord = action.payload.targetCoord as string;
+      if (pieceVariant && targetCoord) {
+        this.dropPiece(pieceVariant, targetCoord);
+      }
+      return;
+    }
+
+    if (action.type !== 'CAST_SPELL') return;
 
     const spellType = action.payload.spellType;
     if (this.officialSpellState && (spellType === 'FREEZE' || spellType === 'JUMP')) {
@@ -697,6 +708,57 @@ export class UniversalMatchController {
         this.castExpandedSpell(spell, target, action.payload.sourceCoord as string | undefined);
       }
     }
+  }
+
+  /**
+   * Drops a piece from reserve onto the board (Shogi, Bughouse, Crazyhouse, Seirawan).
+   */
+  public dropPiece(pieceVariant: string, targetCoord: string): boolean {
+    const domain = gameStore.getState().domain;
+    const coordKey = asCoordinateKey(targetCoord);
+    if (domain.occupancy[coordKey]) return false;
+
+    // Find captured piece of this variant owned or captured by active player
+    const capturedPiece = Object.values(domain.boardEntities).find(
+      (e): e is IPieceEntity =>
+        e.type === 'PIECE' &&
+        e.isCaptured &&
+        e.variantId.toUpperCase() === pieceVariant.toUpperCase()
+    );
+
+    const pieceId = capturedPiece?.id ?? asEntityId(`drop_${domain.activePlayer}_${pieceVariant.toLowerCase()}_${Date.now()}`);
+    const droppedEntity: IPieceEntity = capturedPiece
+      ? {
+          ...capturedPiece,
+          ownerId: domain.activePlayer,
+          position: coordKey,
+          isCaptured: false,
+          hasMoved: true,
+        }
+      : {
+          id: pieceId,
+          type: 'PIECE',
+          ownerId: domain.activePlayer,
+          variantId: pieceVariant.toUpperCase(),
+          position: coordKey,
+          isCaptured: false,
+          hasMoved: true,
+        };
+
+    const nextEntities = { ...domain.boardEntities, [pieceId]: droppedEntity };
+    const nextOccupancy = { ...domain.occupancy, [coordKey]: pieceId };
+
+    gameStore.setState((s) => ({
+      domain: {
+        ...s.domain,
+        boardEntities: nextEntities,
+        occupancy: nextOccupancy,
+      },
+    }));
+
+    this.notify();
+    this.scheduleAutonomousTurnIfNeeded();
+    return true;
   }
 
   /**

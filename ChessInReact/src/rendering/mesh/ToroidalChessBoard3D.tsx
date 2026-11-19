@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
 import { IPieceEntity } from '../../core/entities/types';
+import { ProceduralPieceModel } from './ProceduralPieceModel';
 
 export interface IToroidalChessBoard3DProps {
   boardSize?: number;
@@ -126,32 +127,39 @@ export const ToroidalChessBoard3D: React.FC<IToroidalChessBoard3DProps> = ({
         const theta = (2 * Math.PI * c) / boardSize;
         const phi = (2 * Math.PI * r) / boardSize;
 
-        const x = (majorRadius + (minorRadius + 0.35) * Math.cos(phi)) * Math.cos(theta);
-        const y = (minorRadius + 0.35) * Math.sin(phi);
-        const z = (majorRadius + (minorRadius + 0.35) * Math.cos(phi)) * Math.sin(theta);
+        const tubeCenterX = majorRadius * Math.cos(theta);
+        const tubeCenterZ = majorRadius * Math.sin(theta);
+
+        const x = (majorRadius + minorRadius * Math.cos(phi)) * Math.cos(theta);
+        const y = minorRadius * Math.sin(phi);
+        const z = (majorRadius + minorRadius * Math.cos(phi)) * Math.sin(theta);
+
+        const normal = new THREE.Vector3(x - tubeCenterX, y, z - tubeCenterZ).normalize();
+        const rotX = Math.atan2(normal.y, Math.sqrt(normal.x * normal.x + normal.z * normal.z));
+        const rotY = Math.atan2(normal.x, normal.z);
 
         const isWhite = piece.ownerId === 'P1';
 
         return (
-          <mesh
-            key={`torus-piece-${piece.id}`}
+          <group
+            key={`torus-piece-grp-${piece.id}`}
             name={`torus-piece-${piece.id}`}
             position={[x, y, z]}
-            castShadow
+            rotation={[-rotX, rotY, 0]}
             onClick={(e) => {
               e.stopPropagation();
               onPieceClick?.(piece.id, piece.position);
             }}
           >
-            <cylinderGeometry args={[0.22, 0.28, 0.6, 16]} />
-            <meshStandardMaterial
-              color={isWhite ? '#f8fafc' : '#0f172a'}
-              emissive={piece.id === selectedPieceId ? '#f59e0b' : '#000000'}
-              emissiveIntensity={piece.id === selectedPieceId ? 0.6 : 0}
-              roughness={0.3}
-              metalness={0.2}
-            />
-          </mesh>
+            <group rotation={[Math.PI / 2, 0, 0]}>
+              <ProceduralPieceModel
+                variantId={piece.variantId}
+                isWhite={isWhite}
+                ownerId={piece.ownerId}
+                isSelected={piece.id === selectedPieceId}
+              />
+            </group>
+          </group>
         );
       })}
     </group>

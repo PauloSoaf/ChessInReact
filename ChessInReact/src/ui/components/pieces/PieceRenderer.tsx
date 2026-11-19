@@ -25,6 +25,35 @@ const UNICODE_GLYPHS: Record<string, string> = {
   FERZ: '♝',
   WAZIR: '♜',
   GRASSHOPPER: '♛',
+  LANCE: '香',
+  SILVER: '銀',
+  GOLD: '金',
+  GYOKU: '玉',
+  GENERAL: '王',
+  CANNON: '砲',
+  ADVISOR: '仕',
+  ELEPHANT: '相',
+  CHARIOT: '車',
+  HORSE: '馬',
+  SOLDIER: '兵',
+  JIANG: '將',
+  SHUAI: '帥',
+};
+
+const ASIAN_AND_FAIRY_GLYPHS: Record<string, string> = {
+  LANCE: '香',
+  SILVER: '銀',
+  GOLD: '金',
+  GYOKU: '玉',
+  GENERAL: '王',
+  CANNON: '砲',
+  ADVISOR: '仕',
+  ELEPHANT: '相',
+  CHARIOT: '車',
+  HORSE: '馬',
+  SOLDIER: '兵',
+  JIANG: '將',
+  SHUAI: '帥',
 };
 
 const FACTION_FILL_COLORS: Record<string, { fill: string; stroke: string; collar: string }> = {
@@ -235,7 +264,68 @@ export const PieceRenderer: React.FC<IPieceRendererProps> = ({
     );
   }
 
-  // 3. Default: Neo Classic Staunton Atelier (Sculpted Staunton Vector + Semantic Glyph)
+  // 3. Asian & Fairy Canonical Tokens (Shogi Pentagonal Tiles & Xiangqi Circular Discs)
+  if (ASIAN_AND_FAIRY_GLYPHS[normVariant]) {
+    const character = ASIAN_AND_FAIRY_GLYPHS[normVariant];
+    const isShogiPiece = ['LANCE', 'SILVER', 'GOLD', 'GYOKU'].includes(normVariant);
+    return (
+      <span
+        data-testid="asian-fairy-piece"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: size,
+          height: size,
+          maxWidth: '85%',
+          maxHeight: '85%',
+          userSelect: 'none',
+          lineHeight: 1,
+        }}
+      >
+        <svg
+          viewBox="0 0 45 45"
+          style={{
+            width: '100%',
+            height: '100%',
+            filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45))',
+          }}
+        >
+          <title>{`${normVariant} (${character})`}</title>
+          {isShogiPiece ? (
+            <polygon
+              points={isWhite ? '22.5,4 40,12 36,41 9,41 5,12' : '22.5,41 40,33 36,4 9,4 5,33'}
+              fill={isWhite ? '#fef3c7' : '#78350f'}
+              stroke={isWhite ? '#b45309' : '#fef3c7'}
+              strokeWidth="2"
+            />
+          ) : (
+            <circle
+              cx="22.5"
+              cy="22.5"
+              r="19"
+              fill={isWhite ? '#fffbeb' : '#1c1917'}
+              stroke={isWhite ? '#dc2626' : '#991b1b'}
+              strokeWidth="2.5"
+            />
+          )}
+          <text
+            x="22.5"
+            y={isShogiPiece ? (isWhite ? 28 : 22) : 29}
+            textAnchor="middle"
+            fill={isWhite ? (isShogiPiece ? '#78350f' : '#dc2626') : (isShogiPiece ? '#fef3c7' : '#ef4444')}
+            fontSize={isShogiPiece ? '18' : '20'}
+            fontFamily="'Noto Serif SC', 'Noto Serif JP', 'Songti SC', 'SimSun', serif"
+            fontWeight="bold"
+          >
+            {character}
+          </text>
+        </svg>
+      </span>
+    );
+  }
+
+  // 4. Default: Neo Classic Staunton Atelier (Sculpted Staunton Vector + Semantic Glyph)
   const staunton = STAUNTON_ATELIER_PIECES[normVariant] ?? STAUNTON_ATELIER_PIECES.PAWN;
   const factionTheme = FACTION_FILL_COLORS[ownerId];
   const bodyFill = factionTheme ? factionTheme.fill : isWhite ? '#FAF8F4' : '#141B24';
