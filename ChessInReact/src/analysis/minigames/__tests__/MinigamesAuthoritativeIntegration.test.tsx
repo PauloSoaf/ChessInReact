@@ -243,4 +243,117 @@ describe('Minigames & Non-Euclidean Topologies Authoritative Integration Suite',
       expect(res.isGameOver).toBe(false);
     });
   });
+
+  describe('7. Shogi (Japanese Chess 9x9 Authoritative Board & Army)', () => {
+    it('initializes canonical 9x9 board with 40 pieces and fairy move behaviors', () => {
+      const config = MatchConfigurationManager.createDefaultMatch('SHOGI', 2);
+      controller = new UniversalMatchController(config);
+      controller.startMatch();
+
+      const topology = controller.getTopology();
+      expect(topology.type).toBe('SQUARE');
+      expect((topology as { width?: number }).width).toBe(9);
+      expect((topology as { height?: number }).height).toBe(9);
+
+      const state = gameStore.getState().domain;
+      const pieces = Object.values(state.boardEntities).filter(
+        (e): e is IPieceEntity => e.type === 'PIECE' && !e.isCaptured
+      );
+      expect(pieces).toHaveLength(40); // Exactly 40 pieces in canonical Shogi
+
+      const whiteGold = pieces.find((p) => p.ownerId === 'P1' && p.variantId === 'GOLD');
+      expect(whiteGold).toBeDefined();
+
+      const whiteSilver = pieces.find((p) => p.ownerId === 'P1' && p.variantId === 'SILVER');
+      expect(whiteSilver).toBeDefined();
+
+      const whiteLance = pieces.find((p) => p.ownerId === 'P1' && p.variantId === 'LANCE');
+      expect(whiteLance).toBeDefined();
+    });
+  });
+
+  describe('8. Xiangqi (Chinese Chess 9x10 Authoritative Board & Army)', () => {
+    it('initializes canonical 9x10 board with 32 pieces and fairy move behaviors', () => {
+      const config = MatchConfigurationManager.createDefaultMatch('XIANGQI', 2);
+      controller = new UniversalMatchController(config);
+      controller.startMatch();
+
+      const topology = controller.getTopology();
+      expect(topology.type).toBe('SQUARE');
+      expect((topology as { width?: number }).width).toBe(9);
+      expect((topology as { height?: number }).height).toBe(10);
+
+      const state = gameStore.getState().domain;
+      const pieces = Object.values(state.boardEntities).filter(
+        (e): e is IPieceEntity => e.type === 'PIECE' && !e.isCaptured
+      );
+      expect(pieces).toHaveLength(32); // Exactly 32 pieces in canonical Xiangqi
+
+      const redCannons = pieces.filter((p) => p.ownerId === 'P1' && p.variantId === 'CANNON');
+      expect(redCannons).toHaveLength(2);
+
+      const redSoldiers = pieces.filter((p) => p.ownerId === 'P1' && p.variantId === 'SOLDIER');
+      expect(redSoldiers).toHaveLength(5);
+    });
+  });
+
+  describe('9. Three-Check and Five-Check Game Termination', () => {
+    it('ends game with checkmate status when 3 checks threshold is met', () => {
+      const config = MatchConfigurationManager.createDefaultMatch('THREE_CHECK', 2);
+      controller = new UniversalMatchController(config);
+      controller.startMatch();
+
+      const topology = controller.getTopology();
+      const baseState = gameStore.getState().domain;
+
+      // Simulate state with 3 checks delivered by P1
+      const threeCheckState = {
+        ...baseState,
+        metadata: {
+          threeCheckState: {
+            whiteChecksDelivered: 3,
+            blackChecksDelivered: 0,
+            threshold: 3,
+            isGameOver: true,
+            winner: 'WHITE',
+          },
+        },
+      };
+
+      const result = GameOverDetector.evaluateGameResult(threeCheckState, topology, 10);
+      expect(result.isGameOver).toBe(true);
+      expect(result.winnerId).toBe('P1');
+    });
+  });
+
+  describe('10. No Castling Variant Restriction', () => {
+    it('strictly forbids castling moves even when king and rook have not moved', () => {
+      const config = MatchConfigurationManager.createDefaultMatch('no_castling', 2);
+      controller = new UniversalMatchController(config);
+      controller.startMatch();
+
+      const topology = controller.getTopology();
+      const state = gameStore.getState().domain;
+
+      const whiteKing = (Object.values(state.boardEntities) as IPieceEntity[]).find(
+        (p) => p.type === 'PIECE' && p.variantId === 'KING' && p.ownerId === 'P1'
+      );
+      expect(whiteKing).toBeDefined();
+
+      // Clear f1 and g1 to allow clear path
+      const customDomain = {
+        ...state,
+        occupancy: {
+          ...state.occupancy,
+          [asCoordinateKey('5,0')]: undefined,
+          [asCoordinateKey('6,0')]: undefined,
+        } as unknown as typeof state.occupancy,
+      };
+
+      const legalMoves = RulesEngine.getLegalMovesForPiece(whiteKing!, customDomain, topology);
+      // Kingside castling move to 6,0 must NOT be in legal moves
+      const castlingMove = legalMoves.find((m) => m.to === asCoordinateKey('6,0'));
+      expect(castlingMove).toBeUndefined();
+    });
+  });
 });

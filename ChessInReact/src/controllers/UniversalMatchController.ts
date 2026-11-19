@@ -109,6 +109,12 @@ export class UniversalMatchController {
     if (v === 'CAPABLANCA_CHESS') {
       return new SquareTopology({ width: 10, height: 8 });
     }
+    if (v === 'SHOGI') {
+      return new SquareTopology({ width: 9, height: 9 });
+    }
+    if (v === 'XIANGQI') {
+      return new SquareTopology({ width: 9, height: 10 });
+    }
     if (v === 'TOROIDAL_CHESS' || v.includes('TORUS') || v.includes('TOROIDAL')) {
       return new SquareTopology({ width: 8, height: 8, toroidal: true });
     }

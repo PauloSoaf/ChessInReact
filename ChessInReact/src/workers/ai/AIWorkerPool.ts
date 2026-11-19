@@ -87,6 +87,8 @@ export class AIWorkerPool {
    */
   public static async dispatchDecision(request: IAIDecisionRequest): Promise<IAIDecisionResponse> {
     this.ensureInitialized();
+    // Yield to the event loop so UI / HUD updates and rendering frames are not blocked
+    await new Promise((resolve) => setTimeout(resolve, 0));
     const participants = Number(request.specializedContext?.participantCount ?? 2);
     const strategyId = this.selectStrategyForVariant(request.variantId, participants);
     const strategy = this.strategies.get(strategyId);

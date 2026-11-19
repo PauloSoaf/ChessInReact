@@ -88,7 +88,8 @@ export class GameOverDetector {
     }
 
     // 1.8. Three-Check and Five-Check victory (Spec 13 § 4.1, RF-13-07)
-    const threeCheckMeta = (state as { metadata?: Record<string, unknown> }).metadata?.threeCheckState as
+    const threeCheckMeta = ((state as { metadata?: Record<string, unknown> }).metadata?.threeCheckState ??
+      (state as unknown as { threeCheckState?: unknown }).threeCheckState) as
       | { isGameOver?: boolean; winner?: string; whiteChecksDelivered?: number; blackChecksDelivered?: number }
       | undefined;
     if (threeCheckMeta?.isGameOver) {

@@ -551,6 +551,10 @@ const AppContent: React.FC = () => {
       const v = config.variantId.toUpperCase();
       if (v === 'CAPABLANCA_CHESS') {
         handleBoardSizeChange(10);
+      } else if (v === 'SHOGI') {
+        handleBoardSizeChange(9);
+      } else if (v === 'XIANGQI') {
+        handleBoardSizeChange(10);
       } else {
         const arenaLayout = CompositeArenaLayouts.getLayout(v as ArenaModeId);
         if (arenaLayout) {

@@ -118,6 +118,76 @@ export class BetzaParser {
       return grasshopper;
     }
 
+    // Historical fairy piece behaviors (Shogi & Xiangqi - Spec 13 § 4.1)
+    if (normalizedUpper === 'GOLD') {
+      const gold = [
+        new LeaperBehavior(1, 0), // Wazir (orthogonal)
+        new LeaperBehavior(1, 1, { forwardOnly: true }), // Forward Ferz
+      ];
+      BEHAVIOR_CACHE.set(trimmed, gold);
+      return gold;
+    }
+
+    if (normalizedUpper === 'SILVER') {
+      const silver = [
+        new LeaperBehavior(1, 1), // Ferz (diagonal)
+        new LeaperBehavior(1, 0, { forwardOnly: true }), // Forward Wazir
+      ];
+      BEHAVIOR_CACHE.set(trimmed, silver);
+      return silver;
+    }
+
+    if (normalizedUpper === 'LANCE') {
+      const lance = [new SliderBehavior(['ORTHOGONAL'], 64, { forwardOnly: true })];
+      BEHAVIOR_CACHE.set(trimmed, lance);
+      return lance;
+    }
+
+    if (normalizedUpper === 'CHARIOT') {
+      const chariot = [new SliderBehavior(['ORTHOGONAL'])];
+      BEHAVIOR_CACHE.set(trimmed, chariot);
+      return chariot;
+    }
+
+    if (normalizedUpper === 'CANNON') {
+      const cannon = [
+        new SliderBehavior(['ORTHOGONAL'], 64, { canCapture: false }),
+        new HopperBehavior(['ORTHOGONAL'], 64, { canMove: false, canCapture: true }),
+      ];
+      BEHAVIOR_CACHE.set(trimmed, cannon);
+      return cannon;
+    }
+
+    if (normalizedUpper === 'ELEPHANT') {
+      const elephant = [new LeaperBehavior(2, 2)]; // Alfil
+      BEHAVIOR_CACHE.set(trimmed, elephant);
+      return elephant;
+    }
+
+    if (normalizedUpper === 'ADVISOR') {
+      const advisor = [new LeaperBehavior(1, 1)]; // Ferz
+      BEHAVIOR_CACHE.set(trimmed, advisor);
+      return advisor;
+    }
+
+    if (normalizedUpper === 'GENERAL' || normalizedUpper === 'GYOKU') {
+      const general = [new LeaperBehavior(1, 0), new LeaperBehavior(1, 1)]; // King / Gyoku
+      BEHAVIOR_CACHE.set(trimmed, general);
+      return general;
+    }
+
+    if (normalizedUpper === 'HORSE') {
+      const horse = [new LeaperBehavior(1, 2)]; // Knight
+      BEHAVIOR_CACHE.set(trimmed, horse);
+      return horse;
+    }
+
+    if (normalizedUpper === 'SOLDIER') {
+      const soldier = [new LeaperBehavior(1, 0, { forwardOnly: true })];
+      BEHAVIOR_CACHE.set(trimmed, soldier);
+      return soldier;
+    }
+
     // 2. Structural tokenization of Betza string
     // Token structure: [prefixes]* (Letter | (m,n)) [range]?
     const behaviors: IMoveBehavior[] = [];

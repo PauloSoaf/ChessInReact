@@ -410,7 +410,14 @@ export class CheckValidator {
         entity.type === 'PIECE' &&
         !entity.isCaptured &&
         entity.ownerId === playerId &&
-        (entity.variantId.toUpperCase() === 'KING' || entity.variantId.toUpperCase() === 'K')
+        (
+          entity.variantId.toUpperCase() === 'KING' ||
+          entity.variantId.toUpperCase() === 'K' ||
+          entity.variantId.toUpperCase() === 'GENERAL' ||
+          entity.variantId.toUpperCase() === 'GYOKU' ||
+          entity.variantId.toUpperCase() === 'JIANG' ||
+          entity.variantId.toUpperCase() === 'SHUAI'
+        )
       ) {
         return entity;
       }

@@ -52,7 +52,17 @@ export class VariantPieceInitializer {
       return this.createCubicPieces();
     }
 
-    // 7. Standard 8x8 square board pieces (Classic, Duck, Spells, Atomic, Antichess, etc.)
+    // 7. Shogi (9x9 Japanese Chess)
+    if (v === 'SHOGI') {
+      return this.createShogiPieces();
+    }
+
+    // 8. Xiangqi (9x10 Chinese Chess)
+    if (v === 'XIANGQI') {
+      return this.createXiangqiPieces();
+    }
+
+    // 9. Standard 8x8 square board pieces (Classic, Duck, Spells, Atomic, Antichess, etc.)
     return createStandardChessPieces();
   }
 
@@ -471,6 +481,196 @@ export class VariantPieceInitializer {
         ownerId: 'P2',
         variantId: 'PAWN',
         position: asCoordinateKey(`3:${x},6`),
+        hasMoved: false,
+        isCaptured: false,
+      });
+    }
+
+    return pieces;
+  }
+
+  /**
+   * Spawns canonical 40 pieces for Shogi on a 9x9 board.
+   */
+  private static createShogiPieces(): IPieceEntity[] {
+    const pieces: IPieceEntity[] = [];
+    const backRank = ['LANCE', 'KNIGHT', 'SILVER', 'GOLD', 'KING', 'GOLD', 'SILVER', 'KNIGHT', 'LANCE'];
+
+    // White (Sente / P1)
+    for (let x = 0; x < 9; x++) {
+      pieces.push({
+        id: asEntityId(`w-shogi-${backRank[x].toLowerCase()}-${x}`),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: backRank[x],
+        position: SquareCodec.encode(createSquareCoord(x, 0)),
+        hasMoved: false,
+        isCaptured: false,
+      });
+      pieces.push({
+        id: asEntityId(`w-shogi-pawn-${x}`),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: 'PAWN',
+        position: SquareCodec.encode(createSquareCoord(x, 2)),
+        hasMoved: false,
+        isCaptured: false,
+      });
+    }
+    // White Bishop & Rook (Rank 1)
+    pieces.push({
+      id: asEntityId('w-shogi-bishop-1'),
+      type: 'PIECE',
+      ownerId: 'P1',
+      variantId: 'BISHOP',
+      position: SquareCodec.encode(createSquareCoord(1, 1)),
+      hasMoved: false,
+      isCaptured: false,
+    });
+    pieces.push({
+      id: asEntityId('w-shogi-rook-7'),
+      type: 'PIECE',
+      ownerId: 'P1',
+      variantId: 'ROOK',
+      position: SquareCodec.encode(createSquareCoord(7, 1)),
+      hasMoved: false,
+      isCaptured: false,
+    });
+
+    // Black (Gote / P2)
+    for (let x = 0; x < 9; x++) {
+      pieces.push({
+        id: asEntityId(`b-shogi-${backRank[x].toLowerCase()}-${x}`),
+        type: 'PIECE',
+        ownerId: 'P2',
+        variantId: backRank[x],
+        position: SquareCodec.encode(createSquareCoord(x, 8)),
+        hasMoved: false,
+        isCaptured: false,
+      });
+      pieces.push({
+        id: asEntityId(`b-shogi-pawn-${x}`),
+        type: 'PIECE',
+        ownerId: 'P2',
+        variantId: 'PAWN',
+        position: SquareCodec.encode(createSquareCoord(x, 6)),
+        hasMoved: false,
+        isCaptured: false,
+      });
+    }
+    // Black Rook & Bishop (Rank 7)
+    pieces.push({
+      id: asEntityId('b-shogi-rook-1'),
+      type: 'PIECE',
+      ownerId: 'P2',
+      variantId: 'ROOK',
+      position: SquareCodec.encode(createSquareCoord(1, 7)),
+      hasMoved: false,
+      isCaptured: false,
+    });
+    pieces.push({
+      id: asEntityId('b-shogi-bishop-7'),
+      type: 'PIECE',
+      ownerId: 'P2',
+      variantId: 'BISHOP',
+      position: SquareCodec.encode(createSquareCoord(7, 7)),
+      hasMoved: false,
+      isCaptured: false,
+    });
+
+    return pieces;
+  }
+
+  /**
+   * Spawns canonical 32 pieces for Xiangqi (Chinese Chess) on a 9x10 board.
+   */
+  private static createXiangqiPieces(): IPieceEntity[] {
+    const pieces: IPieceEntity[] = [];
+    const backRank = ['CHARIOT', 'HORSE', 'ELEPHANT', 'ADVISOR', 'KING', 'ADVISOR', 'ELEPHANT', 'HORSE', 'CHARIOT'];
+
+    // Red (P1)
+    for (let x = 0; x < 9; x++) {
+      pieces.push({
+        id: asEntityId(`w-xiangqi-${backRank[x].toLowerCase()}-${x}`),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: backRank[x],
+        position: SquareCodec.encode(createSquareCoord(x, 0)),
+        hasMoved: false,
+        isCaptured: false,
+      });
+    }
+    // Red Cannons (Rank 2)
+    pieces.push({
+      id: asEntityId('w-xiangqi-cannon-1'),
+      type: 'PIECE',
+      ownerId: 'P1',
+      variantId: 'CANNON',
+      position: SquareCodec.encode(createSquareCoord(1, 2)),
+      hasMoved: false,
+      isCaptured: false,
+    });
+    pieces.push({
+      id: asEntityId('w-xiangqi-cannon-7'),
+      type: 'PIECE',
+      ownerId: 'P1',
+      variantId: 'CANNON',
+      position: SquareCodec.encode(createSquareCoord(7, 2)),
+      hasMoved: false,
+      isCaptured: false,
+    });
+    // Red Soldiers (Rank 3)
+    for (const x of [0, 2, 4, 6, 8]) {
+      pieces.push({
+        id: asEntityId(`w-xiangqi-soldier-${x}`),
+        type: 'PIECE',
+        ownerId: 'P1',
+        variantId: 'SOLDIER',
+        position: SquareCodec.encode(createSquareCoord(x, 3)),
+        hasMoved: false,
+        isCaptured: false,
+      });
+    }
+
+    // Black (P2)
+    for (let x = 0; x < 9; x++) {
+      pieces.push({
+        id: asEntityId(`b-xiangqi-${backRank[x].toLowerCase()}-${x}`),
+        type: 'PIECE',
+        ownerId: 'P2',
+        variantId: backRank[x],
+        position: SquareCodec.encode(createSquareCoord(x, 9)),
+        hasMoved: false,
+        isCaptured: false,
+      });
+    }
+    // Black Cannons (Rank 7)
+    pieces.push({
+      id: asEntityId('b-xiangqi-cannon-1'),
+      type: 'PIECE',
+      ownerId: 'P2',
+      variantId: 'CANNON',
+      position: SquareCodec.encode(createSquareCoord(1, 7)),
+      hasMoved: false,
+      isCaptured: false,
+    });
+    pieces.push({
+      id: asEntityId('b-xiangqi-cannon-7'),
+      type: 'PIECE',
+      ownerId: 'P2',
+      variantId: 'CANNON',
+      position: SquareCodec.encode(createSquareCoord(7, 7)),
+      hasMoved: false,
+      isCaptured: false,
+    });
+    // Black Soldiers (Rank 6)
+    for (const x of [0, 2, 4, 6, 8]) {
+      pieces.push({
+        id: asEntityId(`b-xiangqi-soldier-${x}`),
+        type: 'PIECE',
+        ownerId: 'P2',
+        variantId: 'SOLDIER',
+        position: SquareCodec.encode(createSquareCoord(x, 6)),
         hasMoved: false,
         isCaptured: false,
       });
