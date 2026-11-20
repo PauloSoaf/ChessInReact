@@ -121,6 +121,34 @@ export function useUniversalMatch(initialConfig?: IMatchConfiguration) {
     }
   }, []);
 
+  const undo = useCallback(() => {
+    if (controllerRef.current) {
+      return controllerRef.current.undo();
+    }
+    return false;
+  }, []);
+
+  const redo = useCallback(() => {
+    if (controllerRef.current) {
+      return controllerRef.current.redo();
+    }
+    return false;
+  }, []);
+
+  const canUndo = useCallback(() => {
+    if (controllerRef.current) {
+      return controllerRef.current.canUndo();
+    }
+    return false;
+  }, []);
+
+  const canRedo = useCallback(() => {
+    if (controllerRef.current) {
+      return controllerRef.current.canRedo();
+    }
+    return false;
+  }, []);
+
   return {
     controller: controllerRef.current,
     snapshot,
@@ -136,6 +164,10 @@ export function useUniversalMatch(initialConfig?: IMatchConfiguration) {
     updateSlotRole,
     updateBotDifficulty,
     resetUniversalMatch,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   };
 }
 

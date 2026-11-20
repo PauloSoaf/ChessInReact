@@ -30,6 +30,9 @@ const BoardSquare: React.FC<IBoardSquare> = ({
   fileLabel,
   tabIndex,
   onFocusSquare,
+  hoverPreview,
+  onMouseEnter,
+  onMouseLeave,
 }) => {
   const { pieceSet, activeBoardColors } = useTheme();
   const isPiecePresent = Boolean(piece && piece.name && piece.name !== 'none');
@@ -153,6 +156,8 @@ const BoardSquare: React.FC<IBoardSquare> = ({
       data-square-col={squareInfo.column}
       data-square-row={squareInfo.row}
       onFocus={() => onFocusSquare?.(squareInfo.column, squareInfo.row)}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       className={`board-square ${
         isCheckKingError
           ? 'board-square--check-king-error'
@@ -508,6 +513,97 @@ const BoardSquare: React.FC<IBoardSquare> = ({
         >
           🦆
         </span>
+      )}
+
+      {/* Interactive Spell, Duck & Drop Hover Preview Overlay */}
+      {hoverPreview && (
+        <div
+          data-testid={`hover-preview-${hoverPreview.type.toLowerCase()}`}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            zIndex: 10,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.1s ease',
+            ...(hoverPreview.type === 'FREEZE'
+              ? {
+                  backgroundColor: hoverPreview.isCenter
+                    ? 'rgba(6, 182, 212, 0.45)'
+                    : 'rgba(6, 182, 212, 0.25)',
+                  boxShadow: hoverPreview.isCenter
+                    ? 'inset 0 0 12px #06b6d4, 0 0 12px #06b6d4'
+                    : 'inset 0 0 6px #06b6d4',
+                  border: hoverPreview.isCenter ? '2px dashed #38bdf8' : '1px dashed #06b6d4',
+                }
+              : hoverPreview.type === 'JUMP'
+              ? {
+                  backgroundColor: hoverPreview.isValid
+                    ? 'rgba(168, 85, 247, 0.35)'
+                    : 'rgba(239, 68, 68, 0.25)',
+                  boxShadow: hoverPreview.isValid ? 'inset 0 0 12px #a855f7' : 'none',
+                  border: hoverPreview.isValid ? '2px solid #c084fc' : '1px solid #ef4444',
+                }
+              : hoverPreview.type === 'DUCK'
+              ? {
+                  backgroundColor: hoverPreview.isValid
+                    ? 'rgba(234, 179, 8, 0.35)'
+                    : 'rgba(239, 68, 68, 0.25)',
+                  boxShadow: hoverPreview.isValid ? 'inset 0 0 12px #eab308' : 'none',
+                  border: hoverPreview.isValid ? '2px dashed #facc15' : '1px solid #ef4444',
+                }
+              : hoverPreview.type === 'DROP'
+              ? {
+                  backgroundColor: hoverPreview.isValid
+                    ? 'rgba(34, 197, 94, 0.35)'
+                    : 'rgba(239, 68, 68, 0.25)',
+                  boxShadow: hoverPreview.isValid ? 'inset 0 0 12px #22c55e' : 'none',
+                  border: hoverPreview.isValid ? '2px dashed #4ade80' : '1px solid #ef4444',
+                }
+              : hoverPreview.type === 'PORTAL'
+              ? {
+                  backgroundColor: hoverPreview.isValid
+                    ? 'rgba(217, 70, 239, 0.35)'
+                    : 'rgba(239, 68, 68, 0.25)',
+                  boxShadow: hoverPreview.isValid ? 'inset 0 0 12px #d946ef' : 'none',
+                  border: hoverPreview.isValid ? '2px dashed #e879f9' : '1px solid #ef4444',
+                }
+              : {
+                  backgroundColor: hoverPreview.isValid
+                    ? 'rgba(245, 158, 11, 0.35)'
+                    : 'rgba(239, 68, 68, 0.25)',
+                  boxShadow: hoverPreview.isValid ? 'inset 0 0 12px #f59e0b' : 'none',
+                  border: hoverPreview.isValid ? '2px dashed #fbbf24' : '1px solid #ef4444',
+                }),
+          }}
+        >
+          {hoverPreview.type === 'FREEZE' && hoverPreview.isCenter && (
+            <span style={{ fontSize: '1.4rem', filter: 'drop-shadow(0 0 6px #38bdf8)' }}>❄️</span>
+          )}
+          {hoverPreview.type === 'FREEZE' && !hoverPreview.isCenter && (
+            <span style={{ fontSize: '0.85rem', opacity: 0.7 }}>❄️</span>
+          )}
+          {hoverPreview.type === 'JUMP' && hoverPreview.isValid && (
+            <span style={{ fontSize: '1.4rem', filter: 'drop-shadow(0 0 6px #c084fc)' }}>⚡</span>
+          )}
+          {hoverPreview.type === 'DUCK' && hoverPreview.isValid && (
+            <span style={{ fontSize: '1.4rem', opacity: 0.85, filter: 'drop-shadow(0 0 6px #facc15)' }}>🦆</span>
+          )}
+          {hoverPreview.type === 'DROP' && hoverPreview.isValid && (
+            <span style={{ fontSize: '1.4rem', opacity: 0.85, filter: 'drop-shadow(0 0 6px #4ade80)' }}>
+              {hoverPreview.symbol ?? '♟'}
+            </span>
+          )}
+          {hoverPreview.type === 'PORTAL' && hoverPreview.isValid && (
+            <span style={{ fontSize: '1.4rem', filter: 'drop-shadow(0 0 6px #e879f9)' }}>🌀</span>
+          )}
+          {hoverPreview.type === 'TRAP' && hoverPreview.isValid && (
+            <span style={{ fontSize: '1.4rem', filter: 'drop-shadow(0 0 6px #fbbf24)' }}>💣</span>
+          )}
+        </div>
       )}
     </div>
   );

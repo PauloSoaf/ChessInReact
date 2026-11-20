@@ -6,6 +6,7 @@ export interface IOfficialSpellBarProps {
   readonly state: IOfficialSpellState;
   readonly activePlayer: PlayerId;
   readonly onCastSpell?: (spellType: 'FREEZE' | 'JUMP') => void;
+  readonly onCancelSpell?: () => void;
   readonly selectedSpellType?: 'FREEZE' | 'JUMP' | null;
 }
 
@@ -13,6 +14,7 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
   state,
   activePlayer,
   onCastSpell,
+  onCancelSpell,
   selectedSpellType,
 }) => {
   const isWhite = activePlayer === 'P1';
@@ -142,6 +144,33 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
               {charges.jumpCooldownTurns > 0 ? ` • CD: ${charges.jumpCooldownTurns}` : ''}]
             </span>
           </button>
+
+          {/* Explicit Cancel Button */}
+          {selectedSpellType && (
+            <button
+              id="btn-cancel-official-spell"
+              data-testid="btn-cancel-official-spell"
+              type="button"
+              onClick={onCancelSpell}
+              title="Cancelar seleção de feitiço (Esc)"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+                padding: '0.45rem 0.75rem',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid #ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.22)',
+                color: '#fca5a5',
+                fontSize: '0.78rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>✕ Cancelar (Esc)</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -149,18 +178,27 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
         <div
           data-testid="official-spell-instruction"
           style={{
-            fontSize: '0.72rem',
+            fontSize: '0.75rem',
             color: selectedSpellType === 'FREEZE' ? '#06b6d4' : '#a855f7',
-            backgroundColor: 'rgba(0, 0, 0, 0.2)',
-            padding: '0.25rem 0.5rem',
+            backgroundColor: 'rgba(0, 0, 0, 0.25)',
+            padding: '0.35rem 0.65rem',
             borderRadius: 'var(--radius-sm)',
             textAlign: 'center',
-            fontWeight: 600,
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.5rem',
           }}
         >
-          {selectedSpellType === 'FREEZE'
-            ? '🎯 Alvo de Freeze ativado: Clique no tabuleiro para congelar a área 3×3 (ou clique no botão novamente).'
-            : '🎯 Alvo de Jump ativado: Clique em uma peça sua no tabuleiro para conceder salto de cavalo.'}
+          <span>
+            {selectedSpellType === 'FREEZE'
+              ? '🎯 Mira de Congelamento (Freeze ativado): Passe o mouse para ver a área 3×3 e clique na casa central para congelar.'
+              : '🎯 Mira de Salto (Jump ativado): Passe o mouse sobre uma peça sua e clique para conceder salto de cavalo.'}
+          </span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-subtle)', fontStyle: 'italic' }}>
+            Pressione Esc ou clique em Cancelar para desistir
+          </span>
         </div>
       )}
     </div>

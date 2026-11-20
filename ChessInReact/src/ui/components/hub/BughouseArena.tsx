@@ -195,6 +195,20 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
   const [viewMode, setViewMode] = useState<'2D' | '3D'>('2D');
   const [isPaused, setIsPaused] = useState(false);
   const [partnerRequest, setPartnerRequest] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (reserveType || partnerRequest || selected) {
+          setReserveType(null);
+          setPartnerRequest(null);
+          setSelected(null);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [reserveType, partnerRequest, selected]);
   const [seatConfigs, setSeatConfigs] = useState<Record<SeatId, ISeatConfig>>({
     alice: { role: 'HUMAN_LOCAL', difficulty: 3 },
     bob: { role: 'HUMAN_LOCAL', difficulty: 3 },
@@ -544,6 +558,26 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
             Drop {type.toUpperCase()}
           </button>
         ))}
+        {reserveType && (
+          <button
+            id="btn-cancel-bughouse-drop"
+            data-testid="btn-cancel-bughouse-drop"
+            type="button"
+            onClick={() => setReserveType(null)}
+            style={{
+              padding: '0.25rem 0.55rem',
+              fontSize: '0.75rem',
+              borderRadius: 'var(--radius-xs)',
+              border: '1px solid #ef4444',
+              backgroundColor: 'rgba(239, 68, 68, 0.22)',
+              color: '#fca5a5',
+              cursor: 'pointer',
+              fontWeight: 800,
+            }}
+          >
+            ✕ Cancelar Drop (Esc)
+          </button>
+        )}
         <div style={{ display: 'inline-flex', gap: '0.35rem', alignItems: 'center', marginLeft: 'auto' }}>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Pedir ao Parceiro:</span>
           {(['KNIGHT', 'QUEEN', 'ROOK', 'PAWN'] as const).map((reqType) => (

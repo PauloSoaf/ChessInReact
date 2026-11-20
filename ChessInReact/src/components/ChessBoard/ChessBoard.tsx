@@ -36,6 +36,14 @@ export interface IChessBoardProps {
   activePortals?: ReadonlyArray<{ readonly coordA: string; readonly coordB: string }>;
   /** Spell Chess stealth traps */
   stealthTraps?: Readonly<Record<string, string>>;
+  /** Selected spell type for targeting hover preview ('FREEZE', 'JUMP', etc.) */
+  selectedSpellType?: 'FREEZE' | 'JUMP' | string | null;
+  /** Selected piece variant for reserve drops */
+  selectedDropPiece?: string | null;
+  /** Whether Duck Chess is waiting for duck placement (Phase 2) */
+  duckPlacementActive?: boolean;
+  /** Callback to cancel pending spell or drop action */
+  onCancelAction?: () => void;
   /** Called after a successful human move in a variant with a secondary phase. */
   onHumanPieceMoved?: (from: string, to: string, pieceId: string) => void;
   /** Handles a variant-specific click such as Duck Chess placement or Spell targeting. */
@@ -55,6 +63,10 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
   frozenCoordinates,
   activePortals,
   stealthTraps,
+  selectedSpellType,
+  selectedDropPiece,
+  duckPlacementActive,
+  onCancelAction,
   onHumanPieceMoved,
   onVariantSquareClick,
 }) => {
@@ -148,8 +160,36 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
     return new SquareTopology({ width: boardSize, height: boardSize });
   }, [propTopology, domain.variantId, boardSize]);
 
+  const effectiveWidth = (topology as { readonly width?: number }).width ?? boardSize;
+  const effectiveHeight = (topology as { readonly height?: number }).height ?? boardSize;
+
   const isCubic = Boolean((topology as { readonly isCubic?: boolean }).isCubic);
   const [selectedFace, setSelectedFace] = React.useState<number>(2); // Default face 2: FRONT
+  const [hoveredCoord, setHoveredCoord] = React.useState<string | null>(null);
+
+  const freezeBlastArea = useMemo(() => {
+    if (!hoveredCoord || selectedSpellType !== 'FREEZE') return null;
+    let center = hoveredCoord;
+    if (center.includes(':')) {
+      center = center.split(':')[1];
+    }
+    const [cxStr, cyStr] = center.split(',');
+    const cx = parseInt(cxStr, 10);
+    const cy = parseInt(cyStr, 10);
+    if (isNaN(cx) || isNaN(cy)) return null;
+
+    const set = new Set<string>();
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const tx = cx + dx;
+        const ty = cy + dy;
+        if (tx >= 0 && tx < effectiveWidth && ty >= 0 && ty < effectiveHeight) {
+          set.add(`${tx},${ty}`);
+        }
+      }
+    }
+    return { center: `${cx},${cy}`, coords: set };
+  }, [hoveredCoord, selectedSpellType, effectiveWidth, effectiveHeight]);
 
   // Automatically switch face to match selected piece
   React.useEffect(() => {
@@ -454,6 +494,67 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
           ))}
         </div>
       )}
+      {/* Interactive Action Indicator Bar with explicit Cancel button */}
+      {(selectedSpellType || selectedDropPiece || duckPlacementActive) && (
+        <div
+          data-testid="board-action-indicator"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '5px 12px',
+            marginBottom: '6px',
+            borderRadius: 'var(--radius-sm, 6px)',
+            backgroundColor: selectedSpellType === 'FREEZE'
+              ? 'rgba(6, 182, 212, 0.22)'
+              : selectedSpellType === 'JUMP'
+              ? 'rgba(168, 85, 247, 0.22)'
+              : duckPlacementActive
+              ? 'rgba(234, 179, 8, 0.22)'
+              : 'rgba(16, 185, 129, 0.22)',
+            border: selectedSpellType === 'FREEZE'
+              ? '1.5px solid #06b6d4'
+              : selectedSpellType === 'JUMP'
+              ? '1.5px solid #a855f7'
+              : duckPlacementActive
+              ? '1.5px solid #eab308'
+              : '1.5px solid #10b981',
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            color: 'var(--text-prominent, #fff)',
+          }}
+        >
+          <span>
+            {selectedSpellType === 'FREEZE' && '❄️ Modo Congelamento: Passe o mouse para ver a área 3×3 e clique para congelar.'}
+            {selectedSpellType === 'JUMP' && '⚡ Conceder Salto: Passe o mouse sobre uma peça aliada e clique.'}
+            {duckPlacementActive && '🦆 Colocar Pato: Passe o mouse sobre uma casa vazia e clique para posicionar.'}
+            {selectedDropPiece && `♟ Drop de ${selectedDropPiece}: Passe o mouse sobre uma casa vazia e clique.`}
+            {selectedSpellType === 'PORTAL' && '🌀 Portal: Clique em duas casas vazias para criar o atalho.'}
+            {selectedSpellType === 'STEALTH_TRAP' && '💣 Mina Oculta: Clique em uma casa vazia para plantar.'}
+          </span>
+          {onCancelAction && !duckPlacementActive && (
+            <button
+              type="button"
+              id="btn-board-cancel-action"
+              data-testid="btn-board-cancel-action"
+              onClick={onCancelAction}
+              style={{
+                marginLeft: '8px',
+                padding: '3px 9px',
+                fontSize: '0.72rem',
+                borderRadius: '4px',
+                border: '1px solid #ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.25)',
+                color: '#fca5a5',
+                cursor: 'pointer',
+                fontWeight: 800,
+              }}
+            >
+              ✕ Cancelar (Esc)
+            </button>
+          )}
+        </div>
+      )}
       <div
         data-testid="chess-board"
         data-variant-theme={variantTheme.themeId}
@@ -462,17 +563,17 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
           display: 'grid',
           width: '100%',
           height: '100%',
-          aspectRatio: '1 / 1',
-          gridTemplateColumns: `repeat(${boardSize}, minmax(0, 1fr))`,
-          gridTemplateRows: `repeat(${boardSize}, minmax(0, 1fr))`,
+          aspectRatio: `${effectiveWidth} / ${effectiveHeight}`,
+          gridTemplateColumns: `repeat(${effectiveWidth}, minmax(0, 1fr))`,
+          gridTemplateRows: `repeat(${effectiveHeight}, minmax(0, 1fr))`,
           position: 'relative',
           userSelect: 'none',
         }}
       >
         {derivedBoard.map((row, rowIndex) =>
           row.map((piece, columnIndex) => {
-            const gameY = isFlipped ? rowIndex : boardSize - 1 - rowIndex;
-            const gameX = isFlipped ? boardSize - 1 - columnIndex : columnIndex;
+            const gameY = isFlipped ? rowIndex : effectiveHeight - 1 - rowIndex;
+            const gameX = isFlipped ? effectiveWidth - 1 - columnIndex : columnIndex;
             const coordKey = isCubic
               ? asCoordinateKey(`${selectedFace}:${gameX},${gameY}`)
               : asCoordinateKey(`${gameX},${gameY}`);
@@ -497,7 +598,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               ? String(gameY + 1)
               : undefined;
           const fileLabel =
-            !isVoid && preferences.showCoordinates && rowIndex === boardSize - 1
+            !isVoid && preferences.showCoordinates && rowIndex === effectiveHeight - 1
               ? String.fromCharCode(97 + gameX)
               : undefined;
 
@@ -507,6 +608,54 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
           const isFrozenSquare =
             Boolean(frozenCoordinates?.includes(coordKey)) ||
             Boolean(pieceEntity?.metadata?.isFrozen);
+
+          // Calculate interactive hover preview
+          let hoverPreview: import('../../Interfaces/Interfaces').IHoverPreviewInfo | null = null;
+          const isDirectHover = hoveredCoord === coordKey || hoveredCoord === `${gameX},${gameY}`;
+
+          if (selectedSpellType === 'FREEZE') {
+            if (freezeBlastArea?.coords.has(`${gameX},${gameY}`)) {
+              hoverPreview = {
+                type: 'FREEZE',
+                isCenter: freezeBlastArea.center === `${gameX},${gameY}`,
+                isValid: true,
+              };
+            }
+          } else if (isDirectHover) {
+            if (selectedSpellType === 'JUMP') {
+              const isFriendly = Boolean(pieceEntity && pieceEntity.ownerId === domain.activePlayer);
+              hoverPreview = {
+                type: 'JUMP',
+                isValid: isFriendly,
+              };
+            } else if (duckPlacementActive) {
+              const isEmpty = !entityId && !isVoid;
+              hoverPreview = {
+                type: 'DUCK',
+                isValid: isEmpty,
+              };
+            } else if (selectedDropPiece) {
+              const isEmpty = !entityId && !isVoid;
+              const basePiece = chessPieces[selectedDropPiece.toLowerCase()] ?? { symbol: selectedDropPiece[0] };
+              hoverPreview = {
+                type: 'DROP',
+                isValid: isEmpty,
+                symbol: basePiece.symbol,
+              };
+            } else if (selectedSpellType === 'PORTAL') {
+              const isEmpty = !entityId && !isVoid;
+              hoverPreview = {
+                type: 'PORTAL',
+                isValid: isEmpty,
+              };
+            } else if (selectedSpellType === 'STEALTH_TRAP') {
+              const isEmpty = !entityId && !isVoid;
+              hoverPreview = {
+                type: 'TRAP',
+                isValid: isEmpty,
+              };
+            }
+          }
 
           return (
             <BoardSquare
@@ -544,6 +693,9 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               fileLabel={fileLabel}
               tabIndex={isRovingActive ? 0 : -1}
               onFocusSquare={handleFocusSquare}
+              hoverPreview={hoverPreview}
+              onMouseEnter={() => setHoveredCoord(coordKey)}
+              onMouseLeave={() => setHoveredCoord(null)}
             />
           );
         })

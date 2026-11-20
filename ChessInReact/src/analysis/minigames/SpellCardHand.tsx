@@ -4,7 +4,8 @@ import { ISpellCard, ISpellGameState, SPELL_CATALOG, SpellType } from './SpellCh
 export interface ISpellCardHandProps {
   readonly state: ISpellGameState;
   readonly activePlayer: 'WHITE' | 'BLACK';
-  readonly onSelectSpell?: (spell: ISpellCard) => void;
+  readonly onSelectSpell?: (spell: ISpellCard | null) => void;
+  readonly onCancelSpell?: () => void;
   readonly selectedSpellType?: SpellType | null;
 }
 
@@ -12,6 +13,7 @@ export const SpellCardHand: React.FC<ISpellCardHandProps> = ({
   state,
   activePlayer,
   onSelectSpell,
+  onCancelSpell,
   selectedSpellType,
 }) => {
   const currentMana = activePlayer === 'WHITE' ? state.whiteMana : state.blackMana;
@@ -32,6 +34,20 @@ export const SpellCardHand: React.FC<ISpellCardHandProps> = ({
           <span className="text-sm font-extrabold text-cyan-400">
             {currentMana} / {maxMana}
           </span>
+          {selectedSpellType && (
+            <button
+              id="btn-cancel-expanded-spell"
+              data-testid="btn-cancel-expanded-spell"
+              type="button"
+              onClick={() => {
+                onCancelSpell?.();
+                onSelectSpell?.(null);
+              }}
+              className="ml-2 px-2 py-0.5 rounded text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30"
+            >
+              ✕ Cancelar Feitiço (Esc)
+            </button>
+          )}
         </div>
         {/* Mana Orbs */}
         <div className="flex gap-1">

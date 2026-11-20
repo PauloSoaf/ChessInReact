@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import ChessBoard from './components/ChessBoard/ChessBoard';
-import { useActivePlayer, useGameActions, useGameStore, useTurnNumber } from './bindings/react/useGameStore';
+import { useActivePlayer, useGameStore, useTurnNumber } from './bindings/react/useGameStore';
 import { useBotMatch } from './bindings/react/useBotMatch';
 import { useMoveFeedback } from './bindings/react/useMoveFeedback';
 import { AIDifficultyLevel } from './workers/ai/interfaces/IAIEngineContracts';
@@ -33,6 +33,7 @@ import { CompositeArenaLayouts } from './engine/multiplayer/arenas/CompositeAren
 import { ArenaModeId } from './engine/multiplayer/arenas/interfaces/IArenaContracts';
 import { isWebGLAvailable } from './rendering/webglCapabilities';
 import { PlayerId } from './core/coordinates/types';
+import { IPieceEntity } from './core/entities/types';
 import './ui/theme/theme.css';
 
 // Lazy-loaded 3D WebGL Chessboard to preserve initial 2D bundle size (Spec 07 Priority 2)
@@ -141,8 +142,6 @@ const AppContent: React.FC = () => {
     triggerFeedback,
     clearFeedback,
   } = useMoveFeedback();
-
-  const { undo, redo } = useGameActions();
 
   const {
     isBotEnabled: legacyBotEnabled,
@@ -342,37 +341,54 @@ const AppContent: React.FC = () => {
   const handleUndo = useCallback(() => {
     cancelSearch();
     clearFeedback();
+    setSelectedOfficialSpell(null);
+    setSelectedExpandedSpell(null);
+    setSelectedDropPiece(null);
+    setPortalFirstSquare(null);
+
+    const initialPlayer = gameStore.getState().domain.activePlayer;
     if (isBotEnabled) {
-      const currentActive = gameStore.getState().domain.activePlayer;
-      if (currentActive === 'P2') {
-        undo();
+      if (initialPlayer === 'P2') {
+        universalMatch.undo();
+        while (universalMatch.controller?.peekUndoActionType() === 'SPELL') {
+          universalMatch.undo();
+        }
       } else {
-        const undoneFirst = undo();
+        const undoneFirst = universalMatch.undo();
         if (undoneFirst) {
-          if (gameStore.getState().domain.activePlayer === 'P2') {
-            undo();
+          universalMatch.undo();
+          while (universalMatch.controller?.peekUndoActionType() === 'SPELL') {
+            universalMatch.undo();
           }
         }
       }
     } else {
-      undo();
+      universalMatch.undo();
     }
-  }, [cancelSearch, clearFeedback, isBotEnabled, undo]);
+  }, [cancelSearch, clearFeedback, isBotEnabled, universalMatch]);
 
   const handleRedo = useCallback(() => {
     cancelSearch();
     clearFeedback();
+    setSelectedOfficialSpell(null);
+    setSelectedExpandedSpell(null);
+    setSelectedDropPiece(null);
+    setPortalFirstSquare(null);
+
     if (isBotEnabled) {
-      const redoneFirst = redo();
+      const redoneFirst = universalMatch.redo();
       if (redoneFirst) {
+        while (universalMatch.controller?.peekRedoActionType() === 'SPELL') {
+          universalMatch.redo();
+        }
         if (gameStore.getState().domain.activePlayer === 'P2') {
-          redo();
+          universalMatch.redo();
         }
       }
     } else {
-      redo();
+      universalMatch.redo();
     }
-  }, [cancelSearch, clearFeedback, isBotEnabled, redo]);
+  }, [cancelSearch, clearFeedback, isBotEnabled, universalMatch]);
 
   const handleBoardSizeChange = useCallback(
     (newSize: number) => {
@@ -535,6 +551,19 @@ const AppContent: React.FC = () => {
         return;
       }
 
+      if (e.key === 'Escape') {
+        if (selectedOfficialSpell || selectedExpandedSpell || selectedDropPiece || portalFirstSquare) {
+          setSelectedOfficialSpell(null);
+          setSelectedExpandedSpell(null);
+          setSelectedDropPiece(null);
+          setPortalFirstSquare(null);
+          triggerFeedback('GAME_EVENT', {
+            message: 'Ação cancelada.',
+          });
+          return;
+        }
+      }
+
       if (e.key === 'z' || e.key === 'Z') {
         if (e.shiftKey) handleRedo();
         else handleUndo();
@@ -552,7 +581,22 @@ const AppContent: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isThemeModalOpen, handleUndo, handleRedo, navigateTo, currentView, preferences.boardViewMode, updatePreferences, clearFeedback, handleFlipBoard]);
+  }, [
+    isThemeModalOpen,
+    handleUndo,
+    handleRedo,
+    navigateTo,
+    currentView,
+    preferences.boardViewMode,
+    updatePreferences,
+    clearFeedback,
+    handleFlipBoard,
+    selectedOfficialSpell,
+    selectedExpandedSpell,
+    selectedDropPiece,
+    portalFirstSquare,
+    triggerFeedback,
+  ]);
 
   const handleResumeMatch = useCallback(() => {
     navigateTo('GAME');
@@ -727,6 +771,12 @@ const AppContent: React.FC = () => {
                     state={universalMatch.snapshot.officialSpellState}
                     activePlayer={activePlayer}
                     selectedSpellType={selectedOfficialSpell}
+                    onCancelSpell={() => {
+                      setSelectedOfficialSpell(null);
+                      triggerFeedback('GAME_EVENT', {
+                        message: 'Lançamento cancelado.',
+                      });
+                    }}
                     onCastSpell={(spellType) => {
                       const selectedPieceId = gameStore.getState().ui.selectedPieceId;
                       if (spellType === 'JUMP' && selectedPieceId) {
@@ -740,24 +790,18 @@ const AppContent: React.FC = () => {
                         }
                       }
                       if (selectedOfficialSpell === spellType) {
-                        const ok = universalMatch.castOfficialSpell(
-                          spellType,
-                          spellType === 'FREEZE' ? '3,3' : ''
-                        );
                         setSelectedOfficialSpell(null);
-                        if (ok) {
-                          triggerFeedback('GAME_EVENT', {
-                            message: `Feitiço ${spellType} conjurado com sucesso!`,
-                          });
-                        }
+                        triggerFeedback('GAME_EVENT', {
+                          message: `Seleção de ${spellType} cancelada.`,
+                        });
                         return;
                       }
                       setSelectedOfficialSpell(spellType);
                       triggerFeedback('GAME_EVENT', {
                         message:
                           spellType === 'FREEZE'
-                            ? 'Feitiço FREEZE preparado! Clique na casa central 3×3 no tabuleiro (ou clique novamente no botão).'
-                            : 'Feitiço JUMP preparado! Clique na peça aliada no tabuleiro (ou clique novamente no botão).',
+                            ? 'Feitiço FREEZE preparado! Passe o mouse no tabuleiro para ver a área 3×3 e clique na casa central (ou clique em Cancelar).'
+                            : 'Feitiço JUMP preparado! Clique na peça aliada no tabuleiro (ou clique em Cancelar).',
                       });
                     }}
                   />
@@ -771,13 +815,24 @@ const AppContent: React.FC = () => {
                       state={universalMatch.snapshot.expandedSpellState}
                       activePlayer={activePlayer === 'P1' ? 'WHITE' : 'BLACK'}
                       selectedSpellType={selectedExpandedSpell?.type ?? null}
+                      onCancelSpell={() => {
+                        setSelectedExpandedSpell(null);
+                        setPortalFirstSquare(null);
+                        triggerFeedback('GAME_EVENT', {
+                          message: 'Lançamento cancelado.',
+                        });
+                      }}
                       onSelectSpell={(spell) => {
-                        if (spell.type === 'RESURRECTION' || selectedExpandedSpell?.id === spell.id) {
-                          const ok = universalMatch.castExpandedSpell(
-                            spell,
-                            '4,3',
-                            spell.type === 'PORTAL' ? '3,3' : undefined
-                          );
+                        if (!spell || selectedExpandedSpell?.id === spell.id) {
+                          setSelectedExpandedSpell(null);
+                          setPortalFirstSquare(null);
+                          triggerFeedback('GAME_EVENT', {
+                            message: 'Seleção de feitiço cancelada.',
+                          });
+                          return;
+                        }
+                        if (spell.type === 'RESURRECTION') {
+                          const ok = universalMatch.castExpandedSpell(spell, '4,0');
                           setSelectedExpandedSpell(null);
                           setPortalFirstSquare(null);
                           if (ok) {
@@ -790,7 +845,7 @@ const AppContent: React.FC = () => {
                         setSelectedExpandedSpell(spell);
                         setPortalFirstSquare(null);
                         triggerFeedback('GAME_EVENT', {
-                          message: `Feitiço ${spell.displayName} preparado! Clique na casa-alvo no tabuleiro (ou clique novamente na carta).`,
+                          message: `Feitiço ${spell.displayName} preparado! Clique na casa-alvo no tabuleiro (ou clique em Cancelar).`,
                         });
                       }}
                     />
@@ -1076,11 +1131,24 @@ const AppContent: React.FC = () => {
                       frozenCoordinates={frozenCoordinates}
                       activePortals={universalMatch.snapshot.expandedSpellState?.activePortals}
                       stealthTraps={universalMatch.snapshot.expandedSpellState?.stealthTraps}
+                      selectedSpellType={selectedOfficialSpell ?? selectedExpandedSpell?.type ?? null}
+                      selectedDropPiece={selectedDropPiece}
+                      duckPlacementActive={universalMatch.snapshot.duckPhase === 'PLACE_DUCK'}
+                      onCancelAction={() => {
+                        setSelectedOfficialSpell(null);
+                        setSelectedExpandedSpell(null);
+                        setSelectedDropPiece(null);
+                        setPortalFirstSquare(null);
+                        triggerFeedback('GAME_EVENT', {
+                          message: 'Ação cancelada.',
+                        });
+                      }}
                       onHumanPieceMoved={universalMatch.onHumanPieceMoved}
                       onVariantSquareClick={
                         universalMatch.snapshot.duckPhase === 'PLACE_DUCK' ||
                           Boolean(selectedOfficialSpell) ||
-                          Boolean(selectedExpandedSpell)
+                          Boolean(selectedExpandedSpell) ||
+                          Boolean(selectedDropPiece)
                           ? handleVariantSquareClick
                           : undefined
                       }

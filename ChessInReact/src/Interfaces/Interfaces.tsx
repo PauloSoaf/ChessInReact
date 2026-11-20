@@ -1,3 +1,10 @@
+export interface IHoverPreviewInfo {
+  readonly type: 'FREEZE' | 'JUMP' | 'DUCK' | 'DROP' | 'PORTAL' | 'TRAP';
+  readonly isCenter?: boolean;
+  readonly isValid?: boolean;
+  readonly symbol?: string;
+}
+
 export interface IBoardSquare {
   piece: IChessPiece;
   backgroundColor?: string;
@@ -28,6 +35,9 @@ export interface IBoardSquare {
   fileLabel?: string;
   tabIndex?: number;
   onFocusSquare?: (col: number, row: number) => void;
+  hoverPreview?: IHoverPreviewInfo | null;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
 export interface IChessPiece {

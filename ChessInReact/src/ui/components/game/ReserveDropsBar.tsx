@@ -84,6 +84,30 @@ export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
             </button>
           );
         })}
+        {selectedPieceVariant && (
+          <button
+            id="btn-cancel-drop"
+            data-testid="btn-cancel-drop"
+            type="button"
+            onClick={() => onSelectDropPiece(null)}
+            title="Cancelar drop de peça (Esc)"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '3px 8px',
+              fontSize: '0.75rem',
+              borderRadius: 'var(--radius-sm, 4px)',
+              border: '1px solid #ef4444',
+              backgroundColor: 'rgba(239, 68, 68, 0.22)',
+              color: '#fca5a5',
+              cursor: 'pointer',
+              fontWeight: 800,
+              marginLeft: '4px',
+            }}
+          >
+            ✕ Cancelar Drop (Esc)
+          </button>
+        )}
       </div>
     </div>
   );

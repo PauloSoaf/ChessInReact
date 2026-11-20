@@ -14,6 +14,7 @@
 
 import { asCoordinateKey, asEntityId, createSquareCoord, PlayerId, SquareCodec } from '../core/coordinates';
 import { MovePieceCommand } from '../core/commands/MovePieceCommand';
+import { DropPieceCommand } from '../core/commands/DropPieceCommand';
 import { RulesEngine } from '../engine/rules/RulesEngine';
 import { VariantRegistry } from '../engine/rules/VariantRegistry';
 import { CheckValidator } from '../engine/rules/CheckValidator';
@@ -64,6 +65,17 @@ export interface IUniversalMatchSnapshot {
   readonly eliminatedPlayers: ReadonlyArray<string>;
 }
 
+export interface IUniversalMatchHistorySnapshot {
+  readonly officialSpellState: IOfficialSpellState | null;
+  readonly expandedSpellState: ISpellGameState | null;
+  readonly duckState: IDuckChessState | null;
+  readonly threeCheckState: ICheckCountState | null;
+  readonly scoresState: Record<string, IFFAPlayerScore>;
+  readonly turnCycleState: ITurnCycleState | null;
+  readonly lastMoveSummaryStr: string | null;
+  readonly actionType?: 'SPELL' | 'PIECE_MOVE' | 'DUCK' | 'DROP' | 'BOT_MOVE';
+}
+
 export class UniversalMatchController {
   private config: IMatchConfiguration;
   private topology: ITopology;
@@ -84,6 +96,10 @@ export class UniversalMatchController {
   // Multiplayer Arena states
   private turnCycleState: ITurnCycleState | null = null;
   private scoresState: Record<string, IFFAPlayerScore> = {};
+
+  // Minigame & variant lossless history stacks (Spec 01 & Spec 12)
+  private minigameUndoStack: IUniversalMatchHistorySnapshot[] = [];
+  private minigameRedoStack: IUniversalMatchHistorySnapshot[] = [];
 
   // Timers & listeners
   private autonomousTimer: number | null = null;
@@ -187,6 +203,8 @@ export class UniversalMatchController {
     this.matchGeneration++;
     this.activeBotRequestId = 0;
     this.isThinkingState = false;
+    this.minigameUndoStack = [];
+    this.minigameRedoStack = [];
 
     if (config) {
       this.config = config;
@@ -310,6 +328,126 @@ export class UniversalMatchController {
 
   public getIsThinking(): boolean {
     return this.isThinkingState;
+  }
+
+  /**
+   * Records a snapshot of all active minigame states before a game action occurs.
+   */
+  public recordHistorySnapshot(actionType?: 'SPELL' | 'PIECE_MOVE' | 'DUCK' | 'DROP' | 'BOT_MOVE'): void {
+    const snapshot: IUniversalMatchHistorySnapshot = {
+      officialSpellState: this.officialSpellState ? JSON.parse(JSON.stringify(this.officialSpellState)) : null,
+      expandedSpellState: this.expandedSpellState ? JSON.parse(JSON.stringify(this.expandedSpellState)) : null,
+      duckState: this.duckState ? JSON.parse(JSON.stringify(this.duckState)) : null,
+      threeCheckState: this.threeCheckState ? JSON.parse(JSON.stringify(this.threeCheckState)) : null,
+      scoresState: JSON.parse(JSON.stringify(this.scoresState)),
+      turnCycleState: this.turnCycleState ? JSON.parse(JSON.stringify(this.turnCycleState)) : null,
+      lastMoveSummaryStr: this.lastMoveSummaryStr,
+      actionType,
+    };
+    this.minigameUndoStack.push(snapshot);
+    if (this.minigameUndoStack.length > 100) {
+      this.minigameUndoStack.shift();
+    }
+    this.minigameRedoStack = [];
+  }
+
+  /**
+   * Reverts the most recent game action (including spells, duck placements, reserve drops, and piece moves)
+   * while maintaining 100% synchronization between Core state, spell charges, mana, and cooldowns.
+   */
+  public undo(): boolean {
+    let wasSpellOnly = false;
+    if (this.minigameUndoStack.length > 0) {
+      const prev = this.minigameUndoStack.pop()!;
+      wasSpellOnly = prev.actionType === 'SPELL';
+
+      const currentSnapshot: IUniversalMatchHistorySnapshot = {
+        officialSpellState: this.officialSpellState ? JSON.parse(JSON.stringify(this.officialSpellState)) : null,
+        expandedSpellState: this.expandedSpellState ? JSON.parse(JSON.stringify(this.expandedSpellState)) : null,
+        duckState: this.duckState ? JSON.parse(JSON.stringify(this.duckState)) : null,
+        threeCheckState: this.threeCheckState ? JSON.parse(JSON.stringify(this.threeCheckState)) : null,
+        scoresState: JSON.parse(JSON.stringify(this.scoresState)),
+        turnCycleState: this.turnCycleState ? JSON.parse(JSON.stringify(this.turnCycleState)) : null,
+        lastMoveSummaryStr: this.lastMoveSummaryStr,
+        actionType: prev.actionType,
+      };
+      this.minigameRedoStack.push(currentSnapshot);
+
+      this.officialSpellState = prev.officialSpellState;
+      this.expandedSpellState = prev.expandedSpellState;
+      this.duckState = prev.duckState;
+      this.threeCheckState = prev.threeCheckState;
+      this.scoresState = prev.scoresState;
+      this.turnCycleState = prev.turnCycleState;
+      this.lastMoveSummaryStr = prev.lastMoveSummaryStr;
+    }
+
+    let coreUndone = false;
+    if (!wasSpellOnly) {
+      coreUndone = gameStore.getState().undo();
+    }
+
+    this.syncVariantModifiersToDomain();
+    this.notify();
+    return wasSpellOnly || coreUndone;
+  }
+
+  /**
+   * Reapplies the most recently undone action.
+   */
+  public redo(): boolean {
+    let wasSpellOnly = false;
+    if (this.minigameRedoStack.length > 0) {
+      const next = this.minigameRedoStack.pop()!;
+      wasSpellOnly = next.actionType === 'SPELL';
+
+      const currentSnapshot: IUniversalMatchHistorySnapshot = {
+        officialSpellState: this.officialSpellState ? JSON.parse(JSON.stringify(this.officialSpellState)) : null,
+        expandedSpellState: this.expandedSpellState ? JSON.parse(JSON.stringify(this.expandedSpellState)) : null,
+        duckState: this.duckState ? JSON.parse(JSON.stringify(this.duckState)) : null,
+        threeCheckState: this.threeCheckState ? JSON.parse(JSON.stringify(this.threeCheckState)) : null,
+        scoresState: JSON.parse(JSON.stringify(this.scoresState)),
+        turnCycleState: this.turnCycleState ? JSON.parse(JSON.stringify(this.turnCycleState)) : null,
+        lastMoveSummaryStr: this.lastMoveSummaryStr,
+        actionType: next.actionType,
+      };
+      this.minigameUndoStack.push(currentSnapshot);
+
+      this.officialSpellState = next.officialSpellState;
+      this.expandedSpellState = next.expandedSpellState;
+      this.duckState = next.duckState;
+      this.threeCheckState = next.threeCheckState;
+      this.scoresState = next.scoresState;
+      this.turnCycleState = next.turnCycleState;
+      this.lastMoveSummaryStr = next.lastMoveSummaryStr;
+    }
+
+    let coreRedone = false;
+    if (!wasSpellOnly) {
+      coreRedone = gameStore.getState().redo();
+    }
+
+    this.syncVariantModifiersToDomain();
+    this.notify();
+    return wasSpellOnly || coreRedone;
+  }
+
+  public canUndo(): boolean {
+    return this.minigameUndoStack.length > 0;
+  }
+
+  public canRedo(): boolean {
+    return this.minigameRedoStack.length > 0;
+  }
+
+  public peekUndoActionType(): string | undefined {
+    if (this.minigameUndoStack.length === 0) return undefined;
+    return this.minigameUndoStack[this.minigameUndoStack.length - 1].actionType;
+  }
+
+  public peekRedoActionType(): string | undefined {
+    if (this.minigameRedoStack.length === 0) return undefined;
+    return this.minigameRedoStack[this.minigameRedoStack.length - 1].actionType;
   }
 
   public getSlotForPlayer(playerId: PlayerId): IParticipantSlot | undefined {
@@ -565,6 +703,8 @@ export class UniversalMatchController {
         return false;
       }
 
+      this.recordHistorySnapshot('BOT_MOVE');
+
       // 3. Apply the secondary action before the move when it grants a
       // modifier to the move itself (for example Official Jump).
       this.applyBotSecondaryAction(decision.secondaryAction);
@@ -712,49 +852,17 @@ export class UniversalMatchController {
 
   /**
    * Drops a piece from reserve onto the board (Shogi, Bughouse, Crazyhouse, Seirawan).
+   * Fully integrated with Core State Command architecture for lossless Undo/Redo.
    */
   public dropPiece(pieceVariant: string, targetCoord: string): boolean {
     const domain = gameStore.getState().domain;
     const coordKey = asCoordinateKey(targetCoord);
     if (domain.occupancy[coordKey]) return false;
 
-    // Find captured piece of this variant owned or captured by active player
-    const capturedPiece = Object.values(domain.boardEntities).find(
-      (e): e is IPieceEntity =>
-        e.type === 'PIECE' &&
-        e.isCaptured &&
-        e.variantId.toUpperCase() === pieceVariant.toUpperCase()
-    );
+    this.recordHistorySnapshot('DROP');
 
-    const pieceId = capturedPiece?.id ?? asEntityId(`drop_${domain.activePlayer}_${pieceVariant.toLowerCase()}_${Date.now()}`);
-    const droppedEntity: IPieceEntity = capturedPiece
-      ? {
-          ...capturedPiece,
-          ownerId: domain.activePlayer,
-          position: coordKey,
-          isCaptured: false,
-          hasMoved: true,
-        }
-      : {
-          id: pieceId,
-          type: 'PIECE',
-          ownerId: domain.activePlayer,
-          variantId: pieceVariant.toUpperCase(),
-          position: coordKey,
-          isCaptured: false,
-          hasMoved: true,
-        };
-
-    const nextEntities = { ...domain.boardEntities, [pieceId]: droppedEntity };
-    const nextOccupancy = { ...domain.occupancy, [coordKey]: pieceId };
-
-    gameStore.setState((s) => ({
-      domain: {
-        ...s.domain,
-        boardEntities: nextEntities,
-        occupancy: nextOccupancy,
-      },
-    }));
+    const cmd = new DropPieceCommand(domain.activePlayer, pieceVariant, coordKey);
+    gameStore.getState().executeCommand(cmd);
 
     this.notify();
     this.scheduleAutonomousTurnIfNeeded();
@@ -768,6 +876,8 @@ export class UniversalMatchController {
     if (!this.duckState || this.duckState.currentPhase !== 'PLACE_DUCK') {
       return false;
     }
+
+    this.recordHistorySnapshot('DUCK');
 
     const domain = gameStore.getState().domain;
     const occupied = new Set(
@@ -792,6 +902,7 @@ export class UniversalMatchController {
    * Triggered when a human makes a piece move in Duck Chess, Spell Chess, or multiplayer arenas.
    */
   public onHumanPieceMoved(from: string, to: string, pieceId: string): void {
+    this.recordHistorySnapshot('PIECE_MOVE');
     const postMoveDomain = gameStore.getState().domain;
     const movedPlayerSide: 'WHITE' | 'BLACK' = postMoveDomain.activePlayer === 'P2' ? 'WHITE' : 'BLACK';
     this.applySpellEffectsAfterMove(pieceId, to, movedPlayerSide);
@@ -890,6 +1001,7 @@ export class UniversalMatchController {
 
       const res = OfficialSpellEngine.castFreeze(this.officialSpellState, player, center);
       if (res.success) {
+        this.recordHistorySnapshot('SPELL');
         this.officialSpellState = res.state;
         this.syncVariantModifiersToDomain();
         this.notify();
@@ -909,6 +1021,7 @@ export class UniversalMatchController {
       }
       const res = OfficialSpellEngine.castJump(this.officialSpellState, player, pieceId);
       if (res.success) {
+        this.recordHistorySnapshot('SPELL');
         this.officialSpellState = res.state;
         this.syncVariantModifiersToDomain();
         this.notify();
@@ -1028,6 +1141,7 @@ export class UniversalMatchController {
           }));
         }
       }
+      this.recordHistorySnapshot('SPELL');
       this.expandedSpellState = nextState;
       this.syncVariantModifiersToDomain();
       this.notify();
