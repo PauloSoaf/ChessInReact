@@ -21,12 +21,12 @@
 | **Spec 09 (Event Sourcing & PGN)** | 12 | 12 | 0 | 0 | 0 |
 | **Spec 10 (Modding API & CI/CD)** | 10 | 10 | 0 | 0 | 0 |
 | **Spec 11 (Bot Ecosystem & Rating)**| 12 | 12 | 0 | 0 | 0 |
-| **Spec 12 (Game Review & Analysis)**| 13 | 11 | 2 | 0 | 0 |
+| **Spec 12 (Game Review & Analysis)**| 13 | 12 | 1 | 0 | 0 |
 | **Spec 13 (Expanded Variant Universe)**| 12 | 10 | 2 | 0 | 0 |
 | **Spec 14 (Massive Multiplayer 3-12P)**| 7 | 5 | 2 | 0 | 0 |
 | **Spec 15 (Universal Bot Intelligence)**| 8 | 8 | 0 | 0 | 0 |
 | **Spec 16 (Lobby & Configurator)**| 7 | 6 | 1 | 0 | 0 |
-| **TOTAL** | **207** | **197** | **9** | **0** | **1** |
+| **TOTAL** | **207** | **198** | **8** | **0** | **1** |
 
 ---
 
@@ -187,6 +187,7 @@
 | **S12-RF08** | Mecânica Duck Chess (2 Fases, Bloqueador Neutro, Captura Física de Rei) | P1 | `analysis/minigames/DuckChessEngine.ts`, `rendering/mesh/VariantOverlays3D.tsx` | `VERIFIED` | `DuckChessEngine.test.ts` (8 testes), `UniversalMatchController.test.ts` e pato bloqueador renderizado em 2D e 3D |
 | **S12-RF09** | Mecânica Puzzle Rush & Battle (Sobrevivência, Cronometrado, Arena Dedicada) | P0 | `analysis/minigames/PuzzleRushEngine.ts`, `ui/components/hub/PuzzleRushArena.tsx` | `VERIFIED` | `PuzzleRushEngine.test.ts` (8 testes) e `Minigames2D3DAndBots.test.tsx` (tabuleiro interativo FEN 2D/3D e Bot N1–N5) |
 | **S12-RF10** | Minigame Bughouse 2v2 (Tabuleiros Gêmeos, Transferência Cruzada, Drops Autoritativos) | P0 | `analysis/minigames/BughouseEngine.ts`, `ui/components/hub/BughouseArena.tsx` | `VERIFIED` | `BughouseEngine.test.ts` (11 testes) e `Minigames2D3DAndBots.test.tsx` (mesas gêmeas 2D/3D e Bots N1–N5) |
+| **S12-RF15** | Exportação de PGN com Anotações FIDE NAG ($1 a $6) e Sanitização | P1 | `analysis/GameReviewEngine.ts` | `VERIFIED` | `GameReviewEngine.test.tsx` (FIDE NAG $1..$6, comentários de avaliação, sanitização RNF-17) |
 | **S12-RF18** | Feedback e Mão Interativa de Feitiços (SpellCardHand) | P1 | `analysis/minigames/SpellCardHand.tsx` | `VERIFIED` | `SpellChessEngine.test.tsx` (Renderização de HUD e orbes de mana) |
 | **S12-RF19** | Área de Estudos & Academia Tática Interativa (Progressão Estrita) | P0 | `analysis/study/AcademyStudyEngine.ts` | `VERIFIED` | `AcademyStudyEngine.test.ts` (6 testes: verificação estrita passo-a-passo, FENs reais e inspeção pedagógica de gabarito) |
 
