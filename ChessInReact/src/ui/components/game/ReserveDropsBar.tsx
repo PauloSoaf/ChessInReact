@@ -19,14 +19,52 @@ export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
   playerLabel,
   isShogi = false,
 }) => {
-  if (reservePieces.length === 0) return null;
-
   // Group by variantId
-  const counts = new Map<string, number>();
-  for (const p of reservePieces) {
-    const key = p.variantId.toUpperCase();
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
+  const counts = React.useMemo(() => {
+    const map = new Map<string, number>();
+    for (const p of reservePieces) {
+      const key = p.variantId.toUpperCase();
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return map;
+  }, [reservePieces]);
+
+  // Global Keyboard Shortcuts (Spec 06 & Spec 13): Hotkeys (P, N, B, R, Q) or Esc to Cancel
+  React.useEffect(() => {
+    if (reservePieces.length === 0) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        if (selectedPieceVariant) {
+          e.preventDefault();
+          onSelectDropPiece(null);
+        }
+        return;
+      }
+
+      const pressedKey = e.key.toUpperCase();
+      for (const variant of counts.keys()) {
+        if (pressedKey === variant[0].toUpperCase()) {
+          e.preventDefault();
+          onSelectDropPiece(selectedPieceVariant === variant ? null : variant);
+          return;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [counts, reservePieces.length, selectedPieceVariant, onSelectDropPiece]);
+
+  if (reservePieces.length === 0) return null;
 
   return (
     <div

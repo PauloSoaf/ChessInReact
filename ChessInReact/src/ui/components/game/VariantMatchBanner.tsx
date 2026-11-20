@@ -84,6 +84,18 @@ export const VariantMatchBanner: React.FC<IVariantMatchBannerProps> = ({
     badge = 'Arcebispo & Chanceler';
     subtitle = 'Tabuleiro expandido 10×8 com as lendárias peças compostas Arcebispo e Chanceler.';
     accentColor = '#0284c7';
+  } else if (normId.includes('SHOGI')) {
+    icon = '☖';
+    title = 'Shogi (Xadrez Japonês - 将棋)';
+    badge = 'Drops & Komadai';
+    subtitle = 'Peças capturadas passam a pertencer ao captor e podem ser reintroduzidas (Drop) em qualquer casa livre.';
+    accentColor = '#d97706';
+  } else if (normId.includes('XIANGQI')) {
+    icon = '帥';
+    title = 'Xiangqi (Xadrez Chinês - 象棋)';
+    badge = 'Palácio & Rio Celestial';
+    subtitle = 'Canhões saltam para capturar; Generais e Conselheiros confinados ao Palácio 3×3; Elefantes não cruzam o Rio.';
+    accentColor = '#dc2626';
   } else if (normId.includes('ANTICHESS') || normId.includes('GIVEAWAY')) {
     icon = '🔄';
     title = 'Antichess (Losing Chess)';

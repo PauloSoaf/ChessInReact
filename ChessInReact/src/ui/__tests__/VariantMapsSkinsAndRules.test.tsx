@@ -18,6 +18,7 @@ import { VariantOverlays3D } from '../../rendering/mesh/VariantOverlays3D';
 import { VariantCatalog } from '../../engine/variants/catalog/VariantCatalog';
 import { VariantMatchBanner } from '../components/game/VariantMatchBanner';
 import { OfficialSpellBar } from '../components/game/OfficialSpellBar';
+import { ReserveDropsBar } from '../components/game/ReserveDropsBar';
 import { GameHub } from '../components/hub/GameHub';
 import { CubicTopology } from '../../core/topology/CubicTopology';
 import { VariantPieceInitializer } from '../../engine/variants/VariantPieceInitializer';
@@ -409,8 +410,24 @@ describe('Variable Variant Maps, Spell Chess Skins & Gameplay Mechanics, and Rul
     expect(bannerContainer.textContent).toContain('Freeze & Jump (2 Cargas)');
     unmountBanner();
 
-    // 4. OfficialSpellBar renders Freeze (3x3) and Jump (Salto) buttons with remaining charges
+    // 3b. Cultural Variant Banners for Shogi and Xiangqi
+    const { container: shogiBanner, unmount: unmountShogi } = render(
+      <VariantMatchBanner variantId="SHOGI" activePlayerLabel="Sente (P1)" />
+    );
+    expect(shogiBanner.textContent).toContain('Shogi (Xadrez Japonês - 将棋)');
+    expect(shogiBanner.textContent).toContain('Drops & Komadai');
+    unmountShogi();
+
+    const { container: xiangqiBanner, unmount: unmountXiangqi } = render(
+      <VariantMatchBanner variantId="XIANGQI" activePlayerLabel="Vermelhas (P1)" />
+    );
+    expect(xiangqiBanner.textContent).toContain('Xiangqi (Xadrez Chinês - 象棋)');
+    expect(xiangqiBanner.textContent).toContain('Palácio & Rio Celestial');
+    unmountXiangqi();
+
+    // 4. OfficialSpellBar renders Freeze (3x3) and Jump (Salto) buttons with remaining charges and keyboard shortcuts
     let castType: string | null = null;
+    let cancelCalled = false;
     const { unmount: unmountBar } = render(
       <OfficialSpellBar
         state={snap.officialSpellState!}
@@ -418,6 +435,9 @@ describe('Variable Variant Maps, Spell Chess Skins & Gameplay Mechanics, and Rul
         selectedSpellType="FREEZE"
         onCastSpell={(type) => {
           castType = type;
+        }}
+        onCancelSpell={() => {
+          cancelCalled = true;
         }}
       />
     );
@@ -431,7 +451,81 @@ describe('Variable Variant Maps, Spell Chess Skins & Gameplay Mechanics, and Rul
     expect(castType).toBe('FREEZE');
     jumpBtn.click();
     expect(castType).toBe('JUMP');
+
+    // Test Keyboard shortcut '1' for Freeze and '2' for Jump
+    castType = null;
+    fireEvent.keyDown(window, { key: '1' });
+    expect(castType).toBe('FREEZE');
+
+    castType = null;
+    fireEvent.keyDown(window, { key: '2' });
+    expect(castType).toBe('JUMP');
+
+    // Test Keyboard shortcut 'Escape' for Cancel
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(cancelCalled).toBe(true);
+
     unmountBar();
+
+    // 4b. ReserveDropsBar renders reserve pieces with keyboard shortcuts (e.g. 'P' for Pawn) and Esc to cancel
+    let selectedDrop: string | null = null;
+    const sampleReserve: IPieceEntity[] = [
+      {
+        id: asEntityId('drop-pawn-1'),
+        type: 'PIECE',
+        ownerId: 'P1',
+        position: asCoordinateKey('0,0'),
+        variantId: 'PAWN',
+        isCaptured: false,
+        hasMoved: false,
+      },
+      {
+        id: asEntityId('drop-knight-1'),
+        type: 'PIECE',
+        ownerId: 'P1',
+        position: asCoordinateKey('0,0'),
+        variantId: 'KNIGHT',
+        isCaptured: false,
+        hasMoved: false,
+      },
+    ];
+
+    const { unmount: unmountReserve, rerender: rerenderReserve } = render(
+      <ReserveDropsBar
+        activePlayer="P1"
+        reservePieces={sampleReserve}
+        selectedPieceVariant={selectedDrop}
+        onSelectDropPiece={(v) => {
+          selectedDrop = v;
+        }}
+        playerLabel="Brancas"
+      />
+    );
+    expect(screen.getByTestId('reserve-drops-bar')).toBeDefined();
+    expect(screen.getByTestId('drop-btn-pawn')).toBeDefined();
+    expect(screen.getByTestId('drop-btn-knight')).toBeDefined();
+
+    // Hotkey 'P' selects Pawn
+    fireEvent.keyDown(window, { key: 'p' });
+    expect(selectedDrop).toBe('PAWN');
+
+    // Rerender with selected piece active
+    rerenderReserve(
+      <ReserveDropsBar
+        activePlayer="P1"
+        reservePieces={sampleReserve}
+        selectedPieceVariant="PAWN"
+        onSelectDropPiece={(v) => {
+          selectedDrop = v;
+        }}
+        playerLabel="Brancas"
+      />
+    );
+
+    // Hotkey 'Escape' cancels selection
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(selectedDrop).toBeNull();
+    unmountReserve();
 
     // 5. GameHub renders both Official and Expanded Spell Chess cards in MINIGAMES tab
     const { container: hubContainer, unmount: unmountHub } = render(

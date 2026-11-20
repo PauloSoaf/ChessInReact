@@ -20,6 +20,47 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
   const isWhite = activePlayer === 'P1';
   const charges = isWhite ? state.whiteCharges : state.blackCharges;
 
+  // Global Keyboard Shortcuts (Spec 06 & Spec 12): 1 for Freeze, 2 for Jump, Esc to Cancel
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
+
+      if (e.key === '1') {
+        if (charges.freezeCharges > 0 && charges.freezeCooldownTurns === 0) {
+          e.preventDefault();
+          onCastSpell?.('FREEZE');
+        }
+      } else if (e.key === '2') {
+        if (charges.jumpCharges > 0 && charges.jumpCooldownTurns === 0) {
+          e.preventDefault();
+          onCastSpell?.('JUMP');
+        }
+      } else if (e.key === 'Escape') {
+        if (selectedSpellType) {
+          e.preventDefault();
+          onCancelSpell?.();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    charges.freezeCharges,
+    charges.freezeCooldownTurns,
+    charges.jumpCharges,
+    charges.jumpCooldownTurns,
+    selectedSpellType,
+    onCastSpell,
+    onCancelSpell,
+  ]);
+
   return (
     <div
       id="official-spell-bar"
