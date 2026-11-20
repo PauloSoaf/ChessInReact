@@ -12,6 +12,7 @@ export default defineConfig({
       'src/controllers/**/__tests__/**/*.test.{ts,tsx}',
       'src/multiplayer/**/__tests__/**/*.test.{ts,tsx}',
       'src/ui/**/__tests__/**/*.test.{ts,tsx}',
+      'src/audio/**/__tests__/**/*.test.{ts,tsx}',
       'src/rendering/**/__tests__/**/*.test.{ts,tsx}',
       'src/analysis/**/__tests__/**/*.test.{ts,tsx}',
       'src/matchmaking/**/__tests__/**/*.test.{ts,tsx}',

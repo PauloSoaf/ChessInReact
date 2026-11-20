@@ -1750,6 +1750,51 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       expect(document.documentElement.classList.contains('theme-midnight')).toBe(true);
     });
 
+    it('renders quick sound toggle in TopNavBar and toggles between Som and Mudo', () => {
+      render(
+        <ThemeProvider>
+          <TopNavBar
+            currentView="GAME"
+            onNavigate={vi.fn()}
+            onOpenThemeModal={vi.fn()}
+          />
+        </ThemeProvider>
+      );
+
+      const soundBtn = document.getElementById('nav-quick-sound-toggle')!;
+      expect(soundBtn).not.toBeNull();
+      expect(soundBtn.textContent).toContain('Som');
+      expect(soundBtn.getAttribute('aria-label')).toBe('Silenciar áudio');
+
+      fireEvent.click(soundBtn);
+      expect(soundBtn.textContent).toContain('Mudo');
+      expect(soundBtn.getAttribute('aria-label')).toBe('Ativar áudio');
+
+      fireEvent.click(soundBtn);
+      expect(soundBtn.textContent).toContain('Som');
+    });
+
+    it('renders sound effects checkbox in ThemeCustomizerModal and syncs state', () => {
+      render(
+        <ThemeProvider>
+          <ThemeCustomizerModal
+            isOpen={true}
+            onClose={vi.fn()}
+          />
+        </ThemeProvider>
+      );
+
+      const soundToggle = document.getElementById('toggle-sound-enabled') as HTMLInputElement;
+      expect(soundToggle).not.toBeNull();
+      expect(soundToggle.checked).toBe(true);
+
+      fireEvent.click(soundToggle);
+      expect(soundToggle.checked).toBe(false);
+
+      fireEvent.click(soundToggle);
+      expect(soundToggle.checked).toBe(true);
+    });
+
     it('verifies structural geometric differentiation across all 6 chess pieces and distinct White/Black palettes across all 3 sets', () => {
       const pieceTypes = ['KING', 'QUEEN', 'ROOK', 'BISHOP', 'KNIGHT', 'PAWN'] as const;
       const sets: Array<'neo-classic' | 'tournament-vector' | 'pixel-art'> = [

@@ -404,6 +404,34 @@ export const ThemeCustomizerModal: React.FC<IThemeCustomizerModalProps> = ({ isO
                 style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--color-accent)' }}
               />
             </label>
+
+            <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)' }} />
+
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                userSelect: 'none',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Efeitos Sonoros & Hápticos (Web Audio API)
+                </div>
+                <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
+                  Sons sintetizados proceduralmente para movimentos, capturas, feitiços, pato e minijogos.
+                </div>
+              </div>
+              <input
+                id="toggle-sound-enabled"
+                type="checkbox"
+                checked={preferences.soundEnabled}
+                onChange={(e) => updatePreferences({ soundEnabled: e.target.checked })}
+                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--color-accent)' }}
+              />
+            </label>
           </div>
         </div>
 

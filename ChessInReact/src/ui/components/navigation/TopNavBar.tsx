@@ -29,7 +29,7 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
   activePlayer = 'P1',
   isGameOver = false,
 }) => {
-  const { uiTheme, setUITheme, boardViewMode, setBoardViewMode } = useTheme();
+  const { uiTheme, setUITheme, boardViewMode, setBoardViewMode, preferences, updatePreferences } = useTheme();
 
   const toggleQuickTheme = () => {
     if (uiTheme === 'midnight') setUITheme('ivory');
@@ -236,6 +236,36 @@ export const TopNavBar: React.FC<ITopNavBarProps> = ({
               </svg>
             )}
             <span className="nav-brand-subtitle">{THEME_LABELS[uiTheme]}</span>
+          </button>
+
+          {/* Quick Sound Mute/Unmute Toggle (Spec 06 & Spec 12 RNF-13) */}
+          <button
+            id="nav-quick-sound-toggle"
+            type="button"
+            className="ui-btn"
+            onClick={() => updatePreferences({ soundEnabled: !preferences.soundEnabled })}
+            title={preferences.soundEnabled ? 'Sons ativados (Web Audio). Clique para silenciar.' : 'Sons silenciados. Clique para ativar.'}
+            aria-label={preferences.soundEnabled ? 'Silenciar áudio' : 'Ativar áudio'}
+            style={{
+              padding: '0.45rem 0.65rem',
+              backgroundColor: preferences.soundEnabled ? 'var(--bg-card)' : 'var(--bg-surface-elevated)',
+              color: preferences.soundEnabled ? 'var(--text-primary)' : 'var(--text-muted)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              fontSize: '0.75rem',
+              fontFamily: 'var(--font-mono)',
+              fontWeight: 600,
+              outline: 'none',
+              opacity: preferences.soundEnabled ? 1 : 0.7,
+              transition: 'all var(--transition-fast)',
+            }}
+          >
+            <span style={{ fontSize: '0.85rem' }}>{preferences.soundEnabled ? '🔊' : '🔇'}</span>
+            <span className="nav-btn-text">{preferences.soundEnabled ? 'Som' : 'Mudo'}</span>
           </button>
 
           {/* Theme Customizer Modal Trigger */}

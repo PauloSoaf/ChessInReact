@@ -11,6 +11,7 @@ import { PuzzleBattleBotStrategy } from '../../../workers/ai/strategies/PuzzleBa
 import { PieceRenderer } from '../pieces/PieceRenderer';
 import { useTheme } from '../../theme/ThemeContext';
 import { PlayerId } from '../../../core/coordinates/types';
+import { GlobalEventBus } from '../../../core/events/EventBus';
 import { AIDifficultyLevel } from '../../../workers/ai/interfaces/IAIEngineContracts';
 
 export interface IPuzzleRushArenaProps {
@@ -165,6 +166,12 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
       const outcome = PuzzleRushEngine.submitMove(session, puzzles, move.trim());
       setSession(outcome.nextSession);
       setSelectedSquare(null);
+
+      // Decoupled audio & haptic feedback via EventBus (Spec 12 RF-18)
+      GlobalEventBus.emit('PUZZLE_ATTEMPT', {
+        isCorrect: outcome.isCorrect,
+        isCompleted: outcome.isPuzzleCompleted,
+      });
 
       if (outcome.isCorrect) {
         setFeedback({

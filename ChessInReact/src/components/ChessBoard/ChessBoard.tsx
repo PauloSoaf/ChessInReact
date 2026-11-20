@@ -14,6 +14,7 @@ import { PlayerId } from '../../core/coordinates/types';
 import { useTheme } from '../../ui/theme/ThemeContext';
 import { CheckValidator } from '../../engine/rules/CheckValidator';
 import { VariantMapConfig } from '../../engine/variants/VariantMapConfig';
+import { GlobalEventBus } from '../../core/events/EventBus';
 import { IInvalidMoveFeedback, ITriggerFeedbackOptions, InvalidMoveReason } from '../../bindings/react/useMoveFeedback';
 
 export interface IChessBoardProps {
@@ -507,6 +508,13 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
     try {
       onClearInvalidMove?.();
       const promotionVariant = matchedMove.isPromotion ? 'QUEEN' : undefined;
+      const isTargetOccupied = Boolean(domain.occupancy[clickedCoord]);
+      const targetEntityId = domain.occupancy[clickedCoord];
+      const capturedPiece = targetEntityId
+        ? (domain.boardEntities[targetEntityId] as IPieceEntity | undefined)
+        : undefined;
+      const isAtomic = Boolean(domain.variantId?.toUpperCase().includes('ATOMIC'));
+
       const moveCmd = new MovePieceCommand(
         activeSelected.id,
         activeSelected.position,
@@ -519,6 +527,30 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
         topology
       );
       executeCommand(moveCmd);
+
+      // Decoupled Audio & Feedback Event Dispatching (Spec 01 Section 10.2 & Spec 12 RF-18)
+      if (isAtomic && isTargetOccupied) {
+        GlobalEventBus.emit('EXPLOSION', {
+          epicenter: clickedCoord,
+          radius: 1,
+          destroyedIds: targetEntityId ? [targetEntityId] : [],
+        });
+      } else if (isTargetOccupied && capturedPiece) {
+        GlobalEventBus.emit('PIECE_CAPTURED', {
+          capturedId: capturedPiece.id,
+          captorId: activeSelected.id,
+          coordinate: clickedCoord,
+          variantId: capturedPiece.variantId,
+        });
+      } else {
+        GlobalEventBus.emit('PIECE_MOVED', {
+          pieceId: activeSelected.id,
+          from: activeSelected.position,
+          to: clickedCoord,
+          actingPlayer: domain.activePlayer,
+        });
+      }
+
       onHumanPieceMoved?.(activeSelected.position, clickedCoord, activeSelected.id);
     } catch (err) {
       console.warn('[RulesEngine] Move rejected by Core invariants / Rules Engine:', err);

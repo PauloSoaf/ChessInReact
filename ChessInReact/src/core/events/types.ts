@@ -13,7 +13,11 @@ export type GameEventType =
   | 'EXPLOSION'
   | 'TIME_WARNING'
   | 'AI_EVALUATION_READY'
-  | 'AI_SEARCH_PROGRESS';
+  | 'AI_SEARCH_PROGRESS'
+  | 'SPELL_CAST'
+  | 'DUCK_PLACED'
+  | 'PIECE_DROPPED'
+  | 'PUZZLE_ATTEMPT';
 
 /**
  * Payloads associated with each domain event type.
@@ -74,6 +78,24 @@ export interface IGameEventPayload {
       readonly toCoord: CoordinateKey;
       readonly pieceId: EntityId;
     };
+  };
+  SPELL_CAST: {
+    readonly spellType: string;
+    readonly coordinate: CoordinateKey;
+    readonly playerId: PlayerId;
+  };
+  DUCK_PLACED: {
+    readonly coordinate: CoordinateKey;
+    readonly playerId: PlayerId;
+  };
+  PIECE_DROPPED: {
+    readonly pieceVariant: string;
+    readonly coordinate: CoordinateKey;
+    readonly playerId: PlayerId;
+  };
+  PUZZLE_ATTEMPT: {
+    readonly isCorrect: boolean;
+    readonly isCompleted: boolean;
   };
 }
 

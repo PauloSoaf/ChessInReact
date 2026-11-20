@@ -34,6 +34,8 @@ import { ArenaModeId } from './engine/multiplayer/arenas/interfaces/IArenaContra
 import { isWebGLAvailable } from './rendering/webglCapabilities';
 import { PlayerId, asCoordinateKey } from './core/coordinates/types';
 import { IPieceEntity } from './core/entities/types';
+import { GlobalEventBus } from './core/events/EventBus';
+import { AudioManager } from './audio';
 import './ui/theme/theme.css';
 
 // Lazy-loaded 3D WebGL Chessboard to preserve initial 2D bundle size (Spec 07 Priority 2)
@@ -277,6 +279,11 @@ const AppContent: React.FC = () => {
         const ok = universalMatch.dropPiece(selectedDropPiece, coord);
         if (ok) {
           const pName = selectedDropPiece;
+          GlobalEventBus.emit('PIECE_DROPPED', {
+            pieceVariant: pName,
+            coordinate: asCoordinateKey(coord),
+            playerId: domain.activePlayer,
+          });
           setSelectedDropPiece(null);
           triggerFeedback('GAME_EVENT', {
             message: `Peça ${pName} inserida na casa ${coord}!`,
@@ -299,6 +306,10 @@ const AppContent: React.FC = () => {
         }
         const placed = universalMatch.placeDuck(coord);
         if (placed) {
+          GlobalEventBus.emit('DUCK_PLACED', {
+            coordinate: asCoordinateKey(coord),
+            playerId: domain.activePlayer,
+          });
           triggerFeedback('GAME_EVENT', {
             message: `🦆 Pato posicionado na casa ${coord}! Lance concluído e vez passada.`,
           });
@@ -326,6 +337,11 @@ const AppContent: React.FC = () => {
         const ok = universalMatch.castOfficialSpell(selectedOfficialSpell, coord);
         if (ok) {
           const sName = selectedOfficialSpell;
+          GlobalEventBus.emit('SPELL_CAST', {
+            spellType: sName,
+            coordinate: asCoordinateKey(coord),
+            playerId: domain.activePlayer,
+          });
           setSelectedOfficialSpell(null);
           triggerFeedback('GAME_EVENT', {
             message: `✨ Feitiço ${sName} conjurado com sucesso em ${coord}! Agora faça seu lance no tabuleiro.`,
@@ -361,6 +377,12 @@ const AppContent: React.FC = () => {
         if (ok) {
           const spellName = selectedExpandedSpell.displayName;
           const manaCost = selectedExpandedSpell.manaCost;
+          const spellType = selectedExpandedSpell.type;
+          GlobalEventBus.emit('SPELL_CAST', {
+            spellType,
+            coordinate: asCoordinateKey(coord),
+            playerId: domain.activePlayer,
+          });
           setSelectedExpandedSpell(null);
           setPortalFirstSquare(null);
           triggerFeedback('GAME_EVENT', {
@@ -763,6 +785,9 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="app-shell">
+      {/* Decoupled Web Audio API Sound Synthesizer & EventBus Listener (Spec 01 & Spec 12) */}
+      <AudioManager />
+
       {/* Persistent Responsive Top Navigation Bar */}
       <TopNavBar
         currentView={currentView}

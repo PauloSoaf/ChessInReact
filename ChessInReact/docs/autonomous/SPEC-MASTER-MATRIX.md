@@ -2,7 +2,7 @@
 
 > **Matriz Mestre de Rastreabilidade e Conformidade de Requisitos**  
 > **Última Atualização:** 20/11/2026 13:12 (UTC-4)  
-> **Regra:** Requisito classificado como `VERIFIED` apenas com testes automatizados executados ou evidências diretas em ambiente real. Passou integralmente na auditoria de 20/11/2026 (927/927 testes aprovados, build e smoke test OK).
+> **Regra:** Requisito classificado como `VERIFIED` apenas com testes automatizados executados ou evidências diretas em ambiente real. Passou integralmente na auditoria de 20/11/2026 (941/941 testes aprovados, build e smoke test OK).
 
 ---
 
@@ -188,7 +188,7 @@
 | **S12-RF09** | Mecânica Puzzle Rush & Battle (Sobrevivência, Cronometrado, Arena Dedicada) | P0 | `analysis/minigames/PuzzleRushEngine.ts`, `ui/components/hub/PuzzleRushArena.tsx` | `VERIFIED` | `PuzzleRushEngine.test.ts` (8 testes) e `Minigames2D3DAndBots.test.tsx` (tabuleiro interativo FEN 2D/3D e Bot N1–N5) |
 | **S12-RF10** | Minigame Bughouse 2v2 (Tabuleiros Gêmeos, Transferência Cruzada, Drops Autoritativos) | P0 | `analysis/minigames/BughouseEngine.ts`, `ui/components/hub/BughouseArena.tsx` | `VERIFIED` | `BughouseEngine.test.ts` (11 testes) e `Minigames2D3DAndBots.test.tsx` (mesas gêmeas 2D/3D e Bots N1–N5) |
 | **S12-RF15** | Exportação de PGN com Anotações FIDE NAG ($1 a $6) e Sanitização | P1 | `analysis/GameReviewEngine.ts` | `VERIFIED` | `GameReviewEngine.test.tsx` (FIDE NAG $1..$6, comentários de avaliação, sanitização RNF-17) |
-| **S12-RF18** | Feedback e Mão Interativa de Feitiços (SpellCardHand) | P1 | `analysis/minigames/SpellCardHand.tsx` | `VERIFIED` | `SpellChessEngine.test.tsx` (Renderização de HUD e orbes de mana) |
+| **S12-RF18** | Feedback Háptico e Áudio Customizado de Minijogos (Web Audio API & EventBus) | P1 | `audio/WebAudioSynthesizer.ts`, `audio/AudioManager.tsx` | `VERIFIED` | `WebAudioSynthesizer.test.ts` (12 testes: síntese de feitiços, pato dual-formante, movimentos, capturas, xeques, mates e feedback de puzzle) |
 | **S12-RF19** | Área de Estudos & Academia Tática Interativa (Progressão Estrita) | P0 | `analysis/study/AcademyStudyEngine.ts` | `VERIFIED` | `AcademyStudyEngine.test.ts` (6 testes: verificação estrita passo-a-passo, FENs reais e inspeção pedagógica de gabarito) |
 
 ### Spec 13: Expanded Variant Universe, Historical & Fairy Engines

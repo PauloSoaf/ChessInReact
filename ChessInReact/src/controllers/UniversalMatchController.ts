@@ -30,6 +30,7 @@ import {
 } from '../matchmaking/config/IMatchConfiguration';
 import { MatchConfigurationManager } from '../matchmaking/config/MatchConfigurationManager';
 import { AIWorkerPool } from '../workers/ai/AIWorkerPool';
+import { GlobalEventBus } from '../core/events/EventBus';
 import { VariantPieceInitializer } from '../engine/variants/VariantPieceInitializer';
 import { DuckChessEngine, DuckTurnPhase, IDuckChessState } from '../analysis/minigames/DuckChessEngine';
 import { OfficialSpellEngine, IOfficialSpellState } from '../engine/variants/spells/OfficialSpellEngine';
@@ -731,6 +732,23 @@ export class UniversalMatchController {
       gameStore.getState().executeCommand(cmd);
       this.lastMoveSummaryStr = `${best.from} → ${best.to}`;
 
+      // Decoupled Audio & Feedback Event Dispatching for autonomous bot moves
+      if (capturedEntity && (capturedEntity as { type?: string }).type === 'PIECE') {
+        GlobalEventBus.emit('PIECE_CAPTURED', {
+          capturedId: asEntityId(capturedEntity.id),
+          captorId: asEntityId(best.pieceId),
+          coordinate: asCoordinateKey(best.to),
+          variantId: (capturedEntity as { variantId?: string }).variantId ?? 'PAWN',
+        });
+      } else {
+        GlobalEventBus.emit('PIECE_MOVED', {
+          pieceId: asEntityId(best.pieceId),
+          from: asCoordinateKey(best.from),
+          to: asCoordinateKey(best.to),
+          actingPlayer: domain.activePlayer,
+        });
+      }
+
       // 4b. Apply post-move Spell Chess triggers (traps, portals, mana/cooldown advance)
       this.applySpellEffectsAfterMove(best.pieceId, best.to, movingPlayerSide);
 
@@ -864,6 +882,12 @@ export class UniversalMatchController {
     const cmd = new DropPieceCommand(domain.activePlayer, pieceVariant, coordKey);
     gameStore.getState().executeCommand(cmd);
 
+    GlobalEventBus.emit('PIECE_DROPPED', {
+      pieceVariant,
+      coordinate: coordKey,
+      playerId: domain.activePlayer,
+    });
+
     this.notify();
     this.scheduleAutonomousTurnIfNeeded();
     return true;
@@ -889,6 +913,12 @@ export class UniversalMatchController {
     try {
       this.duckState = DuckChessEngine.executePlaceDuck(this.duckState, targetCoord, occupied);
       this.syncVariantModifiersToDomain();
+
+      GlobalEventBus.emit('DUCK_PLACED', {
+        coordinate: asCoordinateKey(targetCoord),
+        playerId: domain.activePlayer,
+      });
+
       this.notify();
       this.scheduleAutonomousTurnIfNeeded();
       return true;
@@ -1004,6 +1034,11 @@ export class UniversalMatchController {
         this.recordHistorySnapshot('SPELL');
         this.officialSpellState = res.state;
         this.syncVariantModifiersToDomain();
+        GlobalEventBus.emit('SPELL_CAST', {
+          spellType: 'FREEZE',
+          coordinate: asCoordinateKey(`${center.file},${center.rank}`),
+          playerId: domain.activePlayer,
+        });
         this.notify();
         return true;
       }
@@ -1024,6 +1059,11 @@ export class UniversalMatchController {
         this.recordHistorySnapshot('SPELL');
         this.officialSpellState = res.state;
         this.syncVariantModifiersToDomain();
+        GlobalEventBus.emit('SPELL_CAST', {
+          spellType: 'JUMP',
+          coordinate: asCoordinateKey(typeof target === 'string' ? target : '0,0'),
+          playerId: domain.activePlayer,
+        });
         this.notify();
         return true;
       }
@@ -1144,6 +1184,11 @@ export class UniversalMatchController {
       this.recordHistorySnapshot('SPELL');
       this.expandedSpellState = nextState;
       this.syncVariantModifiersToDomain();
+      GlobalEventBus.emit('SPELL_CAST', {
+        spellType: spell.type,
+        coordinate: asCoordinateKey(normTarget),
+        playerId: domain.activePlayer,
+      });
       this.notify();
       return true;
     } catch (err) {

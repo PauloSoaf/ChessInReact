@@ -20,6 +20,7 @@ import { ToroidalChessBoard3D } from './mesh/ToroidalChessBoard3D';
 import { CubicChessBoard3D } from './mesh/CubicChessBoard3D';
 import { CompositeArenaLayouts } from '../engine/multiplayer/arenas/CompositeArenaLayouts';
 import { ArenaModeId } from '../engine/multiplayer/arenas/interfaces/IArenaContracts';
+import { GlobalEventBus } from '../core/events/EventBus';
 import { IInvalidMoveFeedback, ITriggerFeedbackOptions, InvalidMoveReason } from '../bindings/react/useMoveFeedback';
 
 export interface IChessBoard3DProps {
@@ -363,10 +364,18 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
       try {
         onClearInvalidMove?.();
         const promotionVariant = matchedMove.isPromotion ? 'QUEEN' : undefined;
+        const targetCoordKey = asCoordinateKey(coord);
+        const isTargetOccupied = Boolean(domain.occupancy[targetCoordKey]);
+        const targetEntityId = domain.occupancy[targetCoordKey];
+        const capturedPiece = targetEntityId
+          ? (domain.boardEntities[targetEntityId] as IPieceEntity | undefined)
+          : undefined;
+        const isAtomic = Boolean(domain.variantId?.toUpperCase().includes('ATOMIC'));
+
         const moveCmd = new MovePieceCommand(
           selectedPiece.id,
           selectedPiece.position,
-          asCoordinateKey(coord),
+          targetCoordKey,
           domain.activePlayer,
           undefined,
           true,
@@ -375,6 +384,30 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           topology
         );
         executeCommand(moveCmd);
+
+        // Decoupled Audio & Feedback Event Dispatching (Spec 01 Section 10.2 & Spec 12 RF-18)
+        if (isAtomic && isTargetOccupied) {
+          GlobalEventBus.emit('EXPLOSION', {
+            epicenter: targetCoordKey,
+            radius: 1,
+            destroyedIds: targetEntityId ? [targetEntityId] : [],
+          });
+        } else if (isTargetOccupied && capturedPiece) {
+          GlobalEventBus.emit('PIECE_CAPTURED', {
+            capturedId: capturedPiece.id,
+            captorId: selectedPiece.id,
+            coordinate: targetCoordKey,
+            variantId: capturedPiece.variantId,
+          });
+        } else {
+          GlobalEventBus.emit('PIECE_MOVED', {
+            pieceId: selectedPiece.id,
+            from: selectedPiece.position,
+            to: targetCoordKey,
+            actingPlayer: domain.activePlayer,
+          });
+        }
+
         onHumanPieceMoved?.(selectedPiece.position, coord, selectedPiece.id);
       } catch (err) {
         console.warn('[ChessBoard3D] Move execution error:', err);
