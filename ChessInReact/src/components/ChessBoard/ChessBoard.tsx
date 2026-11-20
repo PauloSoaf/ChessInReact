@@ -222,11 +222,59 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
           : undefined;
 
         if (entity && entity.type === 'PIECE' && !entity.isCaptured) {
-          const variantKey = entity.variantId.toLowerCase();
-          const base = chessPieces[variantKey] ?? { symbol: '♟', name: variantKey };
+          const vUpper = entity.variantId.toUpperCase();
+          const isP1 = entity.ownerId === 'P1';
+          const isXiangqi = Boolean(domain.variantId?.toUpperCase().includes('XIANGQI'));
+          const isShogi = Boolean(domain.variantId?.toUpperCase().includes('SHOGI'));
+
+          let symbol = '';
+          if (isXiangqi) {
+            if (vUpper === 'KING' || vUpper === 'GENERAL' || vUpper === 'SHUAI' || vUpper === 'JIANG') {
+              symbol = isP1 ? '帥' : '將';
+            } else if (vUpper === 'ADVISOR') {
+              symbol = isP1 ? '仕' : '士';
+            } else if (vUpper === 'ELEPHANT') {
+              symbol = isP1 ? '相' : '象';
+            } else if (vUpper === 'HORSE' || vUpper === 'KNIGHT') {
+              symbol = isP1 ? '傌' : '馬';
+            } else if (vUpper === 'CHARIOT' || vUpper === 'ROOK') {
+              symbol = isP1 ? '俥' : '車';
+            } else if (vUpper === 'CANNON') {
+              symbol = isP1 ? '炮' : '砲';
+            } else if (vUpper === 'SOLDIER' || vUpper === 'PAWN') {
+              symbol = isP1 ? '兵' : '卒';
+            }
+          } else if (isShogi) {
+            if (vUpper === 'KING' || vUpper === 'GYOKU') {
+              symbol = isP1 ? '玉' : '王';
+            } else if (vUpper === 'LANCE') {
+              symbol = '香';
+            } else if (vUpper === 'KNIGHT') {
+              symbol = '桂';
+            } else if (vUpper === 'SILVER') {
+              symbol = '銀';
+            } else if (vUpper === 'GOLD') {
+              symbol = '金';
+            } else if (vUpper === 'BISHOP') {
+              symbol = '角';
+            } else if (vUpper === 'ROOK') {
+              symbol = '飛';
+            } else if (vUpper === 'PAWN') {
+              symbol = '歩';
+            } else if (vUpper === 'TOKIN') {
+              symbol = 'と';
+            }
+          }
+
+          if (!symbol) {
+            const variantKey = entity.variantId.toLowerCase();
+            const base = chessPieces[variantKey] ?? { symbol: '♟', name: variantKey };
+            symbol = base.symbol ?? '♟';
+          }
+
           row.push({
             name: entity.variantId,
-            symbol: base.symbol,
+            symbol,
             color: entity.ownerId === 'P1' ? 'white' : '#ed2fed',
             ownerId: entity.ownerId,
           });
@@ -237,7 +285,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
       grid.push(row);
     }
     return grid;
-  }, [domain.occupancy, domain.boardEntities, boardSize, isFlipped, isCubic, selectedFace]);
+  }, [domain.occupancy, domain.boardEntities, domain.variantId, boardSize, isFlipped, isCubic, selectedFace]);
 
   // Currently selected entity
   const selectedEntity = useMemo(() => {

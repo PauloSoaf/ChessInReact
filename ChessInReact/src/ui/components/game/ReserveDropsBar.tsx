@@ -9,6 +9,7 @@ export interface IReserveDropsBarProps {
   selectedPieceVariant: string | null;
   onSelectDropPiece: (variantId: string | null) => void;
   playerLabel: string;
+  isShogi?: boolean;
 }
 
 export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
@@ -16,6 +17,7 @@ export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
   selectedPieceVariant,
   onSelectDropPiece,
   playerLabel,
+  isShogi = false,
 }) => {
   if (reservePieces.length === 0) return null;
 
@@ -46,7 +48,21 @@ export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
         {Array.from(counts.entries()).map(([variant, count]) => {
           const isSelected = selectedPieceVariant === variant;
-          const pieceInfo = chessPieces[variant.toLowerCase()] ?? { symbol: variant[0] };
+          const vUpper = variant.toUpperCase();
+          let displaySymbol = '';
+          if (isShogi) {
+            if (vUpper === 'PAWN') displaySymbol = '歩';
+            else if (vUpper === 'LANCE') displaySymbol = '香';
+            else if (vUpper === 'KNIGHT') displaySymbol = '桂';
+            else if (vUpper === 'SILVER') displaySymbol = '銀';
+            else if (vUpper === 'GOLD') displaySymbol = '金';
+            else if (vUpper === 'BISHOP') displaySymbol = '角';
+            else if (vUpper === 'ROOK') displaySymbol = '飛';
+          }
+          if (!displaySymbol) {
+            const pieceInfo = chessPieces[variant.toLowerCase()] ?? { symbol: variant[0] };
+            displaySymbol = pieceInfo?.symbol ?? variant[0];
+          }
           const hotkey = variant[0].toUpperCase();
           return (
             <button
@@ -83,7 +99,7 @@ export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
               >
                 {hotkey}
               </kbd>
-              <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>{pieceInfo.symbol}</span>
+              <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>{displaySymbol}</span>
               <span>{variant}</span>
               {count > 1 && (
                 <span

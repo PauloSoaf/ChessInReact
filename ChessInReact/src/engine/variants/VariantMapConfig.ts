@@ -14,7 +14,9 @@ export type VariantZoneType =
   | 'HILL_SANCTUARY'
   | 'FINISH_LINE'
   | 'ARCANE_CONDUIT'
-  | 'CITADEL_RING';
+  | 'CITADEL_RING'
+  | 'XIANGQI_PALACE'
+  | 'XIANGQI_RIVER';
 
 export interface IVariantMapTheme {
   readonly id: string;
@@ -114,6 +116,15 @@ export class VariantMapConfig {
     }
     if (!variantId) return 'NORMAL';
     const v = variantId.toUpperCase();
+
+    if (v.includes('XIANGQI')) {
+      if (col >= 3 && col <= 5 && ((row >= 0 && row <= 2) || (row >= 7 && row <= 9))) {
+        return 'XIANGQI_PALACE';
+      }
+      if (row === 4 || row === 5) {
+        return 'XIANGQI_RIVER';
+      }
+    }
 
     if (v.includes('KING_OF_THE_HILL') || v.includes('HILL')) {
       if ((col === 3 || col === 4) && (row === 3 || row === 4)) {

@@ -32,7 +32,15 @@ export interface IBoardSquare {
   hasDuck?: boolean;
   isFrozen?: boolean;
   isVoid?: boolean;
-  specialZone?: 'NORMAL' | 'VOID' | 'HILL_SANCTUARY' | 'FINISH_LINE' | 'ARCANE_CONDUIT' | 'CITADEL_RING';
+  specialZone?:
+    | 'NORMAL'
+    | 'VOID'
+    | 'HILL_SANCTUARY'
+    | 'FINISH_LINE'
+    | 'ARCANE_CONDUIT'
+    | 'CITADEL_RING'
+    | 'XIANGQI_PALACE'
+    | 'XIANGQI_RIVER';
   hasPortal?: boolean;
   hasTrap?: boolean;
   hasJump?: boolean;

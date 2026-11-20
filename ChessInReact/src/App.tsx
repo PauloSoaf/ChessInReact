@@ -895,6 +895,7 @@ const AppContent: React.FC = () => {
                   }
                   selectedPieceVariant={selectedDropPiece}
                   onSelectDropPiece={setSelectedDropPiece}
+                  isShogi={universalMatch.snapshot.config.variantId.toUpperCase().includes('SHOGI')}
                 />
               )}
 

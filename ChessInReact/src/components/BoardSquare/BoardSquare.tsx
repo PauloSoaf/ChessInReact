@@ -367,6 +367,47 @@ const BoardSquare: React.FC<IBoardSquare> = ({
         />
       )}
 
+      {/* Xiangqi: Nine Palaces (九宮) */}
+      {specialZone === 'XIANGQI_PALACE' && (
+        <div
+          data-testid="xiangqi-palace-marker"
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'radial-gradient(circle, rgba(239, 68, 68, 0.12) 0%, transparent 80%)',
+            boxShadow: 'inset 0 0 0 1px rgba(239, 68, 68, 0.28)',
+            pointerEvents: 'none',
+            zIndex: 1,
+          }}
+        />
+      )}
+
+      {/* Xiangqi: Chu River - Han Border (楚河 · 漢界) */}
+      {specialZone === 'XIANGQI_RIVER' && (
+        <div
+          data-testid="xiangqi-river-marker"
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(180deg, rgba(56, 189, 248, 0.12) 0%, rgba(14, 165, 233, 0.22) 50%, rgba(56, 189, 248, 0.12) 100%)',
+            boxShadow: 'inset 0 0 0 1px rgba(56, 189, 248, 0.25)',
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '0.62rem',
+            color: 'rgba(56, 189, 248, 0.75)',
+            zIndex: 1,
+          }}
+        >
+          {rowNumber === 5 && colLetter === 'e' && (
+            <span style={{ fontWeight: 800, letterSpacing: '2px', fontSize: '0.65rem' }}>楚河 · 漢界</span>
+          )}
+        </div>
+      )}
+
       {/* Spell Chess: Dimensional Portal Vortex */}
       {hasPortal && (
         <div
