@@ -152,5 +152,90 @@ export class GameReviewEngine {
       evalStream,
     };
   }
+
+  /**
+   * Maps a MoveClassification to standard FIDE Numeric Annotation Glyphs (NAG) and symbols (Spec 12 RF-15).
+   * - $1 = ! (Good / Best)
+   * - $2 = ? (Mistake)
+   * - $3 = !! (Brilliant)
+   * - $4 = ?? (Blunder / Missed Win)
+   * - $5 = !? (Interesting / Excellent)
+   * - $6 = ?! (Inaccuracy)
+   */
+  public static classificationToNAG(classification: MoveClassification): { readonly nag: string; readonly symbol: string } {
+    switch (classification) {
+      case 'BRILLIANT':
+        return { nag: '$3', symbol: '!!' };
+      case 'BEST':
+      case 'GREAT':
+        return { nag: '$1', symbol: '!' };
+      case 'EXCELLENT':
+        return { nag: '$5', symbol: '!?' };
+      case 'INACCURACY':
+        return { nag: '$6', symbol: '?!' };
+      case 'MISTAKE':
+        return { nag: '$2', symbol: '?' };
+      case 'BLUNDER':
+      case 'MISSED_WIN':
+        return { nag: '$4', symbol: '??' };
+      case 'BOOK':
+      case 'GOOD':
+      default:
+        return { nag: '', symbol: '' };
+    }
+  }
+
+  /**
+   * Exports an annotated PGN string with FIDE NAG annotations, evaluation comments,
+   * and CAPS2 accuracy headers (Spec 12 RF-15, RNF-17).
+   */
+  public static exportAnnotatedPGN(
+    summary: IGameReviewSummary,
+    headers: Record<string, string> = {}
+  ): string {
+    const sanitize = (val: string) => val.replace(/[<>"\\{}\n\r]/g, '');
+
+    const headerLines: string[] = [
+      `[Event "${sanitize(headers.Event ?? 'ChessInReact Match')}"]`,
+      `[Site "${sanitize(headers.Site ?? 'ChessInReact Platform')}"]`,
+      `[Date "${sanitize(headers.Date ?? new Date().toISOString().split('T')[0])}"]`,
+      `[White "${sanitize(headers.White ?? 'White')}"]`,
+      `[Black "${sanitize(headers.Black ?? 'Black')}"]`,
+      `[Result "${sanitize(headers.Result ?? '*')}"]`,
+      `[WhiteAccuracy "${summary.whiteAccuracy.toFixed(1)}%"]`,
+      `[BlackAccuracy "${summary.blackAccuracy.toFixed(1)}%"]`,
+    ];
+
+    if (headers.ECO) {
+      headerLines.push(`[ECO "${sanitize(headers.ECO)}"]`);
+    }
+    if (headers.Opening) {
+      headerLines.push(`[Opening "${sanitize(headers.Opening)}"]`);
+    }
+
+    const moveTokens: string[] = [];
+    for (let i = 0; i < summary.evalStream.length; i++) {
+      const ep = summary.evalStream[i];
+      const san = sanitize(ep.moveSan ?? '??');
+      const { nag } = this.classificationToNAG(ep.classification);
+
+      if (ep.isWhite) {
+        moveTokens.push(`${ep.turnNumber}.`);
+      } else if (i === 0) {
+        moveTokens.push(`${ep.turnNumber}...`);
+      }
+
+      const nagToken = nag ? ` ${nag}` : '';
+      const cpStr = (ep.evalCp / 100).toFixed(2);
+      const commentToken = ` {[%eval ${cpStr}] [${ep.classification}]}`;
+      moveTokens.push(`${san}${nagToken}${commentToken}`);
+    }
+
+    if (headers.Result) {
+      moveTokens.push(sanitize(headers.Result));
+    }
+
+    return `${headerLines.join('\n')}\n\n${moveTokens.join(' ')}\n`;
+  }
 }
 

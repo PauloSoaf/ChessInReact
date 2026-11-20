@@ -108,4 +108,43 @@ describe('Spec 12 Game Review, CAPS2 Accuracy & Advantage Graph Suite (S12-RF01,
       expect(handleSelectPly).toHaveBeenCalled();
     });
   });
+
+  describe('6. FIDE NAG Annotations and PGN Export (Spec 12 § 8, RF-15, RNF-17)', () => {
+    it('maps move classifications to standard FIDE NAG glyphs and numeric codes', () => {
+      expect(GameReviewEngine.classificationToNAG('BRILLIANT')).toEqual({ nag: '$3', symbol: '!!' });
+      expect(GameReviewEngine.classificationToNAG('BEST')).toEqual({ nag: '$1', symbol: '!' });
+      expect(GameReviewEngine.classificationToNAG('GREAT')).toEqual({ nag: '$1', symbol: '!' });
+      expect(GameReviewEngine.classificationToNAG('EXCELLENT')).toEqual({ nag: '$5', symbol: '!?' });
+      expect(GameReviewEngine.classificationToNAG('INACCURACY')).toEqual({ nag: '$6', symbol: '?!' });
+      expect(GameReviewEngine.classificationToNAG('MISTAKE')).toEqual({ nag: '$2', symbol: '?' });
+      expect(GameReviewEngine.classificationToNAG('BLUNDER')).toEqual({ nag: '$4', symbol: '??' });
+      expect(GameReviewEngine.classificationToNAG('MISSED_WIN')).toEqual({ nag: '$4', symbol: '??' });
+      expect(GameReviewEngine.classificationToNAG('BOOK')).toEqual({ nag: '', symbol: '' });
+      expect(GameReviewEngine.classificationToNAG('GOOD')).toEqual({ nag: '', symbol: '' });
+    });
+
+    it('exports fully annotated PGN compliant with FIDE NAG, evaluations and sanitized headers', () => {
+      const evalsCp = [35, -45, 120, -500];
+      const moveSans = ['e4', 'e5', 'Nf3', 'f6??'];
+      const summary = GameReviewEngine.analyzeMatch(evalsCp, moveSans);
+
+      const pgn = GameReviewEngine.exportAnnotatedPGN(summary, {
+        Event: 'World Championship',
+        White: 'Player White',
+        Black: 'Player Black',
+        Result: '1-0',
+        ECO: 'C40',
+        Opening: 'King\'s Knight Opening',
+      });
+
+      expect(pgn).toContain('[Event "World Championship"]');
+      expect(pgn).toContain('[ECO "C40"]');
+      expect(pgn).toContain('[WhiteAccuracy "');
+      expect(pgn).toContain('[BlackAccuracy "');
+      expect(pgn).toContain('1. e4');
+      expect(pgn).toContain('1-0');
+      // Verify evaluation comments are present
+      expect(pgn).toContain('{[%eval');
+    });
+  });
 });
