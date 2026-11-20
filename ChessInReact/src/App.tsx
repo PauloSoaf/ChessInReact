@@ -1195,7 +1195,8 @@ const AppContent: React.FC = () => {
                         onVariantSquareClick={
                           universalMatch.snapshot.duckPhase === 'PLACE_DUCK' ||
                             Boolean(selectedOfficialSpell) ||
-                            Boolean(selectedExpandedSpell)
+                            Boolean(selectedExpandedSpell) ||
+                            Boolean(selectedDropPiece)
                             ? handleVariantSquareClick
                             : undefined
                         }

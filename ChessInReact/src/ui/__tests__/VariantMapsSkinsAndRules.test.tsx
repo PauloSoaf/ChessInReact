@@ -382,6 +382,16 @@ describe('Variable Variant Maps, Spell Chess Skins & Gameplay Mechanics, and Rul
     expect(container.querySelector('[name="stealth-trap-3d-4,4"]')).not.toBeNull();
     expect(container.querySelector('[name="duck-3d"]')).not.toBeNull();
     unmount();
+
+    // Verify 3D Xiangqi overlays: Chu River and Nine Palaces
+    const { container: xq3D, unmount: unmountXq } = render(
+      <VariantOverlays3D boardSize={9} variantId="XIANGQI" />
+    );
+    expect(xq3D.querySelector('[name="xiangqi-river-3d"]')).not.toBeNull();
+    expect(xq3D.querySelector('[name="xiangqi-palace-p1-3d"]')).not.toBeNull();
+    expect(xq3D.querySelector('[name="xiangqi-palace-p2-3d"]')).not.toBeNull();
+    unmountXq();
+
     controller.dispose();
   });
 

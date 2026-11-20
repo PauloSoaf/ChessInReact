@@ -39,6 +39,9 @@ export const VariantOverlays3D: React.FC<IVariantOverlays3DProps> = ({
   const isKingOfTheHill = Boolean(
     variantId && (variantId.toUpperCase() === 'KING_OF_THE_HILL' || variantId.toUpperCase().includes('HILL'))
   );
+  const isXiangqi = Boolean(variantId && variantId.toUpperCase().includes('XIANGQI'));
+  const xiangqiPalace1Pos = isXiangqi ? toWorld('4,1', boardSize) : null;
+  const xiangqiPalace2Pos = isXiangqi ? toWorld('4,8', boardSize) : null;
 
   const portalCoords: string[] = [];
   for (const portal of activePortals ?? []) {
@@ -58,6 +61,55 @@ export const VariantOverlays3D: React.FC<IVariantOverlays3DProps> = ({
             emissiveIntensity={0.6}
             metalness={0.8}
             roughness={0.2}
+          />
+        </mesh>
+      )}
+
+      {/* Xiangqi: Chu River (楚河·漢界) 3D Water Band */}
+      {isXiangqi && (
+        <mesh name="xiangqi-river-3d" position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[boardSize, 0.96]} />
+          <meshStandardMaterial
+            color="#06b6d4"
+            emissive="#0891b2"
+            emissiveIntensity={0.35}
+            transparent
+            opacity={0.38}
+            roughness={0.1}
+          />
+        </mesh>
+      )}
+
+      {/* Xiangqi: Nine Palaces (九宮) 3D Boundaries */}
+      {isXiangqi && xiangqiPalace1Pos && (
+        <mesh
+          name="xiangqi-palace-p1-3d"
+          position={[xiangqiPalace1Pos[0], 0.03, xiangqiPalace1Pos[1]]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <planeGeometry args={[2.92, 2.92]} />
+          <meshStandardMaterial
+            color="#ef4444"
+            emissive="#dc2626"
+            emissiveIntensity={0.25}
+            transparent
+            opacity={0.18}
+          />
+        </mesh>
+      )}
+      {isXiangqi && xiangqiPalace2Pos && (
+        <mesh
+          name="xiangqi-palace-p2-3d"
+          position={[xiangqiPalace2Pos[0], 0.03, xiangqiPalace2Pos[1]]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <planeGeometry args={[2.92, 2.92]} />
+          <meshStandardMaterial
+            color="#ef4444"
+            emissive="#dc2626"
+            emissiveIntensity={0.25}
+            transparent
+            opacity={0.18}
           />
         </mesh>
       )}
