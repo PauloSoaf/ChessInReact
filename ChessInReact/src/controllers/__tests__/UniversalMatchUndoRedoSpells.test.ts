@@ -4,6 +4,7 @@ import { MatchConfigurationManager } from '../../matchmaking/config/MatchConfigu
 import { gameStore } from '../../core/state/gameStore';
 import { DropPieceCommand } from '../../core/commands/DropPieceCommand';
 import { asCoordinateKey, asEntityId } from '../../core/coordinates';
+import { IPieceEntity } from '../../core/entities/types';
 
 describe('Spec 12 & Spec 01 - Spell Chess and Minigame Lossless Undo/Redo & State Parity', () => {
   beforeEach(() => {
@@ -55,7 +56,6 @@ describe('Spec 12 & Spec 01 - Spell Chess and Minigame Lossless Undo/Redo & Stat
   });
 
   it('executes DropPieceCommand and cleanly undoes the drop restoring reserve state', () => {
-    const domain = gameStore.getState().domain;
     const capturedKnightId = asEntityId('captured_knight_1');
     gameStore.setState((s) => ({
       domain: {
@@ -82,9 +82,10 @@ describe('Spec 12 & Spec 01 - Spell Chess and Minigame Lossless Undo/Redo & Stat
     gameStore.getState().executeCommand(dropCmd);
 
     const postDrop = gameStore.getState().domain;
+    const postDropPiece = postDrop.boardEntities[capturedKnightId] as IPieceEntity | undefined;
     expect(postDrop.occupancy[target]).toBe(capturedKnightId);
-    expect(postDrop.boardEntities[capturedKnightId]?.isCaptured).toBe(false);
-    expect(postDrop.boardEntities[capturedKnightId]?.ownerId).toBe('P1');
+    expect(postDropPiece?.isCaptured).toBe(false);
+    expect(postDropPiece?.ownerId).toBe('P1');
     expect(postDrop.activePlayer).toBe('P2');
     expect(postDrop.turnNumber).toBe(2);
 
@@ -93,8 +94,9 @@ describe('Spec 12 & Spec 01 - Spell Chess and Minigame Lossless Undo/Redo & Stat
     expect(undone).toBe(true);
 
     const postUndo = gameStore.getState().domain;
+    const postUndoPiece = postUndo.boardEntities[capturedKnightId] as IPieceEntity | undefined;
     expect(postUndo.occupancy[target]).toBeUndefined();
-    expect(postUndo.boardEntities[capturedKnightId]?.isCaptured).toBe(true);
+    expect(postUndoPiece?.isCaptured).toBe(true);
     expect(postUndo.activePlayer).toBe('P1');
     expect(postUndo.turnNumber).toBe(1);
   });
