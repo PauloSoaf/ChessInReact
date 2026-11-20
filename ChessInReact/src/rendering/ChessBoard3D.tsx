@@ -4,7 +4,7 @@ import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { useGameStore, useGameActions } from '../bindings/react/useGameStore';
 import { useTheme } from '../ui/theme/ThemeContext';
-import { asCoordinateKey } from '../core/coordinates';
+import { asCoordinateKey, asEntityId } from '../core/coordinates';
 import { IPieceEntity } from '../core/entities/types';
 import { SquareTopology } from '../core/topology/SquareTopology';
 import { CubicTopology } from '../core/topology/CubicTopology';
@@ -22,6 +22,8 @@ import { CompositeArenaLayouts } from '../engine/multiplayer/arenas/CompositeAre
 import { ArenaModeId } from '../engine/multiplayer/arenas/interfaces/IArenaContracts';
 import { GlobalEventBus } from '../core/events/EventBus';
 import { IInvalidMoveFeedback, ITriggerFeedbackOptions, InvalidMoveReason } from '../bindings/react/useMoveFeedback';
+import { PromotionModal } from '../ui/components/game/PromotionModal';
+import { PlayerId } from '../core/coordinates/types';
 
 export interface IChessBoard3DProps {
   boardSize?: number;
@@ -258,6 +260,15 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
     return (domain.boardEntities[ui.selectedPieceId] as IPieceEntity) ?? null;
   }, [ui.selectedPieceId, domain.boardEntities]);
 
+  // Accessible Pawn Promotion Dialog state for 3D WebGL (Spec 06 RF-08, US06-P09, Spec 01 US01-C10)
+  const [pendingPromotion, setPendingPromotion] = React.useState<{
+    pieceId: string;
+    sourceCoord: string;
+    targetCoord: string;
+    ownerId: PlayerId;
+    allowedVariants?: string[];
+  } | null>(null);
+
   // Compute legal moves for selected piece
   const legalMoveCoords = useMemo(() => {
     if (!selectedPiece || !preferences.showLegalMoves) return [];
@@ -361,10 +372,22 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
         return;
       }
 
+      const targetCoordKey = asCoordinateKey(coord);
+
+      // If move is a pawn promotion, pause execution and present accessible Promotion Modal (Spec 06 RF-08, US06-P09, Spec 01 US01-C10)
+      if (matchedMove.isPromotion) {
+        setPendingPromotion({
+          pieceId: selectedPiece.id,
+          sourceCoord: selectedPiece.position,
+          targetCoord: targetCoordKey,
+          ownerId: selectedPiece.ownerId as PlayerId,
+          allowedVariants: matchedMove.promotionOptions ?? ['QUEEN', 'KNIGHT', 'ROOK', 'BISHOP'],
+        });
+        return;
+      }
+
       try {
         onClearInvalidMove?.();
-        const promotionVariant = matchedMove.isPromotion ? 'QUEEN' : undefined;
-        const targetCoordKey = asCoordinateKey(coord);
         const isTargetOccupied = Boolean(domain.occupancy[targetCoordKey]);
         const targetEntityId = domain.occupancy[targetCoordKey];
         const capturedPiece = targetEntityId
@@ -380,7 +403,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           undefined,
           true,
           true,
-          promotionVariant,
+          undefined,
           topology
         );
         executeCommand(moveCmd);
@@ -431,6 +454,72 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
       onVariantSquareClick,
     ]
   );
+
+  const handleConfirmPromotion = useCallback(
+    (promotionVariant: string) => {
+      if (!pendingPromotion) return;
+      const { pieceId, sourceCoord, targetCoord } = pendingPromotion;
+      try {
+        onClearInvalidMove?.();
+        const targetCoordKey = asCoordinateKey(targetCoord);
+        const isTargetOccupied = Boolean(domain.occupancy[targetCoordKey]);
+        const targetEntityId = domain.occupancy[targetCoordKey];
+        const capturedPiece = targetEntityId
+          ? (domain.boardEntities[targetEntityId] as IPieceEntity | undefined)
+          : undefined;
+        const isAtomic = Boolean(domain.variantId?.toUpperCase().includes('ATOMIC'));
+
+        const moveCmd = new MovePieceCommand(
+          asEntityId(pieceId),
+          asCoordinateKey(sourceCoord),
+          targetCoordKey,
+          domain.activePlayer,
+          undefined,
+          true,
+          true,
+          promotionVariant,
+          topology
+        );
+        executeCommand(moveCmd);
+
+        // Decoupled Audio & Feedback Event Dispatching (Spec 01 Section 10.2 & Spec 12 RF-18)
+        if (isAtomic && isTargetOccupied) {
+          GlobalEventBus.emit('EXPLOSION', {
+            epicenter: targetCoordKey,
+            radius: 1,
+            destroyedIds: targetEntityId ? [targetEntityId] : [],
+          });
+        } else if (isTargetOccupied && capturedPiece) {
+          GlobalEventBus.emit('PIECE_CAPTURED', {
+            capturedId: capturedPiece.id,
+            captorId: asEntityId(pieceId),
+            coordinate: targetCoordKey,
+            variantId: capturedPiece.variantId,
+          });
+        } else {
+          GlobalEventBus.emit('PIECE_MOVED', {
+            pieceId: asEntityId(pieceId),
+            from: asCoordinateKey(sourceCoord),
+            to: targetCoordKey,
+            actingPlayer: domain.activePlayer,
+          });
+        }
+
+        onHumanPieceMoved?.(sourceCoord, targetCoordKey, pieceId);
+      } catch (err) {
+        console.warn('[ChessBoard3D] Promotion execution error:', err);
+      } finally {
+        setPendingPromotion(null);
+        selectPiece(null);
+      }
+    },
+    [pendingPromotion, onClearInvalidMove, domain, topology, executeCommand, onHumanPieceMoved, selectPiece]
+  );
+
+  const handleCancelPromotion = useCallback(() => {
+    setPendingPromotion(null);
+    selectPiece(null);
+  }, [selectPiece]);
 
   const handlePieceClick = useCallback(
     (_pieceId: string, position: string) => {
@@ -623,6 +712,16 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           </button>
         )}
       </div>
+
+      {/* Accessible Pawn Promotion Dialog for 3D View (Spec 06 RF-08, US06-P09, Spec 01 US01-C10) */}
+      <PromotionModal
+        isOpen={Boolean(pendingPromotion)}
+        onSelectPromotion={handleConfirmPromotion}
+        onCancel={handleCancelPromotion}
+        ownerId={pendingPromotion?.ownerId}
+        targetCoord={pendingPromotion?.targetCoord}
+        allowedVariants={pendingPromotion?.allowedVariants}
+      />
     </div>
   );
 };

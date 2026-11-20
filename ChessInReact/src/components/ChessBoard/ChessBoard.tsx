@@ -3,7 +3,7 @@ import BoardSquare from '../BoardSquare/BoardSquare';
 import { IChessPiece, ISquareInfo } from '../../Interfaces/Interfaces';
 import { chessPieces } from '../../constants/chessPieces';
 import { useGameActions, useGameStore } from '../../bindings/react/useGameStore';
-import { asCoordinateKey } from '../../core/coordinates';
+import { asCoordinateKey, asEntityId } from '../../core/coordinates';
 import { MovePieceCommand } from '../../core/commands/MovePieceCommand';
 import { IPieceEntity } from '../../core/entities/types';
 import { SquareTopology } from '../../core/topology/SquareTopology';
@@ -16,6 +16,7 @@ import { CheckValidator } from '../../engine/rules/CheckValidator';
 import { VariantMapConfig } from '../../engine/variants/VariantMapConfig';
 import { GlobalEventBus } from '../../core/events/EventBus';
 import { IInvalidMoveFeedback, ITriggerFeedbackOptions, InvalidMoveReason } from '../../bindings/react/useMoveFeedback';
+import { PromotionModal } from '../../ui/components/game/PromotionModal';
 
 export interface IChessBoardProps {
   boardSize?: number;
@@ -84,6 +85,15 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
     gameX: Math.floor(boardSize / 2),
     gameY: Math.min(1, boardSize - 1),
   }));
+
+  // Accessible Pawn Promotion Dialog state (Spec 06 RF-08, US06-P09, Spec 01 US01-C10)
+  const [pendingPromotion, setPendingPromotion] = React.useState<{
+    pieceId: string;
+    sourceCoord: string;
+    targetCoord: string;
+    ownerId: PlayerId;
+    allowedVariants?: string[];
+  } | null>(null);
 
   // Ensure logical coordinates remain within current board boundaries if boardSize changes
   const validLogicalCoord = useMemo(() => {
@@ -504,10 +514,21 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
       return;
     }
 
+    // If move is a pawn promotion, pause execution and present accessible Promotion Modal (Spec 06 RF-08, US06-P09, Spec 01 US01-C10)
+    if (matchedMove.isPromotion) {
+      setPendingPromotion({
+        pieceId: activeSelected.id,
+        sourceCoord: activeSelected.position,
+        targetCoord: clickedCoord,
+        ownerId: activeSelected.ownerId,
+        allowedVariants: matchedMove.promotionOptions ?? ['QUEEN', 'KNIGHT', 'ROOK', 'BISHOP'],
+      });
+      return;
+    }
+
     // Dispatch MovePieceCommand through Core State Store with full rules validation
     try {
       onClearInvalidMove?.();
-      const promotionVariant = matchedMove.isPromotion ? 'QUEEN' : undefined;
       const isTargetOccupied = Boolean(domain.occupancy[clickedCoord]);
       const targetEntityId = domain.occupancy[clickedCoord];
       const capturedPiece = targetEntityId
@@ -523,7 +544,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
         undefined,
         true,
         true,
-        promotionVariant,
+        undefined,
         topology
       );
       executeCommand(moveCmd);
@@ -557,6 +578,69 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
     } finally {
       selectPiece(null);
     }
+  };
+
+  const handleConfirmPromotion = (promotionVariant: string) => {
+    if (!pendingPromotion) return;
+    const { pieceId, sourceCoord, targetCoord } = pendingPromotion;
+    const targetCoordKey = asCoordinateKey(targetCoord);
+    try {
+      onClearInvalidMove?.();
+      const isTargetOccupied = Boolean(domain.occupancy[targetCoordKey]);
+      const targetEntityId = domain.occupancy[targetCoordKey];
+      const capturedPiece = targetEntityId
+        ? (domain.boardEntities[targetEntityId] as IPieceEntity | undefined)
+        : undefined;
+      const isAtomic = Boolean(domain.variantId?.toUpperCase().includes('ATOMIC'));
+
+      const moveCmd = new MovePieceCommand(
+        asEntityId(pieceId),
+        asCoordinateKey(sourceCoord),
+        targetCoordKey,
+        domain.activePlayer,
+        undefined,
+        true,
+        true,
+        promotionVariant,
+        topology
+      );
+      executeCommand(moveCmd);
+
+      // Decoupled Audio & Feedback Event Dispatching (Spec 01 Section 10.2 & Spec 12 RF-18)
+      if (isAtomic && isTargetOccupied) {
+        GlobalEventBus.emit('EXPLOSION', {
+          epicenter: targetCoordKey,
+          radius: 1,
+          destroyedIds: targetEntityId ? [targetEntityId] : [],
+        });
+      } else if (isTargetOccupied && capturedPiece) {
+        GlobalEventBus.emit('PIECE_CAPTURED', {
+          capturedId: capturedPiece.id,
+          captorId: asEntityId(pieceId),
+          coordinate: targetCoordKey,
+          variantId: capturedPiece.variantId,
+        });
+      } else {
+        GlobalEventBus.emit('PIECE_MOVED', {
+          pieceId: asEntityId(pieceId),
+          from: asCoordinateKey(sourceCoord),
+          to: targetCoordKey,
+          actingPlayer: domain.activePlayer,
+        });
+      }
+
+      onHumanPieceMoved?.(sourceCoord, targetCoord, pieceId);
+    } catch (err) {
+      console.warn('[RulesEngine] Promotion rejected by Core invariants / Rules Engine:', err);
+    } finally {
+      setPendingPromotion(null);
+      selectPiece(null);
+    }
+  };
+
+  const handleCancelPromotion = () => {
+    setPendingPromotion(null);
+    selectPiece(null);
   };
 
   const isSpellVariant = Boolean(domain.variantId && domain.variantId.toUpperCase().includes('SPELL'));
@@ -822,6 +906,14 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
         })
       )}
       </div>
+      <PromotionModal
+        isOpen={Boolean(pendingPromotion)}
+        onSelectPromotion={handleConfirmPromotion}
+        onCancel={handleCancelPromotion}
+        ownerId={pendingPromotion?.ownerId}
+        targetCoord={pendingPromotion?.targetCoord}
+        allowedVariants={pendingPromotion?.allowedVariants}
+      />
     </div>
   );
 };
