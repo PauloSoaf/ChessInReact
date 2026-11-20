@@ -263,6 +263,35 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
     return map;
   }, [preferences.showLegalMoves, selectedEntity, domain, topology]);
 
+  const isAtomicVariant = Boolean(domain.variantId?.toUpperCase().includes('ATOMIC'));
+  const atomicBlastArea = useMemo(() => {
+    if (!isAtomicVariant || !hoveredCoord || !ui.selectedPieceId) return null;
+    let center = hoveredCoord;
+    if (center.includes(':')) {
+      center = center.split(':')[1];
+    }
+    const [cxStr, cyStr] = center.split(',');
+    const cx = parseInt(cxStr, 10);
+    const cy = parseInt(cyStr, 10);
+    if (isNaN(cx) || isNaN(cy)) return null;
+
+    const targetKey = asCoordinateKey(`${cx},${cy}`);
+    const isCapture = legalMovesMap.get(targetKey);
+    if (!isCapture) return null;
+
+    const set = new Set<string>();
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const tx = cx + dx;
+        const ty = cy + dy;
+        if (tx >= 0 && tx < effectiveWidth && ty >= 0 && ty < effectiveHeight) {
+          set.add(`${tx},${ty}`);
+        }
+      }
+    }
+    return { center: `${cx},${cy}`, coords: set };
+  }, [isAtomicVariant, hoveredCoord, ui.selectedPieceId, legalMovesMap, effectiveWidth, effectiveHeight]);
+
   const variantTheme = useMemo(
     () => VariantMapConfig.getVariantTheme(domain.variantId),
     [domain.variantId]
@@ -495,7 +524,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
         </div>
       )}
       {/* Interactive Action Indicator Bar with explicit Cancel button */}
-      {(selectedSpellType || selectedDropPiece || duckPlacementActive) && (
+      {(selectedSpellType || selectedDropPiece || duckPlacementActive || Boolean(atomicBlastArea)) && (
         <div
           data-testid="board-action-indicator"
           style={{
@@ -511,6 +540,8 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               ? 'rgba(168, 85, 247, 0.22)'
               : duckPlacementActive
               ? 'rgba(234, 179, 8, 0.22)'
+              : atomicBlastArea
+              ? 'rgba(239, 68, 68, 0.25)'
               : 'rgba(16, 185, 129, 0.22)',
             border: selectedSpellType === 'FREEZE'
               ? '1.5px solid #06b6d4'
@@ -518,6 +549,8 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               ? '1.5px solid #a855f7'
               : duckPlacementActive
               ? '1.5px solid #eab308'
+              : atomicBlastArea
+              ? '1.5px solid #ef4444'
               : '1.5px solid #10b981',
             fontSize: '0.78rem',
             fontWeight: 700,
@@ -531,6 +564,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
             {selectedDropPiece && `♟ Drop de ${selectedDropPiece}: Passe o mouse sobre uma casa vazia e clique.`}
             {selectedSpellType === 'PORTAL' && '🌀 Portal: Clique em duas casas vazias para criar o atalho.'}
             {selectedSpellType === 'STEALTH_TRAP' && '💣 Mina Oculta: Clique em uma casa vazia para plantar.'}
+            {atomicBlastArea && !selectedSpellType && !selectedDropPiece && !duckPlacementActive && '💥 Detonação Atômica Iminente: Capturar detonará o atacante, a vítima e peças vizinhas (exceto peões)!'}
           </span>
           {onCancelAction && !duckPlacementActive && (
             <button
@@ -621,6 +655,13 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
                 isValid: true,
               };
             }
+          } else if (atomicBlastArea?.coords.has(`${gameX},${gameY}`)) {
+            const isCenter = atomicBlastArea.center === `${gameX},${gameY}`;
+            hoverPreview = {
+              type: isCenter ? 'ATOMIC_EPICENTER' : 'ATOMIC_BLAST',
+              isCenter,
+              isValid: true,
+            };
           } else if (isDirectHover) {
             if (selectedSpellType === 'JUMP') {
               const isFriendly = Boolean(pieceEntity && pieceEntity.ownerId === domain.activePlayer);

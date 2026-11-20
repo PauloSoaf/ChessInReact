@@ -1,5 +1,13 @@
 export interface IHoverPreviewInfo {
-  readonly type: 'FREEZE' | 'JUMP' | 'DUCK' | 'DROP' | 'PORTAL' | 'TRAP';
+  readonly type:
+    | 'FREEZE'
+    | 'JUMP'
+    | 'DUCK'
+    | 'DROP'
+    | 'PORTAL'
+    | 'TRAP'
+    | 'ATOMIC_EPICENTER'
+    | 'ATOMIC_BLAST';
   readonly isCenter?: boolean;
   readonly isValid?: boolean;
   readonly symbol?: string;

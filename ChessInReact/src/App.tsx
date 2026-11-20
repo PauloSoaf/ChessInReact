@@ -564,6 +564,30 @@ const AppContent: React.FC = () => {
         }
       }
 
+      if (e.key === '1') {
+        if (universalMatch.snapshot.officialSpellState) {
+          const next = selectedOfficialSpell === 'FREEZE' ? null : 'FREEZE';
+          setSelectedOfficialSpell(next);
+          triggerFeedback('GAME_EVENT', {
+            message: next
+              ? 'Feitiço FREEZE preparado! Passe o mouse no tabuleiro para ver a área 3×3 e clique na casa central (ou clique em Cancelar).'
+              : 'Seleção de FREEZE cancelada.',
+          });
+          return;
+        }
+      } else if (e.key === '2') {
+        if (universalMatch.snapshot.officialSpellState) {
+          const next = selectedOfficialSpell === 'JUMP' ? null : 'JUMP';
+          setSelectedOfficialSpell(next);
+          triggerFeedback('GAME_EVENT', {
+            message: next
+              ? 'Feitiço JUMP preparado! Clique na peça aliada no tabuleiro (ou clique em Cancelar).'
+              : 'Seleção de JUMP cancelada.',
+          });
+          return;
+        }
+      }
+
       if (e.key === 'z' || e.key === 'Z') {
         if (e.shiftKey) handleRedo();
         else handleUndo();
@@ -596,6 +620,7 @@ const AppContent: React.FC = () => {
     selectedDropPiece,
     portalFirstSquare,
     triggerFeedback,
+    universalMatch,
   ]);
 
   const handleResumeMatch = useCallback(() => {

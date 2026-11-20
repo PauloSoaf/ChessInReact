@@ -47,27 +47,43 @@ export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
         {Array.from(counts.entries()).map(([variant, count]) => {
           const isSelected = selectedPieceVariant === variant;
           const pieceInfo = chessPieces[variant.toLowerCase()] ?? { symbol: variant[0] };
+          const hotkey = variant[0].toUpperCase();
           return (
             <button
               key={`drop-btn-${variant}`}
               data-testid={`drop-btn-${variant.toLowerCase()}`}
               aria-pressed={isSelected}
               onClick={() => onSelectDropPiece(isSelected ? null : variant)}
+              title={`Clique para selecionar e depois clique na casa de destino (Atalho: tecla ${hotkey})`}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                padding: '4px 8px',
+                gap: '6px',
+                padding: '5px 10px',
                 fontSize: '0.85rem',
-                borderRadius: 'var(--radius-sm, 4px)',
+                borderRadius: 'var(--radius-sm, 6px)',
                 border: isSelected ? '2px solid #10b981' : '1px solid var(--border-subtle, #334155)',
-                backgroundColor: isSelected ? '#065f46' : 'var(--bg-secondary, #0f172a)',
+                backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.28)' : 'var(--bg-secondary, #0f172a)',
                 color: '#fff',
                 cursor: 'pointer',
                 fontWeight: 600,
+                boxShadow: isSelected ? '0 0 10px rgba(16, 185, 129, 0.5)' : 'none',
+                transition: 'all 0.15s ease',
               }}
             >
-              <span>{pieceInfo.symbol}</span>
+              <kbd
+                style={{
+                  fontSize: '0.62rem',
+                  padding: '1px 4px',
+                  borderRadius: '3px',
+                  backgroundColor: 'rgba(0,0,0,0.3)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  fontFamily: 'monospace',
+                }}
+              >
+                {hotkey}
+              </kbd>
+              <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>{pieceInfo.symbol}</span>
               <span>{variant}</span>
               {count > 1 && (
                 <span
@@ -76,6 +92,7 @@ export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
                     backgroundColor: 'rgba(255,255,255,0.2)',
                     padding: '1px 5px',
                     borderRadius: '10px',
+                    fontWeight: 700,
                   }}
                 >
                   ×{count}

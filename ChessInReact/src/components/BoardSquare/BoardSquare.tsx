@@ -571,6 +571,18 @@ const BoardSquare: React.FC<IBoardSquare> = ({
                   boxShadow: hoverPreview.isValid ? 'inset 0 0 12px #d946ef' : 'none',
                   border: hoverPreview.isValid ? '2px dashed #e879f9' : '1px solid #ef4444',
                 }
+              : hoverPreview.type === 'ATOMIC_EPICENTER'
+              ? {
+                  backgroundColor: 'rgba(239, 68, 68, 0.45)',
+                  boxShadow: 'inset 0 0 16px #ef4444, 0 0 16px #ef4444',
+                  border: '2px solid #f87171',
+                }
+              : hoverPreview.type === 'ATOMIC_BLAST'
+              ? {
+                  backgroundColor: 'rgba(249, 115, 22, 0.28)',
+                  boxShadow: 'inset 0 0 8px #f97316',
+                  border: '1px dashed #fb923c',
+                }
               : {
                   backgroundColor: hoverPreview.isValid
                     ? 'rgba(245, 158, 11, 0.35)'
@@ -580,6 +592,12 @@ const BoardSquare: React.FC<IBoardSquare> = ({
                 }),
           }}
         >
+          {hoverPreview.type === 'ATOMIC_EPICENTER' && (
+            <span style={{ fontSize: '1.5rem', filter: 'drop-shadow(0 0 8px #ef4444)' }}>💥</span>
+          )}
+          {hoverPreview.type === 'ATOMIC_BLAST' && (
+            <span style={{ fontSize: '0.85rem', opacity: 0.85, filter: 'drop-shadow(0 0 4px #f97316)' }}>⚠️</span>
+          )}
           {hoverPreview.type === 'FREEZE' && hoverPreview.isCenter && (
             <span style={{ fontSize: '1.4rem', filter: 'drop-shadow(0 0 6px #38bdf8)' }}>❄️</span>
           )}

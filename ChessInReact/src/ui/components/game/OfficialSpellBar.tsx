@@ -62,7 +62,7 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           {/* Freeze Button */}
           <button
             id="btn-cast-freeze"
@@ -75,16 +75,16 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
                 ? 'Sem cargas de Congelamento'
                 : charges.freezeCooldownTurns > 0
                   ? `Recarga em andamento: ${charges.freezeCooldownTurns} turno(s)`
-                  : 'Clique para selecionar e depois clique na casa central 3×3 no tabuleiro'
+                  : 'Clique para selecionar e depois clique na casa central 3×3 no tabuleiro (Atalho: tecla 1)'
             }
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.4rem',
+              gap: '0.45rem',
               padding: '0.45rem 0.8rem',
               borderRadius: 'var(--radius-sm)',
               border: selectedSpellType === 'FREEZE' ? '2px solid #06b6d4' : '1px solid var(--border-prominent)',
-              backgroundColor: selectedSpellType === 'FREEZE' ? 'rgba(6, 182, 212, 0.25)' : 'var(--bg-elevated)',
+              backgroundColor: selectedSpellType === 'FREEZE' ? 'rgba(6, 182, 212, 0.28)' : 'var(--bg-elevated)',
               color: 'var(--text-prominent)',
               fontSize: '0.8rem',
               fontWeight: 800,
@@ -93,11 +93,50 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
                   ? 'pointer'
                   : 'not-allowed',
               opacity: charges.freezeCharges > 0 && charges.freezeCooldownTurns === 0 ? 1 : 0.45,
-              boxShadow: selectedSpellType === 'FREEZE' ? '0 0 8px #06b6d4' : 'none',
+              boxShadow: selectedSpellType === 'FREEZE' ? '0 0 12px rgba(6, 182, 212, 0.65)' : 'none',
               transition: 'all 0.15s ease',
             }}
           >
-            <span>❄️ Freeze (3×3)</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <kbd
+                style={{
+                  fontSize: '0.62rem',
+                  padding: '1px 4px',
+                  borderRadius: '3px',
+                  backgroundColor: 'rgba(0,0,0,0.3)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  fontFamily: 'monospace',
+                }}
+              >
+                1
+              </kbd>
+              <span>❄️ Freeze (3×3)</span>
+            </span>
+
+            {/* Glowing Crystal Charge Gems */}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', margin: '0 2px' }}>
+              <span
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: charges.freezeCharges >= 1 ? '#06b6d4' : '#334155',
+                  boxShadow: charges.freezeCharges >= 1 ? '0 0 6px #06b6d4' : 'none',
+                  display: 'inline-block',
+                }}
+              />
+              <span
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: charges.freezeCharges >= 2 ? '#06b6d4' : '#334155',
+                  boxShadow: charges.freezeCharges >= 2 ? '0 0 6px #06b6d4' : 'none',
+                  display: 'inline-block',
+                }}
+              />
+            </span>
+
             <span style={{ fontSize: '0.72rem', color: '#06b6d4', fontWeight: 700 }}>
               [{charges.freezeCharges}/2
               {charges.freezeCooldownTurns > 0 ? ` • CD: ${charges.freezeCooldownTurns}` : ''}]
@@ -116,16 +155,16 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
                 ? 'Sem cargas de Salto'
                 : charges.jumpCooldownTurns > 0
                   ? `Recarga em andamento: ${charges.jumpCooldownTurns} turno(s)`
-                  : 'Clique para selecionar e depois clique na sua peça aliada no tabuleiro'
+                  : 'Clique para selecionar e depois clique na sua peça aliada no tabuleiro (Atalho: tecla 2)'
             }
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.4rem',
+              gap: '0.45rem',
               padding: '0.45rem 0.8rem',
               borderRadius: 'var(--radius-sm)',
               border: selectedSpellType === 'JUMP' ? '2px solid #a855f7' : '1px solid var(--border-prominent)',
-              backgroundColor: selectedSpellType === 'JUMP' ? 'rgba(168, 85, 247, 0.25)' : 'var(--bg-elevated)',
+              backgroundColor: selectedSpellType === 'JUMP' ? 'rgba(168, 85, 247, 0.28)' : 'var(--bg-elevated)',
               color: 'var(--text-prominent)',
               fontSize: '0.8rem',
               fontWeight: 800,
@@ -134,11 +173,50 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
                   ? 'pointer'
                   : 'not-allowed',
               opacity: charges.jumpCharges > 0 && charges.jumpCooldownTurns === 0 ? 1 : 0.45,
-              boxShadow: selectedSpellType === 'JUMP' ? '0 0 8px #a855f7' : 'none',
+              boxShadow: selectedSpellType === 'JUMP' ? '0 0 12px rgba(168, 85, 247, 0.65)' : 'none',
               transition: 'all 0.15s ease',
             }}
           >
-            <span>⚡ Jump (Salto)</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <kbd
+                style={{
+                  fontSize: '0.62rem',
+                  padding: '1px 4px',
+                  borderRadius: '3px',
+                  backgroundColor: 'rgba(0,0,0,0.3)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  fontFamily: 'monospace',
+                }}
+              >
+                2
+              </kbd>
+              <span>⚡ Jump (Salto)</span>
+            </span>
+
+            {/* Glowing Crystal Charge Gems */}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', margin: '0 2px' }}>
+              <span
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: charges.jumpCharges >= 1 ? '#a855f7' : '#334155',
+                  boxShadow: charges.jumpCharges >= 1 ? '0 0 6px #a855f7' : 'none',
+                  display: 'inline-block',
+                }}
+              />
+              <span
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: charges.jumpCharges >= 2 ? '#a855f7' : '#334155',
+                  boxShadow: charges.jumpCharges >= 2 ? '0 0 6px #a855f7' : 'none',
+                  display: 'inline-block',
+                }}
+              />
+            </span>
+
             <span style={{ fontSize: '0.72rem', color: '#a855f7', fontWeight: 700 }}>
               [{charges.jumpCharges}/2
               {charges.jumpCooldownTurns > 0 ? ` • CD: ${charges.jumpCooldownTurns}` : ''}]
@@ -156,7 +234,7 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.3rem',
+                gap: '0.35rem',
                 padding: '0.45rem 0.75rem',
                 borderRadius: 'var(--radius-sm)',
                 border: '1px solid #ef4444',
