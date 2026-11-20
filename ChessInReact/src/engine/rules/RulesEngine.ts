@@ -15,6 +15,7 @@ import { CheckValidator } from './CheckValidator';
 import { GameOverDetector } from './GameOverDetector';
 import { VariantRegistry } from './VariantRegistry';
 import { VariantMapConfig } from '../variants/VariantMapConfig';
+import { AtomicExplosionModifier } from '../variants/modifiers/AtomicExplosionModifier';
 import { parseCoord, toCoordKey, toCubicCoordKey } from './utils/CoordinateHelper';
 
 const PROMOTION_OPTIONS: readonly PieceVariantId[] = ['QUEEN', 'ROOK', 'BISHOP', 'KNIGHT'];
@@ -441,7 +442,7 @@ export class RulesEngine {
       state.variantId?.toUpperCase().includes('ATOMIC')
     );
     if (isAtomicVariant && isCapture) {
-      if (isKing) {
+      if (isKing && !AtomicExplosionModifier.canKingCapture()) {
         return {
           valid: false,
           code: 'GEOMETRICALLY_INVALID',

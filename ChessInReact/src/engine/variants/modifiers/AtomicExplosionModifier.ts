@@ -88,3 +88,5 @@ export class AtomicExplosionModifier {
   }
 }
 
+export { AtomicModifier } from '../../rules/pipelines/modifiers/AtomicModifier';
+

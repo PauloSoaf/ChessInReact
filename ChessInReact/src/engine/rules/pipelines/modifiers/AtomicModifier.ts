@@ -12,6 +12,10 @@ export interface IAtomicExplosionResult {
 }
 
 export class AtomicModifier {
+  public static canKingCapture(): boolean {
+    return false;
+  }
+
   /**
    * Applies Atomic explosion rules upon capture (RF-08 / RF-09).
    * Radius-1 explosion destroys capturing piece, captured piece, and all non-pawn pieces in radius 1.
