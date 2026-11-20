@@ -18,6 +18,8 @@ import { InstancedPieceBatcher } from './mesh/InstancedPieceBatcher.tsx';
 import { VariantOverlays3D } from './mesh/VariantOverlays3D';
 import { ToroidalChessBoard3D } from './mesh/ToroidalChessBoard3D';
 import { CubicChessBoard3D } from './mesh/CubicChessBoard3D';
+import { CompositeArenaLayouts } from '../engine/multiplayer/arenas/CompositeArenaLayouts';
+import { ArenaModeId } from '../engine/multiplayer/arenas/interfaces/IArenaContracts';
 import { IInvalidMoveFeedback, ITriggerFeedbackOptions, InvalidMoveReason } from '../bindings/react/useMoveFeedback';
 
 export interface IChessBoard3DProps {
@@ -200,14 +202,35 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
   const ui = useGameStore((state) => state.ui);
   const { executeCommand, selectPiece } = useGameActions();
 
+  const arenaLayout = useMemo(() => {
+    const v = domain.variantId?.toUpperCase() ?? '';
+    return CompositeArenaLayouts.getLayout(v as ArenaModeId);
+  }, [domain.variantId]);
+
+  const effectiveBoardSize = useMemo(() => {
+    if (arenaLayout) {
+      return arenaLayout.boardType === 'SQUARE_CROSS' ? 14 : 16;
+    }
+    const v = domain.variantId?.toUpperCase() ?? '';
+    if (v.includes('CAPABLANCA') || v.includes('XIANGQI')) return 10;
+    if (v.includes('SHOGI')) return 9;
+    return boardSize;
+  }, [arenaLayout, domain.variantId, boardSize]);
+
   const topology = useMemo(() => {
     if (propTopology) return propTopology;
     const v = domain.variantId?.toUpperCase() ?? '';
     if (v.includes('CUBIC')) {
-      return new CubicTopology({ boardSize });
+      return new CubicTopology({ boardSize: effectiveBoardSize });
     }
     if (v.includes('TORUS') || v.includes('TOROIDAL')) {
-      return new SquareTopology({ width: boardSize, height: boardSize, toroidal: true });
+      return new SquareTopology({ width: effectiveBoardSize, height: effectiveBoardSize, toroidal: true });
+    }
+    if (arenaLayout) {
+      if (arenaLayout.boardType === 'SQUARE_CROSS') {
+        return new SquareTopology({ width: 14, height: 14 });
+      }
+      return new SquareTopology({ width: 16, height: 16 });
     }
     if (v.includes('CAPABLANCA')) {
       return new SquareTopology({ width: 10, height: 8 });
@@ -218,8 +241,8 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
     if (v.includes('SHOGI')) {
       return new SquareTopology({ width: 9, height: 9 });
     }
-    return new SquareTopology({ width: boardSize, height: boardSize });
-  }, [propTopology, domain.variantId, boardSize]);
+    return new SquareTopology({ width: effectiveBoardSize, height: effectiveBoardSize });
+  }, [propTopology, domain.variantId, effectiveBoardSize, arenaLayout]);
 
   // Filter active, uncaptured pieces
   const activePieces = useMemo(() => {
@@ -389,7 +412,11 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
   const keyLightColor = uiTheme === 'synthwave' ? '#f472b6' : '#ffffff';
   const rimLightColor = uiTheme === 'synthwave' ? '#38bdf8' : '#e2e8f0';
 
-  const cameraPosition: [number, number, number] = isFlipped ? [0, 8.5, -7.5] : [0, 8.5, 7.5];
+  const cameraDist = effectiveBoardSize > 12 ? 14.5 : effectiveBoardSize > 9 ? 10.5 : 7.5;
+  const cameraHeight = effectiveBoardSize > 12 ? 16.0 : effectiveBoardSize > 9 ? 11.5 : 8.5;
+  const cameraPosition: [number, number, number] = isFlipped
+    ? [0, cameraHeight, -cameraDist]
+    : [0, cameraHeight, cameraDist];
 
   return (
     <div
@@ -417,7 +444,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           invalidate();
         }}
       >
-        <Chess3DInstrumentation boardSize={boardSize} isFlipped={isFlipped} />
+        <Chess3DInstrumentation boardSize={effectiveBoardSize} isFlipped={isFlipped} />
         <FrameInvalidator
           deps={[
             domain.revision,
@@ -453,7 +480,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
         {/* Non-Euclidean 3D Boards (Torus Donut 3D vs Cube 3D vs Standard Instanced) */}
         {domain.variantId?.toUpperCase().includes('TORUS') || domain.variantId?.toUpperCase().includes('TOROIDAL') ? (
           <ToroidalChessBoard3D
-            boardSize={boardSize}
+            boardSize={effectiveBoardSize}
             lightColor={activeBoardColors.lightSquare}
             darkColor={activeBoardColors.darkSquare}
             pieces={activePieces}
@@ -464,7 +491,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           />
         ) : domain.variantId?.toUpperCase().includes('CUBE') || domain.variantId?.toUpperCase().includes('CUBIC') ? (
           <CubicChessBoard3D
-            boardSize={boardSize}
+            boardSize={effectiveBoardSize}
             lightColor={activeBoardColors.lightSquare}
             darkColor={activeBoardColors.darkSquare}
             pieces={activePieces}
@@ -477,7 +504,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           <>
             {/* 3D Board Surface (InstancedMesh) */}
             <InstancedBoard
-              boardSize={boardSize}
+              boardSize={effectiveBoardSize}
               variantId={domain.variantId}
               lightColor={activeBoardColors.lightSquare}
               darkColor={activeBoardColors.darkSquare}
@@ -490,7 +517,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
             {/* 3D Pieces (GPU Matrix Batched InstancedMesh vs Procedural PBR Meshes) */}
             {useInstancedBatching ? (
               <InstancedPieceBatcher
-                boardSize={boardSize}
+                boardSize={effectiveBoardSize}
                 pieces={activePieces}
                 selectedPieceId={ui.selectedPieceId}
                 checkKingCoord={checkConstraintCoords?.kingCoord}
@@ -498,7 +525,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
               />
             ) : (
               <InstancedPieces
-                boardSize={boardSize}
+                boardSize={effectiveBoardSize}
                 variantId={domain.variantId}
                 pieces={activePieces}
                 selectedPieceId={ui.selectedPieceId}
@@ -511,7 +538,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
 
         {/* Variant mechanics: Duck Chess duck, Spell Chess frozen squares/portals/traps, and Hill Sanctuary */}
         <VariantOverlays3D
-          boardSize={boardSize}
+          boardSize={effectiveBoardSize}
           variantId={domain.variantId}
           duckCoordinate={duckCoordinate}
           frozenCoordinates={frozenCoordinates}

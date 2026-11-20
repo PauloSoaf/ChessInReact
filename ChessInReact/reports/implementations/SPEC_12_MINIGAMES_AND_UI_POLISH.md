@@ -62,3 +62,4 @@ Durante a evolução das variantes e modos especiais do `ChessInReact`, identifi
 - `vitest run` -> 925 testes aprovados em 113 arquivos (0 falhas).
 - `node scripts/runChromiumSmoke.js` -> `skipped: false, success: true`.
 - `npm run bench:memory` -> Peak Heap: 35.93 MB (< 40.00 MB), Drift: +0.0090 MB.
+
