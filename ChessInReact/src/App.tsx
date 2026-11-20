@@ -32,7 +32,7 @@ import { SquareTopology } from './core/topology/SquareTopology';
 import { CompositeArenaLayouts } from './engine/multiplayer/arenas/CompositeArenaLayouts';
 import { ArenaModeId } from './engine/multiplayer/arenas/interfaces/IArenaContracts';
 import { isWebGLAvailable } from './rendering/webglCapabilities';
-import { PlayerId } from './core/coordinates/types';
+import { PlayerId, asCoordinateKey } from './core/coordinates/types';
 import { IPieceEntity } from './core/entities/types';
 import './ui/theme/theme.css';
 
@@ -268,6 +268,12 @@ const AppContent: React.FC = () => {
   const handleVariantSquareClick = useCallback(
     (coord: string): boolean => {
       if (selectedDropPiece) {
+        if (domain.occupancy[asCoordinateKey(coord)]) {
+          triggerFeedback('ILLEGAL_MOVE', {
+            message: `A casa ${coord} já está ocupada! Escolha uma casa desocupada para inserir sua peça de reserva.`,
+          });
+          return true;
+        }
         const ok = universalMatch.dropPiece(selectedDropPiece, coord);
         if (ok) {
           const pName = selectedDropPiece;
@@ -276,35 +282,74 @@ const AppContent: React.FC = () => {
             message: `Peça ${pName} inserida na casa ${coord}!`,
           });
           return true;
+        } else {
+          triggerFeedback('ILLEGAL_MOVE', {
+            message: `Não é possível inserir ${selectedDropPiece} em ${coord} pelas regras da variante (ex: peão na 1ª ou última fileira).`,
+          });
+          return true;
         }
-        return false;
       }
 
       if (universalMatch.snapshot.duckPhase === 'PLACE_DUCK') {
+        if (domain.occupancy[asCoordinateKey(coord)]) {
+          triggerFeedback('ILLEGAL_MOVE', {
+            message: 'O Pato só pode ser colocado em uma casa desocupada do tabuleiro!',
+          });
+          return true;
+        }
         const placed = universalMatch.placeDuck(coord);
         if (placed) {
-          clearFeedback();
+          triggerFeedback('GAME_EVENT', {
+            message: `🦆 Pato posicionado na casa ${coord}! Lance concluído e vez passada.`,
+          });
         }
         return placed;
       }
 
       if (selectedOfficialSpell) {
+        if (selectedOfficialSpell === 'JUMP') {
+          const occId = domain.occupancy[asCoordinateKey(coord)];
+          if (!occId) {
+            triggerFeedback('ILLEGAL_MOVE', {
+              message: 'Selecione uma peça própria para conceder a habilidade de salto (Jump)!',
+            });
+            return true;
+          }
+          const pEnt = domain.boardEntities[occId] as IPieceEntity | undefined;
+          if (pEnt && pEnt.ownerId !== domain.activePlayer) {
+            triggerFeedback('ILLEGAL_MOVE', {
+              message: 'Você só pode conceder o salto Jump para as suas próprias peças!',
+            });
+            return true;
+          }
+        }
         const ok = universalMatch.castOfficialSpell(selectedOfficialSpell, coord);
         if (ok) {
+          const sName = selectedOfficialSpell;
           setSelectedOfficialSpell(null);
           triggerFeedback('GAME_EVENT', {
-            message: `Feitiço ${selectedOfficialSpell} conjurado em ${coord}!`,
+            message: `✨ Feitiço ${sName} conjurado com sucesso em ${coord}! Agora faça seu lance no tabuleiro.`,
+          });
+          return true;
+        } else {
+          triggerFeedback('ILLEGAL_MOVE', {
+            message: `Falha ao conjurar ${selectedOfficialSpell} em ${coord}. Verifique se você possui cargas disponíveis e se o feitiço não está em recarga.`,
           });
           return true;
         }
-        return false;
       }
 
       if (selectedExpandedSpell) {
         if (selectedExpandedSpell.type === 'PORTAL' && !portalFirstSquare) {
+          if (domain.occupancy[asCoordinateKey(coord)]) {
+            triggerFeedback('ILLEGAL_MOVE', {
+              message: 'O Portal só pode ser criado em uma casa desocupada!',
+            });
+            return true;
+          }
           setPortalFirstSquare(coord);
           triggerFeedback('GAME_EVENT', {
-            message: `Primeira entrada do Portal em ${coord}. Clique na segunda casa vazia!`,
+            message: `🌀 Primeira entrada do Portal fixada em ${coord}. Clique na segunda casa vazia para conectar o vórtice!`,
           });
           return true;
         }
@@ -319,7 +364,12 @@ const AppContent: React.FC = () => {
           setSelectedExpandedSpell(null);
           setPortalFirstSquare(null);
           triggerFeedback('GAME_EVENT', {
-            message: `Feitiço ${spellName} conjurado em ${coord} (${manaCost} mana)!`,
+            message: `✨ Feitiço ${spellName} conjurado em ${coord} (-${manaCost} mana)!`,
+          });
+          return true;
+        } else {
+          triggerFeedback('ILLEGAL_MOVE', {
+            message: `Não foi possível conjurar ${selectedExpandedSpell.displayName} (mana insuficiente ou casa inválida).`,
           });
           return true;
         }
@@ -328,8 +378,10 @@ const AppContent: React.FC = () => {
       return false;
     },
     [
+      domain.occupancy,
+      domain.boardEntities,
+      domain.activePlayer,
       universalMatch,
-      clearFeedback,
       selectedOfficialSpell,
       selectedExpandedSpell,
       selectedDropPiece,
