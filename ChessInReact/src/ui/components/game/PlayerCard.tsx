@@ -10,8 +10,30 @@ export interface IPlayerCardProps {
   isBot?: boolean;
   difficultyLabel?: string;
   capturedPieces?: string[];
+  materialAdvantage?: number;
+  timeLeftMs?: number;
   isInCheck?: boolean;
 }
+
+const PIECE_GLYPHS: Record<string, string> = {
+  PAWN: '♟',
+  KNIGHT: '♞',
+  BISHOP: '♝',
+  ROOK: '♜',
+  QUEEN: '♛',
+  KING: '♚',
+};
+
+const formatClockTime = (ms: number): string => {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (ms < 10000 && ms > 0) {
+    const tenths = Math.floor((ms % 1000) / 100);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}.${tenths}`;
+  }
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+};
 
 export const PlayerCard: React.FC<IPlayerCardProps> = ({
   playerId,
@@ -21,9 +43,24 @@ export const PlayerCard: React.FC<IPlayerCardProps> = ({
   isThinking = false,
   isBot = false,
   difficultyLabel,
+  capturedPieces,
+  materialAdvantage,
+  timeLeftMs,
   isInCheck = false,
 }) => {
   const isWhite = playerId === 'P1';
+  const isCriticalTime = isTurnActive && timeLeftMs !== undefined && timeLeftMs < 10000 && timeLeftMs > 0;
+
+  // Group captured pieces for concise tray representation (Spec 06 RF-09 / Section 18)
+  const capturedPieceCounts = React.useMemo(() => {
+    if (!capturedPieces || capturedPieces.length === 0) return null;
+    const counts: Record<string, number> = {};
+    for (const p of capturedPieces) {
+      const v = p.toUpperCase();
+      counts[v] = (counts[v] ?? 0) + 1;
+    }
+    return counts;
+  }, [capturedPieces]);
 
   return (
     <div
@@ -46,8 +83,8 @@ export const PlayerCard: React.FC<IPlayerCardProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
         <div
           style={{
-            width: '36px',
-            height: '36px',
+            width: '38px',
+            height: '38px',
             borderRadius: 'var(--radius-sm)',
             backgroundColor: isWhite ? '#F4F1EB' : '#141A20',
             color: isWhite ? '#090D11' : '#F4F1EB',
@@ -57,7 +94,7 @@ export const PlayerCard: React.FC<IPlayerCardProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '1.15rem',
+            fontSize: '1.2rem',
             fontWeight: 800,
             boxShadow: 'var(--shadow-sm)',
             flexShrink: 0,
@@ -110,11 +147,100 @@ export const PlayerCard: React.FC<IPlayerCardProps> = ({
           >
             {subtitle ?? (isWhite ? 'Peças Brancas (P1)' : 'Peças Pretas (P2)')}
           </span>
+
+          {/* Captured Pieces & Material Tray (Spec 06 RF-09 & Section 18) */}
+          {capturedPieceCounts && (
+            <div
+              data-testid={`captured-tray-${playerId}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.22rem',
+                marginTop: '0.15rem',
+                flexWrap: 'wrap',
+              }}
+            >
+              {Object.entries(capturedPieceCounts).map(([variant, count]) => (
+                <span
+                  key={variant}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    fontSize: '0.82rem',
+                    color: 'var(--text-secondary)',
+                    lineHeight: 1,
+                  }}
+                  title={`${count}x ${variant}`}
+                >
+                  {PIECE_GLYPHS[variant] ?? '♟'}
+                  {count > 1 && (
+                    <span style={{ fontSize: '0.6rem', fontWeight: 800, marginLeft: '1px' }}>
+                      {count}
+                    </span>
+                  )}
+                </span>
+              ))}
+              {materialAdvantage !== undefined && materialAdvantage > 0 && (
+                <span
+                  data-testid={`material-advantage-${playerId}`}
+                  style={{
+                    fontSize: '0.65rem',
+                    fontWeight: 800,
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--color-accent)',
+                    backgroundColor: 'var(--color-accent-subtle)',
+                    padding: '0.05rem 0.3rem',
+                    borderRadius: '4px',
+                    marginLeft: '0.2rem',
+                  }}
+                >
+                  +{materialAdvantage}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Right: Turn / Thinking Status Pill */}
+      {/* Right: Clock & Turn Status */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+        {/* Digital Chess Clock with Critical Time Alert (Spec 06 RF-09) */}
+        {timeLeftMs !== undefined && (
+          <div
+            data-testid={`player-clock-${playerId}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '0.35rem 0.65rem',
+              borderRadius: 'var(--radius-sm)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.88rem',
+              fontWeight: 800,
+              backgroundColor: isCriticalTime
+                ? 'var(--color-danger-bg)'
+                : isTurnActive
+                  ? 'var(--bg-sunken)'
+                  : 'transparent',
+              color: isCriticalTime
+                ? 'var(--color-danger)'
+                : isTurnActive
+                  ? 'var(--text-primary)'
+                  : 'var(--text-muted)',
+              border: isCriticalTime
+                ? '1.5px solid var(--color-danger)'
+                : isTurnActive
+                  ? '1px solid var(--border-active)'
+                  : '1px solid var(--border-subtle)',
+              boxShadow: isCriticalTime ? '0 0 12px rgba(239, 68, 68, 0.4)' : 'none',
+              animation: isCriticalTime ? 'pulseCheck 0.8s infinite' : undefined,
+              letterSpacing: '0.04em',
+            }}
+          >
+            ⏱ {formatClockTime(timeLeftMs)}
+          </div>
+        )}
+
         {isInCheck && (
           <div
             data-testid={`player-in-check-${playerId}`}

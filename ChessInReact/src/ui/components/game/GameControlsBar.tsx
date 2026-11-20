@@ -3,6 +3,7 @@ import { AIDifficultyLevel } from '../../../workers/ai/interfaces/IAIEngineContr
 import { ActionButton } from '../primitives/ActionButton';
 import { Card } from '../primitives/Card';
 import { PlayerId } from '../../../core/coordinates/types';
+import { MoveHistoryList, IMoveItem } from './MoveHistoryList';
 
 export interface IGameControlsBarProps {
   isBotEnabled: boolean;
@@ -28,6 +29,9 @@ export interface IGameControlsBarProps {
   canClaimDraw?: boolean;
   pendingDrawOffer?: PlayerId | null;
   activePlayer?: string;
+  moves?: IMoveItem[];
+  onSelectMoveIndex?: (moveIndex: number) => void;
+  activeMoveIndex?: number;
 }
 
 export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
@@ -54,6 +58,9 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
   canClaimDraw = false,
   pendingDrawOffer = null,
   activePlayer = 'P1',
+  moves = [],
+  onSelectMoveIndex,
+  activeMoveIndex,
 }) => {
   const formattedEval =
     lastEval !== null ? `${lastEval > 0 ? '+' : ''}${(lastEval / 100).toFixed(2)}` : '0.00';
@@ -72,7 +79,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
       }}
     >
       {/* Section 1: Move History & Flow Controls (Undo / Redo) */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span
             style={{
@@ -130,6 +137,14 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
             Refazer
           </ActionButton>
         </div>
+
+        {/* Scrollable Algebraic Notation Table (Spec 06 Section 18.1 & Spec 09) */}
+        <MoveHistoryList
+          moves={moves}
+          onSelectMoveIndex={onSelectMoveIndex}
+          activeMoveIndex={activeMoveIndex}
+          maxHeight="160px"
+        />
       </div>
 
       <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)' }} />

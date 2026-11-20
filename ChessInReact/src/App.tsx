@@ -36,7 +36,35 @@ import { PlayerId, asCoordinateKey } from './core/coordinates/types';
 import { IPieceEntity } from './core/entities/types';
 import { GlobalEventBus } from './core/events/EventBus';
 import { AudioManager } from './audio';
+import { IMoveItem } from './ui/components/game/MoveHistoryList';
 import './ui/theme/theme.css';
+
+const PIECE_VALUES: Record<string, number> = {
+  PAWN: 1,
+  P: 1,
+  KNIGHT: 3,
+  N: 3,
+  BISHOP: 3,
+  B: 3,
+  ROOK: 5,
+  R: 5,
+  QUEEN: 9,
+  Q: 9,
+  KING: 0,
+  K: 0,
+};
+
+function coordToAlgebraic(coordStr: string): string {
+  const parts = coordStr.split(',');
+  if (parts.length === 2) {
+    const x = parseInt(parts[0], 10);
+    const y = parseInt(parts[1], 10);
+    if (!isNaN(x) && !isNaN(y) && x >= 0 && x < 26 && y >= 0) {
+      return `${String.fromCharCode(97 + x)}${y + 1}`;
+    }
+  }
+  return coordStr;
+}
 
 // Lazy-loaded 3D WebGL Chessboard to preserve initial 2D bundle size (Spec 07 Priority 2)
 const LazyChessBoard3D = React.lazy(() =>
@@ -112,6 +140,13 @@ const AppContent: React.FC = () => {
   const [selectedDropPiece, setSelectedDropPiece] = useState<string | null>(null);
   const [portalFirstSquare, setPortalFirstSquare] = useState<string | null>(null);
 
+  // Move History & PGN Notation state (Spec 06 Section 18.1 & Spec 09)
+  const [matchMoves, setMatchMoves] = useState<IMoveItem[]>([]);
+
+  // Synchronized Digital Chess Clocks (Spec 06 RF-09: 5 min default with <10s critical alert)
+  const [p1TimeLeft, setP1TimeLeft] = useState<number>(300000);
+  const [p2TimeLeft, setP2TimeLeft] = useState<number>(300000);
+
   const { preferences, updatePreferences } = useTheme();
   const isBoardFlipped = Boolean(preferences.flipBoard);
 
@@ -185,6 +220,100 @@ const AppContent: React.FC = () => {
     [universalMatch.snapshot.frozenCoordinates]
   );
 
+  // Synchronized digital chess clocks (Spec 06 RF-09)
+  useEffect(() => {
+    if (isGameOver || currentView === 'HUB') return;
+    const timer = setInterval(() => {
+      if (activePlayer === 'P1') {
+        setP1TimeLeft((t) => {
+          const next = Math.max(0, t - 100);
+          if (next === 0 && t > 0) {
+            GlobalEventBus.emit('GAME_ENDED', { winnerId: 'P2', reason: 'Tempo Esgotado' });
+          } else if (next < 10000 && t >= 10000) {
+            GlobalEventBus.emit('TIME_WARNING', { playerId: 'P1', secondsLeft: Math.round(next / 1000) });
+          }
+          return next;
+        });
+      } else {
+        setP2TimeLeft((t) => {
+          const next = Math.max(0, t - 100);
+          if (next === 0 && t > 0) {
+            GlobalEventBus.emit('GAME_ENDED', { winnerId: 'P1', reason: 'Tempo Esgotado' });
+          } else if (next < 10000 && t >= 10000) {
+            GlobalEventBus.emit('TIME_WARNING', { playerId: 'P2', secondsLeft: Math.round(next / 1000) });
+          }
+          return next;
+        });
+      }
+    }, 100);
+    return () => clearInterval(timer);
+  }, [activePlayer, isGameOver, currentView]);
+
+  // Real-time Move History logging via GlobalEventBus (Spec 06 Section 18.1 & Spec 09)
+  useEffect(() => {
+    const unsubMoved = GlobalEventBus.subscribe('PIECE_MOVED', (payload) => {
+      const fromAlg = coordToAlgebraic(payload.from);
+      const toAlg = coordToAlgebraic(payload.to);
+      const san = `${fromAlg}-${toAlg}`;
+      setMatchMoves((prev) => {
+        const currentTurn = turnNumber;
+        if (payload.actingPlayer === 'P1') {
+          return [...prev, { turnNumber: currentTurn, white: san }];
+        } else {
+          if (prev.length === 0) return [{ turnNumber: currentTurn, black: san }];
+          const last = prev[prev.length - 1];
+          if (last.black) return [...prev, { turnNumber: currentTurn, black: san }];
+          const updated = [...prev];
+          updated[updated.length - 1] = { ...last, black: san };
+          return updated;
+        }
+      });
+    });
+
+    const unsubDrop = GlobalEventBus.subscribe('PIECE_DROPPED', (payload) => {
+      const toAlg = coordToAlgebraic(payload.coordinate);
+      const initial = payload.pieceVariant.charAt(0).toUpperCase();
+      const san = `${initial}@${toAlg}`;
+      setMatchMoves((prev) => {
+        const currentTurn = turnNumber;
+        if (payload.playerId === 'P1') {
+          return [...prev, { turnNumber: currentTurn, white: san }];
+        } else {
+          if (prev.length === 0) return [{ turnNumber: currentTurn, black: san }];
+          const last = prev[prev.length - 1];
+          if (last.black) return [...prev, { turnNumber: currentTurn, black: san }];
+          const updated = [...prev];
+          updated[updated.length - 1] = { ...last, black: san };
+          return updated;
+        }
+      });
+    });
+
+    return () => {
+      unsubMoved();
+      unsubDrop();
+    };
+  }, [turnNumber]);
+
+  // Captured pieces & material balance calculation (Spec 06 RF-09 & Section 18)
+  const { p1Captured, p2Captured, p1Material, p2Material } = useMemo(() => {
+    const entities = Object.values(domain.boardEntities).filter(
+      (e): e is IPieceEntity => e.type === 'PIECE' && Boolean(e.isCaptured)
+    );
+    const p1Capt = entities.filter((e) => e.ownerId === 'P2');
+    const p2Capt = entities.filter((e) => e.ownerId === 'P1');
+
+    const p1Mat = p1Capt.reduce((acc, e) => acc + (PIECE_VALUES[e.variantId?.toUpperCase()] ?? 1), 0);
+    const p2Mat = p2Capt.reduce((acc, e) => acc + (PIECE_VALUES[e.variantId?.toUpperCase()] ?? 1), 0);
+
+    return {
+      p1Captured: p1Capt.map((e) => e.variantId?.toUpperCase() ?? 'PAWN'),
+      p2Captured: p2Capt.map((e) => e.variantId?.toUpperCase() ?? 'PAWN'),
+      p1Material: p1Mat,
+      p2Material: p2Mat,
+    };
+  }, [domain.boardEntities]);
+
   // Automatically fallback to 2D if WebGL is unavailable on device/browser (Spec 07 Priority 3)
   useEffect(() => {
     if (preferences.boardViewMode === '3D' && !isWebGLAvailable()) {
@@ -238,6 +367,9 @@ const AppContent: React.FC = () => {
     setSelectedExpandedSpell(null);
     setSelectedDropPiece(null);
     setPortalFirstSquare(null);
+    setMatchMoves([]);
+    setP1TimeLeft(300000);
+    setP2TimeLeft(300000);
     if (universalMatch.snapshot.config.matchId === gameStore.getState().domain.matchId) {
       universalMatch.resetUniversalMatch();
     } else {
@@ -439,6 +571,22 @@ const AppContent: React.FC = () => {
     } else {
       universalMatch.undo();
     }
+
+    setMatchMoves((prev) => {
+      if (prev.length === 0) return prev;
+      const updated = [...prev];
+      const pops = isBotEnabled && initialPlayer !== 'P2' ? 2 : 1;
+      for (let i = 0; i < pops; i++) {
+        if (updated.length === 0) break;
+        const last = updated[updated.length - 1];
+        if (last.black) {
+          updated[updated.length - 1] = { ...last, black: undefined };
+        } else {
+          updated.pop();
+        }
+      }
+      return updated;
+    });
   }, [cancelSearch, clearFeedback, isBotEnabled, universalMatch]);
 
   const handleRedo = useCallback(() => {
@@ -706,6 +854,9 @@ const AppContent: React.FC = () => {
       cancelSearch();
       clearFeedback();
       setPendingDrawOffer(null);
+      setMatchMoves([]);
+      setP1TimeLeft(300000);
+      setP2TimeLeft(300000);
       universalMatch.startUniversalMatch(config);
 
       const v = config.variantId.toUpperCase();
@@ -1004,6 +1155,9 @@ const AppContent: React.FC = () => {
                         ? DIFFICULTY_LABELS[difficulty]
                         : undefined
                   }
+                  capturedPieces={p2Captured}
+                  materialAdvantage={p2Material > p1Material ? p2Material - p1Material : undefined}
+                  timeLeftMs={p2TimeLeft}
                   isInCheck={!isGameOver && isP2InCheck}
                 />
               </div>
@@ -1283,6 +1437,9 @@ const AppContent: React.FC = () => {
                       ? DIFFICULTY_LABELS[universalMatch.snapshot.config.slots[0].botConfig!.difficultyLevel]
                       : undefined
                   }
+                  capturedPieces={p1Captured}
+                  materialAdvantage={p1Material > p2Material ? p1Material - p2Material : undefined}
+                  timeLeftMs={p1TimeLeft}
                   isInCheck={!isGameOver && isP1InCheck}
                 />
               </div>
@@ -1487,6 +1644,7 @@ const AppContent: React.FC = () => {
                 canClaimDraw={canClaimDraw}
                 pendingDrawOffer={pendingDrawOffer}
                 activePlayer={activePlayer}
+                moves={matchMoves}
               />
             </aside>
           </div>
