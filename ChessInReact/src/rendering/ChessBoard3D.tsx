@@ -330,6 +330,41 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
     };
   }, [invalidMoveFeedback]);
 
+  // Antichess forced captures detection (Spec 04 & Spec 13)
+  const isAntichess = useMemo(() => {
+    const v = domain.variantId?.toUpperCase() ?? '';
+    return v.includes('ANTICHESS') || v.includes('GIVEAWAY');
+  }, [domain.variantId]);
+
+  const forcedCapturePieceIds = useMemo(() => {
+    if (!isAntichess) return [];
+    const playerPieces = activePieces.filter((p) => p.ownerId === domain.activePlayer);
+    const pieceIds: string[] = [];
+    for (const piece of playerPieces) {
+      const moves = RulesEngine.getLegalMovesForPiece(piece, domain, topology);
+      if (moves.some((m) => m.isCapture)) {
+        pieceIds.push(piece.id);
+      }
+    }
+    return pieceIds;
+  }, [isAntichess, activePieces, domain, topology]);
+
+  const forcedCaptureCoords = useMemo(() => {
+    if (forcedCapturePieceIds.length === 0) return [];
+    const idsSet = new Set(forcedCapturePieceIds);
+    return activePieces.filter((p) => idsSet.has(p.id)).map((p) => p.position);
+  }, [activePieces, forcedCapturePieceIds]);
+
+  // King of the Hill victory move preview (Spec 04 & Spec 13)
+  const hillVictoryMoveCoords = useMemo(() => {
+    if (!selectedPiece || selectedPiece.variantId !== 'KING') return [];
+    const v = domain.variantId?.toUpperCase() ?? '';
+    const isKoth = v === 'KING_OF_THE_HILL' || v.includes('HILL');
+    if (!isKoth) return [];
+    const centerHill = new Set(['3,3', '3,4', '4,3', '4,4']);
+    return legalMoveCoords.filter((c) => centerHill.has(c));
+  }, [selectedPiece, domain.variantId, legalMoveCoords]);
+
   // Handle square or piece click to select or move with check-constraint feedback
   const handleSquareClick = useCallback(
     (coord: string) => {
@@ -599,7 +634,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
       }}
     >
       {/* Interactive Action Indicator Bar atop 3D Canvas (Spec 06 & Spec 07 § 10) */}
-      {(selectedSpellType || selectedDropPiece || duckPlacementActive || Boolean(activeExplosion)) && (
+      {(selectedSpellType || selectedDropPiece || duckPlacementActive || Boolean(activeExplosion) || forcedCapturePieceIds.length > 0 || hillVictoryMoveCoords.length > 0) && (
         <div
           data-testid="board-action-indicator-3d"
           role="status"
@@ -617,7 +652,11 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
             borderRadius: 'var(--radius-sm, 6px)',
             backdropFilter: 'blur(8px)',
             backgroundColor:
-              selectedSpellType === 'FREEZE'
+              hillVictoryMoveCoords.length > 0
+                ? 'rgba(245, 158, 11, 0.45)'
+                : forcedCapturePieceIds.length > 0
+                ? 'rgba(16, 185, 129, 0.4)'
+                : selectedSpellType === 'FREEZE'
                 ? 'rgba(6, 182, 212, 0.35)'
                 : selectedSpellType === 'JUMP'
                 ? 'rgba(168, 85, 247, 0.35)'
@@ -627,7 +666,11 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
                 ? 'rgba(239, 68, 68, 0.4)'
                 : 'rgba(16, 185, 129, 0.35)',
             border:
-              selectedSpellType === 'FREEZE'
+              hillVictoryMoveCoords.length > 0
+                ? '1.5px solid #fbbf24'
+                : forcedCapturePieceIds.length > 0
+                ? '1.5px solid #10b981'
+                : selectedSpellType === 'FREEZE'
                 ? '1.5px solid #06b6d4'
                 : selectedSpellType === 'JUMP'
                 ? '1.5px solid #a855f7'
@@ -643,13 +686,15 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           }}
         >
           <span>
+            {hillVictoryMoveCoords.length > 0 && '👑 King of the Hill (3D): Lance da vitória disponível! Alcance o santuário central para vencer.'}
+            {forcedCapturePieceIds.length > 0 && !hillVictoryMoveCoords.length && '🔄 Antichess (3D): Captura obrigatória! Mova uma das peças de combate destacadas em esmeralda.'}
             {selectedSpellType === 'FREEZE' && '❄️ Modo Congelamento (3D): Clique na casa central 3×3 para congelar.'}
             {selectedSpellType === 'JUMP' && '⚡ Conceder Salto (3D): Clique sobre uma peça aliada para conceder a habilidade de saltar.'}
             {duckPlacementActive && '🦆 Colocar Pato (3D): Clique em uma casa vazia para posicionar o pato.'}
             {selectedDropPiece && `♟ Drop de ${selectedDropPiece} (3D): Clique em uma casa vazia para inserir a peça na reserva.`}
             {selectedSpellType === 'PORTAL' && '🌀 Portal (3D): Clique em duas casas vazias para criar o atalho.'}
             {selectedSpellType === 'STEALTH_TRAP' && '💣 Mina Oculta (3D): Clique em uma casa vazia para plantar.'}
-            {activeExplosion && !selectedSpellType && !selectedDropPiece && !duckPlacementActive && '💥 Detonação Atômica! Área de impacto 3×3 detonada.'}
+            {activeExplosion && !selectedSpellType && !selectedDropPiece && !duckPlacementActive && !forcedCapturePieceIds.length && !hillVictoryMoveCoords.length && '💥 Detonação Atômica! Área de impacto 3×3 detonada.'}
           </span>
           {onCancelAction && !duckPlacementActive && (
             <button
@@ -699,6 +744,8 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
             duckCoordinate,
             frozenCoordinates?.join('|'),
             activeExplosion?.center,
+            forcedCaptureCoords.join('|'),
+            hillVictoryMoveCoords.join('|'),
           ]}
         />
 
@@ -780,7 +827,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           </>
         )}
 
-        {/* Variant mechanics: Duck Chess duck, Spell Chess frozen squares/portals/traps, Hill Sanctuary, and Atomic Explosion */}
+        {/* Variant mechanics: Duck Chess duck, Spell Chess frozen squares/portals/traps, Hill Sanctuary, Antichess Beacons and Atomic Explosion */}
         <VariantOverlays3D
           boardSize={effectiveBoardSize}
           variantId={domain.variantId}
@@ -789,6 +836,8 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           activePortals={activePortals}
           stealthTraps={stealthTraps}
           explosionEpicenter={activeExplosion?.center ?? null}
+          forcedCaptureCoords={forcedCaptureCoords}
+          hillVictoryMoveCoords={hillVictoryMoveCoords}
         />
       </Canvas>
 

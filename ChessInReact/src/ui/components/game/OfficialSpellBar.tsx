@@ -18,7 +18,7 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
   onCancelSpell,
   selectedSpellType,
 }) => {
-  const isWhite = activePlayer === 'P1';
+  const isWhite = activePlayer === 'P1' || (activePlayer as string) === 'WHITE';
   const charges = isWhite ? state.whiteCharges : state.blackCharges;
 
   // Global Keyboard Shortcuts (Spec 06 & Spec 12): 1 for Freeze, 2 for Jump, Esc to Cancel

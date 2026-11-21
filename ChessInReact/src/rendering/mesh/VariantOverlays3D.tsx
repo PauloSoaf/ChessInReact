@@ -13,6 +13,10 @@ export interface IVariantOverlays3DProps {
   stealthTraps?: Readonly<Record<string, string>>;
   /** Atomic Chess explosion epicenter, "x,y" game coordinate key */
   explosionEpicenter?: string | null;
+  /** Antichess coordinates of pieces with mandatory captures */
+  forcedCaptureCoords?: readonly string[];
+  /** King of the Hill destination coordinates for immediate victory */
+  hillVictoryMoveCoords?: readonly string[];
 }
 
 function toWorld(coord: string, boardSize: number): [number, number] | null {
@@ -37,6 +41,8 @@ export const VariantOverlays3D: React.FC<IVariantOverlays3DProps> = ({
   activePortals,
   stealthTraps,
   explosionEpicenter,
+  forcedCaptureCoords,
+  hillVictoryMoveCoords,
 }) => {
   const duckPos = duckCoordinate ? toWorld(duckCoordinate, boardSize) : null;
   const explosionPos = explosionEpicenter ? toWorld(explosionEpicenter, boardSize) : null;
@@ -245,6 +251,46 @@ export const VariantOverlays3D: React.FC<IVariantOverlays3DProps> = ({
           </mesh>
         </group>
       )}
+
+      {/* Antichess: Forced Capture Beacons (Emerald Halo Rings) */}
+      {(forcedCaptureCoords ?? []).map((coord) => {
+        const p = toWorld(coord, boardSize);
+        if (!p) return null;
+        return (
+          <group key={`forced-capture-3d-${coord}`} name={`forced-capture-3d-${coord}`} position={[p[0], 0.06, p[1]]}>
+            <mesh rotation={[-Math.PI / 2, 0, 0]}>
+              <ringGeometry args={[0.32, 0.46, 24]} />
+              <meshStandardMaterial
+                color="#10b981"
+                emissive="#059669"
+                emissiveIntensity={0.9}
+                transparent
+                opacity={0.85}
+              />
+            </mesh>
+          </group>
+        );
+      })}
+
+      {/* King of the Hill: Victory Move Golden Aura (Crown Ring Target) */}
+      {(hillVictoryMoveCoords ?? []).map((coord) => {
+        const p = toWorld(coord, boardSize);
+        if (!p) return null;
+        return (
+          <group key={`hill-victory-3d-${coord}`} name={`hill-victory-move-3d-${coord}`} position={[p[0], 0.07, p[1]]}>
+            <mesh rotation={[-Math.PI / 2, 0, 0]}>
+              <ringGeometry args={[0.22, 0.44, 24]} />
+              <meshStandardMaterial
+                color="#fbbf24"
+                emissive="#f59e0b"
+                emissiveIntensity={1.2}
+                transparent
+                opacity={0.9}
+              />
+            </mesh>
+          </group>
+        );
+      })}
     </group>
   );
 };
