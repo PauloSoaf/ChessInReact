@@ -1345,6 +1345,18 @@ const AppContent: React.FC = () => {
                         frozenCoordinates={frozenCoordinates}
                         activePortals={universalMatch.snapshot.expandedSpellState?.activePortals}
                         stealthTraps={universalMatch.snapshot.expandedSpellState?.stealthTraps}
+                        selectedSpellType={selectedOfficialSpell ?? selectedExpandedSpell?.type ?? null}
+                        selectedDropPiece={selectedDropPiece}
+                        duckPlacementActive={universalMatch.snapshot.duckPhase === 'PLACE_DUCK'}
+                        onCancelAction={() => {
+                          setSelectedOfficialSpell(null);
+                          setSelectedExpandedSpell(null);
+                          setSelectedDropPiece(null);
+                          setPortalFirstSquare(null);
+                          triggerFeedback('GAME_EVENT', {
+                            message: 'Ação cancelada.',
+                          });
+                        }}
                         onHumanPieceMoved={universalMatch.onHumanPieceMoved}
                         onVariantSquareClick={
                           universalMatch.snapshot.duckPhase === 'PLACE_DUCK' ||

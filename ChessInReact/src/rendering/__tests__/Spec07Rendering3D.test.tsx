@@ -7,6 +7,7 @@ import { GameControlsBar } from '../../ui/components/game/GameControlsBar';
 import { ThemeCustomizerModal } from '../../ui/components/navigation/ThemeCustomizerModal';
 import { ThemeProvider } from '../../ui/theme/ThemeContext';
 import App from '../../App';
+import { ChessBoard3D } from '../ChessBoard3D';
 import { bootstrapGame } from '../../core/bootstrap/GameInitializer';
 import { gameStore } from '../../core/state/gameStore';
 
@@ -157,6 +158,27 @@ describe('Spec 07 3D WebGL Rendering & Board View Architecture Suite', () => {
 
       expect(screen.getByTestId('chess-board')).toBeDefined();
       expect(screen.queryByTestId('chess-board-3d-container')).toBeNull();
+    });
+
+    it('renders tactical action indicator banner floating on 3D canvas with cancellation', () => {
+      const handleCancel = vi.fn();
+      render(
+        <ThemeProvider>
+          <ChessBoard3D
+            selectedSpellType="FREEZE"
+            onCancelAction={handleCancel}
+          />
+        </ThemeProvider>
+      );
+
+      const banner = screen.getByTestId('board-action-indicator-3d');
+      expect(banner).toBeDefined();
+      expect(banner.textContent).toContain('Modo Congelamento (3D)');
+
+      const cancelBtn = screen.getByTestId('btn-board-3d-cancel-action');
+      expect(cancelBtn).toBeDefined();
+      fireEvent.click(cancelBtn);
+      expect(handleCancel).toHaveBeenCalledTimes(1);
     });
   });
 });

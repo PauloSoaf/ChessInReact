@@ -47,6 +47,10 @@ export interface IChessBoard3DProps {
   stealthTraps?: Readonly<Record<string, string>>;
   onHumanPieceMoved?: (from: string, to: string, pieceId: string) => void;
   onVariantSquareClick?: (coordinate: string) => boolean;
+  selectedSpellType?: 'FREEZE' | 'JUMP' | string | null;
+  selectedDropPiece?: string | null;
+  duckPlacementActive?: boolean;
+  onCancelAction?: () => void;
 }
 
 /**
@@ -198,6 +202,10 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
   stealthTraps,
   onHumanPieceMoved,
   onVariantSquareClick,
+  selectedSpellType,
+  selectedDropPiece,
+  duckPlacementActive = false,
+  onCancelAction,
 }) => {
   const { preferences, activeBoardColors, uiTheme } = useTheme();
 
@@ -590,6 +598,82 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
         backgroundColor: 'var(--bg-card)',
       }}
     >
+      {/* Interactive Action Indicator Bar atop 3D Canvas (Spec 06 & Spec 07 § 10) */}
+      {(selectedSpellType || selectedDropPiece || duckPlacementActive || Boolean(activeExplosion)) && (
+        <div
+          data-testid="board-action-indicator-3d"
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'absolute',
+            top: '8px',
+            left: '8px',
+            right: '8px',
+            zIndex: 30,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '6px 12px',
+            borderRadius: 'var(--radius-sm, 6px)',
+            backdropFilter: 'blur(8px)',
+            backgroundColor:
+              selectedSpellType === 'FREEZE'
+                ? 'rgba(6, 182, 212, 0.35)'
+                : selectedSpellType === 'JUMP'
+                ? 'rgba(168, 85, 247, 0.35)'
+                : duckPlacementActive
+                ? 'rgba(234, 179, 8, 0.35)'
+                : activeExplosion
+                ? 'rgba(239, 68, 68, 0.4)'
+                : 'rgba(16, 185, 129, 0.35)',
+            border:
+              selectedSpellType === 'FREEZE'
+                ? '1.5px solid #06b6d4'
+                : selectedSpellType === 'JUMP'
+                ? '1.5px solid #a855f7'
+                : duckPlacementActive
+                ? '1.5px solid #eab308'
+                : activeExplosion
+                ? '1.5px solid #ef4444'
+                : '1.5px solid #10b981',
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            color: '#fff',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+          }}
+        >
+          <span>
+            {selectedSpellType === 'FREEZE' && '❄️ Modo Congelamento (3D): Clique na casa central 3×3 para congelar.'}
+            {selectedSpellType === 'JUMP' && '⚡ Conceder Salto (3D): Clique sobre uma peça aliada para conceder a habilidade de saltar.'}
+            {duckPlacementActive && '🦆 Colocar Pato (3D): Clique em uma casa vazia para posicionar o pato.'}
+            {selectedDropPiece && `♟ Drop de ${selectedDropPiece} (3D): Clique em uma casa vazia para inserir a peça na reserva.`}
+            {selectedSpellType === 'PORTAL' && '🌀 Portal (3D): Clique em duas casas vazias para criar o atalho.'}
+            {selectedSpellType === 'STEALTH_TRAP' && '💣 Mina Oculta (3D): Clique em uma casa vazia para plantar.'}
+            {activeExplosion && !selectedSpellType && !selectedDropPiece && !duckPlacementActive && '💥 Detonação Atômica! Área de impacto 3×3 detonada.'}
+          </span>
+          {onCancelAction && !duckPlacementActive && (
+            <button
+              type="button"
+              id="btn-board-3d-cancel-action"
+              data-testid="btn-board-3d-cancel-action"
+              onClick={onCancelAction}
+              style={{
+                marginLeft: '8px',
+                padding: '3px 9px',
+                fontSize: '0.72rem',
+                borderRadius: '4px',
+                border: '1px solid #ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.25)',
+                color: '#fca5a5',
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              Cancelar
+            </button>
+          )}
+        </div>
+      )}
       <Canvas
         shadows
         camera={{ position: cameraPosition, fov: 45 }}
