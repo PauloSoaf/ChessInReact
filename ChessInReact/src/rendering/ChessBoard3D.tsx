@@ -24,6 +24,7 @@ import { GlobalEventBus } from '../core/events/EventBus';
 import { IInvalidMoveFeedback, ITriggerFeedbackOptions, InvalidMoveReason } from '../bindings/react/useMoveFeedback';
 import { PromotionModal } from '../ui/components/game/PromotionModal';
 import { PlayerId } from '../core/coordinates/types';
+import { globalAudioSynthesizer } from '../audio/WebAudioSynthesizer';
 
 export interface IChessBoard3DProps {
   boardSize?: number;
@@ -391,6 +392,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           }
 
           onClearInvalidMove?.();
+          globalAudioSynthesizer.playPieceSelect();
           selectPiece(entityAtCoord.id);
         }
         return;
@@ -419,6 +421,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
         }
 
         onClearInvalidMove?.();
+        globalAudioSynthesizer.playPieceSelect();
         selectPiece(entityAtCoord.id);
         return;
       }

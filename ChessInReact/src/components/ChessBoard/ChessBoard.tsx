@@ -18,6 +18,7 @@ import { VariantMapConfig } from '../../engine/variants/VariantMapConfig';
 import { GlobalEventBus } from '../../core/events/EventBus';
 import { IInvalidMoveFeedback, ITriggerFeedbackOptions, InvalidMoveReason } from '../../bindings/react/useMoveFeedback';
 import { PromotionModal } from '../../ui/components/game/PromotionModal';
+import { globalAudioSynthesizer } from '../../audio/WebAudioSynthesizer';
 
 export interface IChessBoardProps {
   boardSize?: number;
@@ -488,6 +489,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
         }
 
         onClearInvalidMove?.();
+        globalAudioSynthesizer.playPieceSelect();
         selectPiece(clickedEntity.id);
       }
       return;
@@ -530,6 +532,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
       }
 
       onClearInvalidMove?.();
+      globalAudioSynthesizer.playPieceSelect();
       selectPiece(clickedEntity.id);
       return;
     }
