@@ -31,13 +31,22 @@ export class DropPieceCommand implements ICommand {
     this.previousActivePlayer = draft.activePlayer;
     this.previousTurnNumber = draft.turnNumber;
 
-    // Find captured piece of this variant
-    const captured = Object.values(draft.boardEntities).find(
-      (e): e is IPieceEntity =>
-        e.type === 'PIECE' &&
-        e.isCaptured &&
-        e.variantId.toUpperCase() === this.pieceVariant.toUpperCase()
-    );
+    // Prioritize captured pieces from the opponent's pieces (the player's captured reserve)
+    const opponentId = this.actingPlayer === 'P1' ? 'P2' : 'P1';
+    const captured =
+      Object.values(draft.boardEntities).find(
+        (e): e is IPieceEntity =>
+          e.type === 'PIECE' &&
+          Boolean(e.isCaptured) &&
+          e.variantId.toUpperCase() === this.pieceVariant.toUpperCase() &&
+          e.ownerId === opponentId
+      ) ??
+      Object.values(draft.boardEntities).find(
+        (e): e is IPieceEntity =>
+          e.type === 'PIECE' &&
+          Boolean(e.isCaptured) &&
+          e.variantId.toUpperCase() === this.pieceVariant.toUpperCase()
+      );
 
     if (captured) {
       this.droppedPieceId = captured.id;

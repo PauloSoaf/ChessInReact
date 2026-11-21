@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { MovePieceCommand } from '../MovePieceCommand';
+import { DropPieceCommand } from '../DropPieceCommand';
 import { createDefaultDomainState } from '../../state/initialState';
 import { asCoordinateKey, asEntityId, CoordinateKey, EntityId } from '../../coordinates/types';
 import { IPieceEntity } from '../../entities/types';
@@ -424,6 +425,79 @@ describe('Variant Modifiers & MovePieceCommand Integration (P1, RF-08 to RF-13)'
       // 3. TRANSFER policy: pieces transferred to victor
       const transferredState = NPlayerModifier.eliminatePlayer(state, 'P2', 'TRANSFER', 'P1');
       expect((transferredState.boardEntities[p2Piece.id] as IPieceEntity)?.ownerId).toBe('P1');
+    });
+  });
+
+  describe('Crazyhouse / Drops Integration (RF-13-10 & Spec 01)', () => {
+    it('executes piece drop from captured reserve onto empty square, fully reversible via undo()', () => {
+      const state = createDefaultDomainState('crazyhouse-test');
+      (state as { variantId: string }).variantId = 'CRAZYHOUSE';
+
+      // Setup a captured Black Knight in reserve (captured by White P1)
+      const capturedKnightId = asEntityId('b-knight-reserve');
+      state.boardEntities[capturedKnightId] = {
+        id: capturedKnightId,
+        type: 'PIECE',
+        ownerId: 'P2', // originally Black's
+        variantId: 'KNIGHT',
+        position: asCoordinateKey('1,7'),
+        hasMoved: true,
+        isCaptured: true,
+      };
+
+      const initialTurn = state.turnNumber;
+      const initialActive = state.activePlayer;
+
+      // P1 drops Knight onto f3 ('5,2')
+      const targetCoord = asCoordinateKey('5,2');
+      const dropCmd = new DropPieceCommand('P1', 'KNIGHT', targetCoord);
+
+      dropCmd.execute(state);
+
+      // Verify execution effects
+      expect(state.occupancy[targetCoord]).toBe(capturedKnightId);
+      const droppedPiece = state.boardEntities[capturedKnightId] as IPieceEntity;
+      expect(droppedPiece.isCaptured).toBe(false);
+      expect(droppedPiece.ownerId).toBe('P1');
+      expect(droppedPiece.position).toBe(targetCoord);
+      expect(state.activePlayer).toBe('P2');
+      expect(state.turnNumber).toBe(initialTurn + 1);
+
+      // Verify lossless undo()
+      dropCmd.undo(state);
+
+      expect(state.occupancy[targetCoord]).toBeUndefined();
+      const revertedPiece = state.boardEntities[capturedKnightId] as IPieceEntity;
+      expect(revertedPiece.isCaptured).toBe(true);
+      expect(revertedPiece.ownerId).toBe('P2');
+      expect(state.activePlayer).toBe(initialActive);
+      expect(state.turnNumber).toBe(initialTurn);
+    });
+
+    it('generates new entity ID if no captured piece exists in reserve and cleans it on undo()', () => {
+      const state = createDefaultDomainState('crazyhouse-test');
+      (state as { activePlayer: string }).activePlayer = 'P2';
+      const initialTurn = state.turnNumber;
+
+      const targetCoord = asCoordinateKey('3,3');
+      const dropCmd = new DropPieceCommand('P2', 'BISHOP', targetCoord);
+
+      dropCmd.execute(state);
+
+      const placedId = state.occupancy[targetCoord];
+      expect(placedId).toBeDefined();
+      const placedPiece = state.boardEntities[placedId!] as IPieceEntity;
+      expect(placedPiece).toBeDefined();
+      expect(placedPiece.variantId).toBe('BISHOP');
+      expect(placedPiece.ownerId).toBe('P2');
+      expect(state.activePlayer).toBe('P1');
+
+      dropCmd.undo(state);
+
+      expect(state.occupancy[targetCoord]).toBeUndefined();
+      expect(state.boardEntities[placedId!]).toBeUndefined();
+      expect(state.activePlayer).toBe('P2');
+      expect(state.turnNumber).toBe(initialTurn);
     });
   });
 });
