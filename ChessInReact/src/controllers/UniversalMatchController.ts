@@ -677,6 +677,11 @@ export class UniversalMatchController {
       const opponentId: PlayerId = domain.activePlayer === 'P1' ? 'P2' : 'P1';
       const friendlyKing = CheckValidator.findRoyalPiece(domain.activePlayer, domain);
       const opponentKing = CheckValidator.findRoyalPiece(opponentId, domain);
+      const officialCharges =
+        this.officialSpellState &&
+        (domain.activePlayer === 'P1'
+          ? this.officialSpellState.whiteCharges
+          : this.officialSpellState.blackCharges);
       const specializedContext: Record<string, unknown> = {
         participantCount: this.config.totalParticipants,
         friendlyKingCoord: friendlyKing?.position,
@@ -688,11 +693,13 @@ export class UniversalMatchController {
           (domain.activePlayer === 'P1'
             ? this.expandedSpellState.whiteMana
             : this.expandedSpellState.blackMana),
-        jumpCharges:
-          this.officialSpellState &&
-          (domain.activePlayer === 'P1'
-            ? this.officialSpellState.whiteCharges.jumpCharges
-            : this.officialSpellState.blackCharges.jumpCharges),
+        freezeCharges: officialCharges?.freezeCharges ?? 0,
+        jumpCharges: officialCharges?.jumpCharges ?? 0,
+        freezeCooldown: officialCharges?.freezeCooldownTurns ?? 0,
+        jumpCooldown: officialCharges?.jumpCooldownTurns ?? 0,
+        activeFrozenCoordinates: this.officialSpellState
+          ? Object.keys(this.officialSpellState.activeFrozenCoordinates)
+          : [],
       };
 
       const decision = await AIWorkerPool.dispatchDecision({
@@ -1344,7 +1351,7 @@ export class UniversalMatchController {
       }
     }
 
-    // 3. Collect Frozen Squares
+    // 3. Collect Frozen Squares (tracked via frozenSet to apply isFrozen to pieces)
     const frozenSet = new Set<string>();
     if (this.officialSpellState) {
       for (const [coord, turns] of Object.entries(this.officialSpellState.activeFrozenCoordinates)) {
@@ -1355,21 +1362,6 @@ export class UniversalMatchController {
       for (const [coord, turns] of Object.entries(this.expandedSpellState.frozenCoordinates)) {
         if (turns > 0) frozenSet.add(this.normalizeToGameCoord(coord));
       }
-    }
-
-    for (const coord of frozenSet) {
-      const terrainId = asEntityId(`frozen_terrain_${coord}`);
-      const cKey = asCoordinateKey(coord);
-      nextEntities[terrainId] = {
-        id: terrainId,
-        type: 'TERRAIN',
-        position: cKey,
-        variantId: 'FROZEN',
-        elevation: 1,
-        provenance: 'GAMEPLAY',
-        metadata: { elevation: 1, isFrozen: true },
-      };
-      nextTerrain[cKey] = terrainId;
     }
 
     // 4. Sync Piece Buffs (hasJump, isFrozen, isShielded, isInvisible)

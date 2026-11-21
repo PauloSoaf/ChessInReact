@@ -157,4 +157,116 @@ describe('Spell Chess Official Mechanics & King Capture Integrity', () => {
     expect(spellState.whiteCharges.jumpCooldownTurns).toBe(2); // White cooldown ticks on White turns
     expect(spellState.activeJumpPieceIds['pawn_e2']).toBeUndefined();
   });
+
+  it('5. King and external pieces can legally move into frozen squares and capture frozen pieces', () => {
+    const state = createDefaultDomainState('test-frozen-move', 'SPELL_CHESS');
+    (state as { boardEntities: Record<string, IPieceEntity> }).boardEntities = {};
+    (state as { occupancy: Record<string, ReturnType<typeof asEntityId>> }).occupancy = {};
+
+    // White King on e1 (4,0)
+    const wKingId = asEntityId('w_king');
+    state.boardEntities[wKingId] = {
+      id: wKingId,
+      type: 'PIECE',
+      ownerId: 'P1',
+      position: asCoordinateKey('4,0'),
+      variantId: 'KING',
+      hasMoved: false,
+      isCaptured: false,
+    };
+    state.occupancy[asCoordinateKey('4,0')] = wKingId;
+
+    // Enemy Black Knight on d2 (3,1), inside a frozen 3x3 area
+    const bKnightId = asEntityId('b_knight');
+    state.boardEntities[bKnightId] = {
+      id: bKnightId,
+      type: 'PIECE',
+      ownerId: 'P2',
+      position: asCoordinateKey('3,1'),
+      variantId: 'KNIGHT',
+      hasMoved: true,
+      isCaptured: false,
+      metadata: { isFrozen: true },
+    };
+    state.occupancy[asCoordinateKey('3,1')] = bKnightId;
+
+    // Square d1 (3,0) is an empty square inside the 3x3 frozen zone
+    const kingMoves = RulesEngine.getLegalMovesForPiece(
+      state.boardEntities[wKingId] as IPieceEntity,
+      state,
+      topology
+    );
+    const destCoords = kingMoves.map((m) => m.to);
+
+    // King CAN move into empty frozen square d1 (3,0)
+    expect(destCoords).toContain('3,0');
+
+    // King CAN capture frozen enemy piece on d2 (3,1)
+    expect(destCoords).toContain('3,1');
+
+    // Executing the move to d1 succeeds without IMPASSABLE_TERRAIN or illegal move error
+    const moveCmd = new MovePieceCommand(
+      wKingId,
+      asCoordinateKey('4,0'),
+      asCoordinateKey('3,0'),
+      'P1',
+      undefined,
+      false,
+      true,
+      undefined,
+      topology
+    );
+    expect(() => moveCmd.execute(state)).not.toThrow();
+    expect(state.boardEntities[wKingId]?.position).toBe('3,0');
+  });
+
+  it('6. AI Bot calculates and deploys tactical Freeze and Jump in Spell Chess', async () => {
+    const { SpellOptimizationStrategy } = await import('../../../workers/ai/strategies/SpellOptimizationStrategy');
+    const strategy = new SpellOptimizationStrategy();
+
+    // Decision with Freeze ready and enemy high-value cluster (Queen + King)
+    const decisionFreeze = strategy.decideMove({
+      matchId: 'bot-spell-test',
+      variantId: 'SPELL_CHESS_OFFICIAL',
+      actingPlayer: 'P2',
+      difficultyLevel: 3,
+      timeBudgetMs: 500,
+      legalMoves: [
+        { from: '4,6', to: '4,4', pieceId: 'b_pawn_e7' },
+        { from: '1,7', to: '2,5', pieceId: 'b_knight_b8' },
+      ],
+      specializedContext: {
+        freezeCharges: 5,
+        jumpCharges: 0,
+        freezeCooldown: 0,
+        jumpCooldown: 2,
+        opponentKingCoord: '4,0',
+      },
+    });
+
+    expect(decisionFreeze.secondaryAction?.type).toBe('CAST_SPELL');
+    expect(decisionFreeze.secondaryAction?.payload.spellType).toBe('FREEZE');
+
+    // Decision with Jump ready for tactical capture
+    const decisionJump = strategy.decideMove({
+      matchId: 'bot-spell-test',
+      variantId: 'SPELL_CHESS_OFFICIAL',
+      actingPlayer: 'P2',
+      difficultyLevel: 3,
+      timeBudgetMs: 500,
+      legalMoves: [
+        { from: '4,6', to: '4,4', pieceId: 'b_pawn_e7', isCapture: true },
+      ],
+      specializedContext: {
+        freezeCharges: 0,
+        jumpCharges: 2,
+        freezeCooldown: 2,
+        jumpCooldown: 0,
+        opponentKingCoord: '4,0',
+      },
+    });
+
+    expect(decisionJump.secondaryAction?.type).toBe('CAST_SPELL');
+    expect(decisionJump.secondaryAction?.payload.spellType).toBe('JUMP');
+  });
 });

@@ -32,22 +32,53 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
     const level = request.difficultyLevel ?? 3;
     const isExpanded = request.variantId === 'SPELL_CHESS_EXPANDED';
     const currentMana = (request.specializedContext?.mana as number) ?? 2;
-    const jumpCharges = (request.specializedContext?.jumpCharges as number) ?? 1;
+    const freezeCharges =
+      typeof request.specializedContext?.freezeCharges === 'number'
+        ? request.specializedContext.freezeCharges
+        : request.specializedContext?.jumpCharges !== undefined
+          ? 0
+          : isExpanded
+            ? 0
+            : 5;
+    const jumpCharges =
+      typeof request.specializedContext?.jumpCharges === 'number'
+        ? request.specializedContext.jumpCharges
+        : isExpanded
+          ? 0
+          : 2;
     const freezeCooldown = (request.specializedContext?.freezeCooldown as number) ?? 0;
+    const jumpCooldown = (request.specializedContext?.jumpCooldown as number) ?? 0;
     const opponentKingCoord = (request.specializedContext?.opponentKingCoord as string) ?? 'e8';
 
     let bestMove = moves[0];
     let bestScore = -Infinity;
 
+    // 0. Priority 0: Instant Victory by King Capture in Spell Chess
+    for (const move of moves) {
+      const destEntityId = request.domain?.occupancy[move.to as import('../../../core/coordinates/types').CoordinateKey];
+      const destEntity = destEntityId ? request.domain?.boardEntities[destEntityId] : undefined;
+      const isKing =
+        (destEntity?.type === 'PIECE' &&
+          (destEntity.variantId.toUpperCase() === 'KING' || destEntity.variantId.toUpperCase() === 'K')) ||
+        move.to === opponentKingCoord;
+      if (isKing) {
+        bestMove = move;
+        bestScore = 100000;
+        break;
+      }
+    }
+
     // 1. Select best piece move (via multi-ply search when level >= 2 and domain is available)
-    const searched = level >= 2 ? decideWithSearch(request, this.strategyId) : null;
-    if (searched) {
-      const matched = moves.find(
-        (m) => m.from === searched.move.from && m.to === searched.move.to && m.pieceId === searched.move.pieceId
-      );
-      if (matched) {
-        bestMove = matched;
-        bestScore = searched.evaluationCentipawns;
+    if (bestScore < 100000) {
+      const searched = level >= 2 ? decideWithSearch(request, this.strategyId) : null;
+      if (searched) {
+        const matched = moves.find(
+          (m) => m.from === searched.move.from && m.to === searched.move.to && m.pieceId === searched.move.pieceId
+        );
+        if (matched) {
+          bestMove = matched;
+          bestScore = searched.evaluationCentipawns;
+        }
       }
     }
 
@@ -106,8 +137,11 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
         }
       } else {
         // Official Chess.com Model (Freeze 3x3, Jump charge)
-        if (jumpCharges > 0) {
-          // Use JUMP to bypass pawn chain / surprise attack
+        const canJump = jumpCharges > 0 && jumpCooldown === 0;
+        const canFreeze = freezeCharges > 0 && freezeCooldown === 0;
+
+        if (canJump && (bestMove.isCapture || !canFreeze || jumpCooldown === 0)) {
+          // Use JUMP to leap over blockers for penetration, capture, or development
           secondaryAction = {
             type: 'CAST_SPELL',
             payload: {
@@ -115,16 +149,18 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
               targetPieceId: bestMove.pieceId,
             },
           };
-          bestScore += 150;
-        } else if (freezeCooldown === 0 && (bestMove.isCapture || level >= 3)) {
+          bestScore += 200;
+        } else if (canFreeze) {
+          // Cast FREEZE on opponent high-value cluster (King, Queen, Rooks) to paralyze counterplay
+          const targetCoord = this.findBestFreezeTarget(request, opponentKingCoord);
           secondaryAction = {
             type: 'CAST_SPELL',
             payload: {
               spellType: 'FREEZE',
-              targetCoord: opponentKingCoord,
+              targetCoord,
             },
           };
-          bestScore += 250;
+          bestScore += 280;
         }
       }
     }
@@ -168,5 +204,61 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
       }
     }
     return empty;
+  }
+
+  private findBestFreezeTarget(request: IAIDecisionRequest, defaultTarget: string): string {
+    const domain = request.domain;
+    if (!domain) return defaultTarget;
+
+    const actingPlayer = request.actingPlayer;
+    const enemyPieces: { x: number; y: number; value: number }[] = [];
+
+    const pieceValues: Record<string, number> = {
+      KING: 1000,
+      K: 1000,
+      QUEEN: 900,
+      Q: 900,
+      ROOK: 500,
+      R: 500,
+      BISHOP: 330,
+      B: 330,
+      KNIGHT: 320,
+      N: 320,
+      PAWN: 100,
+      P: 100,
+    };
+
+    for (const entity of Object.values(domain.boardEntities)) {
+      if (
+        entity.type === 'PIECE' &&
+        !entity.isCaptured &&
+        entity.ownerId !== actingPlayer &&
+        entity.ownerId !== 'NONE'
+      ) {
+        const [x, y] = this.parseCoord(entity.position);
+        const val = pieceValues[entity.variantId.toUpperCase()] ?? 100;
+        enemyPieces.push({ x, y, value: val });
+      }
+    }
+
+    if (enemyPieces.length === 0) return defaultTarget;
+
+    let bestCenter = defaultTarget;
+    let maxClusterValue = -1;
+
+    for (const target of enemyPieces) {
+      let clusterValue = 0;
+      for (const other of enemyPieces) {
+        if (Math.abs(other.x - target.x) <= 1 && Math.abs(other.y - target.y) <= 1) {
+          clusterValue += other.value;
+        }
+      }
+      if (clusterValue > maxClusterValue) {
+        maxClusterValue = clusterValue;
+        bestCenter = `${target.x},${target.y}`;
+      }
+    }
+
+    return bestCenter;
   }
 }
