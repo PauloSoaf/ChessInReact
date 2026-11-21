@@ -1029,6 +1029,8 @@ const AppContent: React.FC = () => {
                 variantId={universalMatch.snapshot.config.variantId}
                 participantCount={universalMatch.snapshot.config.totalParticipants}
                 activePlayerLabel={activePlayer === 'P1' ? 'Brancas' : 'Pretas'}
+                threeCheckState={universalMatch.snapshot.threeCheckState}
+                racingKingsState={universalMatch.snapshot.racingKingsState}
               />
 
               {/* Multiplayer Faction Ribbon (3 to 12 participants) */}

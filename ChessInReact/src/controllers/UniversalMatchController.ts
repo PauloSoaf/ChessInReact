@@ -46,6 +46,8 @@ import { CompositeArenaLayouts } from '../engine/multiplayer/arenas/CompositeAre
 import { ArenaModeId } from '../engine/multiplayer/arenas/interfaces/IArenaContracts';
 import { VariantMapConfig } from '../engine/variants/VariantMapConfig';
 import { ThreeCheckTracker, ICheckCountState } from '../engine/variants/modifiers/ThreeCheckTracker';
+import { RacingKingsValidator, IRacingKingsState } from '../engine/variants/modifiers/RacingKingsValidator';
+import { KingOfTheHillEvaluator } from '../engine/variants/modifiers/KingOfTheHillEvaluator';
 import { IEntity, IPieceEntity } from '../core/entities/types';
 
 export interface IUniversalMatchSnapshot {
@@ -62,6 +64,8 @@ export interface IUniversalMatchSnapshot {
   readonly frozenCoordinates: readonly string[];
   readonly officialSpellState: IOfficialSpellState | null;
   readonly expandedSpellState: ISpellGameState | null;
+  readonly threeCheckState: ICheckCountState | null;
+  readonly racingKingsState: IRacingKingsState | null;
   readonly scores: Readonly<Record<string, number>>;
   readonly eliminatedPlayers: ReadonlyArray<string>;
 }
@@ -71,6 +75,7 @@ export interface IUniversalMatchHistorySnapshot {
   readonly expandedSpellState: ISpellGameState | null;
   readonly duckState: IDuckChessState | null;
   readonly threeCheckState: ICheckCountState | null;
+  readonly racingKingsState: IRacingKingsState | null;
   readonly scoresState: Record<string, IFFAPlayerScore>;
   readonly turnCycleState: ITurnCycleState | null;
   readonly lastMoveSummaryStr: string | null;
@@ -93,6 +98,7 @@ export class UniversalMatchController {
   private officialSpellState: IOfficialSpellState | null = null;
   private expandedSpellState: ISpellGameState | null = null;
   private threeCheckState: ICheckCountState | null = null;
+  private racingKingsState: IRacingKingsState | null = null;
 
   // Multiplayer Arena states
   private turnCycleState: ITurnCycleState | null = null;
@@ -179,6 +185,13 @@ export class UniversalMatchController {
       this.expandedSpellState = SpellChessEngine.createInitialState();
     } else {
       this.expandedSpellState = null;
+    }
+
+    // Racing Kings
+    if (v.includes('RACING')) {
+      this.racingKingsState = RacingKingsValidator.createInitialState();
+    } else {
+      this.racingKingsState = null;
     }
 
     // Multiplayer Arenas
@@ -340,6 +353,7 @@ export class UniversalMatchController {
       expandedSpellState: this.expandedSpellState ? JSON.parse(JSON.stringify(this.expandedSpellState)) : null,
       duckState: this.duckState ? JSON.parse(JSON.stringify(this.duckState)) : null,
       threeCheckState: this.threeCheckState ? JSON.parse(JSON.stringify(this.threeCheckState)) : null,
+      racingKingsState: this.racingKingsState ? JSON.parse(JSON.stringify(this.racingKingsState)) : null,
       scoresState: JSON.parse(JSON.stringify(this.scoresState)),
       turnCycleState: this.turnCycleState ? JSON.parse(JSON.stringify(this.turnCycleState)) : null,
       lastMoveSummaryStr: this.lastMoveSummaryStr,
@@ -367,6 +381,7 @@ export class UniversalMatchController {
         expandedSpellState: this.expandedSpellState ? JSON.parse(JSON.stringify(this.expandedSpellState)) : null,
         duckState: this.duckState ? JSON.parse(JSON.stringify(this.duckState)) : null,
         threeCheckState: this.threeCheckState ? JSON.parse(JSON.stringify(this.threeCheckState)) : null,
+        racingKingsState: this.racingKingsState ? JSON.parse(JSON.stringify(this.racingKingsState)) : null,
         scoresState: JSON.parse(JSON.stringify(this.scoresState)),
         turnCycleState: this.turnCycleState ? JSON.parse(JSON.stringify(this.turnCycleState)) : null,
         lastMoveSummaryStr: this.lastMoveSummaryStr,
@@ -378,6 +393,7 @@ export class UniversalMatchController {
       this.expandedSpellState = prev.expandedSpellState;
       this.duckState = prev.duckState;
       this.threeCheckState = prev.threeCheckState;
+      this.racingKingsState = prev.racingKingsState;
       this.scoresState = prev.scoresState;
       this.turnCycleState = prev.turnCycleState;
       this.lastMoveSummaryStr = prev.lastMoveSummaryStr;
@@ -407,6 +423,7 @@ export class UniversalMatchController {
         expandedSpellState: this.expandedSpellState ? JSON.parse(JSON.stringify(this.expandedSpellState)) : null,
         duckState: this.duckState ? JSON.parse(JSON.stringify(this.duckState)) : null,
         threeCheckState: this.threeCheckState ? JSON.parse(JSON.stringify(this.threeCheckState)) : null,
+        racingKingsState: this.racingKingsState ? JSON.parse(JSON.stringify(this.racingKingsState)) : null,
         scoresState: JSON.parse(JSON.stringify(this.scoresState)),
         turnCycleState: this.turnCycleState ? JSON.parse(JSON.stringify(this.turnCycleState)) : null,
         lastMoveSummaryStr: this.lastMoveSummaryStr,
@@ -418,6 +435,7 @@ export class UniversalMatchController {
       this.expandedSpellState = next.expandedSpellState;
       this.duckState = next.duckState;
       this.threeCheckState = next.threeCheckState;
+      this.racingKingsState = next.racingKingsState;
       this.scoresState = next.scoresState;
       this.turnCycleState = next.turnCycleState;
       this.lastMoveSummaryStr = next.lastMoveSummaryStr;
@@ -503,6 +521,8 @@ export class UniversalMatchController {
       ],
       officialSpellState: this.officialSpellState,
       expandedSpellState: this.expandedSpellState,
+      threeCheckState: this.threeCheckState ? { ...this.threeCheckState } : null,
+      racingKingsState: this.racingKingsState ? { ...this.racingKingsState } : null,
       scores,
       eliminatedPlayers: eliminated,
     };
@@ -774,6 +794,44 @@ export class UniversalMatchController {
         }
       }
 
+      // Racing Kings evaluation
+      if (this.racingKingsState) {
+        const movedPiece = domain.boardEntities[asEntityId(best.pieceId)] as IPieceEntity | undefined;
+        const isKing = movedPiece?.type === 'PIECE' && (movedPiece.variantId.toUpperCase() === 'KING' || movedPiece.variantId.toUpperCase() === 'K');
+        if (isKing) {
+          const destY = Number(best.to.split(',')[1]);
+          this.racingKingsState = RacingKingsValidator.evaluateRaceTurn(this.racingKingsState, movingPlayerSide, destY);
+          if (this.racingKingsState.isGameOver) {
+            gameStore.setState((s) => ({
+              domain: {
+                ...s.domain,
+                isGameOver: true,
+                winnerId: this.racingKingsState?.winner === 'WHITE' ? 'P1' : this.racingKingsState?.winner === 'BLACK' ? 'P2' : null,
+              },
+            }));
+          }
+        }
+      }
+
+      // King of the Hill evaluation
+      if (this.config.variantId.toUpperCase().includes('HILL')) {
+        const currentDomain = gameStore.getState().domain;
+        const p1King = CheckValidator.findRoyalPiece('P1', currentDomain);
+        const p2King = CheckValidator.findRoyalPiece('P2', currentDomain);
+        if (p1King && p2King) {
+          const hillEval = KingOfTheHillEvaluator.evaluateKingPosition(p1King.position, p2King.position);
+          if (hillEval.isGameOver) {
+            gameStore.setState((s) => ({
+              domain: {
+                ...s.domain,
+                isGameOver: true,
+                winnerId: hillEval.winner === 'WHITE' ? 'P1' : 'P2',
+              },
+            }));
+          }
+        }
+      }
+
       // 5. Complete Duck Chess' mandatory second phase through its engine.
       if (this.duckState) {
         this.duckState = DuckChessEngine.executePieceMove(this.duckState, {
@@ -955,6 +1013,43 @@ export class UniversalMatchController {
               : s.domain.winnerId,
           },
         }));
+      }
+    }
+
+    // Racing Kings evaluation
+    if (this.racingKingsState) {
+      const movedEntity = postMoveDomain.boardEntities[asEntityId(pieceId)] as IPieceEntity | undefined;
+      const isKing = movedEntity?.type === 'PIECE' && (movedEntity.variantId.toUpperCase() === 'KING' || movedEntity.variantId.toUpperCase() === 'K');
+      if (isKing) {
+        const destY = Number(to.split(',')[1]);
+        this.racingKingsState = RacingKingsValidator.evaluateRaceTurn(this.racingKingsState, movedPlayerSide, destY);
+        if (this.racingKingsState.isGameOver) {
+          gameStore.setState((s) => ({
+            domain: {
+              ...s.domain,
+              isGameOver: true,
+              winnerId: this.racingKingsState?.winner === 'WHITE' ? 'P1' : this.racingKingsState?.winner === 'BLACK' ? 'P2' : null,
+            },
+          }));
+        }
+      }
+    }
+
+    // King of the Hill evaluation
+    if (this.config.variantId.toUpperCase().includes('HILL')) {
+      const p1King = CheckValidator.findRoyalPiece('P1', postMoveDomain);
+      const p2King = CheckValidator.findRoyalPiece('P2', postMoveDomain);
+      if (p1King && p2King) {
+        const hillEval = KingOfTheHillEvaluator.evaluateKingPosition(p1King.position, p2King.position);
+        if (hillEval.isGameOver) {
+          gameStore.setState((s) => ({
+            domain: {
+              ...s.domain,
+              isGameOver: true,
+              winnerId: hillEval.winner === 'WHITE' ? 'P1' : 'P2',
+            },
+          }));
+        }
       }
     }
 

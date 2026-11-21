@@ -32,8 +32,8 @@ export const AudioManager: React.FC = () => {
       globalAudioSynthesizer.playCapture(payload.variantId);
     });
 
-    const unsubCheck = GlobalEventBus.subscribe('CHECK_TRIGGERED', () => {
-      globalAudioSynthesizer.playCheck();
+    const unsubCheck = GlobalEventBus.subscribe('CHECK_TRIGGERED', (payload) => {
+      globalAudioSynthesizer.playCheck(payload?.urgent);
     });
 
     const unsubMate = GlobalEventBus.subscribe('MATE_TRIGGERED', () => {

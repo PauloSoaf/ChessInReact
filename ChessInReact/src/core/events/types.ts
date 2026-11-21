@@ -38,6 +38,7 @@ export interface IGameEventPayload {
   CHECK_TRIGGERED: {
     readonly kingId: EntityId;
     readonly attackerIds: readonly EntityId[];
+    readonly urgent?: boolean;
   };
   MATE_TRIGGERED: {
     readonly loserId: PlayerId;

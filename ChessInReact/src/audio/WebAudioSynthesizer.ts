@@ -220,18 +220,18 @@ export class WebAudioSynthesizer {
   }
 
   /**
-   * Royal check alert: pleasant harmonic chime (D5 + A5).
+   * Royal check alert: pleasant harmonic chime (D5 + A5), or dramatic triple chime on match-deciding checks.
    */
-  public playCheck(): void {
+  public playCheck(urgent = false): void {
     if (!this.enabled) return;
     const ctx = this.getContext();
     const master = this.masterGain;
     if (!ctx || !master) return;
 
-    this.triggerHaptic(30);
+    this.triggerHaptic(urgent ? [30, 20, 45] : 30);
 
     const t = ctx.currentTime;
-    const freqs = [587.33, 880.0]; // D5 and A5
+    const freqs = urgent ? [587.33, 880.0, 1174.66] : [587.33, 880.0];
     for (const freq of freqs) {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -239,14 +239,14 @@ export class WebAudioSynthesizer {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, t);
 
-      gain.gain.setValueAtTime(0.2, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      gain.gain.setValueAtTime(urgent ? 0.28 : 0.2, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + (urgent ? 0.32 : 0.22));
 
       osc.connect(gain);
       gain.connect(master);
 
       osc.start(t);
-      osc.stop(t + 0.23);
+      osc.stop(t + (urgent ? 0.33 : 0.23));
     }
   }
 

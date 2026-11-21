@@ -1,16 +1,23 @@
 import React from 'react';
 import { VariantCatalog } from '../../../engine/variants/catalog/VariantCatalog';
+import { ICheckCountState } from '../../../engine/variants/modifiers/ThreeCheckTracker';
+import { IRacingKingsState } from '../../../engine/variants/modifiers/RacingKingsValidator';
+import { ThreeCheckCounterBadge } from './ThreeCheckCounterBadge';
 
 export interface IVariantMatchBannerProps {
   readonly variantId: string;
   readonly participantCount?: number;
   readonly activePlayerLabel?: string;
+  readonly threeCheckState?: ICheckCountState | null;
+  readonly racingKingsState?: IRacingKingsState | null;
 }
 
 export const VariantMatchBanner: React.FC<IVariantMatchBannerProps> = ({
   variantId,
   participantCount = 2,
   activePlayerLabel,
+  threeCheckState,
+  racingKingsState,
 }) => {
   const normId = variantId.toUpperCase();
   const isStandard = normId === 'STANDARD' || normId === 'CLASSIC';
@@ -208,6 +215,36 @@ export const VariantMatchBanner: React.FC<IVariantMatchBannerProps> = ({
             >
               {subtitle}
             </span>
+          )}
+
+          {/* Three-Check / Five-Check Interactive Check Progress HUD */}
+          {threeCheckState && (
+            <div style={{ marginTop: '0.45rem' }}>
+              <ThreeCheckCounterBadge state={threeCheckState} />
+            </div>
+          )}
+
+          {/* Racing Kings Equalizing Turn Warning Banner */}
+          {racingKingsState?.whiteReachedRank8 && !racingKingsState.isGameOver && (
+            <div
+              data-testid="racing-kings-equalizing-turn"
+              style={{
+                marginTop: '0.45rem',
+                padding: '0.25rem 0.6rem',
+                backgroundColor: 'rgba(245, 158, 11, 0.16)',
+                border: '1px solid #f59e0b',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.74rem',
+                fontWeight: 800,
+                color: '#fbbf24',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+              }}
+            >
+              <span aria-hidden="true">⚡</span>
+              <span>Turno de Equalização: Pretas precisam alcançar a 8ª fileira para empatar!</span>
+            </div>
           )}
         </div>
       </div>
