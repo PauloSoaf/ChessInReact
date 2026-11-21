@@ -671,6 +671,12 @@ const BoardSquare: React.FC<IBoardSquare> = ({
                   boxShadow: 'inset 0 0 8px #f97316',
                   border: '1px dashed #fb923c',
                 }
+              : hoverPreview.type === 'ATOMIC_IMMUNE'
+              ? {
+                  backgroundColor: 'rgba(16, 185, 129, 0.22)',
+                  boxShadow: 'inset 0 0 8px #10b981',
+                  border: '1.5px dashed #34d399',
+                }
               : {
                   backgroundColor: hoverPreview.isValid
                     ? 'rgba(245, 158, 11, 0.35)'
@@ -685,6 +691,9 @@ const BoardSquare: React.FC<IBoardSquare> = ({
           )}
           {hoverPreview.type === 'ATOMIC_BLAST' && (
             <span style={{ fontSize: '0.85rem', opacity: 0.85, filter: 'drop-shadow(0 0 4px #f97316)' }}>⚠️</span>
+          )}
+          {hoverPreview.type === 'ATOMIC_IMMUNE' && (
+            <span style={{ fontSize: '0.85rem', opacity: 0.9, filter: 'drop-shadow(0 0 4px #10b981)' }}>🛡️</span>
           )}
           {hoverPreview.type === 'FREEZE' && hoverPreview.isCenter && (
             <span style={{ fontSize: '1.4rem', filter: 'drop-shadow(0 0 6px #38bdf8)' }}>❄️</span>

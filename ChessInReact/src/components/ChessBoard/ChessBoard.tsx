@@ -864,10 +864,12 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
             }
           } else if (atomicBlastArea?.coords.has(`${gameX},${gameY}`)) {
             const isCenter = atomicBlastArea.center === `${gameX},${gameY}`;
+            const targetPieceEntity = entityId ? (domain.boardEntities[entityId] as IPieceEntity | undefined) : undefined;
+            const isPawnImmune = !isCenter && targetPieceEntity?.variantId?.toUpperCase() === 'PAWN';
             hoverPreview = {
-              type: isCenter ? 'ATOMIC_EPICENTER' : 'ATOMIC_BLAST',
+              type: isCenter ? 'ATOMIC_EPICENTER' : isPawnImmune ? 'ATOMIC_IMMUNE' : 'ATOMIC_BLAST',
               isCenter,
-              isValid: true,
+              isValid: !isPawnImmune,
             };
           } else if (isDirectHover) {
             if (selectedSpellType === 'JUMP') {

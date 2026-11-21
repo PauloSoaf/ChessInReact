@@ -7,7 +7,8 @@ export interface IHoverPreviewInfo {
     | 'PORTAL'
     | 'TRAP'
     | 'ATOMIC_EPICENTER'
-    | 'ATOMIC_BLAST';
+    | 'ATOMIC_BLAST'
+    | 'ATOMIC_IMMUNE';
   readonly isCenter?: boolean;
   readonly isValid?: boolean;
   readonly symbol?: string;

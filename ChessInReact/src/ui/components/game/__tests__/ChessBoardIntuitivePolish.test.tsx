@@ -320,5 +320,37 @@ describe('Intuitive UI & Fluid Polish Suite (Spec 06 RF-14, RF-15 & Lichess/Ches
 
       expect(screen.getByTestId('atomic-shockwave-cell').textContent).toContain('💥');
     });
+
+    it('renders immune shield indicator 🛡️ on collateral squares containing pawns during atomic targeting', () => {
+      const dummySquareInfo = {
+        row: 3,
+        column: 2,
+        squareID: '2-3',
+        gameX: 2,
+        gameY: 4,
+      };
+
+      render(
+        <ThemeProvider>
+          <BoardSquare
+            testId="square-atomic-immune"
+            piece={chessPieces.b_pawn ?? { name: 'PAWN', symbol: '♙', color: 'black' }}
+            boardDisplay={[]}
+            squareInfo={dummySquareInfo}
+            handleClick={() => {}}
+            hoverPreview={{
+              type: 'ATOMIC_IMMUNE',
+              isCenter: false,
+              isValid: false,
+            }}
+          />
+        </ThemeProvider>
+      );
+
+      const immunePreview = screen.getByTestId('hover-preview-atomic_immune');
+      expect(immunePreview).toBeDefined();
+      expect(immunePreview.textContent).toContain('🛡️');
+      expect(immunePreview.style.boxShadow).toContain('#10b981');
+    });
   });
 });
