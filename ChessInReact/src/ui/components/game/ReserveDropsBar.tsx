@@ -12,6 +12,17 @@ export interface IReserveDropsBarProps {
   isShogi?: boolean;
 }
 
+const getCanonicalHotkey = (variant: string): string => {
+  const v = variant.toUpperCase();
+  if (v === 'KNIGHT') return 'N';
+  if (v === 'PAWN') return 'P';
+  if (v === 'BISHOP') return 'B';
+  if (v === 'ROOK') return 'R';
+  if (v === 'QUEEN') return 'Q';
+  if (v === 'KING') return 'K';
+  return v[0] ?? '?';
+};
+
 export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
   reservePieces,
   selectedPieceVariant,
@@ -52,7 +63,8 @@ export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
 
       const pressedKey = e.key.toUpperCase();
       for (const variant of counts.keys()) {
-        if (pressedKey === variant[0].toUpperCase()) {
+        const hotkey = getCanonicalHotkey(variant);
+        if (pressedKey === hotkey) {
           e.preventDefault();
           onSelectDropPiece(selectedPieceVariant === variant ? null : variant);
           return;
@@ -101,7 +113,7 @@ export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
             const pieceInfo = chessPieces[variant.toLowerCase()] ?? { symbol: variant[0] };
             displaySymbol = pieceInfo?.symbol ?? variant[0];
           }
-          const hotkey = variant[0].toUpperCase();
+          const hotkey = getCanonicalHotkey(variant);
           return (
             <button
               key={`drop-btn-${variant}`}
