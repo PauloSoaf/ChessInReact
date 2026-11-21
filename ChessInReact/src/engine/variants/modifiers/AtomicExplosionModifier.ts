@@ -30,6 +30,25 @@ export class AtomicExplosionModifier {
     return false; // Kings cannot capture in Atomic
   }
 
+  /**
+   * Returns whether a target coordinate falls within Chebyshev distance 1 (3x3 area) blast radius.
+   */
+  public static isBlastRadiusSquare(
+    centerFile: number,
+    centerRank: number,
+    targetFile: number,
+    targetRank: number
+  ): boolean {
+    return Math.abs(centerFile - targetFile) <= 1 && Math.abs(centerRank - targetRank) <= 1;
+  }
+
+  /**
+   * Official Atomic rule: Pawns are immune to collateral explosion damage.
+   */
+  public static isPawnImmune(variantId: string): boolean {
+    return variantId.toUpperCase() === 'PAWN';
+  }
+
   public static resolveExplosion(
     attacker: IBoardPieceInfo,
     victim: IBoardPieceInfo,
@@ -48,12 +67,9 @@ export class AtomicExplosionModifier {
     for (const piece of allBoardPieces) {
       if (piece.id === attacker.id || piece.id === victim.id) continue;
 
-      const df = Math.abs(piece.file - blastCenterFile);
-      const dr = Math.abs(piece.rank - blastCenterRank);
-
-      if (df <= 1 && dr <= 1) {
+      if (this.isBlastRadiusSquare(blastCenterFile, blastCenterRank, piece.file, piece.rank)) {
         // Radius 1: pawns are immune according to official Atomic rules
-        if (piece.variantId.toUpperCase() !== 'PAWN') {
+        if (!this.isPawnImmune(piece.variantId)) {
           collateralDestroyed.push(piece.id);
           if (piece.variantId.toUpperCase() === 'KING') {
             kingsDestroyed.push(piece.owner);

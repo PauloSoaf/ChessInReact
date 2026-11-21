@@ -194,6 +194,56 @@ describe('Spec 13: Expanded Variant Universe, Historical & Fairy Engines', () =>
       expect(explosion.isGameOver).toBe(true);
       expect(explosion.winner).toBe('WHITE'); // Black King exploded!
     });
+
+    it('prohibits King from capturing in Atomic Chess (canKingCapture is false)', () => {
+      expect(AtomicExplosionModifier.canKingCapture()).toBe(false);
+    });
+
+    it('verifies Chebyshev blast radius calculation and pawn immunity helpers', () => {
+      expect(AtomicExplosionModifier.isBlastRadiusSquare(3, 3, 3, 4)).toBe(true);
+      expect(AtomicExplosionModifier.isBlastRadiusSquare(3, 3, 2, 2)).toBe(true);
+      expect(AtomicExplosionModifier.isBlastRadiusSquare(3, 3, 4, 4)).toBe(true);
+      expect(AtomicExplosionModifier.isBlastRadiusSquare(3, 3, 5, 3)).toBe(false); // distance 2
+      expect(AtomicExplosionModifier.isBlastRadiusSquare(3, 3, 1, 1)).toBe(false);
+
+      expect(AtomicExplosionModifier.isPawnImmune('PAWN')).toBe(true);
+      expect(AtomicExplosionModifier.isPawnImmune('pawn')).toBe(true);
+      expect(AtomicExplosionModifier.isPawnImmune('KNIGHT')).toBe(false);
+      expect(AtomicExplosionModifier.isPawnImmune('KING')).toBe(false);
+    });
+
+    it('handles mutual King annihilation by penalizing the capturing player', () => {
+      const attacker = { id: 'w_rook', variantId: 'ROOK', owner: 'WHITE' as const, file: 3, rank: 3 };
+      const victim = { id: 'b_pawn', variantId: 'PAWN', owner: 'BLACK' as const, file: 3, rank: 4 };
+
+      const boardPieces = [
+        attacker,
+        victim,
+        { id: 'w_king', variantId: 'KING', owner: 'WHITE' as const, file: 2, rank: 4 }, // White King adjacent to blast
+        { id: 'b_king', variantId: 'KING', owner: 'BLACK' as const, file: 4, rank: 4 }, // Black King adjacent to blast
+      ];
+
+      const explosion = AtomicExplosionModifier.resolveExplosion(attacker, victim, boardPieces);
+
+      expect(explosion.kingsDestroyed).toContain('WHITE');
+      expect(explosion.kingsDestroyed).toContain('BLACK');
+      expect(explosion.isGameOver).toBe(true);
+      // When both kings blow up, the capturing player (WHITE) loses, so BLACK wins!
+      expect(explosion.winner).toBe('BLACK');
+    });
+
+    it('handles direct King capture ending game immediately', () => {
+      const attacker = { id: 'w_queen', variantId: 'QUEEN', owner: 'WHITE' as const, file: 4, rank: 6 };
+      const victim = { id: 'b_king', variantId: 'KING', owner: 'BLACK' as const, file: 4, rank: 7 };
+
+      const boardPieces = [attacker, victim];
+      const explosion = AtomicExplosionModifier.resolveExplosion(attacker, victim, boardPieces);
+
+      expect(explosion.victimDestroyedId).toBe('b_king');
+      expect(explosion.kingsDestroyed).toContain('BLACK');
+      expect(explosion.isGameOver).toBe(true);
+      expect(explosion.winner).toBe('WHITE');
+    });
   });
 
   describe('RF-13-06: Antichess Forced Captures', () => {
