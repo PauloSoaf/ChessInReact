@@ -124,4 +124,44 @@ describe('PlayerCard UI Component (Spec 06 RF-09 & Section 18)', () => {
     expect(clockEl).toBeDefined();
     expect(clockEl.textContent).toContain('∞');
   });
+
+  it('renders time control label badge and ranked status pill', () => {
+    render(
+      <PlayerCard
+        playerId="P1"
+        displayName="Alice"
+        isTurnActive={true}
+        timeControlLabel="⚡ 1+0 • Bullet"
+        isRanked={true}
+        timeLeftMs={60000}
+      />
+    );
+
+    const tcBadge = screen.getByTestId('time-control-badge-P1');
+    expect(tcBadge).toBeDefined();
+    expect(tcBadge.textContent).toContain('⚡ 1+0 • Bullet');
+
+    const rankedBadge = screen.getByTestId('ranked-badge-P1');
+    expect(rankedBadge).toBeDefined();
+    expect(rankedBadge.textContent).toContain('🏆 Ranqueada');
+  });
+
+  it('renders casual badge when isRanked is false', () => {
+    render(
+      <PlayerCard
+        playerId="P2"
+        displayName="Bob"
+        isTurnActive={false}
+        timeControlLabel="☕ Casual (∞)"
+        isRanked={false}
+        isUnlimited={true}
+      />
+    );
+
+    const tcBadge = screen.getByTestId('time-control-badge-P2');
+    expect(tcBadge.textContent).toContain('☕ Casual (∞)');
+
+    const rankedBadge = screen.getByTestId('ranked-badge-P2');
+    expect(rankedBadge.textContent).toContain('☕ Casual');
+  });
 });

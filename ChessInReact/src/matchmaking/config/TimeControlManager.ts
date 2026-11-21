@@ -226,4 +226,42 @@ export class TimeControlManager {
 
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }
+
+  /**
+   * Generates a concise human-readable badge label for the active time control.
+   * e.g., '⚡ 1+0 • Bullet', '🔥 5+0 • Blitz', '⏱️ 10+0 • Rápido', '⏱️ 20+0 • Rápido', '⏳ 30+0 • Clássico', '☕ Casual (∞)'.
+   */
+  public static getBadgeLabel(initialSeconds?: number, incrementSeconds?: number): string {
+    if (!initialSeconds || initialSeconds <= 0) {
+      return '☕ Casual (∞)';
+    }
+
+    const category = this.categorizeTimeControl(initialSeconds, incrementSeconds ?? 0);
+    const mins = Math.floor(initialSeconds / 60);
+    const inc = incrementSeconds ?? 0;
+    const incStr = inc > 0 ? `+${inc}` : '+0';
+
+    const iconMap: Record<TimeControlCategory, string> = {
+      BULLET: '⚡',
+      BLITZ: '🔥',
+      RAPID: '⏱️',
+      CLASSICAL: '⏳',
+      CUSTOM: '⚙️',
+      UNLIMITED: '☕',
+    };
+
+    const categoryNameMap: Record<TimeControlCategory, string> = {
+      BULLET: 'Bullet',
+      BLITZ: 'Blitz',
+      RAPID: 'Rápido',
+      CLASSICAL: 'Clássico',
+      CUSTOM: 'Custom',
+      UNLIMITED: 'Casual',
+    };
+
+    const icon = iconMap[category] ?? '⏱️';
+    const catName = categoryNameMap[category] ?? 'Xadrez';
+
+    return `${icon} ${mins}${incStr} • ${catName}`;
+  }
 }

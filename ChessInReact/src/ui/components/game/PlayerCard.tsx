@@ -14,6 +14,8 @@ export interface IPlayerCardProps {
   timeLeftMs?: number;
   isInCheck?: boolean;
   isUnlimited?: boolean;
+  timeControlLabel?: string;
+  isRanked?: boolean;
 }
 
 const PIECE_GLYPHS: Record<string, string> = {
@@ -49,6 +51,8 @@ export const PlayerCard: React.FC<IPlayerCardProps> = ({
   timeLeftMs,
   isInCheck = false,
   isUnlimited = false,
+  timeControlLabel,
+  isRanked,
 }) => {
   const isWhite = playerId === 'P1';
   const isCriticalTime = isTurnActive && timeLeftMs !== undefined && timeLeftMs < 10000 && timeLeftMs > 0;
@@ -206,6 +210,57 @@ export const PlayerCard: React.FC<IPlayerCardProps> = ({
 
       {/* Right: Clock & Turn Status */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+        {/* Match Mode & Time Control Badges (Spec 06 RF-09 & Spec 16 § 4) */}
+        {(timeControlLabel || isRanked !== undefined) && (
+          <div
+            data-testid={`match-mode-badges-${playerId}`}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              gap: '0.18rem',
+            }}
+          >
+            {timeControlLabel && (
+              <span
+                data-testid={`time-control-badge-${playerId}`}
+                style={{
+                  fontSize: '0.64rem',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  padding: '0.12rem 0.42rem',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg-sunken)',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border-subtle)',
+                  whiteSpace: 'nowrap',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                {timeControlLabel}
+              </span>
+            )}
+            {isRanked !== undefined && (
+              <span
+                data-testid={`ranked-badge-${playerId}`}
+                style={{
+                  fontSize: '0.6rem',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 800,
+                  padding: '0.08rem 0.38rem',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: isRanked ? 'rgba(234, 179, 8, 0.14)' : 'var(--bg-sunken)',
+                  color: isRanked ? '#eab308' : 'var(--text-muted)',
+                  border: isRanked ? '1px solid rgba(234, 179, 8, 0.35)' : '1px solid var(--border-subtle)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {isRanked ? '🏆 Ranqueada' : '☕ Casual'}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Digital Chess Clock with Critical Time Alert (Spec 06 RF-09) */}
         {(timeLeftMs !== undefined || isUnlimited) && (
           <div

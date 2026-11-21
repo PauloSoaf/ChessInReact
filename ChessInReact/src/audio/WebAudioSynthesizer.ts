@@ -532,7 +532,9 @@ export class WebAudioSynthesizer {
   }
 
   /**
-   * Atomic explosion burst: low-frequency rumble and filtered noise.
+   * Atomic explosion burst: physically modeled dual-layer acoustic explosion.
+   * Layer 1: Sub-bass visceral shockwave (sine sweep 60Hz -> 18Hz) for tactile chest punch.
+   * Layer 2: Filtered explosive crackle/rumble (sawtooth through low-pass sweep 850Hz -> 100Hz).
    */
   public playExplosion(): void {
     if (!this.enabled) return;
@@ -540,24 +542,47 @@ export class WebAudioSynthesizer {
     const master = this.masterGain;
     if (!ctx || !master) return;
 
-    this.triggerHaptic(50);
+    this.triggerHaptic([40, 30, 80]);
 
     const t = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
 
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(90, t);
-    osc.frequency.exponentialRampToValueAtTime(25, t + 0.25);
+    // Layer 1: Deep Sub-Bass Shockwave
+    const oscSub = ctx.createOscillator();
+    const gainSub = ctx.createGain();
+    oscSub.type = 'sine';
+    oscSub.frequency.setValueAtTime(60, t);
+    oscSub.frequency.exponentialRampToValueAtTime(18, t + 0.35);
 
-    gain.gain.setValueAtTime(0.5, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    gainSub.gain.setValueAtTime(0.55, t);
+    gainSub.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
 
-    osc.connect(gain);
-    gain.connect(master);
+    oscSub.connect(gainSub);
+    gainSub.connect(master);
+    oscSub.start(t);
+    oscSub.stop(t + 0.36);
 
-    osc.start(t);
-    osc.stop(t + 0.26);
+    // Layer 2: Resonant Debris & Shockwave Crackle
+    const oscDebris = ctx.createOscillator();
+    const filterDebris = ctx.createBiquadFilter();
+    const gainDebris = ctx.createGain();
+
+    oscDebris.type = 'sawtooth';
+    oscDebris.frequency.setValueAtTime(120, t);
+    oscDebris.frequency.exponentialRampToValueAtTime(25, t + 0.28);
+
+    filterDebris.type = 'lowpass';
+    filterDebris.frequency.setValueAtTime(850, t);
+    filterDebris.frequency.exponentialRampToValueAtTime(100, t + 0.28);
+
+    gainDebris.gain.setValueAtTime(0.4, t);
+    gainDebris.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+
+    oscDebris.connect(filterDebris);
+    filterDebris.connect(gainDebris);
+    gainDebris.connect(master);
+
+    oscDebris.start(t);
+    oscDebris.stop(t + 0.29);
   }
 
   /**

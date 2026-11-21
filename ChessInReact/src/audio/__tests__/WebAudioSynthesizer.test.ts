@@ -215,6 +215,15 @@ describe('WebAudioSynthesizer & Audio Decoupling (Spec 01 Section 10.2 & Spec 12
       expect(mockOsc.frequency.setValueAtTime).toHaveBeenCalledWith(180, 10.0);
     });
 
+    it('synthesizes dual-layer atomic explosion with sub-bass shockwave and filtered crackle', () => {
+      const activeSynth = new WebAudioSynthesizer();
+      activeSynth.playExplosion();
+
+      expect(mockAudioCtx.createOscillator).toHaveBeenCalledTimes(2);
+      expect(mockAudioCtx.createBiquadFilter).toHaveBeenCalledTimes(1);
+      expect(mockOsc.start).toHaveBeenCalledTimes(2);
+    });
+
     it('synthesizes authentic dual-formant duck quack (Spec 12 RF-18)', () => {
       const activeSynth = new WebAudioSynthesizer();
       activeSynth.playDuck();

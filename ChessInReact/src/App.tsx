@@ -28,6 +28,7 @@ import { OpeningExplorerModal } from './analysis/components/OpeningExplorerModal
 import { useUniversalMatch } from './bindings/react/useUniversalMatch';
 import { IMatchConfiguration } from './matchmaking/config/IMatchConfiguration';
 import { MatchConfigurationManager } from './matchmaking/config/MatchConfigurationManager';
+import { TimeControlManager } from './matchmaking/config/TimeControlManager';
 import { RulesEngine } from './engine/rules/RulesEngine';
 import { CheckValidator } from './engine/rules/CheckValidator';
 import { SquareTopology } from './core/topology/SquareTopology';
@@ -228,6 +229,17 @@ const AppContent: React.FC = () => {
   // Active match clock configuration & state (Spec 06 RF-09, Spec 16 § 4)
   const activeClockConfig = universalMatch.snapshot.config.slots[0]?.clock;
   const isUnlimitedClock = !activeClockConfig || activeClockConfig.initialSeconds <= 0;
+  const isMatchRanked = universalMatch.snapshot.config.isRanked;
+  const timeControlLabel = useMemo(
+    () =>
+      isUnlimitedClock
+        ? '☕ Casual (∞)'
+        : TimeControlManager.getBadgeLabel(
+            activeClockConfig?.initialSeconds,
+            activeClockConfig?.incrementSeconds
+          ),
+    [isUnlimitedClock, activeClockConfig]
+  );
   const lastTickSecondRef = useRef<number>(-1);
   const activeIncrementSeconds = activeClockConfig?.incrementSeconds ?? 0;
   const isUniversalBotMatch = useMemo(
@@ -1278,6 +1290,8 @@ const AppContent: React.FC = () => {
                   timeLeftMs={p2TimeLeft}
                   isInCheck={!isGameOver && isP2InCheck}
                   isUnlimited={isUnlimitedClock}
+                  timeControlLabel={timeControlLabel}
+                  isRanked={isMatchRanked}
                 />
               </div>
 
@@ -1573,6 +1587,8 @@ const AppContent: React.FC = () => {
                   timeLeftMs={p1TimeLeft}
                   isInCheck={!isGameOver && isP1InCheck}
                   isUnlimited={isUnlimitedClock}
+                  timeControlLabel={timeControlLabel}
+                  isRanked={isMatchRanked}
                 />
               </div>
             </div>

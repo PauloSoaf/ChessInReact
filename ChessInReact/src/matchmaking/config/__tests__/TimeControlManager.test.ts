@@ -93,4 +93,17 @@ describe('TimeControlManager (Spec 16 § 4, Spec 06 RF-09, Spec 18)', () => {
     expect(TimeControlManager.formatClockDisplay(9500)).toBe('0:09.5');
     expect(TimeControlManager.formatClockDisplay(1200)).toBe('0:01.2');
   });
+
+  it('generates badge labels for all time control categories', () => {
+    expect(TimeControlManager.getBadgeLabel(0, 0)).toBe('☕ Casual (∞)');
+    expect(TimeControlManager.getBadgeLabel(undefined, undefined)).toBe('☕ Casual (∞)');
+    expect(TimeControlManager.getBadgeLabel(60, 0)).toBe('⚡ 1+0 • Bullet');
+    expect(TimeControlManager.getBadgeLabel(60, 1)).toBe('⚡ 1+1 • Bullet');
+    expect(TimeControlManager.getBadgeLabel(300, 0)).toBe('🔥 5+0 • Blitz');
+    expect(TimeControlManager.getBadgeLabel(180, 2)).toBe('🔥 3+2 • Blitz');
+    expect(TimeControlManager.getBadgeLabel(600, 0)).toBe('⏱️ 10+0 • Rápido');
+    expect(TimeControlManager.getBadgeLabel(900, 10)).toBe('⏱️ 15+10 • Rápido');
+    expect(TimeControlManager.getBadgeLabel(1200, 0)).toBe('⏱️ 20+0 • Rápido');
+    expect(TimeControlManager.getBadgeLabel(1800, 0)).toBe('⏳ 30+0 • Clássico');
+  });
 });
