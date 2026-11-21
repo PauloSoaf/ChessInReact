@@ -26,7 +26,8 @@
 | **Spec 14 (Massive Multiplayer 3-12P)**| 7 | 7 | 0 | 0 | 0 |
 | **Spec 15 (Universal Bot Intelligence)**| 8 | 8 | 0 | 0 | 0 |
 | **Spec 16 (Lobby & Configurator)**| 7 | 7 | 0 | 0 | 0 |
-| **TOTAL** | **207** | **206** | **0** | **0** | **1** |
+| **Spec 17 (Opening Explorer & Repertoire)**| 8 | 8 | 0 | 0 | 0 |
+| **TOTAL** | **215** | **214** | **0** | **0** | **1** |
 
 ---
 
@@ -240,3 +241,15 @@
 | **S16-RF05** | Game Hub Visual com 6 Grandes Categorias e Filtros | P0 | `ui/components/hub/GameHub.tsx`, `ui/components/hub/HubCategoryTabs.tsx`, `App.tsx` | `VERIFIED` | Game Hub expandido com 6 abas navegáveis e lançamento real de todas as variantes |
 | **S16-RF06** | Sala de Pré-Jogo com Pré-Visualização Gráfica da Arena | P1 | `ui/components/hub/PreMatchStagingModal.tsx`, `ui/components/game/` | `VERIFIED` | Modal interativo de staging conectado ao UniversalMatchController e HUDs dedicados |
 | **S16-RF07** | Exportação e Importação de Configuração JSON (Clipboard) | P1 | `matchmaking/config/MatchConfigurationManager.ts` | `VERIFIED` | `Spec16MatchConfigurator.test.ts` (Exportação/importação com validação de schema) |
+
+### Spec 17: Interactive Opening Explorer, ECO Classification & Repertoire Trainer
+| ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
+| :--- | :--- | :---: | :--- | :---: | :--- |
+| **S17-RF01** | Classificação Instantânea ECO (A00 a E99) | P0 | `analysis/openings/ECOClassificationEngine.ts` | `VERIFIED` | `Spec17OpeningExplorer.test.ts` (Lookup O(1) de 25+ aberturas clássicas) |
+| **S17-RF02** | Resolução Invariante de Transposições (Normalized FEN) | P0 | `analysis/openings/ECOClassificationEngine.ts` | `VERIFIED` | `Spec17OpeningExplorer.test.ts` (FEN normalizado invariante a ordem de lances) |
+| **S17-RF03** | Árvore Estatística Mestre com Taxas de Vitória (%) | P0 | `analysis/openings/OpeningExplorerEngine.ts` | `VERIFIED` | `Spec17OpeningExplorer.test.ts` (Lances candidatos, percentuais Brancas/Empate/Pretas) |
+| **S17-RF04** | Treinador de Repertório com Algoritmo SM-2 (Caixas 1-5) | P0 | `analysis/openings/RepertoireTrainerEngine.ts` | `VERIFIED` | `Spec17OpeningExplorer.test.ts` (Avanço de caixa, ease factor e reset em erros) |
+| **S17-RF05** | Exportação e Importação de Repertório em JSON | P1 | `analysis/openings/RepertoireTrainerEngine.ts` | `VERIFIED` | `Spec17OpeningExplorer.test.ts` (Roundtrip serializado com schemaVersion) |
+| **S17-RF06** | Modal Interativo Acessível com Abas de Explorador e Treino | P0 | `analysis/components/OpeningExplorerModal.tsx` | `VERIFIED` | `OpeningExplorerModal.test.tsx` (ARIA modal, navegação por abas, tecla Escape) |
+| **S17-RNF01**| Orçamento Compacto de Memória (< 5 MB de heap) | P0 | `analysis/openings/` | `VERIFIED` | Memory Benchmark (< 40 MB total) |
+| **S17-RNF02**| Latência de Consulta Instantânea (< 1.0 ms em p99) | P0 | `analysis/openings/ECOClassificationEngine.ts` | `VERIFIED` | `Spec17OpeningExplorer.test.ts` (Execução sub-milissegundo comprovada) |

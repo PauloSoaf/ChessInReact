@@ -34,6 +34,7 @@ export interface IGameControlsBarProps {
   onSelectMoveIndex?: (moveIndex: number) => void;
   activeMoveIndex?: number;
   onOpenGameReview?: () => void;
+  onOpenOpeningExplorer?: () => void;
 }
 
 export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
@@ -64,6 +65,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
   onSelectMoveIndex,
   activeMoveIndex,
   onOpenGameReview,
+  onOpenOpeningExplorer,
 }) => {
   const { preferences, updatePreferences } = useTheme();
   const formattedEval =
@@ -165,6 +167,22 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
             style={{ width: '100%', marginTop: '0.45rem', justifyContent: 'center' }}
           >
             Revisão de Partida (Game Review & CAPS2)
+          </ActionButton>
+        )}
+
+        {/* Spec 17: Interactive Opening Explorer & Repertoire Trigger Button */}
+        {onOpenOpeningExplorer && (
+          <ActionButton
+            id="btn-controls-opening-explorer"
+            data-testid="btn-controls-opening-explorer"
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onOpenOpeningExplorer}
+            leadingIcon={<span>📖</span>}
+            style={{ width: '100%', marginTop: '0.35rem', justifyContent: 'center' }}
+          >
+            Explorador de Aberturas (ECO)
           </ActionButton>
         )}
       </div>

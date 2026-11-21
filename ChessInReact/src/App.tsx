@@ -24,6 +24,7 @@ import { ReserveDropsBar } from './ui/components/game/ReserveDropsBar';
 import { SpellCardHand } from './analysis/minigames/SpellCardHand';
 import { ISpellCard } from './analysis/minigames/SpellChessEngine';
 import { GameReviewModal } from './analysis/components/GameReviewModal';
+import { OpeningExplorerModal } from './analysis/components/OpeningExplorerModal';
 import { useUniversalMatch } from './bindings/react/useUniversalMatch';
 import { IMatchConfiguration } from './matchmaking/config/IMatchConfiguration';
 import { MatchConfigurationManager } from './matchmaking/config/MatchConfigurationManager';
@@ -151,6 +152,7 @@ const AppContent: React.FC = () => {
   });
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isGameReviewOpen, setIsGameReviewOpen] = useState(false);
+  const [isOpeningExplorerOpen, setIsOpeningExplorerOpen] = useState(false);
   const [pendingDrawOffer, setPendingDrawOffer] = useState<PlayerId | null>(null);
   const [selectedOfficialSpell, setSelectedOfficialSpell] = useState<'FREEZE' | 'JUMP' | null>(null);
   const [selectedExpandedSpell, setSelectedExpandedSpell] = useState<ISpellCard | null>(null);
@@ -1735,6 +1737,7 @@ const AppContent: React.FC = () => {
                 activePlayer={activePlayer}
                 moves={matchMoves}
                 onOpenGameReview={() => setIsGameReviewOpen(true)}
+                onOpenOpeningExplorer={() => setIsOpeningExplorerOpen(true)}
               />
             </aside>
           </div>
@@ -1758,6 +1761,15 @@ const AppContent: React.FC = () => {
           triggerFeedback('GAME_EVENT', {
             message: `🎯 Tente encontrar o melhor lance no ply #${ply}!${bestMoveSan ? ` (Sugestão: ${bestMoveSan})` : ''}`,
           });
+        }}
+      />
+
+      {/* Spec 17: Opening Explorer & Repertoire Studio Modal */}
+      <OpeningExplorerModal
+        isOpen={isOpeningExplorerOpen}
+        onClose={() => setIsOpeningExplorerOpen(false)}
+        onSelectMove={() => {
+          setIsOpeningExplorerOpen(false);
         }}
       />
     </div>
