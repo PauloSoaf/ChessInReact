@@ -531,6 +531,19 @@ export const GameHub: React.FC<IGameHubProps> = ({
               >
                 Temas &amp; Peças
               </ActionButton>
+
+              <ActionButton
+                id="hub-btn-clock-hero"
+                variant="outline"
+                size="lg"
+                onClick={() => {
+                  setStagingVariantId('STANDARD');
+                  setStagingParticipants(2);
+                }}
+                leadingIcon={<span>⏱️</span>}
+              >
+                Relógio &amp; Modos (Bullet, Blitz, Rápido)
+              </ActionButton>
             </div>
 
             {/* Player Experience Highlights Strip */}
@@ -1087,15 +1100,30 @@ export const GameHub: React.FC<IGameHubProps> = ({
                 </ActionButton>
               </div>
             ) : (
-              <ActionButton
-                id="hub-card-btn-play-bot"
-                variant="primary"
-                size="md"
-                fullWidth
-                onClick={() => onStartBotMatch(botDifficulty)}
-              >
-                Iniciar Nova Partida vs IA ({activeDiff.name})
-              </ActionButton>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <ActionButton
+                  id="hub-card-btn-play-bot"
+                  variant="primary"
+                  size="md"
+                  fullWidth
+                  onClick={() => onStartBotMatch(botDifficulty)}
+                >
+                  Iniciar Nova Partida vs IA ({activeDiff.name})
+                </ActionButton>
+                <ActionButton
+                  id="hub-card-btn-clock-bot"
+                  variant="ghost"
+                  size="sm"
+                  fullWidth
+                  onClick={() => {
+                    setStagingVariantId('STANDARD');
+                    setStagingParticipants(2);
+                  }}
+                  leadingIcon={<span>⏱️</span>}
+                >
+                  Personalizar Relógio (Bullet, Blitz, Rápido, Clássico)
+                </ActionButton>
+              </div>
             )}
           </Card>
 
@@ -1232,15 +1260,30 @@ export const GameHub: React.FC<IGameHubProps> = ({
                 </ActionButton>
               </div>
             ) : (
-              <ActionButton
-                id="hub-btn-play-local"
-                variant="secondary"
-                size="md"
-                fullWidth
-                onClick={onStartLocalMatch}
-              >
-                Iniciar Duelo Local (2 Jogadores)
-              </ActionButton>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <ActionButton
+                  id="hub-btn-play-local"
+                  variant="secondary"
+                  size="md"
+                  fullWidth
+                  onClick={onStartLocalMatch}
+                >
+                  Iniciar Duelo Local (2 Jogadores)
+                </ActionButton>
+                <ActionButton
+                  id="hub-btn-clock-local"
+                  variant="ghost"
+                  size="sm"
+                  fullWidth
+                  onClick={() => {
+                    setStagingVariantId('STANDARD');
+                    setStagingParticipants(2);
+                  }}
+                  leadingIcon={<span>⏱️</span>}
+                >
+                  Personalizar Relógio / Modo Livre Sem Tempo
+                </ActionButton>
+              </div>
             )}
           </Card>
         </div>

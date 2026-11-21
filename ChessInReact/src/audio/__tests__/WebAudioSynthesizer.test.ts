@@ -180,6 +180,22 @@ describe('WebAudioSynthesizer & Audio Decoupling (Spec 01 Section 10.2 & Spec 12
       expect(mockOsc.stop).toHaveBeenCalled();
     });
 
+    it('synthesizes piece selection micro-tap on lifting a piece', () => {
+      const activeSynth = new WebAudioSynthesizer();
+      activeSynth.playPieceSelect();
+
+      expect(mockAudioCtx.createOscillator).toHaveBeenCalled();
+      expect(mockOsc.frequency.setValueAtTime).toHaveBeenCalledWith(520, 10.0);
+    });
+
+    it('synthesizes illegal move warning double-thud', () => {
+      const activeSynth = new WebAudioSynthesizer();
+      activeSynth.playIllegalMove();
+
+      expect(mockAudioCtx.createOscillator).toHaveBeenCalled();
+      expect(mockOsc.frequency.setValueAtTime).toHaveBeenCalledWith(120, 10.0);
+    });
+
     it('synthesizes piece capture with piece-weight acoustic differentiation', () => {
       const activeSynth = new WebAudioSynthesizer();
 

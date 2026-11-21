@@ -154,6 +154,64 @@ export class WebAudioSynthesizer {
   }
 
   /**
+   * Piece selection / pickup sound: subtle micro-tap on lifting a piece from the board.
+   */
+  public playPieceSelect(): void {
+    if (!this.enabled) return;
+    const ctx = this.getContext();
+    const master = this.masterGain;
+    if (!ctx || !master) return;
+
+    this.triggerHaptic(8);
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    const t = ctx.currentTime;
+    osc.frequency.setValueAtTime(520, t);
+    osc.frequency.exponentialRampToValueAtTime(310, t + 0.015);
+
+    gain.gain.setValueAtTime(0.16, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.015);
+
+    osc.connect(gain);
+    gain.connect(master);
+
+    osc.start(t);
+    osc.stop(t + 0.02);
+  }
+
+  /**
+   * Illegal move / check constraint warning: soft wooden double buzz / error tap.
+   */
+  public playIllegalMove(): void {
+    if (!this.enabled) return;
+    const ctx = this.getContext();
+    const master = this.masterGain;
+    if (!ctx || !master) return;
+
+    this.triggerHaptic(25);
+
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(120, t);
+    osc.frequency.exponentialRampToValueAtTime(75, t + 0.05);
+
+    gain.gain.setValueAtTime(0.24, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+
+    osc.connect(gain);
+    gain.connect(master);
+
+    osc.start(t);
+    osc.stop(t + 0.055);
+  }
+
+  /**
    * Piece capture sound: punchy impact click with acoustic variation by piece weight.
    * Heavy pieces (Queen, Rook, King) produce a deeper, resonant wooden thud.
    * Pawns produce a crisp, lighter tap.

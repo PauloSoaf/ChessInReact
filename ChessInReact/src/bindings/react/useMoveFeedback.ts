@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { globalAudioSynthesizer } from '../../audio/WebAudioSynthesizer';
 
 export type InvalidMoveReason = 'CHECK_CONSTRAINT' | 'ILLEGAL_MOVE' | 'GAME_TERMINATION' | 'GAME_EVENT';
 
@@ -49,6 +50,10 @@ export function useMoveFeedback() {
           : reason === 'GAME_EVENT'
           ? 'Notificação da partida.'
           : 'Movimento não permitido pelas regras desta peça.';
+
+      if (reason === 'CHECK_CONSTRAINT' || reason === 'ILLEGAL_MOVE') {
+        globalAudioSynthesizer.playIllegalMove();
+      }
 
       setFeedback({
         reason,
