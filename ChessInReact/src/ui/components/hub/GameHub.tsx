@@ -10,6 +10,7 @@ import {
   StudyCategory,
 } from '../../../analysis/study/AcademyStudyEngine';
 import { PreMatchStagingModal } from './PreMatchStagingModal';
+import { TournamentArenaModal } from './TournamentArenaModal';
 import { IMatchConfiguration } from '../../../matchmaking/config/IMatchConfiguration';
 import { VariantCatalog } from '../../../engine/variants/catalog/VariantCatalog';
 import { CompositeArenaLayouts } from '../../../engine/multiplayer/arenas/CompositeArenaLayouts';
@@ -331,6 +332,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
   >('CLASSIC');
   const [stagingVariantId, setStagingVariantId] = React.useState<string | null>(null);
   const [stagingParticipants, setStagingParticipants] = React.useState<number>(2);
+  const [isTournamentModalOpen, setIsTournamentModalOpen] = React.useState<boolean>(false);
   const [academyCategory, setAcademyCategory] = React.useState<StudyCategory | 'ALL'>('ALL');
   const [revealedHints, setRevealedHints] = React.useState<Record<string, boolean>>({});
   const [revealedSolutions, setRevealedSolutions] = React.useState<Record<string, boolean>>({});
@@ -1664,6 +1666,30 @@ export const GameHub: React.FC<IGameHubProps> = ({
               </span>
             </div>
 
+            <button
+              type="button"
+              id="btn-open-tournament-arena"
+              data-testid="btn-open-tournament-arena"
+              onClick={() => setIsTournamentModalOpen(true)}
+              style={{
+                padding: '0.45rem 0.9rem',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                fontFamily: 'var(--font-sans)',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: '#f59e0b',
+                color: '#ffffff',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)'
+              }}
+            >
+              🏆 Torneios (Suíço & Arena Berserk)
+            </button>
+
             {/* Category Filter Pills */}
             <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
               {(['ALL', 'FUNDAMENTALS', 'TACTICS', 'CHECKMATES', 'ENDGAMES'] as const).map((cat) => (
@@ -1981,6 +2007,12 @@ export const GameHub: React.FC<IGameHubProps> = ({
           }}
         />
       )}
+
+      {/* Spec 18: Competitive Tournament Arena & Swiss Modal */}
+      <TournamentArenaModal
+        isOpen={isTournamentModalOpen}
+        onClose={() => setIsTournamentModalOpen(false)}
+      />
     </div>
   );
 };

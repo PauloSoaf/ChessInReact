@@ -27,7 +27,8 @@
 | **Spec 15 (Universal Bot Intelligence)**| 8 | 8 | 0 | 0 | 0 |
 | **Spec 16 (Lobby & Configurator)**| 7 | 7 | 0 | 0 | 0 |
 | **Spec 17 (Opening Explorer & Repertoire)**| 8 | 8 | 0 | 0 | 0 |
-| **TOTAL** | **215** | **214** | **0** | **0** | **1** |
+| **Spec 18 (Tournament Ecosystem)**| 6 | 6 | 0 | 0 | 0 |
+| **TOTAL** | **221** | **220** | **0** | **0** | **1** |
 
 ---
 
@@ -253,3 +254,13 @@
 | **S17-RF06** | Modal Interativo Acessível com Abas de Explorador e Treino | P0 | `analysis/components/OpeningExplorerModal.tsx` | `VERIFIED` | `OpeningExplorerModal.test.tsx` (ARIA modal, navegação por abas, tecla Escape) |
 | **S17-RNF01**| Orçamento Compacto de Memória (< 5 MB de heap) | P0 | `analysis/openings/` | `VERIFIED` | Memory Benchmark (< 40 MB total) |
 | **S17-RNF02**| Latência de Consulta Instantânea (< 1.0 ms em p99) | P0 | `analysis/openings/ECOClassificationEngine.ts` | `VERIFIED` | `Spec17OpeningExplorer.test.ts` (Execução sub-milissegundo comprovada) |
+
+### Spec 18: Competitive Tournament Ecosystem (Swiss, Arena Berserk & Tiebreaks)
+| ID | Descrição | Prioridade | Arquivos Chave | Status | Evidências / Testes |
+| :--- | :--- | :---: | :--- | :---: | :--- |
+| **S18-RF01** | Pareamento do Sistema Suíço FIDE (Dutch Algorithm) | P0 | `engine/tournament/SwissTournamentEngine.ts` | `VERIFIED` | `Spec18SwissAndArena.test.ts` (Score brackets, sem rematches, Bye para ímpar) |
+| **S18-RF02** | Critério de Desempate FIDE Buchholz Cut 1 | P0 | `engine/tournament/FIDETiebreakCalculator.ts` | `VERIFIED` | `Spec18SwissAndArena.test.ts` (Descarte do menor score comprovado) |
+| **S18-RF03** | Critério de Desempate FIDE Sonneborn-Berger | P0 | `engine/tournament/FIDETiebreakCalculator.ts` | `VERIFIED` | `Spec18SwissAndArena.test.ts` (100% vitórias + 50% empates) |
+| **S18-RF04** | Motor de Arena com Multiplicador de Win Streaks (2x) | P0 | `engine/tournament/ArenaTournamentEngine.ts` | `VERIFIED` | `Spec18SwissAndArena.test.ts` (4 pts para vitórias em sequência >= 2) |
+| **S18-RF05** | Mecânica de Arena Berserk (+1 Ponto Bônus) | P0 | `engine/tournament/ArenaTournamentEngine.ts` | `VERIFIED` | `Spec18SwissAndArena.test.ts` (Corte de tempo e bônus de 5 pts em streak) |
+| **S18-RF06** | Modal Interativo de Torneio com Scoreboard e Pódio | P0 | `ui/components/hub/TournamentArenaModal.tsx` | `VERIFIED` | `TournamentArenaModal.test.tsx` (Tabela de líderes, pódio, toggle Berserk) |
