@@ -65,4 +65,32 @@ describe('MoveHistoryList UI Component (Spec 06 Section 18.1 & Spec 09 RF-05)', 
     expect(writeTextMock).toHaveBeenCalledWith('1. e2-e4 e7-e5 2. g1-f3 b8-c6 3. f1-c4');
     expect(screen.getByText('Copiado!')).toBeDefined();
   });
+
+  it('renders and exports canonical Crazyhouse drop notation and Atomic explosion annotations', async () => {
+    const writeTextMock = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: writeTextMock,
+      },
+    });
+
+    const variantMoves: IMoveItem[] = [
+      { turnNumber: 1, white: 'e2-e4', black: 'd7-d5' },
+      { turnNumber: 2, white: 'e4-d5💥', black: 'N@f6' },
+      { turnNumber: 3, white: 'B@c4', black: undefined },
+    ];
+
+    render(<MoveHistoryList moves={variantMoves} />);
+
+    expect(screen.getByText('e4-d5💥')).toBeDefined();
+    expect(screen.getByText('N@f6')).toBeDefined();
+    expect(screen.getByText('B@c4')).toBeDefined();
+
+    const copyBtn = screen.getByTestId('btn-copy-pgn');
+    await act(async () => {
+      fireEvent.click(copyBtn);
+    });
+
+    expect(writeTextMock).toHaveBeenCalledWith('1. e2-e4 d7-d5 2. e4-d5💥 N@f6 3. B@c4');
+  });
 });

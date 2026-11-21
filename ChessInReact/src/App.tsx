@@ -66,6 +66,21 @@ function coordToAlgebraic(coordStr: string): string {
   return coordStr;
 }
 
+/**
+ * Returns canonical piece notation letter for drop actions (Spec 06 & Spec 13 RF-13-10).
+ * Specifically maps Knight to 'N' to prevent collision with King ('K').
+ */
+function getCanonicalDropInitial(variant: string): string {
+  const v = variant.toUpperCase();
+  if (v === 'KNIGHT') return 'N';
+  if (v === 'PAWN') return 'P';
+  if (v === 'BISHOP') return 'B';
+  if (v === 'ROOK') return 'R';
+  if (v === 'QUEEN') return 'Q';
+  if (v === 'KING') return 'K';
+  return v[0] ?? '?';
+}
+
 // Lazy-loaded 3D WebGL Chessboard to preserve initial 2D bundle size (Spec 07 Priority 2)
 const LazyChessBoard3D = React.lazy(() =>
   import('./rendering/ChessBoard3D').then((m) => ({ default: m.ChessBoard3D }))
@@ -272,7 +287,7 @@ const AppContent: React.FC = () => {
 
     const unsubDrop = GlobalEventBus.subscribe('PIECE_DROPPED', (payload) => {
       const toAlg = coordToAlgebraic(payload.coordinate);
-      const initial = payload.pieceVariant.charAt(0).toUpperCase();
+      const initial = getCanonicalDropInitial(payload.pieceVariant);
       const san = `${initial}@${toAlg}`;
       setMatchMoves((prev) => {
         const currentTurn = turnNumber;
@@ -289,9 +304,29 @@ const AppContent: React.FC = () => {
       });
     });
 
+    const unsubExplosion = GlobalEventBus.subscribe('EXPLOSION', () => {
+      setMatchMoves((prev) => {
+        if (prev.length === 0) return prev;
+        const updated = [...prev];
+        const last = { ...updated[updated.length - 1] };
+        if (last.black) {
+          if (!last.black.includes('💥')) {
+            last.black = `${last.black}💥`;
+          }
+        } else if (last.white) {
+          if (!last.white.includes('💥')) {
+            last.white = `${last.white}💥`;
+          }
+        }
+        updated[updated.length - 1] = last;
+        return updated;
+      });
+    });
+
     return () => {
       unsubMoved();
       unsubDrop();
+      unsubExplosion();
     };
   }, [turnNumber]);
 
