@@ -84,6 +84,8 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
 
   // Track previous move dynamically via GlobalEventBus (Spec 06 Section 18)
   const [internalLastMove, setInternalLastMove] = React.useState<{ from?: string; to: string } | null>(null);
+  // Track active explosion shockwave dynamically via GlobalEventBus (Spec 04 & Spec 13 RF-13-05)
+  const [activeExplosion, setActiveExplosion] = React.useState<{ center: string; radius: number } | null>(null);
 
   React.useEffect(() => {
     const unsubMove = GlobalEventBus.subscribe('PIECE_MOVED', (payload) => {
@@ -92,9 +94,17 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
     const unsubDrop = GlobalEventBus.subscribe('PIECE_DROPPED', (payload) => {
       setInternalLastMove({ from: undefined, to: payload.coordinate });
     });
+    const unsubExplosion = GlobalEventBus.subscribe('EXPLOSION', (payload) => {
+      setActiveExplosion({ center: payload.epicenter, radius: payload.radius });
+      const timer = setTimeout(() => {
+        setActiveExplosion(null);
+      }, 750);
+      return () => clearTimeout(timer);
+    });
     return () => {
       unsubMove();
       unsubDrop();
+      unsubExplosion();
     };
   }, []);
 
@@ -895,6 +905,22 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
             }
           }
 
+          let isExploding = false;
+          let isExplosionCenter = false;
+          if (activeExplosion) {
+            let centerStr = activeExplosion.center;
+            if (centerStr.includes(':')) centerStr = centerStr.split(':')[1];
+            const [cx, cy] = centerStr.split(',').map((v) => parseInt(v, 10));
+            if (!isNaN(cx) && !isNaN(cy)) {
+              if (Math.abs(gameX - cx) <= activeExplosion.radius && Math.abs(gameY - cy) <= activeExplosion.radius) {
+                isExploding = true;
+              }
+              if (gameX === cx && gameY === cy) {
+                isExplosionCenter = true;
+              }
+            }
+          }
+
           return (
             <BoardSquare
               key={`${columnIndex}-${rowIndex}`}
@@ -919,6 +945,8 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               isCheckTargetError={isCheckTargetError}
               isLastMove={isLastMove}
               isCheckWarning={isCheckWarning}
+              isExploding={isExploding}
+              isExplosionCenter={isExplosionCenter}
               hasDuck={Boolean(duckCoordinate) && duckCoordinate === coordKey}
               isFrozen={isFrozenSquare}
               isVoid={isVoid}

@@ -30,6 +30,8 @@ export interface IBoardSquare {
   isCheckKingError?: boolean;
   isCheckSourceError?: boolean;
   isCheckTargetError?: boolean;
+  isExploding?: boolean;
+  isExplosionCenter?: boolean;
   /** Variant overlays (Duck Chess duck / Spell Chess frozen square / Portals / Traps / Zones / Skins). */
   hasDuck?: boolean;
   isFrozen?: boolean;

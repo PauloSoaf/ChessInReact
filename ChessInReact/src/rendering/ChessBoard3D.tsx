@@ -208,6 +208,9 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
   // Track previous move dynamically via GlobalEventBus (Spec 06 / Spec 07)
   const [internalLastMove, setInternalLastMove] = React.useState<{ from?: string; to: string } | null>(null);
 
+  // Track active explosion shockwave dynamically via GlobalEventBus (Spec 04 & Spec 13 RF-13-05)
+  const [activeExplosion, setActiveExplosion] = React.useState<{ center: string; radius: number } | null>(null);
+
   React.useEffect(() => {
     const unsubMove = GlobalEventBus.subscribe('PIECE_MOVED', (payload) => {
       setInternalLastMove({ from: payload.from, to: payload.to });
@@ -215,9 +218,17 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
     const unsubDrop = GlobalEventBus.subscribe('PIECE_DROPPED', (payload) => {
       setInternalLastMove({ from: undefined, to: payload.coordinate });
     });
+    const unsubExplosion = GlobalEventBus.subscribe('EXPLOSION', (payload) => {
+      setActiveExplosion({ center: payload.epicenter, radius: payload.radius });
+      const timer = setTimeout(() => {
+        setActiveExplosion(null);
+      }, 750);
+      return () => clearTimeout(timer);
+    });
     return () => {
       unsubMove();
       unsubDrop();
+      unsubExplosion();
     };
   }, []);
 
@@ -603,6 +614,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
             uiTheme,
             duckCoordinate,
             frozenCoordinates?.join('|'),
+            activeExplosion?.center,
           ]}
         />
 
@@ -684,7 +696,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           </>
         )}
 
-        {/* Variant mechanics: Duck Chess duck, Spell Chess frozen squares/portals/traps, and Hill Sanctuary */}
+        {/* Variant mechanics: Duck Chess duck, Spell Chess frozen squares/portals/traps, Hill Sanctuary, and Atomic Explosion */}
         <VariantOverlays3D
           boardSize={effectiveBoardSize}
           variantId={domain.variantId}
@@ -692,6 +704,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           frozenCoordinates={frozenCoordinates}
           activePortals={activePortals}
           stealthTraps={stealthTraps}
+          explosionEpicenter={activeExplosion?.center ?? null}
         />
       </Canvas>
 

@@ -11,6 +11,8 @@ export interface IVariantOverlays3DProps {
   activePortals?: ReadonlyArray<{ readonly coordA: string; readonly coordB: string }>;
   /** Spell Chess stealth traps */
   stealthTraps?: Readonly<Record<string, string>>;
+  /** Atomic Chess explosion epicenter, "x,y" game coordinate key */
+  explosionEpicenter?: string | null;
 }
 
 function toWorld(coord: string, boardSize: number): [number, number] | null {
@@ -34,8 +36,10 @@ export const VariantOverlays3D: React.FC<IVariantOverlays3DProps> = ({
   frozenCoordinates,
   activePortals,
   stealthTraps,
+  explosionEpicenter,
 }) => {
   const duckPos = duckCoordinate ? toWorld(duckCoordinate, boardSize) : null;
+  const explosionPos = explosionEpicenter ? toWorld(explosionEpicenter, boardSize) : null;
   const isKingOfTheHill = Boolean(
     variantId && (variantId.toUpperCase() === 'KING_OF_THE_HILL' || variantId.toUpperCase().includes('HILL'))
   );
@@ -213,6 +217,31 @@ export const VariantOverlays3D: React.FC<IVariantOverlays3DProps> = ({
           <mesh position={[0.07, 0.68, 0.33]}>
             <sphereGeometry args={[0.025, 8, 8]} />
             <meshStandardMaterial color="#0f172a" />
+          </mesh>
+        </group>
+      )}
+      {/* Atomic Chess: 3D Explosion Shockwave Ring (Spec 04 & Spec 13 RF-13-05) */}
+      {explosionPos && (
+        <group name="atomic-explosion-3d" position={[explosionPos[0], 0.08, explosionPos[1]]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.2, 1.4, 32]} />
+            <meshStandardMaterial
+              color="#ef4444"
+              emissive="#f97316"
+              emissiveIntensity={0.85}
+              transparent
+              opacity={0.85}
+            />
+          </mesh>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[1.35, 1.5, 32]} />
+            <meshStandardMaterial
+              color="#f59e0b"
+              emissive="#fbbf24"
+              emissiveIntensity={1.2}
+              transparent
+              opacity={0.95}
+            />
           </mesh>
         </group>
       )}

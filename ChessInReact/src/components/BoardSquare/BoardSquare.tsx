@@ -18,6 +18,8 @@ const BoardSquare: React.FC<IBoardSquare> = ({
   isCheckKingError,
   isCheckSourceError,
   isCheckTargetError,
+  isExploding,
+  isExplosionCenter,
   hasDuck,
   isFrozen,
   isVoid,
@@ -297,6 +299,27 @@ const BoardSquare: React.FC<IBoardSquare> = ({
             boxShadow: 'inset 0 0 10px rgba(239, 68, 68, 0.35)',
           }}
         />
+      )}
+
+      {/* Atomic Chess Explosion Shockwave (Spec 04 & Spec 13 RF-13-05) */}
+      {isExploding && (
+        <div
+          data-testid="atomic-shockwave-cell"
+          className="atomic-shockwave-cell"
+          aria-hidden="true"
+        >
+          {isExplosionCenter && (
+            <span
+              style={{
+                fontSize: '1.4rem',
+                filter: 'drop-shadow(0 0 8px rgba(239, 68, 68, 0.95))',
+                lineHeight: 1,
+              }}
+            >
+              💥
+            </span>
+          )}
+        </div>
       )}
 
       {/* Special Variant Zone Overlays (Hill Sanctuary, Finish Line, Arcane Conduit, Citadel Ring) */}

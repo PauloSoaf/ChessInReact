@@ -274,5 +274,51 @@ describe('Intuitive UI & Fluid Polish Suite (Spec 06 RF-14, RF-15 & Lichess/Ches
       const captureRing = screen.getByTestId('legal-capture-ring');
       expect(captureRing.className).toBe('legal-capture-ring');
     });
+
+    it('renders atomic shockwave animation and explosion epicenter burst on detonation', () => {
+      const dummySquareInfo = {
+        row: 3,
+        column: 3,
+        squareID: '3-3',
+        gameX: 3,
+        gameY: 4,
+      };
+
+      const { rerender } = render(
+        <ThemeProvider>
+          <BoardSquare
+            testId="square-exploding"
+            piece={chessPieces.none}
+            boardDisplay={[]}
+            squareInfo={dummySquareInfo}
+            handleClick={() => {}}
+            isExploding={true}
+            isExplosionCenter={false}
+          />
+        </ThemeProvider>
+      );
+
+      const shockwaveCell = screen.getByTestId('atomic-shockwave-cell');
+      expect(shockwaveCell).toBeDefined();
+      expect(shockwaveCell.className).toBe('atomic-shockwave-cell');
+      expect(shockwaveCell.textContent).toBe('');
+
+      // When it is the epicenter
+      rerender(
+        <ThemeProvider>
+          <BoardSquare
+            testId="square-exploding"
+            piece={chessPieces.none}
+            boardDisplay={[]}
+            squareInfo={dummySquareInfo}
+            handleClick={() => {}}
+            isExploding={true}
+            isExplosionCenter={true}
+          />
+        </ThemeProvider>
+      );
+
+      expect(screen.getByTestId('atomic-shockwave-cell').textContent).toContain('💥');
+    });
   });
 });
