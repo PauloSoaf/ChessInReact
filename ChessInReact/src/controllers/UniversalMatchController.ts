@@ -1406,6 +1406,7 @@ export class UniversalMatchController {
             ...(piece.metadata ?? {}),
             isFrozen,
             hasJump,
+            canBeJumpedOver: hasJump,
             isShielded,
             isInvisible,
           },

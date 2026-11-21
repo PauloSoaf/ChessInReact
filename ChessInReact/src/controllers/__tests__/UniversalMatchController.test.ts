@@ -204,7 +204,7 @@ describe('UniversalMatchController (Universal Gameplay Lifecycle & 0-Human Spect
 
     let snap = controller.getSnapshot();
     expect(snap.officialSpellState).toBeDefined();
-    expect(snap.officialSpellState?.whiteCharges.freezeCharges).toBe(2);
+    expect(snap.officialSpellState?.whiteCharges.freezeCharges).toBe(5);
     expect(snap.officialSpellState?.whiteCharges.jumpCharges).toBe(2);
 
     // Cast Freeze on d4
@@ -212,7 +212,7 @@ describe('UniversalMatchController (Universal Gameplay Lifecycle & 0-Human Spect
     expect(freezeSuccess).toBe(true);
 
     snap = controller.getSnapshot();
-    expect(snap.officialSpellState?.whiteCharges.freezeCharges).toBe(1);
+    expect(snap.officialSpellState?.whiteCharges.freezeCharges).toBe(4);
     expect(snap.officialSpellState?.whiteCharges.freezeCooldownTurns).toBe(3);
 
     // Casting freeze again while in cooldown should fail

@@ -372,6 +372,13 @@ export class MovePieceCommand implements ICommand {
         (targetEntity as { isCaptured: boolean }).isCaptured = true;
         isCapture = true;
 
+        // Immediate Game Over if King is captured (Spell Chess, Duck Chess, or any variant where royal capture is legal)
+        const targetVariant = targetEntity.variantId.toUpperCase();
+        if (targetVariant === 'KING' || targetVariant === 'K') {
+          (draft as { isGameOver: boolean }).isGameOver = true;
+          (draft as { winnerId: PlayerId | null }).winnerId = this.actingPlayer;
+        }
+
         // Crazyhouse variant support
         if (draft.capturedInventory && draft.capturedInventory[this.actingPlayer]) {
           draft.capturedInventory[this.actingPlayer].push(targetEntity.variantId);

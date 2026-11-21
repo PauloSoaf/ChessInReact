@@ -64,7 +64,7 @@ describe('Spec 13: Expanded Variant Universe, Historical & Fairy Engines', () =>
   describe('RF-13-02 vs RF-13-03: Spell Chess Dual Separation', () => {
     it('RF-13-02: Spell Chess Official operates with charges and cooldowns without mana', () => {
       let state = OfficialSpellEngine.createInitialState();
-      expect(state.whiteCharges.freezeCharges).toBe(2);
+      expect(state.whiteCharges.freezeCharges).toBe(5);
       expect(state.whiteCharges.jumpCharges).toBe(2);
       expect(state.whiteCharges.freezeCooldownTurns).toBe(0);
 
@@ -73,7 +73,7 @@ describe('Spec 13: Expanded Variant Universe, Historical & Fairy Engines', () =>
       expect(freezeRes.success).toBe(true);
       state = freezeRes.state;
 
-      expect(state.whiteCharges.freezeCharges).toBe(1);
+      expect(state.whiteCharges.freezeCharges).toBe(4);
       expect(state.whiteCharges.freezeCooldownTurns).toBe(3);
       expect(OfficialSpellEngine.isSquareFrozen(state, '3,3')).toBe(true);
       expect(OfficialSpellEngine.isSquareFrozen(state, '2,2')).toBe(true); // 3x3 radius

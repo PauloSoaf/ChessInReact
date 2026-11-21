@@ -41,8 +41,13 @@ export class GameOverDetector {
       }
     }
 
-    // 1.5. Duck Chess King Capture & Racing Kings 8th Rank Victory
-    if (variantConfig?.variantId === 'DUCK_CHESS') {
+    // 1.5. King Capture Victory (Duck Chess and Spell Chess permit royal capture)
+    const isRoyalCaptureVariant = Boolean(
+      variantConfig?.variantId === 'DUCK_CHESS' ||
+      variantConfig?.variantId?.toUpperCase().includes('SPELL') ||
+      state.variantId?.toUpperCase().includes('SPELL')
+    );
+    if (isRoyalCaptureVariant) {
       const p1King = CheckValidator.findRoyalPiece('P1', state);
       const p2King = CheckValidator.findRoyalPiece('P2', state);
       if (!p1King || !p2King) {
@@ -51,7 +56,7 @@ export class GameOverDetector {
           isGameOver: true,
           status: 'CHECKMATE',
           winnerId: winner,
-          reason: `Duck Chess victory: ${winner ?? 'Neither'} captured the opponent's King.`,
+          reason: `Captura Real: ${winner === 'P1' ? 'Brancas' : 'Pretas'} venceu por captura do Rei adversário.`,
         };
       }
     }

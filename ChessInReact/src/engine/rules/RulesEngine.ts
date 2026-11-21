@@ -225,11 +225,17 @@ export class RulesEngine {
         ) {
           if (!isCubic) {
             const intermediate = toCoordKey(parsedFrom.x + pdx, parsedFrom.y + pdy);
-            if (!state.occupancy[intermediate] || hasJumpBuff) {
+            const interId = state.occupancy[intermediate];
+            const interPiece = interId ? (state.boardEntities[interId] as IPieceEntity | undefined) : undefined;
+            const isInterJumpable = Boolean(hasJumpBuff || interPiece?.metadata?.canBeJumpedOver || interPiece?.metadata?.hasJump);
+            if (!state.occupancy[intermediate] || isInterJumpable) {
               isReachable = true;
             }
           } else {
-            if (!f1 || !state.occupancy[f1] || hasJumpBuff) {
+            const f1Id = f1 ? state.occupancy[f1] : undefined;
+            const f1Piece = f1Id ? (state.boardEntities[f1Id] as IPieceEntity | undefined) : undefined;
+            const isF1Jumpable = Boolean(hasJumpBuff || f1Piece?.metadata?.canBeJumpedOver || f1Piece?.metadata?.hasJump);
+            if (!f1 || !state.occupancy[f1] || isF1Jumpable) {
               isReachable = true;
             }
           }
@@ -720,12 +726,17 @@ export class RulesEngine {
               candidateDestinations.push(f2);
             }
           }
-        } else if (hasJumpBuff) {
-          const f2 = isCubic
-            ? (f1 ? topology.getNeighbor(f1, forwardDir) : null)
-            : makeCoord(wrapX(parsedFrom.x + 2 * pdx), wrapY(parsedFrom.y + 2 * pdy));
-          if (f2 && topology.isValidCoordinate(f2) && !state.occupancy[f2]) {
-            candidateDestinations.push(f2);
+        } else {
+          const f1OccupantId = f1 ? state.occupancy[f1] : undefined;
+          const f1Piece = f1OccupantId ? (state.boardEntities[f1OccupantId] as IPieceEntity | undefined) : undefined;
+          const isF1Jumpable = Boolean(hasJumpBuff || f1Piece?.metadata?.canBeJumpedOver || f1Piece?.metadata?.hasJump);
+          if (isF1Jumpable) {
+            const f2 = isCubic
+              ? (f1 ? topology.getNeighbor(f1, forwardDir) : null)
+              : makeCoord(wrapX(parsedFrom.x + 2 * pdx), wrapY(parsedFrom.y + 2 * pdy));
+            if (f2 && topology.isValidCoordinate(f2) && !state.occupancy[f2]) {
+              candidateDestinations.push(f2);
+            }
           }
         }
 

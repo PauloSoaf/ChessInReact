@@ -162,9 +162,14 @@ export class SliderBehavior implements IMoveBehavior {
           }
           const occupant = rawOccupant as IPieceEntity | undefined;
           if (occupant && occupant.type === 'PIECE' && !occupant.isCaptured) {
-            // Friendly piece blocks sliding unless piece has Jump buff (1 leap allowed)
+            const isObstacleJumpable = Boolean(
+              occupant.metadata?.canBeJumpedOver || occupant.metadata?.hasJump
+            );
+            const canLeapObstacle = (canJumpOnce && jumpedBlockers < 1) || isObstacleJumpable;
+
+            // Friendly piece blocks sliding unless jumping over it
             if (occupant.ownerId === piece.ownerId) {
-              if (canJumpOnce && jumpedBlockers < 1) {
+              if (canLeapObstacle && jumpedBlockers < 1) {
                 jumpedBlockers++;
                 current = next;
                 dist++;
@@ -177,7 +182,7 @@ export class SliderBehavior implements IMoveBehavior {
             if (canCapture && !occupant.metadata?.isShielded) {
               pseudoLegals.push(next);
             }
-            if (canJumpOnce && jumpedBlockers < 1) {
+            if (canLeapObstacle && jumpedBlockers < 1) {
               jumpedBlockers++;
               current = next;
               dist++;

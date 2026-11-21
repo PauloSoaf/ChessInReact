@@ -26,7 +26,7 @@ describe('Spec 12 & Spec 01 - Spell Chess and Minigame Lossless Undo/Redo & Stat
     controller.startMatch(config);
 
     const initialSnap = controller.getSnapshot();
-    expect(initialSnap.officialSpellState?.whiteCharges.freezeCharges).toBe(2);
+    expect(initialSnap.officialSpellState?.whiteCharges.freezeCharges).toBe(5);
     expect(initialSnap.frozenCoordinates.length).toBe(0);
 
     // Human white casts Freeze on d4 (file 3, rank 3)
@@ -34,7 +34,7 @@ describe('Spec 12 & Spec 01 - Spell Chess and Minigame Lossless Undo/Redo & Stat
     expect(castOk).toBe(true);
 
     const afterCastSnap = controller.getSnapshot();
-    expect(afterCastSnap.officialSpellState?.whiteCharges.freezeCharges).toBe(1);
+    expect(afterCastSnap.officialSpellState?.whiteCharges.freezeCharges).toBe(4);
     expect(afterCastSnap.frozenCoordinates.length).toBeGreaterThan(0);
 
     // Call undo() on controller
@@ -42,8 +42,8 @@ describe('Spec 12 & Spec 01 - Spell Chess and Minigame Lossless Undo/Redo & Stat
     expect(undone).toBe(true);
 
     const afterUndoSnap = controller.getSnapshot();
-    // Freeze charges must be refunded from 1 back to 2!
-    expect(afterUndoSnap.officialSpellState?.whiteCharges.freezeCharges).toBe(2);
+    // Freeze charges must be refunded from 4 back to 5!
+    expect(afterUndoSnap.officialSpellState?.whiteCharges.freezeCharges).toBe(5);
     expect(afterUndoSnap.frozenCoordinates.length).toBe(0);
 
     // Call redo() on controller
@@ -51,7 +51,7 @@ describe('Spec 12 & Spec 01 - Spell Chess and Minigame Lossless Undo/Redo & Stat
     expect(redone).toBe(true);
 
     const afterRedoSnap = controller.getSnapshot();
-    expect(afterRedoSnap.officialSpellState?.whiteCharges.freezeCharges).toBe(1);
+    expect(afterRedoSnap.officialSpellState?.whiteCharges.freezeCharges).toBe(4);
     expect(afterRedoSnap.frozenCoordinates.length).toBeGreaterThan(0);
   });
 

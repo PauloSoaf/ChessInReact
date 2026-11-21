@@ -20,6 +20,7 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
 }) => {
   const isWhite = activePlayer === 'P1' || (activePlayer as string) === 'WHITE';
   const charges = isWhite ? state.whiteCharges : state.blackCharges;
+  const oppCharges = isWhite ? state.blackCharges : state.whiteCharges;
 
   // Global Keyboard Shortcuts (Spec 06 & Spec 12): 1 for Freeze, 2 for Jump, Esc to Cancel
   React.useEffect(() => {
@@ -62,6 +63,9 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
     onCancelSpell,
   ]);
 
+  const isFreezeAvailable = charges.freezeCharges > 0 && charges.freezeCooldownTurns === 0;
+  const isJumpAvailable = charges.jumpCharges > 0 && charges.jumpCooldownTurns === 0;
+
   return (
     <div
       id="official-spell-bar"
@@ -72,270 +76,400 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
         display: 'flex',
         flexDirection: 'column',
         width: '100%',
-        maxWidth: '604px',
-        padding: '0.65rem 0.95rem',
-        borderRadius: 'var(--radius-md)',
-        backgroundColor: 'var(--bg-sunken)',
-        border: '2px solid #06b6d4',
-        boxShadow: selectedSpellType ? '0 0 12px rgba(6, 182, 212, 0.4)' : 'var(--shadow-sm)',
-        marginBottom: '0.5rem',
-        gap: '0.5rem',
+        maxWidth: '548px',
+        padding: '0.45rem 0.75rem',
+        borderRadius: 'var(--radius-md, 8px)',
+        backgroundColor: 'rgba(15, 23, 42, 0.88)',
+        backdropFilter: 'blur(8px)',
+        border: selectedSpellType ? '2px solid #06b6d4' : '1px solid var(--border-prominent, #334155)',
+        boxShadow: selectedSpellType ? '0 0 16px rgba(6, 182, 212, 0.45)' : 'var(--shadow-sm, 0 2px 4px rgba(0,0,0,0.3))',
+        marginBottom: '0.45rem',
+        gap: '0.4rem',
         transition: 'all 0.2s ease',
       }}
     >
+      {/* Top Header: Title, Active Turn & Opponent Inventory preview */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: '0.75rem',
+          gap: '0.5rem',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '1.25rem' }}>🧙‍♂️</span>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#06b6d4', letterSpacing: '0.02em' }}>
-              Spell Chess Oficial (Chess.com)
-            </span>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-subtle)' }}>
-              Turno de {isWhite ? 'Brancas' : 'Pretas'} • 2 Freezes e 2 Jumps por jogo
-            </span>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+          <span style={{ fontSize: '1.1rem' }}>🧙‍♂️</span>
+          <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#38bdf8', letterSpacing: '0.02em' }}>
+            Spell Chess Oficial (Chess.com)
+          </span>
+          <span
+            style={{
+              fontSize: '0.68rem',
+              color: 'var(--text-muted, #94a3b8)',
+              backgroundColor: 'rgba(255,255,255,0.06)',
+              padding: '2px 6px',
+              borderRadius: '4px',
+            }}
+          >
+            Vez: {isWhite ? 'Brancas' : 'Pretas'}
+          </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          {/* Freeze Button */}
-          <button
-            id="btn-cast-freeze"
-            data-testid="btn-cast-freeze"
-            type="button"
-            className="tactical-spell-btn"
-            onClick={() => {
-              globalAudioSynthesizer.playTactileClick();
-              onCastSpell?.('FREEZE');
+        {/* Opponent Potion Inventory Pill (small corner badges like Chess.com) */}
+        <div
+          title={`Oponente (${isWhite ? 'Pretas' : 'Brancas'}): ${oppCharges.jumpCharges} Salto(s), ${oppCharges.freezeCharges} Congelamento(s)`}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            fontSize: '0.68rem',
+            color: 'var(--text-muted, #94a3b8)',
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            padding: '2px 8px',
+            borderRadius: '12px',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Oponente:
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', color: '#4ade80' }}>
+            🧪 x{oppCharges.jumpCharges}
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', color: '#38bdf8' }}>
+            ❄️ x{oppCharges.freezeCharges}
+          </span>
+        </div>
+      </div>
+
+      {/* Main Spell Deck: Sleek Compact Potion Cards matching Chess.com */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          gap: '0.65rem',
+          flexWrap: 'wrap',
+        }}
+      >
+        {/* GREEN JUMP POTION CARD (Atalho: 2) */}
+        <button
+          id="btn-cast-jump"
+          data-testid="btn-cast-jump"
+          type="button"
+          onClick={() => {
+            globalAudioSynthesizer.playTactileClick();
+            onCastSpell?.('JUMP');
+          }}
+          disabled={!isJumpAvailable}
+          title={
+            charges.jumpCharges <= 0
+              ? 'Sem cargas restantes de Salto (Jump)'
+              : charges.jumpCooldownTurns > 0
+                ? `Salto em recarga (${charges.jumpCooldownTurns} turno(s) restante(s))`
+                : 'Salto (Jump): Concede permissão para saltar por cima de uma peça no tabuleiro (Atalho: tecla 2)'
+          }
+          style={{
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '68px',
+            height: '62px',
+            padding: '4px',
+            borderRadius: '8px',
+            border:
+              selectedSpellType === 'JUMP'
+                ? '2px solid #22c55e'
+                : isJumpAvailable
+                  ? '1.5px solid rgba(34, 197, 94, 0.45)'
+                  : '1px solid rgba(255, 255, 255, 0.12)',
+            backgroundColor:
+              selectedSpellType === 'JUMP'
+                ? 'rgba(34, 197, 94, 0.28)'
+                : isJumpAvailable
+                  ? 'rgba(20, 83, 45, 0.35)'
+                  : 'rgba(15, 23, 42, 0.6)',
+            boxShadow:
+              selectedSpellType === 'JUMP'
+                ? '0 0 16px rgba(34, 197, 94, 0.7), inset 0 0 8px rgba(34, 197, 94, 0.3)'
+                : isJumpAvailable
+                  ? '0 2px 6px rgba(0, 0, 0, 0.4)'
+                  : 'none',
+            cursor: isJumpAvailable ? 'pointer' : 'not-allowed',
+            opacity: isJumpAvailable ? 1 : 0.42,
+            transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+            transform: selectedSpellType === 'JUMP' ? 'scale(1.05)' : 'scale(1)',
+            userSelect: 'none',
+          }}
+        >
+          {/* Green Magic Flask SVG */}
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M10 2H14M12 2V8M8.5 20H15.5C17.5 20 18.5 18.5 17.5 16.5L14 9.5C13.6 8.7 13.5 8 13.5 7.5V4H10.5V7.5C10.5 8 10.4 8.7 10 9.5L6.5 16.5C5.5 18.5 6.5 20 8.5 20Z"
+              stroke="#22c55e"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {/* Potion Liquid Fill */}
+            <path
+              d="M7.8 17.5L9.5 14C10.5 14.5 13.5 14.5 14.5 14L16.2 17.5C16.8 18.8 16 19.5 15 19.5H9C8 19.5 7.2 18.8 7.8 17.5Z"
+              fill="#22c55e"
+              fillOpacity="0.75"
+            />
+            {/* Bubbles */}
+            <circle cx="11" cy="16.5" r="1" fill="#bbf7d0" />
+            <circle cx="13.5" cy="17.5" r="0.75" fill="#bbf7d0" />
+          </svg>
+
+          {/* Spell Name & Shortcut */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
+            <kbd
+              style={{
+                fontSize: '0.6rem',
+                padding: '0 3px',
+                borderRadius: '2px',
+                backgroundColor: 'rgba(0,0,0,0.4)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                color: '#86efac',
+                fontFamily: 'monospace',
+              }}
+            >
+              2
+            </kbd>
+            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#86efac' }}>Salto</span>
+          </div>
+
+          {/* Charge Badge (Top-Right, matching Chess.com `x2`) */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '-5px',
+              right: '-5px',
+              backgroundColor: '#15803d',
+              color: '#f0fdf4',
+              fontSize: '0.65rem',
+              fontWeight: 900,
+              padding: '1px 5px',
+              borderRadius: '8px',
+              border: '1.5px solid #22c55e',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
+              letterSpacing: '0.02em',
             }}
-            disabled={charges.freezeCharges <= 0 || charges.freezeCooldownTurns > 0}
-            title={
-              charges.freezeCharges <= 0
-                ? 'Sem cargas de Congelamento'
-                : charges.freezeCooldownTurns > 0
-                  ? `Recarga em andamento: ${charges.freezeCooldownTurns} turno(s)`
-                  : 'Clique para selecionar e depois clique na casa central 3×3 no tabuleiro (Atalho: tecla 1)'
-            }
+          >
+            x{charges.jumpCharges}
+          </div>
+
+          {/* Cooldown Overlay */}
+          {charges.jumpCooldownTurns > 0 && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: '8px',
+                backgroundColor: 'rgba(0, 0, 0, 0.72)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backdropFilter: 'blur(2px)',
+              }}
+            >
+              <span style={{ fontSize: '0.62rem', color: '#fbbf24', fontWeight: 800 }}>CD: {charges.jumpCooldownTurns}</span>
+              <span style={{ fontSize: '0.55rem', color: '#94a3b8' }}>turnos</span>
+            </div>
+          )}
+        </button>
+
+        {/* BLUE FREEZE FLASK CARD (Atalho: 1) */}
+        <button
+          id="btn-cast-freeze"
+          data-testid="btn-cast-freeze"
+          type="button"
+          onClick={() => {
+            globalAudioSynthesizer.playTactileClick();
+            onCastSpell?.('FREEZE');
+          }}
+          disabled={!isFreezeAvailable}
+          title={
+            charges.freezeCharges <= 0
+              ? 'Sem cargas restantes de Congelamento (Freeze)'
+              : charges.freezeCooldownTurns > 0
+                ? `Congelamento em recarga (${charges.freezeCooldownTurns} turno(s) restante(s))`
+                : 'Congelamento (Freeze): Congela uma área 3×3 impedindo o movimento por 1 turno (Atalho: tecla 1)'
+          }
+          style={{
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '68px',
+            height: '62px',
+            padding: '4px',
+            borderRadius: '8px',
+            border:
+              selectedSpellType === 'FREEZE'
+                ? '2px solid #06b6d4'
+                : isFreezeAvailable
+                  ? '1.5px solid rgba(6, 182, 212, 0.45)'
+                  : '1px solid rgba(255, 255, 255, 0.12)',
+            backgroundColor:
+              selectedSpellType === 'FREEZE'
+                ? 'rgba(6, 182, 212, 0.28)'
+                : isFreezeAvailable
+                  ? 'rgba(8, 51, 68, 0.35)'
+                  : 'rgba(15, 23, 42, 0.6)',
+            boxShadow:
+              selectedSpellType === 'FREEZE'
+                ? '0 0 16px rgba(6, 182, 212, 0.7), inset 0 0 8px rgba(6, 182, 212, 0.3)'
+                : isFreezeAvailable
+                  ? '0 2px 6px rgba(0, 0, 0, 0.4)'
+                  : 'none',
+            cursor: isFreezeAvailable ? 'pointer' : 'not-allowed',
+            opacity: isFreezeAvailable ? 1 : 0.42,
+            transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+            transform: selectedSpellType === 'FREEZE' ? 'scale(1.05)' : 'scale(1)',
+            userSelect: 'none',
+          }}
+        >
+          {/* Icy Crystal Flask SVG */}
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+            {/* Hexagonal / Diamond vial cap & bottle */}
+            <path
+              d="M9 2H15M10.5 2V5H13.5V2M9.5 5H14.5L17.5 9.5V18.5C17.5 19.5 16.5 20.5 15.5 20.5H8.5C7.5 20.5 6.5 19.5 6.5 18.5V9.5L9.5 5Z"
+              stroke="#06b6d4"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {/* Icy Liquid Fill */}
+            <path
+              d="M7.5 12H16.5V18.5C16.5 19.5 15.5 20.5 14.5 20.5H9.5C8.5 20.5 7.5 19.5 7.5 18.5V12Z"
+              fill="#06b6d4"
+              fillOpacity="0.75"
+            />
+            {/* Snowflake / Ice Crystal Core */}
+            <line x1="12" y1="13.5" x2="12" y2="18.5" stroke="#e0f2fe" strokeWidth="1.2" strokeLinecap="round" />
+            <line x1="9.5" y1="16" x2="14.5" y2="16" stroke="#e0f2fe" strokeWidth="1.2" strokeLinecap="round" />
+            <line x1="10.2" y1="14.2" x2="13.8" y2="17.8" stroke="#e0f2fe" strokeWidth="1" strokeLinecap="round" />
+            <line x1="13.8" y1="14.2" x2="10.2" y2="17.8" stroke="#e0f2fe" strokeWidth="1" strokeLinecap="round" />
+          </svg>
+
+          {/* Spell Name & Shortcut */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
+            <kbd
+              style={{
+                fontSize: '0.6rem',
+                padding: '0 3px',
+                borderRadius: '2px',
+                backgroundColor: 'rgba(0,0,0,0.4)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                color: '#67e8f9',
+                fontFamily: 'monospace',
+              }}
+            >
+              1
+            </kbd>
+            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#67e8f9' }}>Freeze</span>
+          </div>
+
+          {/* Charge Badge (Top-Right, matching Chess.com `x5`) */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '-5px',
+              right: '-5px',
+              backgroundColor: '#0e7490',
+              color: '#ecfeff',
+              fontSize: '0.65rem',
+              fontWeight: 900,
+              padding: '1px 5px',
+              borderRadius: '8px',
+              border: '1.5px solid #06b6d4',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
+              letterSpacing: '0.02em',
+            }}
+          >
+            x{charges.freezeCharges}
+          </div>
+
+          {/* Cooldown Overlay */}
+          {charges.freezeCooldownTurns > 0 && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: '8px',
+                backgroundColor: 'rgba(0, 0, 0, 0.72)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backdropFilter: 'blur(2px)',
+              }}
+            >
+              <span style={{ fontSize: '0.62rem', color: '#fbbf24', fontWeight: 800 }}>CD: {charges.freezeCooldownTurns}</span>
+              <span style={{ fontSize: '0.55rem', color: '#94a3b8' }}>turnos</span>
+            </div>
+          )}
+        </button>
+
+        {/* Selected Spell Targeting Details & Cancel Button */}
+        {selectedSpellType && (
+          <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.45rem',
-              padding: '0.45rem 0.8rem',
-              borderRadius: 'var(--radius-sm)',
-              border: selectedSpellType === 'FREEZE' ? '2px solid #06b6d4' : '1px solid var(--border-prominent)',
-              backgroundColor: selectedSpellType === 'FREEZE' ? 'rgba(6, 182, 212, 0.28)' : 'var(--bg-elevated)',
-              color: 'var(--text-prominent)',
-              fontSize: '0.8rem',
-              fontWeight: 800,
-              cursor:
-                charges.freezeCharges > 0 && charges.freezeCooldownTurns === 0
-                  ? 'pointer'
-                  : 'not-allowed',
-              opacity: charges.freezeCharges > 0 && charges.freezeCooldownTurns === 0 ? 1 : 0.45,
-              boxShadow: selectedSpellType === 'FREEZE' ? '0 0 12px rgba(6, 182, 212, 0.65)' : 'none',
-              transition: 'all 0.15s ease',
-              touchAction: 'manipulation',
-              userSelect: 'none',
-              WebkitTapHighlightColor: 'transparent',
+              gap: '0.5rem',
+              flex: 1,
+              minWidth: '220px',
+              backgroundColor: 'rgba(0,0,0,0.3)',
+              padding: '0.35rem 0.6rem',
+              borderRadius: '6px',
+              border: '1px dashed rgba(255,255,255,0.18)',
             }}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <kbd
-                style={{
-                  fontSize: '0.62rem',
-                  padding: '1px 4px',
-                  borderRadius: '3px',
-                  backgroundColor: 'rgba(0,0,0,0.3)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  fontFamily: 'monospace',
-                }}
-              >
-                1
-              </kbd>
-              <span>❄️ Freeze (3×3)</span>
-            </span>
+            <div
+              data-testid="official-spell-instruction"
+              style={{
+                fontSize: '0.72rem',
+                color: selectedSpellType === 'FREEZE' ? '#38bdf8' : '#4ade80',
+                fontWeight: 700,
+                flex: 1,
+              }}
+            >
+              {selectedSpellType === 'FREEZE'
+                ? '🎯 Freeze ativado: Clique na casa central da área 3×3 no tabuleiro.'
+                : '⚡ Salto ativado: Clique na peça (aliada ou adversária) que você deseja pular.'}
+            </div>
 
-            {/* Glowing Crystal Charge Gems */}
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', margin: '0 2px' }}>
-              <span
-                style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: charges.freezeCharges >= 1 ? '#06b6d4' : '#334155',
-                  boxShadow: charges.freezeCharges >= 1 ? '0 0 6px #06b6d4' : 'none',
-                  display: 'inline-block',
-                }}
-              />
-              <span
-                style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: charges.freezeCharges >= 2 ? '#06b6d4' : '#334155',
-                  boxShadow: charges.freezeCharges >= 2 ? '0 0 6px #06b6d4' : 'none',
-                  display: 'inline-block',
-                }}
-              />
-            </span>
-
-            <span style={{ fontSize: '0.72rem', color: '#06b6d4', fontWeight: 700 }}>
-              [{charges.freezeCharges}/2
-              {charges.freezeCooldownTurns > 0 ? ` • CD: ${charges.freezeCooldownTurns}` : ''}]
-            </span>
-          </button>
-
-          {/* Jump Button */}
-          <button
-            id="btn-cast-jump"
-            data-testid="btn-cast-jump"
-            type="button"
-            className="tactical-spell-btn"
-            onClick={() => {
-              globalAudioSynthesizer.playTactileClick();
-              onCastSpell?.('JUMP');
-            }}
-            disabled={charges.jumpCharges <= 0 || charges.jumpCooldownTurns > 0}
-            title={
-              charges.jumpCharges <= 0
-                ? 'Sem cargas de Salto'
-                : charges.jumpCooldownTurns > 0
-                  ? `Recarga em andamento: ${charges.jumpCooldownTurns} turno(s)`
-                  : 'Clique para selecionar e depois clique na sua peça aliada no tabuleiro (Atalho: tecla 2)'
-            }
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-              padding: '0.45rem 0.8rem',
-              borderRadius: 'var(--radius-sm)',
-              border: selectedSpellType === 'JUMP' ? '2px solid #a855f7' : '1px solid var(--border-prominent)',
-              backgroundColor: selectedSpellType === 'JUMP' ? 'rgba(168, 85, 247, 0.28)' : 'var(--bg-elevated)',
-              color: 'var(--text-prominent)',
-              fontSize: '0.8rem',
-              fontWeight: 800,
-              cursor:
-                charges.jumpCharges > 0 && charges.jumpCooldownTurns === 0
-                  ? 'pointer'
-                  : 'not-allowed',
-              opacity: charges.jumpCharges > 0 && charges.jumpCooldownTurns === 0 ? 1 : 0.45,
-              boxShadow: selectedSpellType === 'JUMP' ? '0 0 12px rgba(168, 85, 247, 0.65)' : 'none',
-              transition: 'all 0.15s ease',
-              touchAction: 'manipulation',
-              userSelect: 'none',
-              WebkitTapHighlightColor: 'transparent',
-            }}
-          >
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <kbd
-                style={{
-                  fontSize: '0.62rem',
-                  padding: '1px 4px',
-                  borderRadius: '3px',
-                  backgroundColor: 'rgba(0,0,0,0.3)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  fontFamily: 'monospace',
-                }}
-              >
-                2
-              </kbd>
-              <span>⚡ Jump (Salto)</span>
-            </span>
-
-            {/* Glowing Crystal Charge Gems */}
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', margin: '0 2px' }}>
-              <span
-                style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: charges.jumpCharges >= 1 ? '#a855f7' : '#334155',
-                  boxShadow: charges.jumpCharges >= 1 ? '0 0 6px #a855f7' : 'none',
-                  display: 'inline-block',
-                }}
-              />
-              <span
-                style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: charges.jumpCharges >= 2 ? '#a855f7' : '#334155',
-                  boxShadow: charges.jumpCharges >= 2 ? '0 0 6px #a855f7' : 'none',
-                  display: 'inline-block',
-                }}
-              />
-            </span>
-
-            <span style={{ fontSize: '0.72rem', color: '#a855f7', fontWeight: 700 }}>
-              [{charges.jumpCharges}/2
-              {charges.jumpCooldownTurns > 0 ? ` • CD: ${charges.jumpCooldownTurns}` : ''}]
-            </span>
-          </button>
-
-          {/* Explicit Cancel Button */}
-          {selectedSpellType && (
             <button
               id="btn-cancel-official-spell"
               data-testid="btn-cancel-official-spell"
               type="button"
               onClick={onCancelSpell}
-              title="Cancelar seleção de feitiço (Esc)"
+              title="Cancelar feitiço (Esc)"
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                padding: '0.45rem 0.75rem',
-                borderRadius: 'var(--radius-sm)',
+                padding: '3px 8px',
+                borderRadius: '4px',
                 border: '1px solid #ef4444',
-                backgroundColor: 'rgba(239, 68, 68, 0.22)',
+                backgroundColor: 'rgba(239, 68, 68, 0.25)',
                 color: '#fca5a5',
-                fontSize: '0.78rem',
+                fontSize: '0.72rem',
                 fontWeight: 800,
                 cursor: 'pointer',
-                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap',
               }}
             >
-              <span>✕ Cancelar (Esc)</span>
+              ✕ Cancelar (Esc)
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-
-      {selectedSpellType && (
-        <div
-          data-testid="official-spell-instruction"
-          style={{
-            fontSize: '0.75rem',
-            color: selectedSpellType === 'FREEZE' ? '#06b6d4' : '#a855f7',
-            backgroundColor: 'rgba(0, 0, 0, 0.25)',
-            padding: '0.35rem 0.65rem',
-            borderRadius: 'var(--radius-sm)',
-            textAlign: 'center',
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '0.5rem',
-          }}
-        >
-          <span>
-            {selectedSpellType === 'FREEZE'
-              ? '🎯 Mira de Congelamento (Freeze ativado): Passe o mouse para ver a área 3×3 e clique na casa central para congelar.'
-              : '🎯 Mira de Salto (Jump ativado): Passe o mouse sobre uma peça sua e clique para conceder salto de cavalo.'}
-          </span>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-subtle)', fontStyle: 'italic' }}>
-            Pressione Esc ou clique em Cancelar para desistir
-          </span>
-        </div>
-      )}
     </div>
   );
 };
-

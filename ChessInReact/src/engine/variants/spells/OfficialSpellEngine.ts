@@ -25,13 +25,15 @@ export interface IOfficialSpellState {
 }
 
 export class OfficialSpellEngine {
-  public static readonly INITIAL_CHARGES = 2;
+  public static readonly INITIAL_FREEZE_CHARGES = 5;
+  public static readonly INITIAL_JUMP_CHARGES = 2;
+  public static readonly INITIAL_CHARGES = 2; // backward-compat alias
   public static readonly COOLDOWN_TURNS = 3;
 
   public static createInitialState(): IOfficialSpellState {
     const initialPlayerCharges: IPlayerSpellCharges = {
-      freezeCharges: this.INITIAL_CHARGES,
-      jumpCharges: this.INITIAL_CHARGES,
+      freezeCharges: this.INITIAL_FREEZE_CHARGES,
+      jumpCharges: this.INITIAL_JUMP_CHARGES,
       freezeCooldownTurns: 0,
       jumpCooldownTurns: 0,
     };
@@ -125,7 +127,7 @@ export class OfficialSpellEngine {
       blackCharges: player === 'BLACK' ? nextCharges : state.blackCharges,
       activeJumpPieceIds: {
         ...state.activeJumpPieceIds,
-        [pieceId]: 1,
+        [pieceId]: 2, // 1 full cycle duration: active player turn + opponent reply
       },
     };
 
@@ -133,7 +135,7 @@ export class OfficialSpellEngine {
   }
 
   /**
-   * Ticking turn advance: decrements cooldowns and expires frozen zones.
+   * Ticking turn advance: decrements cooldowns, expires frozen zones, and ticks active jumps.
    */
   public static advanceTurn(
     state: IOfficialSpellState,
@@ -152,11 +154,18 @@ export class OfficialSpellEngine {
       }
     }
 
+    const nextJumps: Record<string, number> = {};
+    for (const [pid, turns] of Object.entries(state.activeJumpPieceIds)) {
+      if (turns > 1) {
+        nextJumps[pid] = turns - 1;
+      }
+    }
+
     return {
       whiteCharges: completedPlayer === 'WHITE' ? decrementCooldowns(state.whiteCharges) : state.whiteCharges,
       blackCharges: completedPlayer === 'BLACK' ? decrementCooldowns(state.blackCharges) : state.blackCharges,
       activeFrozenCoordinates: nextFrozen,
-      activeJumpPieceIds: { ...state.activeJumpPieceIds },
+      activeJumpPieceIds: nextJumps,
     };
   }
 

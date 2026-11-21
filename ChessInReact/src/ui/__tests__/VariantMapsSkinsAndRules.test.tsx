@@ -408,7 +408,7 @@ describe('Variable Variant Maps, Spell Chess Skins & Gameplay Mechanics, and Rul
     controller.startMatch(cfg);
     const snap = controller.getSnapshot();
     expect(snap.officialSpellState).not.toBeNull();
-    expect(snap.officialSpellState?.whiteCharges.freezeCharges).toBe(2);
+    expect(snap.officialSpellState?.whiteCharges.freezeCharges).toBe(5);
     expect(snap.officialSpellState?.whiteCharges.jumpCharges).toBe(2);
 
     // 3. VariantMatchBanner renders mode title, badge and description

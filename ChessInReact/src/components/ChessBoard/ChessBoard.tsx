@@ -777,7 +777,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
         >
           <span>
             {selectedSpellType === 'FREEZE' && '❄️ Modo Congelamento: Passe o mouse para ver a área 3×3 e clique para congelar.'}
-            {selectedSpellType === 'JUMP' && '⚡ Conceder Salto: Passe o mouse sobre uma peça aliada e clique.'}
+            {selectedSpellType === 'JUMP' && '⚡ Conceder Salto: Clique na peça (aliada ou adversária) que você deseja pular.'}
             {duckPlacementActive && '🦆 Colocar Pato: Passe o mouse sobre uma casa vazia e clique para posicionar.'}
             {selectedDropPiece && `♟ Drop de ${selectedDropPiece}: Passe o mouse sobre uma casa vazia e clique.`}
             {selectedSpellType === 'PORTAL' && '🌀 Portal: Clique em duas casas vazias para criar o atalho.'}
@@ -905,10 +905,10 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
             };
           } else if (isDirectHover) {
             if (selectedSpellType === 'JUMP') {
-              const isFriendly = Boolean(pieceEntity && pieceEntity.ownerId === domain.activePlayer);
+              const hasPiece = Boolean(pieceEntity);
               hoverPreview = {
                 type: 'JUMP',
-                isValid: isFriendly,
+                isValid: hasPiece,
               };
             } else if (duckPlacementActive) {
               const isEmpty = !entityId && !isVoid;

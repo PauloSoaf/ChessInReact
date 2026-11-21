@@ -580,14 +580,7 @@ const AppContent: React.FC = () => {
           const occId = domain.occupancy[asCoordinateKey(coord)];
           if (!occId) {
             triggerFeedback('ILLEGAL_MOVE', {
-              message: 'Selecione uma peça própria para conceder a habilidade de salto (Jump)!',
-            });
-            return true;
-          }
-          const pEnt = domain.boardEntities[occId] as IPieceEntity | undefined;
-          if (pEnt && pEnt.ownerId !== domain.activePlayer) {
-            triggerFeedback('ILLEGAL_MOVE', {
-              message: 'Você só pode conceder o salto Jump para as suas próprias peças!',
+              message: 'Selecione uma peça (aliada ou adversária) que você deseja pular!',
             });
             return true;
           }
@@ -659,7 +652,6 @@ const AppContent: React.FC = () => {
     },
     [
       domain.occupancy,
-      domain.boardEntities,
       domain.activePlayer,
       universalMatch,
       selectedOfficialSpell,
@@ -1184,7 +1176,7 @@ const AppContent: React.FC = () => {
                         message:
                           spellType === 'FREEZE'
                             ? 'Feitiço FREEZE preparado! Passe o mouse no tabuleiro para ver a área 3×3 e clique na casa central (ou clique em Cancelar).'
-                            : 'Feitiço JUMP preparado! Clique na peça aliada no tabuleiro (ou clique em Cancelar).',
+                            : 'Feitiço JUMP preparado! Clique na peça (aliada ou adversária) que deseja pular no tabuleiro (ou clique em Cancelar).',
                       });
                     }}
                   />
