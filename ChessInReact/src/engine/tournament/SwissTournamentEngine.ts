@@ -263,3 +263,4 @@ export class SwissTournamentEngine {
     return { white: p1, black: p2 };
   }
 }
+

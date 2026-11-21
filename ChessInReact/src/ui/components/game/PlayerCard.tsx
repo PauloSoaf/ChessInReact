@@ -13,6 +13,7 @@ export interface IPlayerCardProps {
   materialAdvantage?: number;
   timeLeftMs?: number;
   isInCheck?: boolean;
+  isUnlimited?: boolean;
 }
 
 const PIECE_GLYPHS: Record<string, string> = {
@@ -47,6 +48,7 @@ export const PlayerCard: React.FC<IPlayerCardProps> = ({
   materialAdvantage,
   timeLeftMs,
   isInCheck = false,
+  isUnlimited = false,
 }) => {
   const isWhite = playerId === 'P1';
   const isCriticalTime = isTurnActive && timeLeftMs !== undefined && timeLeftMs < 10000 && timeLeftMs > 0;
@@ -205,7 +207,7 @@ export const PlayerCard: React.FC<IPlayerCardProps> = ({
       {/* Right: Clock & Turn Status */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
         {/* Digital Chess Clock with Critical Time Alert (Spec 06 RF-09) */}
-        {timeLeftMs !== undefined && (
+        {(timeLeftMs !== undefined || isUnlimited) && (
           <div
             data-testid={`player-clock-${playerId}`}
             style={{
@@ -237,7 +239,7 @@ export const PlayerCard: React.FC<IPlayerCardProps> = ({
               letterSpacing: '0.04em',
             }}
           >
-            ⏱ {formatClockTime(timeLeftMs)}
+            ⏱ {isUnlimited ? '∞' : formatClockTime(timeLeftMs ?? 0)}
           </div>
         )}
 

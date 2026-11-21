@@ -54,3 +54,4 @@ export interface IArenaTournamentState {
   readonly players: readonly ITournamentPlayer[];
   readonly matches: readonly ITournamentMatch[];
 }
+

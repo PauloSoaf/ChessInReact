@@ -86,3 +86,4 @@ describe('TournamentArenaModal Component', () => {
     expect(handleClose).toHaveBeenCalledTimes(2);
   });
 });
+

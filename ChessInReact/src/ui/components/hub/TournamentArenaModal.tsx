@@ -616,3 +616,4 @@ export const TournamentArenaModal: React.FC<ITournamentArenaModalProps> = ({
     </div>
   );
 };
+

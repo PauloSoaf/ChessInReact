@@ -124,3 +124,4 @@ export interface IRepertoireCard {
 2. **Transposition Invariance:** Teste comprova que a mesma posição alcançada via 1. d4 Cf6 2. c4 e6 e 1. c4 e6 2. d4 Cf6 retorna o mesmo código ECO e nó estatístico.
 3. **Spaced Repetition Progression:** Teste valida avanço de caixa (box 1 para 2) em resposta correta e reset (box 2 para 1) em lance incorreto com recálculo do fator de facilidade (Ease Factor).
 4. **UI Accessibility & Mobile:** Teste no JSDOM/Vitest valida renderização acessível com barras de percentual (`role="progressbar"`) e botões de ação (`role="button"`).
+

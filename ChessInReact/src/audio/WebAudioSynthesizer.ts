@@ -314,6 +314,166 @@ export class WebAudioSynthesizer {
   }
 
   /**
+   * Castling acoustic: two rapid synchronized wooden piece sliding impacts (King + Rook).
+   */
+  public playCastle(): void {
+    if (!this.enabled) return;
+    const ctx = this.getContext();
+    const master = this.masterGain;
+    if (!ctx || !master) return;
+
+    this.triggerHaptic([18, 30, 24]);
+
+    const t = ctx.currentTime;
+    // Step 1: King wooden step
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(200, t);
+    osc1.frequency.exponentialRampToValueAtTime(95, t + 0.045);
+    gain1.gain.setValueAtTime(0.28, t);
+    gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.045);
+    osc1.connect(gain1);
+    gain1.connect(master);
+    osc1.start(t);
+    osc1.stop(t + 0.05);
+
+    // Step 2: Rook swift slide & lock (90ms delay)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(260, t + 0.09);
+    osc2.frequency.exponentialRampToValueAtTime(110, t + 0.14);
+    gain2.gain.setValueAtTime(0.32, t + 0.09);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+    osc2.connect(gain2);
+    gain2.connect(master);
+    osc2.start(t + 0.09);
+    osc2.stop(t + 0.15);
+  }
+
+  /**
+   * Pawn Promotion Fanfare: triumphant ascending major chord flourish.
+   */
+  public playPromote(): void {
+    if (!this.enabled) return;
+    const ctx = this.getContext();
+    const master = this.masterGain;
+    if (!ctx || !master) return;
+
+    this.triggerHaptic([20, 20, 40]);
+
+    const t = ctx.currentTime;
+    const notes = [440.0, 554.37, 659.25, 880.0]; // A4, C#5, E5, A5
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t + idx * 0.05);
+
+      gain.gain.setValueAtTime(0.28, t + idx * 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.05 + 0.28);
+
+      osc.connect(gain);
+      gain.connect(master);
+
+      osc.start(t + idx * 0.05);
+      osc.stop(t + idx * 0.05 + 0.29);
+    });
+  }
+
+  /**
+   * Mechanical DGT Chess Clock Tick.
+   * Produces an authentic, tactile micro-click.
+   * In urgent scramble (< 10s), switches to a sharper dual-frequency alert click.
+   */
+  public playClockTick(isUrgent = false): void {
+    if (!this.enabled) return;
+    const ctx = this.getContext();
+    const master = this.masterGain;
+    if (!ctx || !master) return;
+
+    if (isUrgent) {
+      this.triggerHaptic([12, 18]);
+      const t = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(1600, t);
+      osc.frequency.exponentialRampToValueAtTime(800, t + 0.02);
+
+      gain.gain.setValueAtTime(0.35, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.02);
+
+      osc.connect(gain);
+      gain.connect(master);
+
+      osc.start(t);
+      osc.stop(t + 0.025);
+    } else {
+      const t = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1100, t);
+      osc.frequency.exponentialRampToValueAtTime(650, t + 0.015);
+
+      gain.gain.setValueAtTime(0.18, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.015);
+
+      osc.connect(gain);
+      gain.connect(master);
+
+      osc.start(t);
+      osc.stop(t + 0.02);
+    }
+  }
+
+  /**
+   * Zeitnot Time Pressure Warning: Tense cardiovascular double heartbeat thump (thump-thump).
+   * Generates palpable psychological urgency when under critical time scramble (< 10 seconds).
+   */
+  public playLowTimeWarning(): void {
+    if (!this.enabled) return;
+    const ctx = this.getContext();
+    const master = this.masterGain;
+    if (!ctx || !master) return;
+
+    this.triggerHaptic([35, 75, 45]);
+
+    const t = ctx.currentTime;
+
+    // Heartbeat Pulse 1 (Systole - deep sub-bass thump)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(58, t);
+    osc1.frequency.exponentialRampToValueAtTime(32, t + 0.09);
+    gain1.gain.setValueAtTime(0.42, t);
+    gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+    osc1.connect(gain1);
+    gain1.connect(master);
+    osc1.start(t);
+    osc1.stop(t + 0.095);
+
+    // Heartbeat Pulse 2 (Diastole - secondary resonant thump 120ms later)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(68, t + 0.12);
+    osc2.frequency.exponentialRampToValueAtTime(36, t + 0.2);
+    gain2.gain.setValueAtTime(0.32, t + 0.12);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    osc2.connect(gain2);
+    gain2.connect(master);
+    osc2.start(t + 0.12);
+    osc2.stop(t + 0.205);
+  }
+
+  /**
    * Atomic explosion burst: low-frequency rumble and filtered noise.
    */
   public playExplosion(): void {

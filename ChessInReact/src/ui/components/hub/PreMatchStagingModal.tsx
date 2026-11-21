@@ -5,6 +5,7 @@ import {
   IBotSlotConfig,
 } from '../../../matchmaking/config/IMatchConfiguration';
 import { MatchConfigurationManager } from '../../../matchmaking/config/MatchConfigurationManager';
+import { TimeControlManager, ITimeControlPreset } from '../../../matchmaking/config/TimeControlManager';
 import { VariantCatalog } from '../../../engine/variants/catalog/VariantCatalog';
 import { ActionButton } from '../primitives/ActionButton';
 import { Card } from '../primitives/Card';
@@ -31,10 +32,22 @@ export const PreMatchStagingModal: React.FC<IPreMatchStagingModalProps> = ({
   const [showImportBox, setShowImportBox] = React.useState(false);
   const [copyFeedback, setCopyFeedback] = React.useState<string | null>(null);
 
+  // Time control and ranked state
+  const [selectedPresetId, setSelectedPresetId] = React.useState<string>('blitz_5_0');
+  const [isCustomTime, setIsCustomTime] = React.useState<boolean>(false);
+  const [customMinutes, setCustomMinutes] = React.useState<number>(10);
+  const [customIncrement, setCustomIncrement] = React.useState<number>(0);
+  const [isRanked, setIsRanked] = React.useState<boolean>(true);
+
   // Sync if variantId changes
   React.useEffect(() => {
     if (isOpen) {
-      setConfig(MatchConfigurationManager.createDefaultMatch(variantId, initialParticipantsCount));
+      const initial = MatchConfigurationManager.createDefaultMatch(variantId, initialParticipantsCount);
+      const withClock = TimeControlManager.applyTimeControl(initial, 300, 0); // 5 min default
+      setConfig({ ...withClock, isRanked: true });
+      setSelectedPresetId('blitz_5_0');
+      setIsCustomTime(false);
+      setIsRanked(true);
       setCopyFeedback(null);
     }
   }, [isOpen, variantId, initialParticipantsCount]);
@@ -43,6 +56,61 @@ export const PreMatchStagingModal: React.FC<IPreMatchStagingModalProps> = ({
 
   const variantDef = VariantCatalog.getById(variantId);
   const variantTitle = variantDef?.name ?? variantId;
+
+  const handleSelectPreset = (preset: ITimeControlPreset) => {
+    setSelectedPresetId(preset.id);
+    setIsCustomTime(false);
+    const updated = TimeControlManager.applyTimeControl(config, preset.initialSeconds, preset.incrementSeconds);
+    setConfig({ ...updated, isRanked });
+  };
+
+  const handleApplyCustomTime = (mins: number, inc: number) => {
+    setCustomMinutes(mins);
+    setCustomIncrement(inc);
+    setIsCustomTime(true);
+    setSelectedPresetId('custom');
+    const initialSec = Math.max(1, mins) * 60;
+    const incSec = Math.max(0, inc);
+    const updated = TimeControlManager.applyTimeControl(config, initialSec, incSec);
+    setConfig({ ...updated, isRanked });
+  };
+
+  const handleToggleRanked = (ranked: boolean) => {
+    setIsRanked(ranked);
+    setConfig({ ...config, isRanked: ranked });
+  };
+
+  const handleQuickVsBot = () => {
+    let updated = MatchConfigurationManager.updateSlotRole(config, 0, 'HUMAN_LOCAL');
+    for (let i = 1; i < updated.slots.length; i++) {
+      updated = MatchConfigurationManager.updateSlotRole(updated, i, 'AI_BOT', {
+        difficultyLevel: 3,
+        archetype: 'TACTICAL',
+        thinkTimeMs: 900,
+      });
+    }
+    setConfig(updated);
+  };
+
+  const handleQuickVsHuman = () => {
+    let updated = config;
+    for (let i = 0; i < updated.slots.length; i++) {
+      updated = MatchConfigurationManager.updateSlotRole(updated, i, 'HUMAN_LOCAL');
+    }
+    setConfig(updated);
+  };
+
+  const handleQuickBotVsBot = () => {
+    let updated = config;
+    for (let i = 0; i < updated.slots.length; i++) {
+      updated = MatchConfigurationManager.updateSlotRole(updated, i, 'AI_BOT', {
+        difficultyLevel: 4,
+        archetype: 'POSITIONAL',
+        thinkTimeMs: 1200,
+      });
+    }
+    setConfig(updated);
+  };
 
   const handleRoleChange = (slotIndex: number, newRole: ParticipantRole) => {
     const updated = MatchConfigurationManager.updateSlotRole(config, slotIndex, newRole);
@@ -276,6 +344,208 @@ export const PreMatchStagingModal: React.FC<IPreMatchStagingModalProps> = ({
                 {copyFeedback}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Universal Time Controls & Clock Presets (Bullet, Blitz, Rapid, Classical, Custom, Unlimited) */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.65rem',
+            padding: '0.85rem 1rem',
+            backgroundColor: 'rgba(15, 23, 42, 0.5)',
+            border: '1px solid #334155',
+            borderRadius: '8px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#f8fafc' }}>
+              ⏱️ Ritmo de Jogo e Relógio
+            </span>
+            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => handleToggleRanked(true)}
+                style={{
+                  padding: '0.25rem 0.6rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  borderRadius: '4px',
+                  border: isRanked ? '1px solid #3b82f6' : '1px solid #475569',
+                  backgroundColor: isRanked ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
+                  color: isRanked ? '#60a5fa' : '#94a3b8',
+                  cursor: 'pointer',
+                }}
+              >
+                🏆 Ranqueada (Rating)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleToggleRanked(false)}
+                style={{
+                  padding: '0.25rem 0.6rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  borderRadius: '4px',
+                  border: !isRanked ? '1px solid #10b981' : '1px solid #475569',
+                  backgroundColor: !isRanked ? 'rgba(16, 185, 129, 0.25)' : 'transparent',
+                  color: !isRanked ? '#34d399' : '#94a3b8',
+                  cursor: 'pointer',
+                }}
+              >
+                ☕ Casual (Sem Rating)
+              </button>
+            </div>
+          </div>
+
+          {/* Quick preset buttons */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+            {TimeControlManager.PRESETS.map((preset) => {
+              const isSelected = !isCustomTime && selectedPresetId === preset.id;
+              const icon =
+                preset.category === 'BULLET'
+                  ? '⚡'
+                  : preset.category === 'BLITZ'
+                  ? '🔥'
+                  : preset.category === 'RAPID'
+                  ? '⏱️'
+                  : preset.category === 'CLASSICAL'
+                  ? '⏳'
+                  : '♾️';
+
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  title={preset.description}
+                  onClick={() => handleSelectPreset(preset)}
+                  style={{
+                    padding: '0.35rem 0.6rem',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: isSelected ? 700 : 500,
+                    backgroundColor: isSelected ? 'var(--color-primary, #2563eb)' : '#1e293b',
+                    color: isSelected ? '#ffffff' : '#cbd5e1',
+                    border: isSelected ? '1px solid #60a5fa' : '1px solid #334155',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {icon} {preset.label}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => handleApplyCustomTime(customMinutes, customIncrement)}
+              style={{
+                padding: '0.35rem 0.6rem',
+                borderRadius: '6px',
+                fontSize: '0.75rem',
+                fontWeight: isCustomTime ? 700 : 500,
+                backgroundColor: isCustomTime ? 'var(--color-primary, #2563eb)' : '#1e293b',
+                color: isCustomTime ? '#ffffff' : '#cbd5e1',
+                border: isCustomTime ? '1px solid #60a5fa' : '1px solid #334155',
+                cursor: 'pointer',
+              }}
+            >
+              ⚙️ Customizado
+            </button>
+          </div>
+
+          {/* Custom Time inputs */}
+          {isCustomTime && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Minutos Iniciais:</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={180}
+                  value={customMinutes}
+                  onChange={(e) => handleApplyCustomTime(Number(e.target.value), customIncrement)}
+                  style={{
+                    width: '60px',
+                    padding: '0.25rem 0.4rem',
+                    backgroundColor: '#0f172a',
+                    border: '1px solid #475569',
+                    borderRadius: '4px',
+                    color: '#f8fafc',
+                    fontSize: '0.8rem',
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Acréscimo (segundos):</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={60}
+                  value={customIncrement}
+                  onChange={(e) => handleApplyCustomTime(customMinutes, Number(e.target.value))}
+                  style={{
+                    width: '60px',
+                    padding: '0.25rem 0.4rem',
+                    backgroundColor: '#0f172a',
+                    border: '1px solid #475569',
+                    borderRadius: '4px',
+                    color: '#f8fafc',
+                    fontSize: '0.8rem',
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Quick preset vs Bot / Human */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Configuração Rápida:</span>
+            <button
+              type="button"
+              onClick={handleQuickVsBot}
+              style={{
+                padding: '0.2rem 0.5rem',
+                fontSize: '0.72rem',
+                borderRadius: '4px',
+                backgroundColor: '#1e293b',
+                color: '#e2e8f0',
+                border: '1px solid #475569',
+                cursor: 'pointer',
+              }}
+            >
+              👤 vs 🤖 Você vs Bot
+            </button>
+            <button
+              type="button"
+              onClick={handleQuickVsHuman}
+              style={{
+                padding: '0.2rem 0.5rem',
+                fontSize: '0.72rem',
+                borderRadius: '4px',
+                backgroundColor: '#1e293b',
+                color: '#e2e8f0',
+                border: '1px solid #475569',
+                cursor: 'pointer',
+              }}
+            >
+              👤 vs 👤 2 Jogadores (Local)
+            </button>
+            <button
+              type="button"
+              onClick={handleQuickBotVsBot}
+              style={{
+                padding: '0.2rem 0.5rem',
+                fontSize: '0.72rem',
+                borderRadius: '4px',
+                backgroundColor: '#1e293b',
+                color: '#e2e8f0',
+                border: '1px solid #475569',
+                cursor: 'pointer',
+              }}
+            >
+              🤖 vs 🤖 Duelo de Bots
+            </button>
           </div>
         </div>
 

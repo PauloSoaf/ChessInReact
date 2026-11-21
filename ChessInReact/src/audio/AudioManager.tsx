@@ -66,6 +66,22 @@ export const AudioManager: React.FC = () => {
       globalAudioSynthesizer.playPuzzleOutcome(payload.isCorrect);
     });
 
+    const unsubTick = GlobalEventBus.subscribe('CLOCK_TICK', (payload) => {
+      globalAudioSynthesizer.playClockTick(payload.isUrgent);
+    });
+
+    const unsubTimeWarning = GlobalEventBus.subscribe('TIME_WARNING', () => {
+      globalAudioSynthesizer.playLowTimeWarning();
+    });
+
+    const unsubCastle = GlobalEventBus.subscribe('CASTLE_TRIGGERED', () => {
+      globalAudioSynthesizer.playCastle();
+    });
+
+    const unsubPromote = GlobalEventBus.subscribe('PROMOTION_TRIGGERED', () => {
+      globalAudioSynthesizer.playPromote();
+    });
+
     return () => {
       unsubMove();
       unsubCapture();
@@ -77,6 +93,10 @@ export const AudioManager: React.FC = () => {
       unsubDuck();
       unsubDrop();
       unsubPuzzle();
+      unsubTick();
+      unsubTimeWarning();
+      unsubCastle();
+      unsubPromote();
     };
   }, []);
 

@@ -122,5 +122,60 @@ describe('PreMatchStagingModal (Spec 16 RF-06 & RF-07)', () => {
 
     expect(handleClose).toHaveBeenCalledTimes(1);
   });
+
+  it('allows selecting time control presets, custom time, and ranked mode', () => {
+    const handleLaunch = vi.fn();
+    render(
+      <PreMatchStagingModal
+        isOpen={true}
+        variantId="STANDARD"
+        initialParticipantsCount={2}
+        onClose={() => {}}
+        onLaunchMatch={handleLaunch}
+      />
+    );
+
+    // Select Bullet 1 min preset
+    const bulletBtn = screen.getByRole('button', { name: /1 min/i });
+    fireEvent.click(bulletBtn);
+
+    // Toggle to Casual (Sem Rating)
+    const casualBtn = screen.getByRole('button', { name: /Casual \(Sem Rating\)/i });
+    fireEvent.click(casualBtn);
+
+    // Click launch
+    const launchBtn = screen.getByRole('button', { name: /Iniciar Arena/i });
+    fireEvent.click(launchBtn);
+
+    expect(handleLaunch).toHaveBeenCalledTimes(1);
+    const config = handleLaunch.mock.calls[0][0];
+    expect(config.isRanked).toBe(false);
+    expect(config.slots[0].clock?.initialSeconds).toBe(60);
+    expect(config.slots[0].clock?.incrementSeconds).toBe(0);
+  });
+
+  it('supports quick preset setups for vs Bot, vs Human, and Bot vs Bot', () => {
+    const handleLaunch = vi.fn();
+    render(
+      <PreMatchStagingModal
+        isOpen={true}
+        variantId="STANDARD"
+        initialParticipantsCount={2}
+        onClose={() => {}}
+        onLaunchMatch={handleLaunch}
+      />
+    );
+
+    // Click quick setup vs Human
+    const vsHumanBtn = screen.getByRole('button', { name: /2 Jogadores \(Local\)/i });
+    fireEvent.click(vsHumanBtn);
+
+    const launchBtn = screen.getByRole('button', { name: /Iniciar Arena/i });
+    fireEvent.click(launchBtn);
+
+    const config = handleLaunch.mock.calls[0][0];
+    expect(config.slots[0].role).toBe('HUMAN_LOCAL');
+    expect(config.slots[1].role).toBe('HUMAN_LOCAL');
+  });
 });
 

@@ -256,9 +256,106 @@ describe('WebAudioSynthesizer & Audio Decoupling (Spec 01 Section 10.2 & Spec 12
 
       expect(vibrateSpy).toHaveBeenCalledWith(20);
     });
+
+    it('synthesizes castling double wooden slide and tap', () => {
+      const activeSynth = new WebAudioSynthesizer();
+      activeSynth.playCastle();
+
+      // Dual steps: King step + Rook step
+      expect(mockAudioCtx.createOscillator).toHaveBeenCalledTimes(2);
+      expect(mockOsc.start).toHaveBeenCalledTimes(2);
+    });
+
+    it('synthesizes promotion triumphant fanfare', () => {
+      const activeSynth = new WebAudioSynthesizer();
+      activeSynth.playPromote();
+
+      // 4-note ascending major flourish
+      expect(mockAudioCtx.createOscillator).toHaveBeenCalledTimes(4);
+      expect(mockOsc.start).toHaveBeenCalledTimes(4);
+    });
+
+    it('synthesizes mechanical DGT clock ticks for normal and urgent Zeitnot', () => {
+      const activeSynth = new WebAudioSynthesizer();
+
+      // Normal tick
+      activeSynth.playClockTick(false);
+      expect(mockOsc.frequency.setValueAtTime).toHaveBeenCalledWith(1100, 10.0);
+
+      mockOsc.frequency.setValueAtTime.mockClear();
+
+      // Urgent Zeitnot tick
+      activeSynth.playClockTick(true);
+      expect(mockOsc.frequency.setValueAtTime).toHaveBeenCalledWith(1600, 10.0);
+    });
+
+    it('synthesizes tense cardiovascular heartbeat thump under critical Zeitnot', () => {
+      const activeSynth = new WebAudioSynthesizer();
+      activeSynth.playLowTimeWarning();
+
+      // Dual heartbeat pulses (systole + diastole)
+      expect(mockAudioCtx.createOscillator).toHaveBeenCalledTimes(2);
+      expect(mockOsc.frequency.setValueAtTime).toHaveBeenCalledWith(58, 10.0);
+      expect(mockOsc.frequency.setValueAtTime).toHaveBeenCalledWith(68, 10.12);
+    });
   });
 
   describe('GlobalEventBus integration with minigame events', () => {
+    it('emits and receives CLOCK_TICK event', () => {
+      const spy = vi.fn();
+      const unsub = GlobalEventBus.subscribe('CLOCK_TICK', spy);
+
+      GlobalEventBus.emit('CLOCK_TICK', {
+        playerId: 'P1',
+        secondsLeft: 9,
+        isUrgent: true,
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith({
+        playerId: 'P1',
+        secondsLeft: 9,
+        isUrgent: true,
+      });
+
+      unsub();
+    });
+
+    it('emits and receives CASTLE_TRIGGERED event', () => {
+      const spy = vi.fn();
+      const unsub = GlobalEventBus.subscribe('CASTLE_TRIGGERED', spy);
+
+      GlobalEventBus.emit('CASTLE_TRIGGERED', {
+        playerId: 'P1',
+        isKingside: true,
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith({
+        playerId: 'P1',
+        isKingside: true,
+      });
+
+      unsub();
+    });
+
+    it('emits and receives PROMOTION_TRIGGERED event', () => {
+      const spy = vi.fn();
+      const unsub = GlobalEventBus.subscribe('PROMOTION_TRIGGERED', spy);
+
+      GlobalEventBus.emit('PROMOTION_TRIGGERED', {
+        playerId: 'P2',
+        toVariant: 'QUEEN',
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith({
+        playerId: 'P2',
+        toVariant: 'QUEEN',
+      });
+
+      unsub();
+    });
     it('emits and receives SPELL_CAST event', () => {
       const spy = vi.fn();
       const unsub = GlobalEventBus.subscribe('SPELL_CAST', spy);

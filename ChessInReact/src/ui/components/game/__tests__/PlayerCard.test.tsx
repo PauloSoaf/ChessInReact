@@ -109,4 +109,19 @@ describe('PlayerCard UI Component (Spec 06 RF-09 & Section 18)', () => {
     expect(checkIndicator).toBeDefined();
     expect(checkIndicator.textContent).toContain('XEQUE');
   });
+
+  it('renders infinity symbol for unlimited time matches', () => {
+    render(
+      <PlayerCard
+        playerId="P1"
+        displayName="Alice"
+        isTurnActive={true}
+        isUnlimited={true}
+      />
+    );
+
+    const clockEl = screen.getByTestId('player-clock-P1');
+    expect(clockEl).toBeDefined();
+    expect(clockEl.textContent).toContain('∞');
+  });
 });

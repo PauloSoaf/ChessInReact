@@ -128,3 +128,4 @@ export interface IArenaTournamentState {
 2. **Color Alternation Guarantee:** Teste comprova que nenhum competidor recebe 3 vezes a mesma cor consecutiva.
 3. **Tiebreak Ranking Determinism:** Teste com empate triplo de pontuação comprova desempate estrito por Buchholz Cut 1 seguido de Sonneborn-Berger.
 4. **Arena Streak and Berserk Scoring:** Teste simula 4 vitórias seguidas em Arena com Berserk ativo e valida pontuações: 3 pts (jogo 1 com Berserk), 3 pts (jogo 2 com Berserk), 5 pts (jogo 3 com streak + Berserk), 5 pts (jogo 4 com streak + Berserk).
+

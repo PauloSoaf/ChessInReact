@@ -12,6 +12,9 @@ export type GameEventType =
   | 'GAME_ENDED'
   | 'EXPLOSION'
   | 'TIME_WARNING'
+  | 'CLOCK_TICK'
+  | 'CASTLE_TRIGGERED'
+  | 'PROMOTION_TRIGGERED'
   | 'AI_EVALUATION_READY'
   | 'AI_SEARCH_PROGRESS'
   | 'SPELL_CAST'
@@ -60,6 +63,19 @@ export interface IGameEventPayload {
   TIME_WARNING: {
     readonly playerId: PlayerId;
     readonly secondsLeft: number;
+  };
+  CLOCK_TICK: {
+    readonly playerId: PlayerId;
+    readonly secondsLeft: number;
+    readonly isUrgent: boolean;
+  };
+  CASTLE_TRIGGERED: {
+    readonly playerId: PlayerId;
+    readonly isKingside: boolean;
+  };
+  PROMOTION_TRIGGERED: {
+    readonly playerId: PlayerId;
+    readonly toVariant: string;
   };
   AI_EVALUATION_READY: {
     readonly bestMove: {

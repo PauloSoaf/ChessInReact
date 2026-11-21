@@ -38,5 +38,6 @@ export interface IMatchConfiguration {
   readonly slots: readonly IParticipantSlot[];
   readonly eliminationPolicy: 'EVAPORATION' | 'GREY_OBSTACLES' | 'CONQUEST' | 'ZOMBIE_BOT';
   readonly autoStandinOnDisconnect: boolean;
+  readonly isRanked?: boolean;
 }
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import ChessBoard from './components/ChessBoard/ChessBoard';
 import { useActivePlayer, useGameStore, useTurnNumber } from './bindings/react/useGameStore';
 import { useBotMatch } from './bindings/react/useBotMatch';
@@ -224,6 +224,12 @@ const AppContent: React.FC = () => {
   });
 
   const universalMatch = useUniversalMatch();
+
+  // Active match clock configuration & state (Spec 06 RF-09, Spec 16 § 4)
+  const activeClockConfig = universalMatch.snapshot.config.slots[0]?.clock;
+  const isUnlimitedClock = !activeClockConfig || activeClockConfig.initialSeconds <= 0;
+  const lastTickSecondRef = useRef<number>(-1);
+  const activeIncrementSeconds = activeClockConfig?.incrementSeconds ?? 0;
   const isUniversalBotMatch = useMemo(
     () =>
       universalMatch.snapshot.config.matchId === domain.matchId &&
@@ -248,13 +254,24 @@ const AppContent: React.FC = () => {
     [universalMatch.snapshot.frozenCoordinates]
   );
 
-  // Synchronized digital chess clocks (Spec 06 RF-09)
+  // Synchronized digital chess clocks (Spec 06 RF-09, Spec 16 § 4)
   useEffect(() => {
-    if (isGameOver || currentView === 'HUB') return;
+    if (isGameOver || currentView === 'HUB' || isUnlimitedClock) return;
     const timer = setInterval(() => {
       if (activePlayer === 'P1') {
         setP1TimeLeft((t) => {
           const next = Math.max(0, t - 100);
+          const currentSec = Math.floor(next / 1000);
+
+          if (currentSec !== lastTickSecondRef.current && next <= 30000 && next > 0) {
+            lastTickSecondRef.current = currentSec;
+            GlobalEventBus.emit('CLOCK_TICK', {
+              playerId: 'P1',
+              secondsLeft: currentSec,
+              isUrgent: next < 10000,
+            });
+          }
+
           if (next === 0 && t > 0) {
             GlobalEventBus.emit('GAME_ENDED', { winnerId: 'P2', reason: 'Tempo Esgotado' });
           } else if (next < 10000 && t >= 10000) {
@@ -265,6 +282,17 @@ const AppContent: React.FC = () => {
       } else {
         setP2TimeLeft((t) => {
           const next = Math.max(0, t - 100);
+          const currentSec = Math.floor(next / 1000);
+
+          if (currentSec !== lastTickSecondRef.current && next <= 30000 && next > 0) {
+            lastTickSecondRef.current = currentSec;
+            GlobalEventBus.emit('CLOCK_TICK', {
+              playerId: 'P2',
+              secondsLeft: currentSec,
+              isUrgent: next < 10000,
+            });
+          }
+
           if (next === 0 && t > 0) {
             GlobalEventBus.emit('GAME_ENDED', { winnerId: 'P1', reason: 'Tempo Esgotado' });
           } else if (next < 10000 && t >= 10000) {
@@ -275,13 +303,49 @@ const AppContent: React.FC = () => {
       }
     }, 100);
     return () => clearInterval(timer);
-  }, [activePlayer, isGameOver, currentView]);
+  }, [activePlayer, isGameOver, currentView, isUnlimitedClock]);
 
   // Real-time Move History logging via GlobalEventBus (Spec 06 Section 18.1 & Spec 09)
   useEffect(() => {
     const unsubMoved = GlobalEventBus.subscribe('PIECE_MOVED', (payload) => {
+      // Fischer increment application (Spec 16 § 4)
+      if (activeIncrementSeconds > 0) {
+        const incMs = activeIncrementSeconds * 1000;
+        if (payload.actingPlayer === 'P1') {
+          setP1TimeLeft((t) => t + incMs);
+        } else {
+          setP2TimeLeft((t) => t + incMs);
+        }
+      }
+
       const fromAlg = coordToAlgebraic(payload.from);
       const toAlg = coordToAlgebraic(payload.to);
+
+      // Acoustic trigger: detect Castling
+      if (
+        (fromAlg === 'e1' && (toAlg === 'g1' || toAlg === 'c1')) ||
+        (fromAlg === 'e8' && (toAlg === 'g8' || toAlg === 'c8'))
+      ) {
+        GlobalEventBus.emit('CASTLE_TRIGGERED', {
+          playerId: payload.actingPlayer,
+          isKingside: toAlg === 'g1' || toAlg === 'g8',
+        });
+      }
+
+      // Acoustic trigger: detect Pawn Promotion
+      const isPromotionRank =
+        (payload.actingPlayer === 'P1' && toAlg.endsWith('8')) ||
+        (payload.actingPlayer === 'P2' && toAlg.endsWith('1'));
+      if (isPromotionRank) {
+        const piece = gameStore.getState().domain.boardEntities[payload.pieceId];
+        if (piece && (piece as IPieceEntity).variantId?.toUpperCase() === 'PAWN') {
+          GlobalEventBus.emit('PROMOTION_TRIGGERED', {
+            playerId: payload.actingPlayer,
+            toVariant: 'QUEEN',
+          });
+        }
+      }
+
       const san = `${fromAlg}-${toAlg}`;
       setMatchMoves((prev) => {
         const currentTurn = turnNumber;
@@ -341,7 +405,7 @@ const AppContent: React.FC = () => {
       unsubDrop();
       unsubExplosion();
     };
-  }, [turnNumber]);
+  }, [turnNumber, activeIncrementSeconds]);
 
   // Captured pieces & material balance calculation (Spec 06 RF-09 & Section 18)
   const { p1Captured, p2Captured, p1Material, p2Material } = useMemo(() => {
@@ -416,8 +480,10 @@ const AppContent: React.FC = () => {
     setSelectedDropPiece(null);
     setPortalFirstSquare(null);
     setMatchMoves([]);
-    setP1TimeLeft(300000);
-    setP2TimeLeft(300000);
+    const slot0Clock = universalMatch.snapshot.config.slots[0]?.clock;
+    const initialMs = slot0Clock && slot0Clock.initialSeconds > 0 ? slot0Clock.initialSeconds * 1000 : 0;
+    setP1TimeLeft(initialMs);
+    setP2TimeLeft(initialMs);
     if (universalMatch.snapshot.config.matchId === gameStore.getState().domain.matchId) {
       universalMatch.resetUniversalMatch();
     } else {
@@ -903,8 +969,10 @@ const AppContent: React.FC = () => {
       clearFeedback();
       setPendingDrawOffer(null);
       setMatchMoves([]);
-      setP1TimeLeft(300000);
-      setP2TimeLeft(300000);
+      const slot0Clock = config.slots[0]?.clock;
+      const initialMs = slot0Clock && slot0Clock.initialSeconds > 0 ? slot0Clock.initialSeconds * 1000 : 0;
+      setP1TimeLeft(initialMs);
+      setP2TimeLeft(initialMs);
       universalMatch.startUniversalMatch(config);
 
       const v = config.variantId.toUpperCase();
@@ -1209,6 +1277,7 @@ const AppContent: React.FC = () => {
                   materialAdvantage={p2Material > p1Material ? p2Material - p1Material : undefined}
                   timeLeftMs={p2TimeLeft}
                   isInCheck={!isGameOver && isP2InCheck}
+                  isUnlimited={isUnlimitedClock}
                 />
               </div>
 
@@ -1503,6 +1572,7 @@ const AppContent: React.FC = () => {
                   materialAdvantage={p1Material > p2Material ? p1Material - p2Material : undefined}
                   timeLeftMs={p1TimeLeft}
                   isInCheck={!isGameOver && isP1InCheck}
+                  isUnlimited={isUnlimitedClock}
                 />
               </div>
             </div>
