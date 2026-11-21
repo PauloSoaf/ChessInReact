@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { useThree, useFrame } from '@react-three/fiber';
 import { IPieceEntity } from '../../core/entities/types';
 import { HoloPulseRing } from '../shaders/HoloPulseRing';
+import { stauntonGeometries } from './StauntonPieceGeometries';
 
 export interface IInstancedPiecesProps {
   boardSize?: number;
@@ -147,9 +148,12 @@ const Piece3DModel: React.FC<{
       onPointerDown={onPointerDown}
       name={coord ? `piece-3d-${coord}` : undefined}
     >
-      {/* Base Pedestal */}
-      <mesh castShadow receiveShadow position={[0, 0.06, 0]}>
-        <cylinderGeometry args={[0.36, 0.42, 0.12, 20]} />
+      {/* Turned Staunton Pedestal */}
+      <mesh
+        castShadow
+        receiveShadow
+        geometry={stauntonGeometries.getBasePedestal()}
+      >
         <meshStandardMaterial
           color={effectivePedestalColor}
           metalness={metalness}
@@ -157,125 +161,225 @@ const Piece3DModel: React.FC<{
         />
       </mesh>
 
-      {/* Piece Specific Geometries */}
+      {/* Pawn: Elegant slender neck, collar and polished spherical head */}
       {(normType.includes('PAWN') || normType.includes('SOLDIER')) && (
-        <group position={[0, 0.12, 0]}>
-          <mesh castShadow position={[0, 0.24, 0]}>
-            <cylinderGeometry args={[0.16, 0.32, 0.44, 16]} />
-            <meshStandardMaterial color={effectivePedestalColor} metalness={metalness} roughness={roughness} />
-          </mesh>
-          <mesh castShadow position={[0, 0.52, 0]}>
-            <sphereGeometry args={[0.22, 16, 16]} />
-            <meshStandardMaterial color={effectivePedestalColor} metalness={metalness} roughness={roughness} />
-          </mesh>
-        </group>
+        <mesh
+          castShadow
+          receiveShadow
+          geometry={stauntonGeometries.getPawnStemHead()}
+        >
+          <meshStandardMaterial
+            color={effectivePedestalColor}
+            metalness={metalness}
+            roughness={roughness}
+          />
+        </mesh>
       )}
 
+      {/* Rook: Classical crenellated castle tower with 4 battlement merlons */}
       {(normType.includes('ROOK') || normType.includes('CHARIOT') || normType.includes('LANCE')) && (
-        <group position={[0, 0.12, 0]}>
-          <mesh castShadow position={[0, 0.32, 0]}>
-            <cylinderGeometry args={[0.26, 0.34, 0.6, 16]} />
-            <meshStandardMaterial color={effectivePedestalColor} metalness={metalness} roughness={roughness} />
+        <group>
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={stauntonGeometries.getRookBody()}
+          >
+            <meshStandardMaterial
+              color={effectivePedestalColor}
+              metalness={metalness}
+              roughness={roughness}
+            />
           </mesh>
-          <mesh castShadow position={[0, 0.68, 0]}>
-            <cylinderGeometry args={[0.32, 0.28, 0.18, 16]} />
-            <meshStandardMaterial color={effectivePedestalColor} metalness={metalness} roughness={roughness} />
-          </mesh>
+          {[0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].map((angle, idx) => (
+            <mesh
+              key={idx}
+              castShadow
+              position={[Math.cos(angle) * 0.25, 0.85, Math.sin(angle) * 0.25]}
+              rotation={[0, -angle, 0]}
+              geometry={stauntonGeometries.getRookMerlon()}
+            >
+              <meshStandardMaterial
+                color={effectivePedestalColor}
+                metalness={metalness}
+                roughness={roughness}
+              />
+            </mesh>
+          ))}
         </group>
       )}
 
+      {/* Knight: Master sculpted Staunton horse head with arched neck and dorsal mane */}
       {(normType.includes('KNIGHT') || normType.includes('HORSE')) && (
-        <group position={[0, 0.12, 0]}>
-          <mesh castShadow position={[0, 0.32, 0]} rotation={[0.12, isWhite ? 0 : Math.PI, 0]}>
-            <cylinderGeometry args={[0.22, 0.34, 0.6, 16]} />
-            <meshStandardMaterial color={effectivePedestalColor} metalness={metalness} roughness={roughness} />
+        <group rotation={[0, isWhite ? 0 : Math.PI, 0]}>
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={stauntonGeometries.getKnightHead()}
+          >
+            <meshStandardMaterial
+              color={effectivePedestalColor}
+              metalness={metalness}
+              roughness={roughness}
+            />
           </mesh>
-          <mesh castShadow position={[0, 0.65, isWhite ? 0.08 : -0.08]}>
-            <sphereGeometry args={[0.26, 16, 16]} />
-            <meshStandardMaterial color={effectivePedestalColor} metalness={metalness} roughness={roughness} />
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={stauntonGeometries.getKnightMane()}
+          >
+            <meshStandardMaterial
+              color={effectivePedestalColor}
+              metalness={metalness}
+              roughness={roughness}
+            />
           </mesh>
         </group>
       )}
 
+      {/* Bishop: Tall mitre with carved teardrop bulb and golden finial orb */}
       {(normType.includes('BISHOP') ||
         normType.includes('ELEPHANT') ||
         normType.includes('SILVER') ||
         normType.includes('GOLD') ||
         normType.includes('ADVISOR')) && (
-        <group position={[0, 0.12, 0]}>
-          <mesh castShadow position={[0, 0.36, 0]}>
-            <cylinderGeometry args={[0.2, 0.34, 0.7, 16]} />
-            <meshStandardMaterial color={effectivePedestalColor} metalness={metalness} roughness={roughness} />
+        <group>
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={stauntonGeometries.getBishopMitre()}
+          >
+            <meshStandardMaterial
+              color={effectivePedestalColor}
+              metalness={metalness}
+              roughness={roughness}
+            />
           </mesh>
-          <mesh castShadow position={[0, 0.78, 0]}>
-            <sphereGeometry args={[0.24, 16, 16]} />
-            <meshStandardMaterial color={effectivePedestalColor} metalness={metalness} roughness={roughness} />
-          </mesh>
-          <mesh position={[0, 1.04, 0]}>
-            <sphereGeometry args={[0.07, 12, 12]} />
-            <meshStandardMaterial color={isCheckKing ? '#ef4444' : isSelected ? '#f59e0b' : '#e2e8f0'} metalness={0.8} roughness={0.2} />
+          <mesh
+            position={[0, 1.20, 0]}
+            geometry={stauntonGeometries.getBishopOrb()}
+          >
+            <meshStandardMaterial
+              color={isCheckKing ? '#ef4444' : isSelected ? '#f59e0b' : '#fbbf24'}
+              metalness={0.85}
+              roughness={0.2}
+            />
           </mesh>
         </group>
       )}
 
+      {/* Queen: Royal waist, fluted coronet and golden royal crown orb */}
       {normType.includes('QUEEN') && (
-        <group position={[0, 0.12, 0]}>
-          <mesh castShadow position={[0, 0.42, 0]}>
-            <cylinderGeometry args={[0.24, 0.35, 0.82, 16]} />
-            <meshStandardMaterial color={effectivePedestalColor} metalness={metalness} roughness={roughness} />
+        <group>
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={stauntonGeometries.getQueenBody()}
+          >
+            <meshStandardMaterial
+              color={effectivePedestalColor}
+              metalness={metalness}
+              roughness={roughness}
+            />
           </mesh>
-          <mesh castShadow position={[0, 0.9, 0]}>
-            <cylinderGeometry args={[0.34, 0.22, 0.22, 16]} />
-            <meshStandardMaterial color={effectivePedestalColor} metalness={metalness} roughness={roughness} />
+          <mesh
+            castShadow
+            position={[0, 1.05, 0]}
+            geometry={stauntonGeometries.getQueenCoronet()}
+          >
+            <meshStandardMaterial
+              color={effectivePedestalColor}
+              metalness={metalness}
+              roughness={roughness}
+            />
           </mesh>
-          <mesh position={[0, 1.06, 0]}>
-            <sphereGeometry args={[0.1, 12, 12]} />
-            <meshStandardMaterial color="#fbbf24" metalness={0.9} roughness={0.15} />
+          <mesh
+            position={[0, 1.16, 0]}
+            geometry={stauntonGeometries.getQueenOrb()}
+          >
+            <meshStandardMaterial
+              color="#fbbf24"
+              metalness={0.9}
+              roughness={0.15}
+            />
           </mesh>
         </group>
       )}
 
+      {/* King: Imperial column, stepped capital and 3D Gold Latin Cross finial */}
       {(normType.includes('KING') ||
         normType.includes('GENERAL') ||
         normType.includes('GYOKU') ||
         normType.includes('JIANG') ||
         normType.includes('SHUAI')) && (
-        <group position={[0, 0.12, 0]}>
-          <mesh castShadow position={[0, 0.46, 0]}>
-            <cylinderGeometry args={[0.26, 0.36, 0.9, 16]} />
-            <meshStandardMaterial color={effectivePedestalColor} metalness={metalness} roughness={roughness} />
+        <group>
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={stauntonGeometries.getKingBody()}
+          >
+            <meshStandardMaterial
+              color={effectivePedestalColor}
+              metalness={metalness}
+              roughness={roughness}
+            />
           </mesh>
-          <mesh castShadow position={[0, 0.98, 0]}>
-            <cylinderGeometry args={[0.34, 0.26, 0.24, 16]} />
-            <meshStandardMaterial color={effectivePedestalColor} metalness={metalness} roughness={roughness} />
+          <mesh
+            castShadow
+            position={[0, 1.12, 0]}
+            geometry={stauntonGeometries.getKingCrown()}
+          >
+            <meshStandardMaterial
+              color={effectivePedestalColor}
+              metalness={metalness}
+              roughness={roughness}
+            />
           </mesh>
-          {/* Royal Cross Finial */}
-          <group position={[0, 1.18, 0]}>
-            <mesh>
-              <boxGeometry args={[0.07, 0.26, 0.07]} />
-              <meshStandardMaterial color={isCheckKing ? '#ef4444' : '#fbbf24'} metalness={0.9} roughness={0.15} />
+          <group position={[0, 1.30, 0]}>
+            <mesh geometry={stauntonGeometries.getKingCrossVertical()}>
+              <meshStandardMaterial
+                color={isCheckKing ? '#ef4444' : '#fbbf24'}
+                metalness={0.9}
+                roughness={0.15}
+              />
             </mesh>
-            <mesh position={[0, 0.03, 0]}>
-              <boxGeometry args={[0.22, 0.07, 0.07]} />
-              <meshStandardMaterial color={isCheckKing ? '#ef4444' : '#fbbf24'} metalness={0.9} roughness={0.15} />
+            <mesh position={[0, 0.03, 0]} geometry={stauntonGeometries.getKingCrossHorizontal()}>
+              <meshStandardMaterial
+                color={isCheckKing ? '#ef4444' : '#fbbf24'}
+                metalness={0.9}
+                roughness={0.15}
+              />
             </mesh>
           </group>
         </group>
       )}
 
-      {normType.includes('CANNON') && (
-        <group position={[0, 0.12, 0]}>
-          <mesh castShadow position={[0, 0.32, 0]}>
-            <cylinderGeometry args={[0.24, 0.32, 0.52, 16]} />
-            <meshStandardMaterial color={effectivePedestalColor} metalness={metalness} roughness={roughness} />
+      {/* Duck Chess: Rubber Duck Entity */}
+      {normType.includes('DUCK') && (
+        <group position={[0, 0.25, 0]}>
+          <mesh castShadow receiveShadow geometry={stauntonGeometries.getDuckBody()}>
+            <meshStandardMaterial color="#eab308" roughness={0.3} metalness={0.1} />
           </mesh>
-          <mesh castShadow position={[0, 0.65, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.14, 0.16, 0.6, 16]} />
-            <meshStandardMaterial color="#475569" metalness={0.8} roughness={0.2} />
+          <mesh castShadow position={[0, 0.28, 0.18]} geometry={stauntonGeometries.getDuckHead()}>
+            <meshStandardMaterial color="#eab308" roughness={0.3} metalness={0.1} />
+          </mesh>
+          <mesh castShadow position={[0, 0.24, 0.36]} geometry={stauntonGeometries.getDuckBeak()}>
+            <meshStandardMaterial color="#f97316" roughness={0.3} metalness={0.1} />
           </mesh>
         </group>
       )}
 
+      {/* Xiangqi / Mod Cannon */}
+      {normType.includes('CANNON') && (
+        <mesh
+          castShadow
+          position={[0, 0.45, 0]}
+          geometry={stauntonGeometries.getCannonBarrel()}
+        >
+          <meshStandardMaterial color="#78350f" metalness={0.8} roughness={0.25} />
+        </mesh>
+      )}
+
+      {/* Exotic / Fairy Piece Crystal */}
       {!normType.includes('PAWN') &&
         !normType.includes('SOLDIER') &&
         !normType.includes('ROOK') &&
@@ -294,21 +398,19 @@ const Piece3DModel: React.FC<{
         !normType.includes('GYOKU') &&
         !normType.includes('JIANG') &&
         !normType.includes('SHUAI') &&
-        !normType.includes('CANNON') && (
-          <group position={[0, 0.12, 0]}>
-            <mesh castShadow position={[0, 0.38, 0]}>
-              <cylinderGeometry args={[0.22, 0.34, 0.72, 16]} />
-              <meshStandardMaterial color={effectivePedestalColor} metalness={metalness} roughness={roughness} />
-            </mesh>
-            <mesh castShadow position={[0, 0.84, 0]}>
-              <octahedronGeometry args={[0.22, 0]} />
-              <meshStandardMaterial
-                color={normType.includes('CHANCELLOR') ? '#06b6d4' : '#a855f7'}
-                metalness={0.75}
-                roughness={0.2}
-              />
-            </mesh>
-          </group>
+        !normType.includes('CANNON') &&
+        !normType.includes('DUCK') && (
+          <mesh
+            castShadow
+            position={[0, 0.58, 0]}
+            geometry={stauntonGeometries.getFairyCrystal()}
+          >
+            <meshStandardMaterial
+              color={normType.includes('CHANCELLOR') ? '#06b6d4' : '#a855f7'}
+              metalness={0.75}
+              roughness={0.2}
+            />
+          </mesh>
         )}
 
       {/* Selection Glow Disk (GLSL Hologram Pulse Shader - Spec 07 RF-10) */}

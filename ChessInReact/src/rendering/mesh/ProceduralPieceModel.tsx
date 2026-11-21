@@ -1,4 +1,5 @@
 import React from 'react';
+import { stauntonGeometries } from './StauntonPieceGeometries';
 
 export interface IProceduralPieceModelProps {
   variantId: string;
@@ -32,8 +33,8 @@ export const ProceduralPieceModel: React.FC<IProceduralPieceModelProps> = ({
   const baseColor = (ownerId && FACTION_PALETTE[ownerId]) ?? (isWhite ? '#f8fafc' : '#1e293b');
   const emissiveColor = isSelected ? '#f59e0b' : '#000000';
   const emissiveIntensity = isSelected ? 0.6 : 0;
-  const metalness = isWhite ? 0.2 : 0.4;
-  const roughness = 0.3;
+  const metalness = isWhite ? 0.15 : 0.4;
+  const roughness = 0.25;
 
   const matProps = {
     color: baseColor,
@@ -44,50 +45,66 @@ export const ProceduralPieceModel: React.FC<IProceduralPieceModelProps> = ({
   };
 
   return (
-    <group castShadow receiveShadow>
-      {/* Base Pedestal */}
-      <mesh castShadow position={[0, 0.05, 0]}>
-        <cylinderGeometry args={[0.22, 0.28, 0.1, 16]} />
+    <group castShadow receiveShadow scale={[0.75, 0.75, 0.75]}>
+      {/* Turned Staunton Pedestal */}
+      <mesh
+        castShadow
+        receiveShadow
+        geometry={stauntonGeometries.getBasePedestal()}
+      >
         <meshStandardMaterial {...matProps} />
       </mesh>
 
       {/* Pawn / Soldier */}
       {(norm.includes('PAWN') || norm.includes('SOLDIER')) && (
-        <group position={[0, 0.1, 0]}>
-          <mesh castShadow position={[0, 0.15, 0]}>
-            <cylinderGeometry args={[0.12, 0.2, 0.3, 16]} />
-            <meshStandardMaterial {...matProps} />
-          </mesh>
-          <mesh castShadow position={[0, 0.36, 0]}>
-            <sphereGeometry args={[0.15, 16, 16]} />
-            <meshStandardMaterial {...matProps} />
-          </mesh>
-        </group>
+        <mesh
+          castShadow
+          receiveShadow
+          geometry={stauntonGeometries.getPawnStemHead()}
+        >
+          <meshStandardMaterial {...matProps} />
+        </mesh>
       )}
 
       {/* Rook / Chariot / Lance */}
       {(norm.includes('ROOK') || norm.includes('CHARIOT') || norm.includes('LANCE')) && (
-        <group position={[0, 0.1, 0]}>
-          <mesh castShadow position={[0, 0.2, 0]}>
-            <cylinderGeometry args={[0.18, 0.22, 0.4, 16]} />
+        <group>
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={stauntonGeometries.getRookBody()}
+          >
             <meshStandardMaterial {...matProps} />
           </mesh>
-          <mesh castShadow position={[0, 0.46, 0]}>
-            <cylinderGeometry args={[0.24, 0.2, 0.14, 16]} />
-            <meshStandardMaterial {...matProps} />
-          </mesh>
+          {[0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].map((angle, idx) => (
+            <mesh
+              key={idx}
+              castShadow
+              position={[Math.cos(angle) * 0.25, 0.85, Math.sin(angle) * 0.25]}
+              rotation={[0, -angle, 0]}
+              geometry={stauntonGeometries.getRookMerlon()}
+            >
+              <meshStandardMaterial {...matProps} />
+            </mesh>
+          ))}
         </group>
       )}
 
       {/* Knight / Horse */}
       {(norm.includes('KNIGHT') || norm.includes('HORSE')) && (
-        <group position={[0, 0.1, 0]}>
-          <mesh castShadow position={[0, 0.2, 0]}>
-            <cylinderGeometry args={[0.16, 0.22, 0.4, 16]} />
+        <group rotation={[0, isWhite ? 0 : Math.PI, 0]}>
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={stauntonGeometries.getKnightHead()}
+          >
             <meshStandardMaterial {...matProps} />
           </mesh>
-          <mesh castShadow position={[0, 0.42, 0.04]}>
-            <sphereGeometry args={[0.18, 16, 16]} />
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={stauntonGeometries.getKnightMane()}
+          >
             <meshStandardMaterial {...matProps} />
           </mesh>
         </group>
@@ -99,18 +116,23 @@ export const ProceduralPieceModel: React.FC<IProceduralPieceModelProps> = ({
         norm.includes('SILVER') ||
         norm.includes('GOLD') ||
         norm.includes('ADVISOR')) && (
-        <group position={[0, 0.1, 0]}>
-          <mesh castShadow position={[0, 0.24, 0]}>
-            <cylinderGeometry args={[0.15, 0.22, 0.48, 16]} />
+        <group>
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={stauntonGeometries.getBishopMitre()}
+          >
             <meshStandardMaterial {...matProps} />
           </mesh>
-          <mesh castShadow position={[0, 0.54, 0]}>
-            <sphereGeometry args={[0.16, 16, 16]} />
-            <meshStandardMaterial {...matProps} />
-          </mesh>
-          <mesh position={[0, 0.72, 0]}>
-            <sphereGeometry args={[0.05, 12, 12]} />
-            <meshStandardMaterial color={isSelected ? '#f59e0b' : '#fbbf24'} metalness={0.8} roughness={0.2} />
+          <mesh
+            position={[0, 1.20, 0]}
+            geometry={stauntonGeometries.getBishopOrb()}
+          >
+            <meshStandardMaterial
+              color={isSelected ? '#f59e0b' : '#fbbf24'}
+              metalness={0.85}
+              roughness={0.2}
+            />
           </mesh>
         </group>
       )}
@@ -120,41 +142,56 @@ export const ProceduralPieceModel: React.FC<IProceduralPieceModelProps> = ({
         norm.includes('AMAZON') ||
         norm.includes('CHANCELLOR') ||
         norm.includes('ARCHBISHOP')) && (
-        <group position={[0, 0.1, 0]}>
-          <mesh castShadow position={[0, 0.28, 0]}>
-            <cylinderGeometry args={[0.18, 0.23, 0.56, 16]} />
+        <group>
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={stauntonGeometries.getQueenBody()}
+          >
             <meshStandardMaterial {...matProps} />
           </mesh>
-          <mesh castShadow position={[0, 0.62, 0]}>
-            <cylinderGeometry args={[0.24, 0.16, 0.15, 16]} />
+          <mesh
+            castShadow
+            position={[0, 1.05, 0]}
+            geometry={stauntonGeometries.getQueenCoronet()}
+          >
             <meshStandardMaterial {...matProps} />
           </mesh>
-          <mesh position={[0, 0.74, 0]}>
-            <sphereGeometry args={[0.07, 12, 12]} />
+          <mesh
+            position={[0, 1.16, 0]}
+            geometry={stauntonGeometries.getQueenOrb()}
+          >
             <meshStandardMaterial color="#fbbf24" metalness={0.9} roughness={0.15} />
           </mesh>
         </group>
       )}
 
       {/* King / General / Gyoku */}
-      {(norm.includes('KING') || norm.includes('GENERAL') || norm.includes('GYOKU') || norm.includes('JIANG') || norm.includes('SHUAI')) && (
-        <group position={[0, 0.1, 0]}>
-          <mesh castShadow position={[0, 0.32, 0]}>
-            <cylinderGeometry args={[0.19, 0.24, 0.64, 16]} />
+      {(norm.includes('KING') ||
+        norm.includes('GENERAL') ||
+        norm.includes('GYOKU') ||
+        norm.includes('JIANG') ||
+        norm.includes('SHUAI')) && (
+        <group>
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={stauntonGeometries.getKingBody()}
+          >
             <meshStandardMaterial {...matProps} />
           </mesh>
-          <mesh castShadow position={[0, 0.68, 0]}>
-            <cylinderGeometry args={[0.24, 0.18, 0.16, 16]} />
+          <mesh
+            castShadow
+            position={[0, 1.12, 0]}
+            geometry={stauntonGeometries.getKingCrown()}
+          >
             <meshStandardMaterial {...matProps} />
           </mesh>
-          {/* Royal Cross Finial */}
-          <group position={[0, 0.82, 0]}>
-            <mesh>
-              <boxGeometry args={[0.05, 0.18, 0.05]} />
+          <group position={[0, 1.30, 0]}>
+            <mesh geometry={stauntonGeometries.getKingCrossVertical()}>
               <meshStandardMaterial color="#fbbf24" metalness={0.9} roughness={0.15} />
             </mesh>
-            <mesh position={[0, 0.02, 0]}>
-              <boxGeometry args={[0.15, 0.05, 0.05]} />
+            <mesh position={[0, 0.03, 0]} geometry={stauntonGeometries.getKingCrossHorizontal()}>
               <meshStandardMaterial color="#fbbf24" metalness={0.9} roughness={0.15} />
             </mesh>
           </group>
@@ -163,18 +200,43 @@ export const ProceduralPieceModel: React.FC<IProceduralPieceModelProps> = ({
 
       {/* Cannon */}
       {norm.includes('CANNON') && (
-        <group position={[0, 0.1, 0]}>
-          <mesh castShadow position={[0, 0.18, 0]}>
-            <cylinderGeometry args={[0.16, 0.22, 0.36, 16]} />
-            <meshStandardMaterial {...matProps} />
-          </mesh>
-          <mesh castShadow position={[0, 0.42, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.1, 0.12, 0.4, 16]} />
-            <meshStandardMaterial color="#475569" metalness={0.8} roughness={0.25} />
-          </mesh>
-        </group>
+        <mesh
+          castShadow
+          position={[0, 0.45, 0]}
+          geometry={stauntonGeometries.getCannonBarrel()}
+        >
+          <meshStandardMaterial color="#78350f" metalness={0.8} roughness={0.25} />
+        </mesh>
       )}
+
+      {/* Fairy piece crystal */}
+      {!norm.includes('PAWN') &&
+        !norm.includes('SOLDIER') &&
+        !norm.includes('ROOK') &&
+        !norm.includes('CHARIOT') &&
+        !norm.includes('LANCE') &&
+        !norm.includes('KNIGHT') &&
+        !norm.includes('HORSE') &&
+        !norm.includes('BISHOP') &&
+        !norm.includes('ELEPHANT') &&
+        !norm.includes('SILVER') &&
+        !norm.includes('GOLD') &&
+        !norm.includes('ADVISOR') &&
+        !norm.includes('QUEEN') &&
+        !norm.includes('KING') &&
+        !norm.includes('GENERAL') &&
+        !norm.includes('GYOKU') &&
+        !norm.includes('JIANG') &&
+        !norm.includes('SHUAI') &&
+        !norm.includes('CANNON') && (
+          <mesh
+            castShadow
+            position={[0, 0.58, 0]}
+            geometry={stauntonGeometries.getFairyCrystal()}
+          >
+            <meshStandardMaterial color="#a855f7" metalness={0.75} roughness={0.2} />
+          </mesh>
+        )}
     </group>
   );
 };
-
