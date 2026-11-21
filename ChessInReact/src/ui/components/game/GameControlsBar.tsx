@@ -33,6 +33,7 @@ export interface IGameControlsBarProps {
   moves?: IMoveItem[];
   onSelectMoveIndex?: (moveIndex: number) => void;
   activeMoveIndex?: number;
+  onOpenGameReview?: () => void;
 }
 
 export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
@@ -62,6 +63,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
   moves = [],
   onSelectMoveIndex,
   activeMoveIndex,
+  onOpenGameReview,
 }) => {
   const { preferences, updatePreferences } = useTheme();
   const formattedEval =
@@ -149,6 +151,22 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
           activeMoveIndex={activeMoveIndex}
           maxHeight="160px"
         />
+
+        {/* Spec 12: Interactive Post-Game Review Trigger Button */}
+        {isGameOver && onOpenGameReview && (
+          <ActionButton
+            id="btn-controls-game-review"
+            data-testid="btn-controls-game-review"
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={onOpenGameReview}
+            leadingIcon={<span>📊</span>}
+            style={{ width: '100%', marginTop: '0.45rem', justifyContent: 'center' }}
+          >
+            Revisão de Partida (Game Review & CAPS2)
+          </ActionButton>
+        )}
       </div>
 
       <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)' }} />

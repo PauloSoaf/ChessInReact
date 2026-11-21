@@ -23,6 +23,7 @@ import { OfficialSpellBar } from './ui/components/game/OfficialSpellBar';
 import { ReserveDropsBar } from './ui/components/game/ReserveDropsBar';
 import { SpellCardHand } from './analysis/minigames/SpellCardHand';
 import { ISpellCard } from './analysis/minigames/SpellChessEngine';
+import { GameReviewModal } from './analysis/components/GameReviewModal';
 import { useUniversalMatch } from './bindings/react/useUniversalMatch';
 import { IMatchConfiguration } from './matchmaking/config/IMatchConfiguration';
 import { MatchConfigurationManager } from './matchmaking/config/MatchConfigurationManager';
@@ -149,6 +150,7 @@ const AppContent: React.FC = () => {
     return 'HUB';
   });
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [isGameReviewOpen, setIsGameReviewOpen] = useState(false);
   const [pendingDrawOffer, setPendingDrawOffer] = useState<PlayerId | null>(null);
   const [selectedOfficialSpell, setSelectedOfficialSpell] = useState<'FREEZE' | 'JUMP' | null>(null);
   const [selectedExpandedSpell, setSelectedExpandedSpell] = useState<ISpellCard | null>(null);
@@ -157,6 +159,15 @@ const AppContent: React.FC = () => {
 
   // Move History & PGN Notation state (Spec 06 Section 18.1 & Spec 09)
   const [matchMoves, setMatchMoves] = useState<IMoveItem[]>([]);
+
+  const matchMoveSans = useMemo(() => {
+    const sans: string[] = [];
+    for (const m of matchMoves) {
+      if (m.white) sans.push(m.white);
+      if (m.black) sans.push(m.black);
+    }
+    return sans;
+  }, [matchMoves]);
 
   // Synchronized Digital Chess Clocks (Spec 06 RF-09: 5 min default with <10s critical alert)
   const [p1TimeLeft, setP1TimeLeft] = useState<number>(300000);
@@ -1618,30 +1629,59 @@ const AppContent: React.FC = () => {
                 </div>
 
                 {isGameOver && (
-                  <div
-                    role="status"
-                    style={{
-                      color: 'var(--color-danger)',
-                      fontWeight: 800,
-                      fontSize: '0.78rem',
-                      fontFamily: 'var(--font-mono)',
-                      letterSpacing: '0.06em',
-                      padding: '0.55rem 0.75rem',
-                      borderRadius: 'var(--radius-sm)',
-                      backgroundColor: 'var(--color-danger-bg)',
-                      border: '1px solid var(--color-danger-border)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <span>FIM DE JOGO</span>
-                    <span>
-                      {winnerId
-                        ? `Vitória: ${winnerId === 'P1' ? 'Brancas' : 'Pretas'}`
-                        : 'Partida Encerrada'}
-                    </span>
-                  </div>
+                  <>
+                    <div
+                      role="status"
+                      style={{
+                        color: 'var(--color-danger)',
+                        fontWeight: 800,
+                        fontSize: '0.78rem',
+                        fontFamily: 'var(--font-mono)',
+                        letterSpacing: '0.06em',
+                        padding: '0.55rem 0.75rem',
+                        borderRadius: 'var(--radius-sm)',
+                        backgroundColor: 'var(--color-danger-bg)',
+                        border: '1px solid var(--color-danger-border)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <span>FIM DE JOGO</span>
+                      <span>
+                        {winnerId
+                          ? `Vitória: ${winnerId === 'P1' ? 'Brancas' : 'Pretas'}`
+                          : 'Partida Encerrada'}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      id="btn-open-game-review"
+                      data-testid="btn-open-game-review"
+                      onClick={() => setIsGameReviewOpen(true)}
+                      style={{
+                        marginTop: '0.45rem',
+                        width: '100%',
+                        padding: '0.55rem 0.85rem',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1.5px solid #38bdf8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.18)',
+                        color: '#38bdf8',
+                        fontWeight: 800,
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.45rem',
+                        boxShadow: '0 2px 8px rgba(56, 189, 248, 0.25)',
+                      }}
+                    >
+                      <span>📊</span>
+                      <span>Revisão de Partida (Game Review & CAPS2)</span>
+                    </button>
+                  </>
                 )}
 
                 <div className="match-telemetry-grid">
@@ -1694,6 +1734,7 @@ const AppContent: React.FC = () => {
                 pendingDrawOffer={pendingDrawOffer}
                 activePlayer={activePlayer}
                 moves={matchMoves}
+                onOpenGameReview={() => setIsGameReviewOpen(true)}
               />
             </aside>
           </div>
@@ -1704,6 +1745,20 @@ const AppContent: React.FC = () => {
       <ThemeCustomizerModal
         isOpen={isThemeModalOpen}
         onClose={() => setIsThemeModalOpen(false)}
+      />
+
+      {/* Spec 12: Game Review & CAPS2 Accuracy Analysis Modal */}
+      <GameReviewModal
+        isOpen={isGameReviewOpen}
+        onClose={() => setIsGameReviewOpen(false)}
+        moveSans={matchMoveSans}
+        whitePlayerName="Humano (Brancas)"
+        blackPlayerName={isBotEnabled ? `Bot IA (${DIFFICULTY_LABELS[difficulty]})` : 'Humano (Pretas)'}
+        onRetryMistake={(ply, bestMoveSan) => {
+          triggerFeedback('GAME_EVENT', {
+            message: `🎯 Tente encontrar o melhor lance no ply #${ply}!${bestMoveSan ? ` (Sugestão: ${bestMoveSan})` : ''}`,
+          });
+        }}
       />
     </div>
   );
