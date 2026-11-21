@@ -205,6 +205,30 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
   const ui = useGameStore((state) => state.ui);
   const { executeCommand, selectPiece } = useGameActions();
 
+  // Track previous move dynamically via GlobalEventBus (Spec 06 / Spec 07)
+  const [internalLastMove, setInternalLastMove] = React.useState<{ from?: string; to: string } | null>(null);
+
+  React.useEffect(() => {
+    const unsubMove = GlobalEventBus.subscribe('PIECE_MOVED', (payload) => {
+      setInternalLastMove({ from: payload.from, to: payload.to });
+    });
+    const unsubDrop = GlobalEventBus.subscribe('PIECE_DROPPED', (payload) => {
+      setInternalLastMove({ from: undefined, to: payload.coordinate });
+    });
+    return () => {
+      unsubMove();
+      unsubDrop();
+    };
+  }, []);
+
+  const lastMoveCoords = useMemo(() => {
+    if (!internalLastMove) return [];
+    const arr: string[] = [];
+    if (internalLastMove.from) arr.push(internalLastMove.from);
+    if (internalLastMove.to) arr.push(internalLastMove.to);
+    return arr;
+  }, [internalLastMove]);
+
   const arenaLayout = useMemo(() => {
     const v = domain.variantId?.toUpperCase() ?? '';
     return CompositeArenaLayouts.getLayout(v as ArenaModeId);
@@ -574,6 +598,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
             domain.activePlayer,
             ui.selectedPieceId,
             legalMoveCoords.length,
+            lastMoveCoords.join('|'),
             invalidMoveFeedback?.timestamp,
             uiTheme,
             duckCoordinate,
@@ -632,6 +657,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
               darkColor={activeBoardColors.darkSquare}
               selectedCoord={selectedPiece?.position}
               legalMoveCoords={legalMoveCoords}
+              lastMoveCoords={lastMoveCoords}
               checkConstraintCoords={checkConstraintCoords}
               onSquareClick={handleSquareClick}
             />

@@ -117,6 +117,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
                 <path d="M7 6L3 10l4 4M3 10h10a4 4 0 014 4v1" />
               </svg>
             }
+            trailingIcon={<span className="hotkey-pill">Z</span>}
           >
             Desfazer
           </ActionButton>
@@ -133,6 +134,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
                 <path d="M13 6l4 4-4 4M17 10H7a4 4 0 00-4 4v1" />
               </svg>
             }
+            trailingIcon={<span className="hotkey-pill">Y</span>}
           >
             Refazer
           </ActionButton>
@@ -387,7 +389,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
                 type="button"
                 className="ui-btn ui-btn--secondary"
                 onClick={onFlipBoard}
-                title="Inverter perspectiva do tabuleiro"
+                title="Inverter perspectiva do tabuleiro (Atalho: F)"
                 style={{
                   padding: '0.38rem 0.68rem',
                   fontSize: '0.76rem',
@@ -407,6 +409,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
                   <path d="M4 10a6 6 0 0110.24-4.24L16 7M16 3v4h-4M16 10a6 6 0 01-10.24 4.24L4 13M4 17v-4h4" />
                 </svg>
                 <span>Inverter</span>
+                <span className="hotkey-pill" style={{ marginLeft: '2px' }}>F</span>
               </button>
             )}
 

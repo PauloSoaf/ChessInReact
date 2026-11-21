@@ -13,6 +13,8 @@ const BoardSquare: React.FC<IBoardSquare> = ({
   testId,
   isMoveDestination,
   isCaptureDestination,
+  isLastMove,
+  isCheckWarning,
   isCheckKingError,
   isCheckSourceError,
   isCheckTargetError,
@@ -168,13 +170,21 @@ const BoardSquare: React.FC<IBoardSquare> = ({
           : ''
       }`}
       style={{
-        backgroundColor: isCheckKingError
-          ? 'rgba(239, 68, 68, 0.42)'
+        backgroundColor: isCheckKingError || isCheckWarning
+          ? undefined
           : isCheckSourceError
           ? 'rgba(239, 68, 68, 0.28)'
           : isSelected
           ? activeBoardColors.selectedSquare
+          : isLastMove
+          ? activeBoardColors.lastMoveHighlight
           : `${backgroundColor}`,
+        ...(isCheckKingError || isCheckWarning
+          ? {
+              background:
+                'radial-gradient(circle at center, rgba(239, 68, 68, 0.72) 0%, rgba(220, 38, 38, 0.42) 50%, rgba(185, 28, 28, 0.12) 80%, transparent 100%)',
+            }
+          : {}),
         fontSize: `${boardDisplay.length < 12 ? '175%' : 185 - boardDisplay.length * 5 + '%'}`,
         justifyContent: 'center',
         alignItems: 'center',
@@ -186,7 +196,7 @@ const BoardSquare: React.FC<IBoardSquare> = ({
         minWidth: 0,
         minHeight: 0,
         overflow: 'hidden',
-        boxShadow: isCheckKingError
+        boxShadow: isCheckKingError || isCheckWarning
           ? 'inset 0 0 0 3px #ef4444, 0 0 16px rgba(239, 68, 68, 0.65)'
           : isCheckSourceError
           ? 'inset 0 0 0 2.5px #ef4444, 0 0 10px rgba(239, 68, 68, 0.45)'
@@ -194,13 +204,15 @@ const BoardSquare: React.FC<IBoardSquare> = ({
           ? 'inset 0 0 0 2.5px #ef4444'
           : isSelected
           ? 'inset 0 0 0 2.5px var(--border-active, #C4A77D)'
+          : isLastMove
+          ? 'inset 0 0 0 1.5px rgba(255, 255, 255, 0.22), inset 0 0 8px rgba(0, 0, 0, 0.15)'
           : 'inset 0 0 0 0.5px rgba(0, 0, 0, 0.06)',
         cursor: 'pointer',
         position: 'relative',
         userSelect: 'none',
         transition: 'background-color 140ms ease, box-shadow 140ms ease',
-        animation: isCheckKingError
-          ? 'checkKingPulse 1.2s infinite'
+        animation: isCheckKingError || isCheckWarning
+          ? 'checkKingPulse 1.2s infinite ease-in-out'
           : isCheckSourceError
           ? 'checkErrorShake 0.4s ease'
           : 'none',

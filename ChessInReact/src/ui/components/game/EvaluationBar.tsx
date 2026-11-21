@@ -71,8 +71,9 @@ export const EvaluationBar: React.FC<IEvaluationBarProps> = ({
           style={{
             width: '100%',
             height: `${whitePercentage}%`,
-            backgroundColor: '#F4F1EB',
-            transition: 'height 380ms cubic-bezier(0.22, 1, 0.36, 1)',
+            background: 'linear-gradient(180deg, #FFFFFF 0%, #E2E8F0 100%)',
+            transition: 'height 420ms cubic-bezier(0.25, 1, 0.5, 1)',
+            boxShadow: '0 -1px 3px rgba(255, 255, 255, 0.45)',
           }}
         />
       </div>
@@ -83,13 +84,20 @@ export const EvaluationBar: React.FC<IEvaluationBarProps> = ({
         style={{
           fontSize: '0.62rem',
           fontFamily: 'var(--font-mono)',
-          fontWeight: 700,
-          color: 'var(--text-secondary)',
+          fontWeight: 800,
+          color:
+            evalScore !== null && evalScore > 75
+              ? 'var(--color-success, #4E9F76)'
+              : evalScore !== null && evalScore < -75
+                ? 'var(--color-accent, #C4A77D)'
+                : 'var(--text-secondary)',
           backgroundColor: 'var(--bg-sunken)',
-          padding: '0.14rem 0.36rem',
+          padding: '0.16rem 0.42rem',
           borderRadius: 'var(--radius-xs)',
           border: '1px solid var(--border-subtle)',
           whiteSpace: 'nowrap',
+          letterSpacing: '0.02em',
+          boxShadow: 'var(--shadow-sm)',
         }}
       >
         Eval: {formattedEval}

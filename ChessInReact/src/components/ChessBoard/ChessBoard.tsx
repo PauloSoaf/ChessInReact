@@ -47,6 +47,8 @@ export interface IChessBoardProps {
   /** Callback to cancel pending spell or drop action */
   onCancelAction?: () => void;
   /** Called after a successful human move in a variant with a secondary phase. */
+  /** Optional last move coordinates for visual highlight (Spec 06 / Lichess standard) */
+  lastMove?: { from?: string; to: string } | null;
   onHumanPieceMoved?: (from: string, to: string, pieceId: string) => void;
   /** Handles a variant-specific click such as Duck Chess placement or Spell targeting. */
   onVariantSquareClick?: (coordinate: string) => boolean;
@@ -69,6 +71,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
   selectedDropPiece,
   duckPlacementActive,
   onCancelAction,
+  lastMove: propLastMove,
   onHumanPieceMoved,
   onVariantSquareClick,
 }) => {
@@ -78,6 +81,24 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
   const domain = useGameStore((state) => state.domain);
   const ui = useGameStore((state) => state.ui);
   const { executeCommand, selectPiece } = useGameActions();
+
+  // Track previous move dynamically via GlobalEventBus (Spec 06 Section 18)
+  const [internalLastMove, setInternalLastMove] = React.useState<{ from?: string; to: string } | null>(null);
+
+  React.useEffect(() => {
+    const unsubMove = GlobalEventBus.subscribe('PIECE_MOVED', (payload) => {
+      setInternalLastMove({ from: payload.from, to: payload.to });
+    });
+    const unsubDrop = GlobalEventBus.subscribe('PIECE_DROPPED', (payload) => {
+      setInternalLastMove({ from: undefined, to: payload.coordinate });
+    });
+    return () => {
+      unsubMove();
+      unsubDrop();
+    };
+  }, []);
+
+  const activeLastMove = propLastMove !== undefined ? propLastMove : internalLastMove;
 
   // WAI-ARIA Roving Tabindex: store focused square in logical game coordinates (gameX, gameY)
   // Ensures exactly 1 valid tab stop across any boardSize (4x4, 8x8, 16x16) and orientation (flipped).
@@ -791,6 +812,18 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
           const isCheckSourceError = invalidMoveFeedback?.sourceCoord === coordKey;
           const isCheckTargetError = invalidMoveFeedback?.targetCoord === coordKey;
 
+          const isLastMove = Boolean(
+            activeLastMove &&
+            (coordKey === activeLastMove.from || coordKey === activeLastMove.to)
+          );
+          const isCheckWarning = Boolean(
+            !domain.isGameOver &&
+            pieceEntity &&
+            pieceEntity.ownerId === domain.activePlayer &&
+            pieceEntity.variantId?.toUpperCase() === 'KING' &&
+            CheckValidator.isRoyalInCheck(domain.activePlayer, domain, topology)
+          );
+
           const rankLabel =
             !isVoid && preferences.showCoordinates && columnIndex === 0
               ? String(gameY + 1)
@@ -884,6 +917,8 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               isCheckKingError={isCheckKingError}
               isCheckSourceError={isCheckSourceError}
               isCheckTargetError={isCheckTargetError}
+              isLastMove={isLastMove}
+              isCheckWarning={isCheckWarning}
               hasDuck={Boolean(duckCoordinate) && duckCoordinate === coordKey}
               isFrozen={isFrozenSquare}
               isVoid={isVoid}
