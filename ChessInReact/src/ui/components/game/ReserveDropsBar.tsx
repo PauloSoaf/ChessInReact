@@ -62,8 +62,17 @@ export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
         return;
       }
 
+      const entries = Array.from(counts.keys());
+      const pressedNum = parseInt(e.key, 10);
+      if (!isNaN(pressedNum) && pressedNum >= 1 && pressedNum <= entries.length) {
+        e.preventDefault();
+        const targetVariant = entries[pressedNum - 1];
+        onSelectDropPiece(selectedPieceVariant === targetVariant ? null : targetVariant);
+        return;
+      }
+
       const pressedKey = e.key.toUpperCase();
-      for (const variant of counts.keys()) {
+      for (const variant of entries) {
         const hotkey = getCanonicalHotkey(variant);
         if (pressedKey === hotkey) {
           e.preventDefault();
@@ -97,7 +106,7 @@ export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
         Reserva ({playerLabel}):
       </span>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-        {Array.from(counts.entries()).map(([variant, count]) => {
+        {Array.from(counts.entries()).map(([variant, count], idx) => {
           const isSelected = selectedPieceVariant === variant;
           const vUpper = variant.toUpperCase();
           let displaySymbol = '';
@@ -115,6 +124,7 @@ export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
             displaySymbol = pieceInfo?.symbol ?? variant[0];
           }
           const hotkey = getCanonicalHotkey(variant);
+          const indexKey = idx + 1;
             return (
               <button
                 key={`drop-btn-${variant}`}
@@ -124,7 +134,7 @@ export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
                   globalAudioSynthesizer.playTactileClick();
                   onSelectDropPiece(isSelected ? null : variant);
                 }}
-                title={`Clique para selecionar e depois clique na casa de destino (Atalho: tecla ${hotkey})`}
+                title={`Clique para selecionar e depois clique na casa de destino (Atalho: ${indexKey} ou ${hotkey})`}
                 className="reserve-drop-item-btn"
                 style={{
                   display: 'inline-flex',
@@ -146,6 +156,7 @@ export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
                 }}
               >
               <kbd
+                data-testid={`drop-kbd-${variant.toLowerCase()}`}
                 style={{
                   fontSize: '0.62rem',
                   padding: '1px 4px',
@@ -155,7 +166,7 @@ export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
                   fontFamily: 'monospace',
                 }}
               >
-                {hotkey}
+                {indexKey}
               </kbd>
               <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>{displaySymbol}</span>
               <span>{variant}</span>

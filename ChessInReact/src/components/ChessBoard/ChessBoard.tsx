@@ -10,6 +10,7 @@ import { SquareTopology } from '../../core/topology/SquareTopology';
 import { CubicTopology } from '../../core/topology/CubicTopology';
 import { ITopology } from '../../core/topology/types';
 import { RulesEngine } from '../../engine/rules/RulesEngine';
+import { VariantRegistry } from '../../engine/rules/VariantRegistry';
 import { PlayerId } from '../../core/coordinates/types';
 import { useTheme } from '../../ui/theme/ThemeContext';
 import { CheckValidator } from '../../engine/rules/CheckValidator';
@@ -232,6 +233,21 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
     }
     return { center: `${cx},${cy}`, coords: set };
   }, [hoveredCoord, selectedSpellType, effectiveWidth, effectiveHeight]);
+
+  // Antichess forced captures detection (Spec 04 & Spec 13 RF-13-06)
+  const isAntichess = Boolean(
+    domain.variantId &&
+    (domain.variantId.toUpperCase().includes('ANTICHESS') || domain.variantId.toUpperCase().includes('GIVEAWAY'))
+  );
+  const forcedCapturePieceIds = useMemo(() => {
+    if (!isAntichess || domain.isGameOver) return new Set<string>();
+    const allLegals = RulesEngine.getLegalMoves(domain, topology, VariantRegistry.resolveRulesConfig(domain.variantId));
+    const captures = allLegals.filter((m) => m.isCapture);
+    if (captures.length === 0) return new Set<string>();
+    return new Set(captures.map((m) => m.pieceId));
+  }, [isAntichess, domain, topology]);
+
+  const hasForcedCaptures = forcedCapturePieceIds.size > 0;
 
   // Automatically switch face to match selected piece
   React.useEffect(() => {
@@ -719,7 +735,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
         </div>
       )}
       {/* Interactive Action Indicator Bar with explicit Cancel button */}
-      {(selectedSpellType || selectedDropPiece || duckPlacementActive || Boolean(atomicBlastArea)) && (
+      {(selectedSpellType || selectedDropPiece || duckPlacementActive || Boolean(atomicBlastArea) || hasForcedCaptures) && (
         <div
           data-testid="board-action-indicator"
           style={{
@@ -737,6 +753,8 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               ? 'rgba(234, 179, 8, 0.22)'
               : atomicBlastArea
               ? 'rgba(239, 68, 68, 0.25)'
+              : hasForcedCaptures
+              ? 'rgba(16, 185, 129, 0.22)'
               : 'rgba(16, 185, 129, 0.22)',
             border: selectedSpellType === 'FREEZE'
               ? '1.5px solid #06b6d4'
@@ -746,6 +764,8 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               ? '1.5px solid #eab308'
               : atomicBlastArea
               ? '1.5px solid #ef4444'
+              : hasForcedCaptures
+              ? '1.5px solid #10b981'
               : '1.5px solid #10b981',
             fontSize: '0.78rem',
             fontWeight: 700,
@@ -760,6 +780,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
             {selectedSpellType === 'PORTAL' && '🌀 Portal: Clique em duas casas vazias para criar o atalho.'}
             {selectedSpellType === 'STEALTH_TRAP' && '💣 Mina Oculta: Clique em uma casa vazia para plantar.'}
             {atomicBlastArea && !selectedSpellType && !selectedDropPiece && !duckPlacementActive && '💥 Detonação Atômica Iminente: Capturar detonará o atacante, a vítima e peças vizinhas (exceto peões)!'}
+            {hasForcedCaptures && !selectedSpellType && !selectedDropPiece && !duckPlacementActive && !atomicBlastArea && '🔄 Antichess: Captura obrigatória disponível! Mova uma das peças marcadas com ⚔️.'}
           </span>
           {onCancelAction && !duckPlacementActive && (
             <button
@@ -817,6 +838,14 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
           const legalMoveInfo = legalMovesMap.get(coordKey);
           const isMoveDestination = legalMoveInfo !== undefined && !legalMoveInfo;
           const isCaptureDestination = legalMoveInfo !== undefined && legalMoveInfo;
+          const isForcedCapture = Boolean(entityId && forcedCapturePieceIds.has(entityId));
+          const isHillVictoryMove = Boolean(
+            isMoveDestination &&
+            specialZone === 'HILL_SANCTUARY' &&
+            domain.variantId?.toUpperCase().includes('HILL') &&
+            ui.selectedPieceId &&
+            (domain.boardEntities[ui.selectedPieceId] as IPieceEntity | undefined)?.variantId?.toUpperCase() === 'KING'
+          );
 
           const isCheckKingError = invalidMoveFeedback?.kingCoord === coordKey;
           const isCheckSourceError = invalidMoveFeedback?.sourceCoord === coordKey;
@@ -942,6 +971,8 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               handleClick={handleSquareClick}
               isMoveDestination={isMoveDestination}
               isCaptureDestination={isCaptureDestination}
+              isForcedCapture={isForcedCapture}
+              isHillVictoryMove={isHillVictoryMove}
               isCheckKingError={isCheckKingError}
               isCheckSourceError={isCheckSourceError}
               isCheckTargetError={isCheckTargetError}

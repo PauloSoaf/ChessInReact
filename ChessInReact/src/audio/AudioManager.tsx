@@ -42,7 +42,7 @@ export const AudioManager: React.FC = () => {
 
     const unsubGameEnded = GlobalEventBus.subscribe('GAME_ENDED', (payload) => {
       if (payload.winnerId) {
-        globalAudioSynthesizer.playCheckmate();
+        globalAudioSynthesizer.playVictoryFanfare();
       }
     });
 

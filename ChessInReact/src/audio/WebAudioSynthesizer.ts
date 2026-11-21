@@ -282,6 +282,38 @@ export class WebAudioSynthesizer {
   }
 
   /**
+   * Triumphant Victory Fanfare (King of the Hill conquest, Racing Kings win, Antichess extinction win).
+   * Ascending C major fanfare (C4 -> E4 -> G4 -> C5 -> E5).
+   */
+  public playVictoryFanfare(): void {
+    if (!this.enabled) return;
+    const ctx = this.getContext();
+    const master = this.masterGain;
+    if (!ctx || !master) return;
+
+    this.triggerHaptic([40, 30, 70]);
+
+    const t = ctx.currentTime;
+    const notes = [261.63, 329.63, 392.0, 523.25, 659.25]; // C4, E4, G4, C5, E5
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t + idx * 0.08);
+
+      gain.gain.setValueAtTime(0.3, t + idx * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.08 + 0.38);
+
+      osc.connect(gain);
+      gain.connect(master);
+
+      osc.start(t + idx * 0.08);
+      osc.stop(t + idx * 0.08 + 0.39);
+    });
+  }
+
+  /**
    * Atomic explosion burst: low-frequency rumble and filtered noise.
    */
   public playExplosion(): void {

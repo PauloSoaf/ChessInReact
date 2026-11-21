@@ -13,6 +13,8 @@ const BoardSquare: React.FC<IBoardSquare> = ({
   testId,
   isMoveDestination,
   isCaptureDestination,
+  isForcedCapture,
+  isHillVictoryMove,
   isLastMove,
   isCheckWarning,
   isCheckKingError,
@@ -92,6 +94,10 @@ const BoardSquare: React.FC<IBoardSquare> = ({
     ? ', peça não pode mover enquanto o rei estiver em xeque'
     : isCheckTargetError
     ? ', destino inválido por xeque'
+    : isHillVictoryMove
+    ? ', LANCE DE VITÓRIA DA COLINA!'
+    : isForcedCapture
+    ? ', CAPTURA OBRIGATÓRIA (Antichess)'
     : isCaptureDestination
     ? ', captura legal disponível'
     : isMoveDestination
@@ -193,7 +199,7 @@ const BoardSquare: React.FC<IBoardSquare> = ({
         justifyContent: 'center',
         alignItems: 'center',
         display: 'flex',
-        color: piece.color,
+        color: piece?.color ?? 'inherit',
         aspectRatio: '1 / 1',
         width: '100%',
         height: '100%',
@@ -267,21 +273,57 @@ const BoardSquare: React.FC<IBoardSquare> = ({
         </span>
       )}
 
-      {/* Legal Move Destination Indicator (Empty square dot) */}
+      {/* Legal Move Destination Indicator (Empty square dot, with Crown aura on Hill victory moves) */}
       {isMoveDestination && (
         <div
           data-testid="legal-move-dot"
           className="legal-move-dot"
           style={{
             position: 'absolute',
-            width: '28%',
-            height: '28%',
+            width: isHillVictoryMove ? '42%' : '28%',
+            height: isHillVictoryMove ? '42%' : '28%',
             borderRadius: '50%',
-            backgroundColor: activeBoardColors.legalMoveDot,
+            backgroundColor: isHillVictoryMove ? '#fbbf24' : activeBoardColors.legalMoveDot,
             pointerEvents: 'none',
-            boxShadow: '0 0 8px rgba(0,0,0,0.32), inset 0 1px 1px rgba(255,255,255,0.28)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: isHillVictoryMove
+              ? '0 0 14px rgba(251, 191, 36, 0.95), inset 0 0 6px #f59e0b'
+              : '0 0 8px rgba(0,0,0,0.32), inset 0 1px 1px rgba(255,255,255,0.28)',
+            zIndex: 3,
           }}
-        />
+        >
+          {isHillVictoryMove && (
+            <span style={{ fontSize: '0.85rem', lineHeight: 1 }} aria-hidden="true">
+              👑
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Antichess Forced Capture Indicator (Spec 04 & Spec 13 RF-13-06) */}
+      {isForcedCapture && (
+        <div
+          data-testid="antichess-forced-capture-beacon"
+          style={{
+            position: 'absolute',
+            inset: '2px',
+            borderRadius: 'var(--radius-sm, 4px)',
+            border: '2px dashed #10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.12)',
+            boxShadow: 'inset 0 0 10px rgba(16, 185, 129, 0.35)',
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'flex-start',
+            padding: '2px',
+            zIndex: 2,
+          }}
+          aria-hidden="true"
+        >
+          <span style={{ fontSize: '0.65rem', filter: 'drop-shadow(0 0 3px #10b981)' }}>⚔️</span>
+        </div>
       )}
 
       {/* Legal Capture Indicator (Occupied square ring) */}

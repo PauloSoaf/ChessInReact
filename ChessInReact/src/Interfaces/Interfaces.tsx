@@ -26,6 +26,8 @@ export interface IBoardSquare {
   boardDisplay: IChessPiece[][];
   isMoveDestination?: boolean;
   isCaptureDestination?: boolean;
+  isForcedCapture?: boolean;
+  isHillVictoryMove?: boolean;
   isLastMove?: boolean;
   isCheckWarning?: boolean;
   isCheckKingError?: boolean;
