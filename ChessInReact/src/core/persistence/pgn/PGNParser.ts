@@ -9,6 +9,8 @@ export interface IParsedPGNMove {
   readonly pieceType?: string;
   readonly isCheck?: boolean;
   readonly isCheckmate?: boolean;
+  readonly isDrop?: boolean;
+  readonly dropPieceVariant?: string;
 }
 
 export interface IParsedPGNMatch {
@@ -88,19 +90,32 @@ export class PGNParser {
       const isCheck = !isCheckmate && moveToken.includes('+');
       const cleanToken = moveToken.replace(/[+#?!]/g, '');
 
-      // Parse coordinate move (e.g. "e2-e4" or "e2e4")
+      // Parse drop move (e.g. "P@e4" or "N@f6" in Crazyhouse/Bughouse)
       let fromCoord: string | undefined;
       let toCoord: string | undefined;
+      let isDrop = false;
+      let dropPieceVariant: string | undefined;
 
-      const coordMatch = cleanToken.match(/^([a-h][1-8])[-x]?([a-h][1-8])$/i);
-      if (coordMatch) {
-        fromCoord = PGNExporter.algebraicToCoord(coordMatch[1]);
-        toCoord = PGNExporter.algebraicToCoord(coordMatch[2]);
+      const dropMatch = cleanToken.match(/^([PNBRQK])@([a-h][1-8])$/i);
+      if (dropMatch) {
+        isDrop = true;
+        const char = dropMatch[1].toUpperCase();
+        dropPieceVariant =
+          char === 'Q' ? 'QUEEN' : char === 'R' ? 'ROOK' : char === 'B' ? 'BISHOP' : char === 'N' ? 'KNIGHT' : 'PAWN';
+        fromCoord = 'reserve';
+        toCoord = PGNExporter.algebraicToCoord(dropMatch[2]);
       } else {
-        // Standard algebraic move (e.g. "e4", "Nf3")
-        const destMatch = cleanToken.match(/([a-h][1-8])$/i);
-        if (destMatch) {
-          toCoord = PGNExporter.algebraicToCoord(destMatch[1]);
+        // Parse coordinate move (e.g. "e2-e4" or "e2e4")
+        const coordMatch = cleanToken.match(/^([a-h][1-8])[-x]?([a-h][1-8])$/i);
+        if (coordMatch) {
+          fromCoord = PGNExporter.algebraicToCoord(coordMatch[1]);
+          toCoord = PGNExporter.algebraicToCoord(coordMatch[2]);
+        } else {
+          // Standard algebraic move (e.g. "e4", "Nf3")
+          const destMatch = cleanToken.match(/([a-h][1-8])$/i);
+          if (destMatch) {
+            toCoord = PGNExporter.algebraicToCoord(destMatch[1]);
+          }
         }
       }
 
@@ -114,6 +129,8 @@ export class PGNParser {
         toCoord,
         isCheck,
         isCheckmate,
+        isDrop,
+        dropPieceVariant,
       });
     }
 

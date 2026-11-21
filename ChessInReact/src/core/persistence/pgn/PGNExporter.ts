@@ -25,6 +25,8 @@ export interface IPGNMoveEntry {
   readonly capturedPieceId?: string | null;
   readonly isCheck?: boolean;
   readonly isCheckmate?: boolean;
+  readonly isDrop?: boolean;
+  readonly dropPieceVariant?: string;
 }
 
 /**
@@ -81,7 +83,16 @@ export class PGNExporter {
 
     for (let i = 0; i < moves.length; i++) {
       const move = moves[i];
-      const notation = move.san ?? `${this.coordToAlgebraic(move.fromCoord)}-${this.coordToAlgebraic(move.toCoord)}`;
+      let notation = move.san;
+      if (!notation) {
+        if (move.isDrop || move.fromCoord === 'reserve' || move.fromCoord === '@') {
+          const v = (move.dropPieceVariant ?? 'P').toUpperCase();
+          const pieceChar = v === 'KNIGHT' ? 'N' : v[0];
+          notation = `${pieceChar}@${this.coordToAlgebraic(move.toCoord)}`;
+        } else {
+          notation = `${this.coordToAlgebraic(move.fromCoord)}-${this.coordToAlgebraic(move.toCoord)}`;
+        }
+      }
       const suffix = move.isCheckmate ? '#' : move.isCheck ? '+' : '';
 
       if (move.player === 'P1') {

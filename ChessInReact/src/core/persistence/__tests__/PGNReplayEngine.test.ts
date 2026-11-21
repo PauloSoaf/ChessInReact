@@ -43,6 +43,16 @@ describe('Spec 09 PGN Event Sourcing & Replay Engine Suite (S09-RF01, S09-RF02, 
       expect(pgn).toContain('[PlyCount "4"]');
       expect(pgn).toContain('1. e4 e5 2. Nf3 Nc6 1-0');
     });
+
+    it('exports Crazyhouse and Bughouse drops with standard @ notation', () => {
+      const dropMoves: IPGNMoveEntry[] = [
+        { moveNumber: 1, player: 'P1', fromCoord: 'reserve', toCoord: '4,3', isDrop: true, dropPieceVariant: 'PAWN' },
+        { moveNumber: 1, player: 'P2', fromCoord: 'reserve', toCoord: '5,5', isDrop: true, dropPieceVariant: 'KNIGHT' },
+      ];
+
+      const pgn = PGNExporter.exportToPGN(dropMoves, { Variant: 'Crazyhouse' });
+      expect(pgn).toContain('1. P@e4 N@f6 *');
+    });
   });
 
   describe('2. PGNParser Lexing & Token Sanitization (Spec 09 § 4, RF-02)', () => {
@@ -77,6 +87,29 @@ describe('Spec 09 PGN Event Sourcing & Replay Engine Suite (S09-RF01, S09-RF02, 
       expect(parsed.moves[2].toCoord).toBe('5,2');
       expect(parsed.moves[3].fromCoord).toBe('1,7');
       expect(parsed.moves[3].toCoord).toBe('2,5');
+    });
+
+    it('parses Crazyhouse and Bughouse @ drop tokens correctly', () => {
+      const dropPGN = `
+[Event "Crazyhouse Arena"]
+[Variant "Crazyhouse"]
+
+1. P@e4 N@f6 2. B@c4 *
+      `;
+
+      const parsed = PGNParser.parse(dropPGN);
+      expect(parsed.moves).toHaveLength(3);
+      expect(parsed.moves[0].isDrop).toBe(true);
+      expect(parsed.moves[0].dropPieceVariant).toBe('PAWN');
+      expect(parsed.moves[0].toCoord).toBe('4,3'); // e4
+
+      expect(parsed.moves[1].isDrop).toBe(true);
+      expect(parsed.moves[1].dropPieceVariant).toBe('KNIGHT');
+      expect(parsed.moves[1].toCoord).toBe('5,5'); // f6
+
+      expect(parsed.moves[2].isDrop).toBe(true);
+      expect(parsed.moves[2].dropPieceVariant).toBe('BISHOP');
+      expect(parsed.moves[2].toCoord).toBe('2,3'); // c4
     });
   });
 

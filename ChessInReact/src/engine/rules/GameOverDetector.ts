@@ -272,7 +272,17 @@ export class GameOverDetector {
       };
     }
 
-    // 5.2 Fifty-move rule (FIDE Article 9.3): 50 consecutive moves (100 halfmoves) without capture or pawn advance
+    // 5.2 Mandatory 75-move rule (FIDE Article 9.6): 75 consecutive moves (150 halfmoves) without capture or pawn advance is an automatic draw
+    if (halfMoves >= 150) {
+      return {
+        isGameOver: true,
+        status: 'FIFTY_MOVE_RULE',
+        winnerId: null,
+        reason: 'Draw: 75 consecutive moves (150 halfmoves) elapsed without capture or pawn advance (FIDE Art. 9.6 automatic draw).',
+      };
+    }
+
+    // 5.3 Fifty-move rule (FIDE Article 9.3): 50 consecutive moves (100 halfmoves) without capture or pawn advance
     if (halfMoves >= 100) {
       if (variantConfig?.claimableDrawRules) {
         return {
