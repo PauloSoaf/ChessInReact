@@ -161,6 +161,8 @@ const BoardSquare: React.FC<IBoardSquare> = ({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={`board-square ${
+        isSelected ? 'board-square--selected' : ''
+      } ${
         isCheckKingError
           ? 'board-square--check-king-error'
           : isCheckSourceError
@@ -267,6 +269,7 @@ const BoardSquare: React.FC<IBoardSquare> = ({
       {isMoveDestination && (
         <div
           data-testid="legal-move-dot"
+          className="legal-move-dot"
           style={{
             position: 'absolute',
             width: '28%',
@@ -283,6 +286,7 @@ const BoardSquare: React.FC<IBoardSquare> = ({
       {isCaptureDestination && (
         <div
           data-testid="legal-capture-ring"
+          className="legal-capture-ring"
           style={{
             position: 'absolute',
             inset: '4px',
@@ -466,6 +470,7 @@ const BoardSquare: React.FC<IBoardSquare> = ({
       {/* Chess Piece with Spell Skins / Enchantments */}
       {isPiecePresent ? (
         <div
+          className="piece-wrapper"
           data-testid={
             hasJump
               ? 'jump-buff-marker'
@@ -482,16 +487,23 @@ const BoardSquare: React.FC<IBoardSquare> = ({
             alignItems: 'center',
             justifyContent: 'center',
             position: 'relative',
-             zIndex: 2,
+            zIndex: 2,
             opacity: isInvisible ? 0.48 : 1,
-            transform: hasJump ? 'translateY(-3px) scale(1.06)' : 'none',
+            transform: hasJump
+              ? 'translateY(-3px) scale(1.06)'
+              : isSelected
+              ? 'translateY(-2px) scale(1.08)'
+              : 'none',
             filter: hasJump
               ? 'drop-shadow(0 0 8px rgba(168, 85, 247, 0.95))'
               : isShielded
                 ? 'drop-shadow(0 0 8px rgba(56, 189, 248, 0.95))'
                 : isArcaneSkin
                   ? 'drop-shadow(0 0 5px rgba(139, 92, 246, 0.65))'
+                  : isSelected
+                  ? 'drop-shadow(0 6px 12px rgba(0, 0, 0, 0.55))'
                   : 'none',
+            transition: 'transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1), filter 140ms ease',
           }}
         >
           <PieceRenderer

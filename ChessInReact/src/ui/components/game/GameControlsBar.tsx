@@ -4,6 +4,7 @@ import { ActionButton } from '../primitives/ActionButton';
 import { Card } from '../primitives/Card';
 import { PlayerId } from '../../../core/coordinates/types';
 import { MoveHistoryList, IMoveItem } from './MoveHistoryList';
+import { useTheme } from '../../theme/ThemeContext';
 
 export interface IGameControlsBarProps {
   isBotEnabled: boolean;
@@ -62,6 +63,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
   onSelectMoveIndex,
   activeMoveIndex,
 }) => {
+  const { preferences, updatePreferences } = useTheme();
   const formattedEval =
     lastEval !== null ? `${lastEval > 0 ? '+' : ''}${(lastEval / 100).toFixed(2)}` : '0.00';
 
@@ -412,6 +414,36 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
                 <span className="hotkey-pill" style={{ marginLeft: '2px' }}>F</span>
               </button>
             )}
+
+            <button
+              id="quick-sound-toggle-button"
+              data-testid="quick-sound-toggle"
+              type="button"
+              className="ui-btn ui-btn--secondary"
+              onClick={() => updatePreferences({ soundEnabled: !preferences.soundEnabled })}
+              title={preferences.soundEnabled ? 'Silenciar efeitos sonoros (WebAudio)' : 'Ativar efeitos sonoros (WebAudio)'}
+              aria-label={preferences.soundEnabled ? 'Silenciar som' : 'Ativar som'}
+              style={{
+                padding: '0.38rem 0.68rem',
+                fontSize: '0.76rem',
+                fontFamily: 'var(--font-sans)',
+                fontWeight: 600,
+                cursor: 'pointer',
+                backgroundColor: preferences.soundEnabled ? 'var(--bg-card)' : 'rgba(239, 68, 68, 0.12)',
+                color: preferences.soundEnabled ? 'var(--text-secondary)' : 'var(--color-danger, #ef4444)',
+                border: preferences.soundEnabled ? '1px solid var(--border-subtle)' : '1px solid rgba(239, 68, 68, 0.35)',
+                borderRadius: 'var(--radius-sm)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                transition: 'all var(--transition-fast)',
+              }}
+            >
+              <span style={{ fontSize: '0.85rem', lineHeight: 1 }}>
+                {preferences.soundEnabled ? '🔊' : '🔇'}
+              </span>
+              <span>{preferences.soundEnabled ? 'Som' : 'Mudo'}</span>
+            </button>
 
             <button
               type="button"

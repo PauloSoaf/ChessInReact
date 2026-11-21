@@ -238,6 +238,121 @@ export const MoveHistoryList: React.FC<IMoveHistoryListProps> = ({
           </table>
         )}
       </div>
+
+      {/* Step Navigation Bar (Spec 06 & Spec 09 PGN Navigation) */}
+      {moves.length > 0 && onSelectMoveIndex && (
+        <div
+          data-testid="move-history-nav-bar"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.4rem',
+            padding: '0.35rem 0.5rem',
+            backgroundColor: 'var(--bg-card, #141c2b)',
+            borderTop: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+          }}
+        >
+          <button
+            type="button"
+            data-testid="btn-move-first"
+            aria-label="Primeiro lance"
+            title="Ir para o primeiro lance (Início)"
+            disabled={activeMoveIndex === 0}
+            onClick={() => onSelectMoveIndex(0)}
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
+              borderRadius: '4px',
+              padding: '2px 8px',
+              fontSize: '0.72rem',
+              fontWeight: 800,
+              fontFamily: 'var(--font-mono, monospace)',
+              color: 'var(--text-secondary, #94a3b8)',
+              cursor: activeMoveIndex === 0 ? 'default' : 'pointer',
+              opacity: activeMoveIndex === 0 ? 0.35 : 1,
+              transition: 'all 0.12s ease',
+            }}
+          >
+            |◀
+          </button>
+          <button
+            type="button"
+            data-testid="btn-move-prev"
+            aria-label="Lance anterior"
+            title="Ir para o lance anterior"
+            disabled={activeMoveIndex !== undefined && activeMoveIndex <= 0}
+            onClick={() => {
+              const current = activeMoveIndex ?? moves.length - 1;
+              onSelectMoveIndex(Math.max(0, current - 1));
+            }}
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
+              borderRadius: '4px',
+              padding: '2px 8px',
+              fontSize: '0.72rem',
+              fontWeight: 800,
+              fontFamily: 'var(--font-mono, monospace)',
+              color: 'var(--text-secondary, #94a3b8)',
+              cursor: activeMoveIndex !== undefined && activeMoveIndex <= 0 ? 'default' : 'pointer',
+              opacity: activeMoveIndex !== undefined && activeMoveIndex <= 0 ? 0.35 : 1,
+              transition: 'all 0.12s ease',
+            }}
+          >
+            ◀
+          </button>
+          <button
+            type="button"
+            data-testid="btn-move-next"
+            aria-label="Próximo lance"
+            title="Ir para o próximo lance"
+            disabled={activeMoveIndex !== undefined && activeMoveIndex >= moves.length - 1}
+            onClick={() => {
+              const current = activeMoveIndex ?? moves.length - 1;
+              onSelectMoveIndex(Math.min(moves.length - 1, current + 1));
+            }}
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
+              borderRadius: '4px',
+              padding: '2px 8px',
+              fontSize: '0.72rem',
+              fontWeight: 800,
+              fontFamily: 'var(--font-mono, monospace)',
+              color: 'var(--text-secondary, #94a3b8)',
+              cursor: activeMoveIndex !== undefined && activeMoveIndex >= moves.length - 1 ? 'default' : 'pointer',
+              opacity: activeMoveIndex !== undefined && activeMoveIndex >= moves.length - 1 ? 0.35 : 1,
+              transition: 'all 0.12s ease',
+            }}
+          >
+            ▶
+          </button>
+          <button
+            type="button"
+            data-testid="btn-move-last"
+            aria-label="Último lance"
+            title="Ir para o último lance (Ao vivo)"
+            disabled={activeMoveIndex === undefined || activeMoveIndex === moves.length - 1}
+            onClick={() => onSelectMoveIndex(moves.length - 1)}
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
+              borderRadius: '4px',
+              padding: '2px 8px',
+              fontSize: '0.72rem',
+              fontWeight: 800,
+              fontFamily: 'var(--font-mono, monospace)',
+              color: 'var(--text-secondary, #94a3b8)',
+              cursor: activeMoveIndex === undefined || activeMoveIndex === moves.length - 1 ? 'default' : 'pointer',
+              opacity: activeMoveIndex === undefined || activeMoveIndex === moves.length - 1 ? 0.35 : 1,
+              transition: 'all 0.12s ease',
+            }}
+          >
+            ▶|
+          </button>
+        </div>
+      )}
     </div>
   );
 };

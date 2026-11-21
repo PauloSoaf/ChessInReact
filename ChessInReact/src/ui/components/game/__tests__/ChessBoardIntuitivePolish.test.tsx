@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import BoardSquare from '../../../../components/BoardSquare/BoardSquare';
 import { EvaluationBar } from '../EvaluationBar';
 import { GameControlsBar } from '../GameControlsBar';
+import { MoveHistoryList, IMoveItem } from '../MoveHistoryList';
 import { ThemeProvider } from '../../../theme/ThemeContext';
 import { bootstrapGame } from '../../../../core/bootstrap/GameInitializer';
 import { gameStore } from '../../../../core/state/gameStore';
@@ -122,6 +123,156 @@ describe('Intuitive UI & Fluid Polish Suite (Spec 06 RF-14, RF-15 & Lichess/Ches
       expect(screen.getByText('Z')).toBeDefined();
       expect(screen.getByText('Y')).toBeDefined();
       expect(screen.getByText('F')).toBeDefined();
+    });
+
+    it('renders quick sound toggle button and toggles audio preference', () => {
+      render(
+        <ThemeProvider>
+          <GameControlsBar
+            isBotEnabled={false}
+            difficulty={1}
+            isThinking={false}
+            lastEval={0}
+            boardSize={8}
+            onToggleBot={() => {}}
+            onSetDifficulty={() => {}}
+            onBoardSizeChange={() => {}}
+            onUndo={() => {}}
+            onRedo={() => {}}
+            onReset={() => {}}
+            onOpenThemeModal={() => {}}
+          />
+        </ThemeProvider>
+      );
+
+      const soundBtn = screen.getByTestId('quick-sound-toggle');
+      expect(soundBtn).toBeDefined();
+      expect(soundBtn.textContent).toContain('Som');
+
+      fireEvent.click(soundBtn);
+      expect(soundBtn.textContent).toContain('Mudo');
+
+      fireEvent.click(soundBtn);
+      expect(soundBtn.textContent).toContain('Som');
+    });
+  });
+
+  describe('MoveHistoryList Step Navigation (Spec 06 & Spec 09 PGN Navigation)', () => {
+    const mockMoves: IMoveItem[] = [
+      { turnNumber: 1, white: 'e2-e4', black: 'e7-e5' },
+      { turnNumber: 2, white: 'g1-f3', black: 'b8-c6' },
+      { turnNumber: 3, white: 'f1-c4', black: 'f8-c5' },
+    ];
+
+    it('renders step navigation controls with proper first/prev/next/last callbacks', () => {
+      const handleSelect = vi.fn();
+      render(
+        <MoveHistoryList
+          moves={mockMoves}
+          onSelectMoveIndex={handleSelect}
+          activeMoveIndex={1}
+        />
+      );
+
+      const navBar = screen.getByTestId('move-history-nav-bar');
+      expect(navBar).toBeDefined();
+
+      const btnFirst = screen.getByTestId('btn-move-first');
+      const btnPrev = screen.getByTestId('btn-move-prev');
+      const btnNext = screen.getByTestId('btn-move-next');
+      const btnLast = screen.getByTestId('btn-move-last');
+
+      expect(btnFirst).toBeDefined();
+      expect(btnPrev).toBeDefined();
+      expect(btnNext).toBeDefined();
+      expect(btnLast).toBeDefined();
+
+      fireEvent.click(btnFirst);
+      expect(handleSelect).toHaveBeenCalledWith(0);
+
+      fireEvent.click(btnPrev);
+      expect(handleSelect).toHaveBeenCalledWith(0);
+
+      fireEvent.click(btnNext);
+      expect(handleSelect).toHaveBeenCalledWith(2);
+
+      fireEvent.click(btnLast);
+      expect(handleSelect).toHaveBeenCalledWith(2);
+    });
+  });
+
+  describe('BoardSquare Tactile Piece Elevation & Destination Indicators', () => {
+    it('applies board-square--selected class and piece-wrapper elevation when selected', () => {
+      const dummySquareInfo = {
+        row: 6,
+        column: 4,
+        squareID: '4-6',
+        gameX: 4,
+        gameY: 1,
+      };
+
+      render(
+        <ThemeProvider>
+          <BoardSquare
+            testId="square-selected-e2"
+            piece={chessPieces.w_pawn ?? { name: 'PAWN', symbol: '♟', color: 'white' }}
+            boardDisplay={[]}
+            squareInfo={dummySquareInfo}
+            handleClick={() => {}}
+            isSelected={true}
+          />
+        </ThemeProvider>
+      );
+
+      const squareEl = screen.getByTestId('square-selected-e2');
+      expect(squareEl.className).toContain('board-square--selected');
+
+      const pieceEl = squareEl.querySelector('.piece-wrapper') as HTMLElement;
+      expect(pieceEl).toBeDefined();
+      expect(pieceEl.style.transform).toBe('translateY(-2px) scale(1.08)');
+      expect(pieceEl.style.filter).toContain('drop-shadow(0 6px 12px rgba(0, 0, 0, 0.55))');
+    });
+
+    it('attaches legal-move-dot and legal-capture-ring animation classes', () => {
+      const dummySquareInfo = {
+        row: 4,
+        column: 4,
+        squareID: '4-4',
+        gameX: 4,
+        gameY: 3,
+      };
+
+      const { rerender } = render(
+        <ThemeProvider>
+          <BoardSquare
+            testId="square-move-dest"
+            piece={chessPieces.none}
+            boardDisplay={[]}
+            squareInfo={dummySquareInfo}
+            handleClick={() => {}}
+            isMoveDestination={true}
+          />
+        </ThemeProvider>
+      );
+
+      const moveDot = screen.getByTestId('legal-move-dot');
+      expect(moveDot.className).toBe('legal-move-dot');
+
+      rerender(
+        <ThemeProvider>
+          <BoardSquare
+            testId="square-move-dest"
+            piece={chessPieces.b_pawn ?? { name: 'PAWN', symbol: '♙', color: 'black' }}
+            boardDisplay={[]}
+            squareInfo={dummySquareInfo}
+            handleClick={() => {}}
+            isCaptureDestination={true}
+          />
+        </ThemeProvider>
+      );
+
+      const captureRing = screen.getByTestId('legal-capture-ring');
+      expect(captureRing.className).toBe('legal-capture-ring');
     });
   });
 });
