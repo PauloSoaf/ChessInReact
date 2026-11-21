@@ -28,8 +28,8 @@ export const AudioManager: React.FC = () => {
       globalAudioSynthesizer.playMove();
     });
 
-    const unsubCapture = GlobalEventBus.subscribe('PIECE_CAPTURED', () => {
-      globalAudioSynthesizer.playCapture();
+    const unsubCapture = GlobalEventBus.subscribe('PIECE_CAPTURED', (payload) => {
+      globalAudioSynthesizer.playCapture(payload.variantId);
     });
 
     const unsubCheck = GlobalEventBus.subscribe('CHECK_TRIGGERED', () => {

@@ -170,6 +170,35 @@ describe('WebAudioSynthesizer & Audio Decoupling (Spec 01 Section 10.2 & Spec 12
       expect(mockOsc.stop).toHaveBeenCalled();
     });
 
+    it('synthesizes tactile button click for reserve and spell activations', () => {
+      const activeSynth = new WebAudioSynthesizer();
+      activeSynth.playTactileClick();
+
+      expect(mockAudioCtx.createOscillator).toHaveBeenCalled();
+      expect(mockAudioCtx.createGain).toHaveBeenCalled();
+      expect(mockOsc.start).toHaveBeenCalled();
+      expect(mockOsc.stop).toHaveBeenCalled();
+    });
+
+    it('synthesizes piece capture with piece-weight acoustic differentiation', () => {
+      const activeSynth = new WebAudioSynthesizer();
+
+      // Heavy piece (Queen)
+      activeSynth.playCapture('QUEEN');
+      expect(mockOsc.frequency.setValueAtTime).toHaveBeenCalledWith(140, 10.0);
+
+      // Light piece (Pawn)
+      activeSynth.playCapture('PAWN');
+      expect(mockOsc.frequency.setValueAtTime).toHaveBeenCalledWith(220, 10.0);
+
+      // Default/minor piece (Knight or undefined)
+      activeSynth.playCapture('KNIGHT');
+      expect(mockOsc.frequency.setValueAtTime).toHaveBeenCalledWith(180, 10.0);
+
+      activeSynth.playCapture();
+      expect(mockOsc.frequency.setValueAtTime).toHaveBeenCalledWith(180, 10.0);
+    });
+
     it('synthesizes authentic dual-formant duck quack (Spec 12 RF-18)', () => {
       const activeSynth = new WebAudioSynthesizer();
       activeSynth.playDuck();

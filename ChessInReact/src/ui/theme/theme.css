@@ -1100,6 +1100,37 @@ select:focus-visible,
   box-shadow: 0 4px 16px rgba(212, 155, 75, 0.15);
 }
 
+/* Fluid Tactile Touch Micro-interactions for Reserve Drops & Spell Bars */
+.reserve-drop-item-btn {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  transform: scale(1);
+}
+.reserve-drop-item-btn:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.03);
+  filter: brightness(1.12);
+}
+.reserve-drop-item-btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.95);
+  filter: brightness(0.92);
+}
+
+.tactical-spell-btn {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  transform: scale(1);
+}
+.tactical-spell-btn:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.02);
+  filter: brightness(1.1);
+}
+.tactical-spell-btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.95);
+  filter: brightness(0.92);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

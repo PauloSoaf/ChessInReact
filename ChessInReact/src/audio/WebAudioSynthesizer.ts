@@ -125,32 +125,98 @@ export class WebAudioSynthesizer {
   }
 
   /**
-   * Piece capture sound: punchy impact click.
+   * Subtle tactile click sound for UI buttons (reserve drops, spell activation).
    */
-  public playCapture(): void {
+  public playTactileClick(): void {
     if (!this.enabled) return;
     const ctx = this.getContext();
     const master = this.masterGain;
     if (!ctx || !master) return;
 
-    this.triggerHaptic(25);
+    this.triggerHaptic(10);
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    const t = ctx.currentTime;
+    osc.frequency.setValueAtTime(440, t);
+    osc.frequency.exponentialRampToValueAtTime(220, t + 0.02);
+
+    gain.gain.setValueAtTime(0.18, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.02);
+
+    osc.connect(gain);
+    gain.connect(master);
+
+    osc.start(t);
+    osc.stop(t + 0.025);
+  }
+
+  /**
+   * Piece capture sound: punchy impact click with acoustic variation by piece weight.
+   * Heavy pieces (Queen, Rook, King) produce a deeper, resonant wooden thud.
+   * Pawns produce a crisp, lighter tap.
+   */
+  public playCapture(variantId?: string): void {
+    if (!this.enabled) return;
+    const ctx = this.getContext();
+    const master = this.masterGain;
+    if (!ctx || !master) return;
+
+    const vUpper = variantId ? variantId.toUpperCase() : '';
+    const isHeavy = vUpper === 'QUEEN' || vUpper === 'ROOK' || vUpper === 'KING' || vUpper === 'DUCK';
+    const isPawn = vUpper === 'PAWN';
+
+    const hapticDuration = isHeavy ? 35 : isPawn ? 15 : 25;
+    this.triggerHaptic(hapticDuration);
 
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
     osc.type = 'triangle';
     const t = ctx.currentTime;
-    osc.frequency.setValueAtTime(180, t);
-    osc.frequency.exponentialRampToValueAtTime(50, t + 0.065);
 
-    gain.gain.setValueAtTime(0.45, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.065);
+    if (isHeavy) {
+      // Deeper, heavier impact
+      osc.frequency.setValueAtTime(140, t);
+      osc.frequency.exponentialRampToValueAtTime(35, t + 0.08);
 
-    osc.connect(gain);
-    gain.connect(master);
+      gain.gain.setValueAtTime(0.55, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
 
-    osc.start(t);
-    osc.stop(t + 0.07);
+      osc.connect(gain);
+      gain.connect(master);
+
+      osc.start(t);
+      osc.stop(t + 0.085);
+    } else if (isPawn) {
+      // Crisper, lighter tap
+      osc.frequency.setValueAtTime(220, t);
+      osc.frequency.exponentialRampToValueAtTime(80, t + 0.045);
+
+      gain.gain.setValueAtTime(0.35, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.045);
+
+      osc.connect(gain);
+      gain.connect(master);
+
+      osc.start(t);
+      osc.stop(t + 0.05);
+    } else {
+      // Standard minor/medium piece click (Knight, Bishop, Silver, Gold, etc.)
+      osc.frequency.setValueAtTime(180, t);
+      osc.frequency.exponentialRampToValueAtTime(50, t + 0.065);
+
+      gain.gain.setValueAtTime(0.45, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.065);
+
+      osc.connect(gain);
+      gain.connect(master);
+
+      osc.start(t);
+      osc.stop(t + 0.07);
+    }
   }
 
   /**

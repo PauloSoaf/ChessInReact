@@ -1,6 +1,7 @@
 import React from 'react';
 import { IOfficialSpellState } from '../../../engine/variants/spells/OfficialSpellEngine';
 import { PlayerId } from '../../../core/coordinates/types';
+import { globalAudioSynthesizer } from '../../../audio/WebAudioSynthesizer';
 
 export interface IOfficialSpellBarProps {
   readonly state: IOfficialSpellState;
@@ -109,7 +110,11 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
             id="btn-cast-freeze"
             data-testid="btn-cast-freeze"
             type="button"
-            onClick={() => onCastSpell?.('FREEZE')}
+            className="tactical-spell-btn"
+            onClick={() => {
+              globalAudioSynthesizer.playTactileClick();
+              onCastSpell?.('FREEZE');
+            }}
             disabled={charges.freezeCharges <= 0 || charges.freezeCooldownTurns > 0}
             title={
               charges.freezeCharges <= 0
@@ -136,6 +141,9 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
               opacity: charges.freezeCharges > 0 && charges.freezeCooldownTurns === 0 ? 1 : 0.45,
               boxShadow: selectedSpellType === 'FREEZE' ? '0 0 12px rgba(6, 182, 212, 0.65)' : 'none',
               transition: 'all 0.15s ease',
+              touchAction: 'manipulation',
+              userSelect: 'none',
+              WebkitTapHighlightColor: 'transparent',
             }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -189,7 +197,11 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
             id="btn-cast-jump"
             data-testid="btn-cast-jump"
             type="button"
-            onClick={() => onCastSpell?.('JUMP')}
+            className="tactical-spell-btn"
+            onClick={() => {
+              globalAudioSynthesizer.playTactileClick();
+              onCastSpell?.('JUMP');
+            }}
             disabled={charges.jumpCharges <= 0 || charges.jumpCooldownTurns > 0}
             title={
               charges.jumpCharges <= 0
@@ -216,6 +228,9 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
               opacity: charges.jumpCharges > 0 && charges.jumpCooldownTurns === 0 ? 1 : 0.45,
               boxShadow: selectedSpellType === 'JUMP' ? '0 0 12px rgba(168, 85, 247, 0.65)' : 'none',
               transition: 'all 0.15s ease',
+              touchAction: 'manipulation',
+              userSelect: 'none',
+              WebkitTapHighlightColor: 'transparent',
             }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>

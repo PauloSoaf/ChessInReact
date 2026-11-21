@@ -2,6 +2,7 @@ import React from 'react';
 import { IPieceEntity } from '../../../core/entities/types';
 import { PlayerId } from '../../../core/coordinates/types';
 import { chessPieces } from '../../../constants/chessPieces';
+import { globalAudioSynthesizer } from '../../../audio/WebAudioSynthesizer';
 
 export interface IReserveDropsBarProps {
   activePlayer: PlayerId;
@@ -114,29 +115,36 @@ export const ReserveDropsBar: React.FC<IReserveDropsBarProps> = ({
             displaySymbol = pieceInfo?.symbol ?? variant[0];
           }
           const hotkey = getCanonicalHotkey(variant);
-          return (
-            <button
-              key={`drop-btn-${variant}`}
-              data-testid={`drop-btn-${variant.toLowerCase()}`}
-              aria-pressed={isSelected}
-              onClick={() => onSelectDropPiece(isSelected ? null : variant)}
-              title={`Clique para selecionar e depois clique na casa de destino (Atalho: tecla ${hotkey})`}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '5px 10px',
-                fontSize: '0.85rem',
-                borderRadius: 'var(--radius-sm, 6px)',
-                border: isSelected ? '2px solid #10b981' : '1px solid var(--border-subtle, #334155)',
-                backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.28)' : 'var(--bg-secondary, #0f172a)',
-                color: '#fff',
-                cursor: 'pointer',
-                fontWeight: 600,
-                boxShadow: isSelected ? '0 0 10px rgba(16, 185, 129, 0.5)' : 'none',
-                transition: 'all 0.15s ease',
-              }}
-            >
+            return (
+              <button
+                key={`drop-btn-${variant}`}
+                data-testid={`drop-btn-${variant.toLowerCase()}`}
+                aria-pressed={isSelected}
+                onClick={() => {
+                  globalAudioSynthesizer.playTactileClick();
+                  onSelectDropPiece(isSelected ? null : variant);
+                }}
+                title={`Clique para selecionar e depois clique na casa de destino (Atalho: tecla ${hotkey})`}
+                className="reserve-drop-item-btn"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '5px 10px',
+                  fontSize: '0.85rem',
+                  borderRadius: 'var(--radius-sm, 6px)',
+                  border: isSelected ? '2px solid #10b981' : '1px solid var(--border-subtle, #334155)',
+                  backgroundColor: isSelected ? 'rgba(16, 185, 129, 0.28)' : 'var(--bg-secondary, #0f172a)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  boxShadow: isSelected ? '0 0 10px rgba(16, 185, 129, 0.5)' : 'none',
+                  transition: 'all 0.15s ease',
+                  touchAction: 'manipulation',
+                  userSelect: 'none',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
               <kbd
                 style={{
                   fontSize: '0.62rem',
