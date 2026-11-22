@@ -6,8 +6,6 @@ import { useGameStore, useGameActions } from '../bindings/react/useGameStore';
 import { useTheme } from '../ui/theme/ThemeContext';
 import { asCoordinateKey, asEntityId } from '../core/coordinates';
 import { IPieceEntity } from '../core/entities/types';
-import { SquareTopology } from '../core/topology/SquareTopology';
-import { CubicTopology } from '../core/topology/CubicTopology';
 import { ITopology } from '../core/topology/types';
 import { RulesEngine } from '../engine/rules/RulesEngine';
 import { CheckValidator } from '../engine/rules/CheckValidator';
@@ -19,6 +17,7 @@ import { VariantOverlays3D } from './mesh/VariantOverlays3D';
 import { ToroidalChessBoard3D } from './mesh/ToroidalChessBoard3D';
 import { CubicChessBoard3D } from './mesh/CubicChessBoard3D';
 import { CompositeArenaLayouts } from '../engine/multiplayer/arenas/CompositeArenaLayouts';
+import { VariantCatalog } from '../engine/variants/catalog/VariantCatalog';
 import { ArenaModeId } from '../engine/multiplayer/arenas/interfaces/IArenaContracts';
 import { GlobalEventBus } from '../core/events/EventBus';
 import { IInvalidMoveFeedback, ITriggerFeedbackOptions, InvalidMoveReason } from '../bindings/react/useMoveFeedback';
@@ -266,30 +265,8 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
 
   const topology = useMemo(() => {
     if (propTopology) return propTopology;
-    const v = domain.variantId?.toUpperCase() ?? '';
-    if (v.includes('CUBIC')) {
-      return new CubicTopology({ boardSize: effectiveBoardSize });
-    }
-    if (v.includes('TORUS') || v.includes('TOROIDAL')) {
-      return new SquareTopology({ width: effectiveBoardSize, height: effectiveBoardSize, toroidal: true });
-    }
-    if (arenaLayout) {
-      if (arenaLayout.boardType === 'SQUARE_CROSS') {
-        return new SquareTopology({ width: 14, height: 14 });
-      }
-      return new SquareTopology({ width: 16, height: 16 });
-    }
-    if (v.includes('CAPABLANCA')) {
-      return new SquareTopology({ width: 10, height: 8 });
-    }
-    if (v.includes('XIANGQI')) {
-      return new SquareTopology({ width: 9, height: 10 });
-    }
-    if (v.includes('SHOGI')) {
-      return new SquareTopology({ width: 9, height: 9 });
-    }
-    return new SquareTopology({ width: effectiveBoardSize, height: effectiveBoardSize });
-  }, [propTopology, domain.variantId, effectiveBoardSize, arenaLayout]);
+    return VariantCatalog.getTopologyForVariant(domain.variantId);
+  }, [propTopology, domain.variantId]);
 
   // Filter active, uncaptured pieces
   const activePieces = useMemo(() => {

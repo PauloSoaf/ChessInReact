@@ -6,8 +6,6 @@ import { useGameActions, useGameStore } from '../../bindings/react/useGameStore'
 import { asCoordinateKey, asEntityId } from '../../core/coordinates';
 import { MovePieceCommand } from '../../core/commands/MovePieceCommand';
 import { IPieceEntity } from '../../core/entities/types';
-import { SquareTopology } from '../../core/topology/SquareTopology';
-import { CubicTopology } from '../../core/topology/CubicTopology';
 import { ITopology } from '../../core/topology/types';
 import { RulesEngine } from '../../engine/rules/RulesEngine';
 import { VariantRegistry } from '../../engine/rules/VariantRegistry';
@@ -15,6 +13,7 @@ import { PlayerId } from '../../core/coordinates/types';
 import { useTheme } from '../../ui/theme/ThemeContext';
 import { CheckValidator } from '../../engine/rules/CheckValidator';
 import { VariantMapConfig } from '../../engine/variants/VariantMapConfig';
+import { VariantCatalog } from '../../engine/variants/catalog/VariantCatalog';
 import { GlobalEventBus } from '../../core/events/EventBus';
 import { IInvalidMoveFeedback, ITriggerFeedbackOptions, InvalidMoveReason } from '../../bindings/react/useMoveFeedback';
 import { PromotionModal } from '../../ui/components/game/PromotionModal';
@@ -112,11 +111,20 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
 
   const activeLastMove = propLastMove !== undefined ? propLastMove : internalLastMove;
 
+  // Single authoritative topology resolved from prop or master variant catalog (Spec 02 § 6 & Audit)
+  const topology = useMemo(() => {
+    if (propTopology) return propTopology;
+    return VariantCatalog.getTopologyForVariant(domain.variantId);
+  }, [propTopology, domain.variantId]);
+
+  const effectiveWidth = (topology as { readonly width?: number }).width ?? boardSize;
+  const effectiveHeight = (topology as { readonly height?: number }).height ?? boardSize;
+
   // WAI-ARIA Roving Tabindex: store focused square in logical game coordinates (gameX, gameY)
-  // Ensures exactly 1 valid tab stop across any boardSize (4x4, 8x8, 16x16) and orientation (flipped).
+  // Ensures exactly 1 valid tab stop across any board dimensions (8x8, 10x8, 9x10, 14x14) and orientation (flipped).
   const [focusedLogicalCoord, setFocusedLogicalCoord] = React.useState<{ gameX: number; gameY: number }>(() => ({
-    gameX: Math.floor(boardSize / 2),
-    gameY: Math.min(1, boardSize - 1),
+    gameX: Math.floor(effectiveWidth / 2),
+    gameY: Math.min(1, effectiveHeight - 1),
   }));
 
   // Accessible Pawn Promotion Dialog state (Spec 06 RF-08, US06-P09, Spec 01 US01-C10)
@@ -128,21 +136,21 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
     allowedVariants?: string[];
   } | null>(null);
 
-  // Ensure logical coordinates remain within current board boundaries if boardSize changes
+  // Ensure logical coordinates remain within current board boundaries if dimensions change
   const validLogicalCoord = useMemo(() => {
     return {
-      gameX: Math.max(0, Math.min(boardSize - 1, focusedLogicalCoord.gameX)),
-      gameY: Math.max(0, Math.min(boardSize - 1, focusedLogicalCoord.gameY)),
+      gameX: Math.max(0, Math.min(effectiveWidth - 1, focusedLogicalCoord.gameX)),
+      gameY: Math.max(0, Math.min(effectiveHeight - 1, focusedLogicalCoord.gameY)),
     };
-  }, [focusedLogicalCoord, boardSize]);
+  }, [focusedLogicalCoord, effectiveWidth, effectiveHeight]);
 
   // Derive visual (col, row) coordinates reactively from logical coordinates and flip state
   const activeVisualCoord = useMemo(() => {
     return {
-      col: isFlipped ? boardSize - 1 - validLogicalCoord.gameX : validLogicalCoord.gameX,
-      row: isFlipped ? validLogicalCoord.gameY : boardSize - 1 - validLogicalCoord.gameY,
+      col: isFlipped ? effectiveWidth - 1 - validLogicalCoord.gameX : validLogicalCoord.gameX,
+      row: isFlipped ? validLogicalCoord.gameY : effectiveHeight - 1 - validLogicalCoord.gameY,
     };
-  }, [validLogicalCoord, isFlipped, boardSize]);
+  }, [validLogicalCoord, isFlipped, effectiveWidth, effectiveHeight]);
 
   // Keep roving active square in sync with selected piece
   React.useEffect(() => {
@@ -155,12 +163,12 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
       const gy = parseInt(parts[1], 10);
       if (!isNaN(gx) && !isNaN(gy)) {
         setFocusedLogicalCoord({
-          gameX: Math.max(0, Math.min(boardSize - 1, gx)),
-          gameY: Math.max(0, Math.min(boardSize - 1, gy)),
+          gameX: Math.max(0, Math.min(effectiveWidth - 1, gx)),
+          gameY: Math.max(0, Math.min(effectiveHeight - 1, gy)),
         });
       }
     }
-  }, [ui.selectedPieceId, domain.boardEntities, boardSize]);
+  }, [ui.selectedPieceId, domain.boardEntities, effectiveWidth, effectiveHeight]);
 
   // When board is flipped or resized while an element inside the board is focused, retain DOM focus on the updated visual square
   React.useEffect(() => {
@@ -172,40 +180,16 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
       );
       nextSquare?.focus({ preventScroll: true });
     }
-  }, [isFlipped, boardSize, activeVisualCoord.col, activeVisualCoord.row]);
+  }, [isFlipped, effectiveWidth, effectiveHeight, activeVisualCoord.col, activeVisualCoord.row]);
 
   const handleFocusSquare = (visualCol: number, visualRow: number) => {
-    const gx = isFlipped ? boardSize - 1 - visualCol : visualCol;
-    const gy = isFlipped ? visualRow : boardSize - 1 - visualRow;
+    const gx = isFlipped ? effectiveWidth - 1 - visualCol : visualCol;
+    const gy = isFlipped ? visualRow : effectiveHeight - 1 - visualRow;
     setFocusedLogicalCoord({
-      gameX: Math.max(0, Math.min(boardSize - 1, gx)),
-      gameY: Math.max(0, Math.min(boardSize - 1, gy)),
+      gameX: Math.max(0, Math.min(effectiveWidth - 1, gx)),
+      gameY: Math.max(0, Math.min(effectiveHeight - 1, gy)),
     });
   };
-
-  const topology = useMemo(() => {
-    if (propTopology) return propTopology;
-    const v = domain.variantId?.toUpperCase() ?? '';
-    if (v.includes('CUBIC')) {
-      return new CubicTopology({ boardSize });
-    }
-    if (v.includes('TORUS') || v.includes('TOROIDAL')) {
-      return new SquareTopology({ width: boardSize, height: boardSize, toroidal: true });
-    }
-    if (v.includes('CAPABLANCA')) {
-      return new SquareTopology({ width: 10, height: 8 });
-    }
-    if (v.includes('XIANGQI')) {
-      return new SquareTopology({ width: 9, height: 10 });
-    }
-    if (v.includes('SHOGI')) {
-      return new SquareTopology({ width: 9, height: 9 });
-    }
-    return new SquareTopology({ width: boardSize, height: boardSize });
-  }, [propTopology, domain.variantId, boardSize]);
-
-  const effectiveWidth = (topology as { readonly width?: number }).width ?? boardSize;
-  const effectiveHeight = (topology as { readonly height?: number }).height ?? boardSize;
 
   const isCubic = Boolean((topology as { readonly isCubic?: boolean }).isCubic);
   const [selectedFace, setSelectedFace] = React.useState<number>(2); // Default face 2: FRONT
@@ -266,12 +250,12 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
   const derivedBoard = useMemo(() => {
     const grid: IChessPiece[][] = [];
 
-    for (let rowIndex = 0; rowIndex < boardSize; rowIndex++) {
+    for (let rowIndex = 0; rowIndex < effectiveHeight; rowIndex++) {
       const row: IChessPiece[] = [];
-      const gameY = isFlipped ? rowIndex : boardSize - 1 - rowIndex;
+      const gameY = isFlipped ? rowIndex : effectiveHeight - 1 - rowIndex;
 
-      for (let colIndex = 0; colIndex < boardSize; colIndex++) {
-        const gameX = isFlipped ? boardSize - 1 - colIndex : colIndex;
+      for (let colIndex = 0; colIndex < effectiveWidth; colIndex++) {
+        const gameX = isFlipped ? effectiveWidth - 1 - colIndex : colIndex;
         const coordKey = isCubic
           ? asCoordinateKey(`${selectedFace}:${gameX},${gameY}`)
           : asCoordinateKey(`${gameX},${gameY}`);
@@ -344,7 +328,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
       grid.push(row);
     }
     return grid;
-  }, [domain.occupancy, domain.boardEntities, domain.variantId, boardSize, isFlipped, isCubic, selectedFace]);
+  }, [domain.occupancy, domain.boardEntities, domain.variantId, effectiveWidth, effectiveHeight, isFlipped, isCubic, selectedFace]);
 
   // Currently selected entity
   const selectedEntity = useMemo(() => {
@@ -438,19 +422,19 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
       squareInfo.gameX !== undefined
         ? squareInfo.gameX
         : isFlipped
-          ? boardSize - 1 - squareInfo.column
+          ? effectiveWidth - 1 - squareInfo.column
           : squareInfo.column;
     const gameY =
       squareInfo.gameY !== undefined
         ? squareInfo.gameY
         : isFlipped
           ? squareInfo.row
-          : boardSize - 1 - squareInfo.row;
+          : effectiveHeight - 1 - squareInfo.row;
     const clickedCoord = isCubic
       ? asCoordinateKey(`${selectedFace}:${gameX},${gameY}`)
       : asCoordinateKey(`${gameX},${gameY}`);
 
-    if (VariantMapConfig.isVoidSquare(domain.variantId, gameX, gameY, boardSize)) {
+    if (VariantMapConfig.isVoidSquare(domain.variantId, gameX, gameY, effectiveWidth)) {
       return;
     }
 
@@ -845,7 +829,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
           const pieceEntity = rawEntity?.type === 'PIECE' ? (rawEntity as IPieceEntity) : undefined;
           const isSelected = Boolean(ui.selectedPieceId && entityId === ui.selectedPieceId);
 
-          const specialZone = VariantMapConfig.getSquareZone(domain.variantId, gameX, gameY, boardSize);
+          const specialZone = VariantMapConfig.getSquareZone(domain.variantId, gameX, gameY, effectiveWidth);
           const isVoid = specialZone === 'VOID';
 
           const legalMoveInfo = legalMovesMap.get(coordKey);

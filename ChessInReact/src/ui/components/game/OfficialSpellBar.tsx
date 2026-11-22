@@ -200,8 +200,8 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '64px',
-            height: '58px',
+            width: compact ? '48px' : '64px',
+            height: compact ? '44px' : '58px',
             padding: '3px',
             borderRadius: '8px',
             border:
@@ -332,8 +332,8 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '64px',
-            height: '58px',
+            width: compact ? '48px' : '64px',
+            height: compact ? '44px' : '58px',
             padding: '3px',
             borderRadius: '8px',
             border:

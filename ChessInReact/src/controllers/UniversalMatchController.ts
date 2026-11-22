@@ -20,7 +20,6 @@ import { VariantRegistry } from '../engine/rules/VariantRegistry';
 import { CheckValidator } from '../engine/rules/CheckValidator';
 import { ITopology } from '../core/topology/types';
 import { SquareTopology } from '../core/topology/SquareTopology';
-import { CubicTopology } from '../core/topology/CubicTopology';
 import { gameStore } from '../core/state/gameStore';
 import { bootstrapGame } from '../core/bootstrap/GameInitializer';
 import {
@@ -42,8 +41,7 @@ import {
 } from '../analysis/minigames/SpellChessEngine';
 import { TurnCycleManager, ITurnCycleState } from '../engine/multiplayer/arenas/TurnCycleManager';
 import { FFAScoringEngine, IFFAPlayerScore } from '../engine/multiplayer/arenas/FFAScoringEngine';
-import { CompositeArenaLayouts } from '../engine/multiplayer/arenas/CompositeArenaLayouts';
-import { ArenaModeId } from '../engine/multiplayer/arenas/interfaces/IArenaContracts';
+import { VariantCatalog } from '../engine/variants/catalog/VariantCatalog';
 import { VariantMapConfig } from '../engine/variants/VariantMapConfig';
 import { ThreeCheckTracker, ICheckCountState } from '../engine/variants/modifiers/ThreeCheckTracker';
 import { RacingKingsValidator, IRacingKingsState } from '../engine/variants/modifiers/RacingKingsValidator';
@@ -131,30 +129,7 @@ export class UniversalMatchController {
   }
 
   private resolveTopology(config: IMatchConfiguration): ITopology {
-    const v = config.variantId.toUpperCase();
-    if (v === 'CAPABLANCA_CHESS') {
-      return new SquareTopology({ width: 10, height: 8 });
-    }
-    if (v === 'SHOGI') {
-      return new SquareTopology({ width: 9, height: 9 });
-    }
-    if (v === 'XIANGQI') {
-      return new SquareTopology({ width: 9, height: 10 });
-    }
-    if (v === 'TOROIDAL_CHESS' || v.includes('TORUS') || v.includes('TOROIDAL')) {
-      return new SquareTopology({ width: 8, height: 8, toroidal: true });
-    }
-    if (v === 'CUBIC_CHESS' || v.includes('CUBIC')) {
-      return new CubicTopology({ boardSize: 8 });
-    }
-    const arenaLayout = CompositeArenaLayouts.getLayout(v as ArenaModeId);
-    if (arenaLayout) {
-      if (arenaLayout.boardType === 'SQUARE_CROSS') {
-        return new SquareTopology({ width: 14, height: 14 });
-      }
-      return new SquareTopology({ width: 16, height: 16 });
-    }
-    return new SquareTopology({ width: 8, height: 8 });
+    return VariantCatalog.getTopologyForVariant(config.variantId);
   }
 
   private initializeVariantStates(): void {
@@ -871,6 +846,7 @@ export class UniversalMatchController {
               winnerId: winner,
             },
           }));
+          this.notify();
         }
       }
 
@@ -888,6 +864,7 @@ export class UniversalMatchController {
               winnerId: winner,
             },
           }));
+          this.notify();
         }
       }
 
@@ -1126,6 +1103,7 @@ export class UniversalMatchController {
             winnerId: winner,
           },
         }));
+        this.notify();
       }
     }
 
@@ -1142,6 +1120,7 @@ export class UniversalMatchController {
             winnerId: winner,
           },
         }));
+        this.notify();
       }
     }
 

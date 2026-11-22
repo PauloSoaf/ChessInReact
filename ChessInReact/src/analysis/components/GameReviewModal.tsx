@@ -44,29 +44,24 @@ export const GameReviewModal: React.FC<IGameReviewModalProps> = ({
   const [selectedPly, setSelectedPly] = useState<number>(0);
   const [copiedPgn, setCopiedPgn] = useState<boolean>(false);
 
-  // Synthesize realistic evaluation stream if evaluationsCp is empty or shorter than moves
-  const synthesizedEvals = useMemo(() => {
-    if (evaluationsCp.length >= moveSans.length && moveSans.length > 0) {
-      return evaluationsCp;
+  // Authoritative evaluation stream: consumes real evaluations emitted by engine/AI Worker.
+  // Zero synthetic sinusoidal oscillations (P0 Audit Resolution).
+  const effectiveEvals = useMemo(() => {
+    if (evaluationsCp.length > 0) {
+      const evals = [...evaluationsCp];
+      const last = evals[evals.length - 1] ?? 0;
+      while (evals.length <= moveSans.length) {
+        evals.push(last);
+      }
+      return evals;
     }
-    if (moveSans.length === 0) return [0];
-
-    // Seed realistic centipawn progression based on move count
-    const evals: number[] = [0];
-    let currentCp = 15; // slight white opening tempo
-    for (let i = 0; i < moveSans.length; i++) {
-      const isWhite = i % 2 === 0;
-      // Inject deterministic variation
-      const delta = (Math.sin(i * 1.7) * 45) + (isWhite ? 10 : -10);
-      currentCp = Math.max(-1200, Math.min(1200, currentCp + delta));
-      evals.push(Math.round(currentCp));
-    }
-    return evals;
+    // Baseline zero-advantage stream without fabricated blunders or mistakes
+    return new Array(moveSans.length + 1).fill(0);
   }, [evaluationsCp, moveSans]);
 
   const reviewSummary: IGameReviewSummary = useMemo(() => {
-    return GameReviewEngine.analyzeMatch(synthesizedEvals, moveSans);
-  }, [synthesizedEvals, moveSans]);
+    return GameReviewEngine.analyzeMatch(effectiveEvals, moveSans);
+  }, [effectiveEvals, moveSans]);
 
   // Extract mistakes and blunders for the "Retry Mistakes" training feature
   const mistakesList = useMemo(() => {

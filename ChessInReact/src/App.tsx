@@ -34,8 +34,7 @@ import { TimeControlManager } from './matchmaking/config/TimeControlManager';
 import { RulesEngine } from './engine/rules/RulesEngine';
 import { CheckValidator } from './engine/rules/CheckValidator';
 import { SquareTopology } from './core/topology/SquareTopology';
-import { CompositeArenaLayouts } from './engine/multiplayer/arenas/CompositeArenaLayouts';
-import { ArenaModeId } from './engine/multiplayer/arenas/interfaces/IArenaContracts';
+import { VariantCatalog } from './engine/variants/catalog/VariantCatalog';
 import { isWebGLAvailable } from './rendering/webglCapabilities';
 import { PlayerId, asCoordinateKey } from './core/coordinates/types';
 import { IPieceEntity } from './core/entities/types';
@@ -143,13 +142,28 @@ function normalizeBoardCoordinate(coordinate: string | null): string | null {
   return `${file},${rank}`;
 }
 
+/**
+ * Authoritative bi-directional hash router (Audit remediation P0).
+ * Unifies initial view resolution, window hashchange listener, and programmatic navigation.
+ */
+function resolveViewFromHash(hash: string): AppView {
+  switch (hash) {
+    case '#game':
+      return 'GAME';
+    case '#puzzle_rush':
+      return 'PUZZLE_RUSH';
+    case '#bughouse':
+      return 'BUGHOUSE';
+    default:
+      return 'HUB';
+  }
+}
+
 const AppContent: React.FC = () => {
   const [boardSize, setBoardSize] = useState(8);
   const [currentView, setCurrentView] = useState<AppView>(() => {
     if (typeof window !== 'undefined') {
-      if (window.location.hash === '#game') return 'GAME';
-      if (window.location.hash === '#puzzle_rush') return 'PUZZLE_RUSH';
-      if (window.location.hash === '#bughouse') return 'BUGHOUSE';
+      return resolveViewFromHash(window.location.hash);
     }
     return 'HUB';
   });
@@ -165,6 +179,8 @@ const AppContent: React.FC = () => {
 
   // Move History & PGN Notation state (Spec 06 Section 18.1 & Spec 09)
   const [matchMoves, setMatchMoves] = useState<IMoveItem[]>([]);
+  // Authoritative real-time centipawn evaluations recorded per move ply
+  const [matchEvaluationsCp, setMatchEvaluationsCp] = useState<number[]>([0]);
 
   const matchMoveSans = useMemo(() => {
     const sans: string[] = [];
@@ -463,24 +479,29 @@ const AppContent: React.FC = () => {
     }
   }, [entityCount]);
 
-  // Two-way synchronization with URL hash (#game vs #hub vs #puzzle_rush)
+  // Two-way synchronization with URL hash (#game vs #hub vs #puzzle_rush vs #bughouse)
   useEffect(() => {
     const handleHashChange = () => {
       if (typeof window !== 'undefined') {
-        const hash = window.location.hash;
-        if (hash === '#game') {
-          setCurrentView('GAME');
-        } else if (hash === '#puzzle_rush') {
-          setCurrentView('PUZZLE_RUSH');
-        } else {
-          setCurrentView('HUB');
-        }
+        setCurrentView(resolveViewFromHash(window.location.hash));
       }
     };
     handleHashChange();
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
+
+  // Track real evaluations from bot/engine evaluations
+  useEffect(() => {
+    if (matchMoveSans.length > 0 && lastEval !== null) {
+      setMatchEvaluationsCp((prev) => {
+        if (prev.length <= matchMoveSans.length) {
+          return [...prev, lastEval];
+        }
+        return prev;
+      });
+    }
+  }, [matchMoveSans.length, lastEval]);
 
   const navigateTo = useCallback((view: AppView) => {
     setCurrentView(view);
@@ -503,6 +524,7 @@ const AppContent: React.FC = () => {
     setSelectedDropPiece(null);
     setPortalFirstSquare(null);
     setMatchMoves([]);
+    setMatchEvaluationsCp([0]);
     const slot0Clock = universalMatch.snapshot.config.slots[0]?.clock;
     const initialMs = slot0Clock && slot0Clock.initialSeconds > 0 ? slot0Clock.initialSeconds * 1000 : 0;
     setP1TimeLeft(initialMs);
@@ -985,29 +1007,19 @@ const AppContent: React.FC = () => {
       setIsVictoryModalDismissed(false);
       setPendingDrawOffer(null);
       setMatchMoves([]);
+      setMatchEvaluationsCp([0]);
       const slot0Clock = config.slots[0]?.clock;
       const initialMs = slot0Clock && slot0Clock.initialSeconds > 0 ? slot0Clock.initialSeconds * 1000 : 0;
       setP1TimeLeft(initialMs);
       setP2TimeLeft(initialMs);
       universalMatch.startUniversalMatch(config);
 
-      const v = config.variantId.toUpperCase();
-      if (v === 'CAPABLANCA_CHESS') {
-        handleBoardSizeChange(10);
-      } else if (v === 'SHOGI') {
-        handleBoardSizeChange(9);
-      } else if (v === 'XIANGQI') {
-        handleBoardSizeChange(10);
-      } else {
-        const arenaLayout = CompositeArenaLayouts.getLayout(v as ArenaModeId);
-        if (arenaLayout) {
-          handleBoardSizeChange(arenaLayout.boardType === 'SQUARE_CROSS' ? 14 : 16);
-        } else if (config.totalParticipants > 2) {
-          handleBoardSizeChange(16);
-        } else {
-          handleBoardSizeChange(8);
-        }
-      }
+      const topology = VariantCatalog.getTopologyForVariant(config.variantId);
+      const effectiveSize = Math.max(
+        (topology as { width?: number }).width ?? 8,
+        (topology as { height?: number }).height ?? 8
+      );
+      handleBoardSizeChange(effectiveSize);
 
       // The universal controller is authoritative for launched Hub matches.
       // The legacy controller stays disabled so it cannot dispatch a second
@@ -1384,7 +1396,7 @@ const AppContent: React.FC = () => {
                     style={{
                       flex: 1,
                       maxWidth: '548px',
-                      aspectRatio: '1 / 1',
+                      aspectRatio: `${(universalMatch.controller?.getTopology() as { width?: number })?.width ?? boardSize} / ${(universalMatch.controller?.getTopology() as { height?: number })?.height ?? boardSize}`,
                       borderRadius: 'var(--radius-md)',
                       overflow: 'hidden',
                       boxShadow: 'var(--shadow-lg)',
@@ -1611,6 +1623,34 @@ const AppContent: React.FC = () => {
                       </svg>
                       <span>Revisão de Partida (Game Review & CAPS2)</span>
                     </button>
+
+                    <button
+                      type="button"
+                      id="btn-reopen-victory-modal"
+                      data-testid="btn-reopen-victory-modal"
+                      onClick={() => setIsVictoryModalDismissed(false)}
+                      style={{
+                        marginTop: '0.35rem',
+                        width: '100%',
+                        padding: '0.45rem 0.85rem',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border-prominent)',
+                        backgroundColor: 'var(--bg-sunken)',
+                        color: 'var(--text-secondary)',
+                        fontWeight: 700,
+                        fontSize: '0.76rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.45rem',
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                      <span>Ver Celebração & Estatísticas</span>
+                    </button>
                   </>
                 )}
 
@@ -1683,6 +1723,7 @@ const AppContent: React.FC = () => {
         isOpen={isGameReviewOpen}
         onClose={() => setIsGameReviewOpen(false)}
         moveSans={matchMoveSans}
+        evaluationsCp={matchEvaluationsCp}
         whitePlayerName="Humano (Brancas)"
         blackPlayerName={isBotEnabled ? `Bot IA (${DIFFICULTY_LABELS[difficulty]})` : 'Humano (Pretas)'}
         onRetryMistake={(ply, bestMoveSan) => {
