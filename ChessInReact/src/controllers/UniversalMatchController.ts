@@ -682,6 +682,11 @@ export class UniversalMatchController {
         (domain.activePlayer === 'P1'
           ? this.officialSpellState.whiteCharges
           : this.officialSpellState.blackCharges);
+      const opponentCharges =
+        this.officialSpellState &&
+        (domain.activePlayer === 'P1'
+          ? this.officialSpellState.blackCharges
+          : this.officialSpellState.whiteCharges);
       const specializedContext: Record<string, unknown> = {
         participantCount: this.config.totalParticipants,
         friendlyKingCoord: friendlyKing?.position,
@@ -697,6 +702,10 @@ export class UniversalMatchController {
         jumpCharges: officialCharges?.jumpCharges ?? 0,
         freezeCooldown: officialCharges?.freezeCooldownTurns ?? 0,
         jumpCooldown: officialCharges?.jumpCooldownTurns ?? 0,
+        opponentJumpCharges: opponentCharges?.jumpCharges ?? 0,
+        opponentJumpCooldown: opponentCharges?.jumpCooldownTurns ?? 0,
+        opponentFreezeCharges: opponentCharges?.freezeCharges ?? 0,
+        opponentFreezeCooldown: opponentCharges?.freezeCooldownTurns ?? 0,
         activeFrozenCoordinates: this.officialSpellState
           ? Object.keys(this.officialSpellState.activeFrozenCoordinates)
           : [],

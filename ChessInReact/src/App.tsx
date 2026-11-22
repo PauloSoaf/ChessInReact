@@ -1382,6 +1382,27 @@ const AppContent: React.FC = () => {
                 </div>
               </div>
 
+              {/* Opponent Spell Deck Preview (Top Right, above board - 0% square obstruction) */}
+              {(universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_OFFICIAL' ||
+                universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS') &&
+                universalMatch.snapshot.officialSpellState && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'flex-end',
+                      width: '100%',
+                      maxWidth: '604px',
+                      padding: '0 4px',
+                      marginBottom: '2px',
+                    }}
+                  >
+                    <OpponentSpellDeck
+                      state={universalMatch.snapshot.officialSpellState}
+                      activePlayer={activePlayer}
+                    />
+                  </div>
+                )}
+
               {/* Sculpted Board Bezel: Real-time Evaluation Bar + Protagonist Board */}
               <div className="match-board-bezel" style={{ width: '100%', maxWidth: '604px', position: 'relative' }}>
                 <div style={{ display: 'flex', flexShrink: 0, alignSelf: 'stretch' }}>
@@ -1517,80 +1538,64 @@ const AppContent: React.FC = () => {
                     />
                   </main>
                 )}
+              </div>
 
-                {/* Opponent Spell Deck Preview (Top Right of board - Chess.com layout) */}
-                {(universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_OFFICIAL' ||
-                  universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS') &&
-                  universalMatch.snapshot.officialSpellState && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '8px',
-                        right: '8px',
-                        zIndex: 26,
+              {/* Player Spell Deck (Bottom Right, below board - 0% square obstruction) */}
+              {(universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_OFFICIAL' ||
+                universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS') &&
+                universalMatch.snapshot.officialSpellState && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'flex-end',
+                      width: '100%',
+                      maxWidth: '604px',
+                      padding: '0 4px',
+                      marginTop: '6px',
+                      marginBottom: '4px',
+                    }}
+                  >
+                    <OfficialSpellBar
+                      compact={true}
+                      state={universalMatch.snapshot.officialSpellState}
+                      activePlayer={activePlayer}
+                      selectedSpellType={selectedOfficialSpell}
+                      onCancelSpell={() => {
+                        setSelectedOfficialSpell(null);
+                        triggerFeedback('GAME_EVENT', {
+                          message: 'Lançamento cancelado.',
+                        });
                       }}
-                    >
-                      <OpponentSpellDeck
-                        state={universalMatch.snapshot.officialSpellState}
-                        activePlayer={activePlayer}
-                      />
-                    </div>
-                  )}
-
-                {/* Player Spell Deck (Bottom Right of board - Chess.com layout) */}
-                {(universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_OFFICIAL' ||
-                  universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS') &&
-                  universalMatch.snapshot.officialSpellState && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: '8px',
-                        right: '8px',
-                        zIndex: 26,
-                      }}
-                    >
-                      <OfficialSpellBar
-                        compact={true}
-                        state={universalMatch.snapshot.officialSpellState}
-                        activePlayer={activePlayer}
-                        selectedSpellType={selectedOfficialSpell}
-                        onCancelSpell={() => {
-                          setSelectedOfficialSpell(null);
-                          triggerFeedback('GAME_EVENT', {
-                            message: 'Lançamento cancelado.',
-                          });
-                        }}
-                        onCastSpell={(spellType) => {
-                          const selectedPieceId = gameStore.getState().ui.selectedPieceId;
-                          if (spellType === 'JUMP' && selectedPieceId) {
-                            const ok = universalMatch.castOfficialSpell('JUMP', selectedPieceId);
-                            if (ok) {
-                              setSelectedOfficialSpell(null);
-                              triggerFeedback('GAME_EVENT', {
-                                message: 'Feitiço JUMP conjurado na peça selecionada!',
-                              });
-                              return;
-                            }
-                          }
-                          if (selectedOfficialSpell === spellType) {
+                      onCastSpell={(spellType) => {
+                        const selectedPieceId = gameStore.getState().ui.selectedPieceId;
+                        if (spellType === 'JUMP' && selectedPieceId) {
+                          const ok = universalMatch.castOfficialSpell('JUMP', selectedPieceId);
+                          if (ok) {
                             setSelectedOfficialSpell(null);
                             triggerFeedback('GAME_EVENT', {
-                              message: `Seleção de ${spellType} cancelada.`,
+                              message: 'Feitiço JUMP conjurado na peça selecionada!',
                             });
                             return;
                           }
-                          setSelectedOfficialSpell(spellType);
+                        }
+                        if (selectedOfficialSpell === spellType) {
+                          setSelectedOfficialSpell(null);
                           triggerFeedback('GAME_EVENT', {
-                            message:
-                              spellType === 'FREEZE'
-                                ? 'Feitiço FREEZE preparado! Passe o mouse no tabuleiro para ver a área 3×3 e clique na casa central (ou clique em Cancelar).'
-                                : 'Feitiço JUMP preparado! Clique na peça (aliada ou adversária) que deseja pular no tabuleiro (ou clique em Cancelar).',
+                            message: `Seleção de ${spellType} cancelada.`,
                           });
-                        }}
-                      />
-                    </div>
-                  )}
-              </div>
+                          return;
+                        }
+                        setSelectedOfficialSpell(spellType);
+                        triggerFeedback('GAME_EVENT', {
+                          message:
+                            spellType === 'FREEZE'
+                              ? 'Feitiço FREEZE preparado! Passe o mouse no tabuleiro para ver a área 3×3 e clique na casa central (ou clique em Cancelar).'
+                              : 'Feitiço JUMP preparado! Clique na peça (aliada ou adversária) que deseja pular no tabuleiro (ou clique em Cancelar).',
+                        });
+                      }}
+                    />
+                  </div>
+                )}
 
               {/* Bottom Player Strip (Human - White P1 or Bot 1) */}
               <div className="match-stage-player-wrap">
