@@ -48,7 +48,17 @@ export const ThreeCheckCounterBadge: React.FC<IThreeCheckCounterBadgeProps> = ({
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-        <span style={{ fontWeight: 700, color: 'var(--text-prominent)' }}>⚪</span>
+        <span
+          style={{
+            display: 'inline-block',
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: '#ffffff',
+            border: '1px solid #94a3b8',
+          }}
+          aria-label="Brancas"
+        />
         <div style={{ display: 'flex', gap: '3px' }}>
           {renderPips(whiteChecksDelivered, '#fbbf24')}
         </div>
@@ -60,7 +70,17 @@ export const ThreeCheckCounterBadge: React.FC<IThreeCheckCounterBadgeProps> = ({
       <span style={{ color: 'var(--border-subtle, #555)', fontSize: '0.8rem' }}>│</span>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-        <span style={{ fontWeight: 700, color: 'var(--text-prominent)' }}>⚫</span>
+        <span
+          style={{
+            display: 'inline-block',
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: '#0f172a',
+            border: '1px solid #475569',
+          }}
+          aria-label="Pretas"
+        />
         <div style={{ display: 'flex', gap: '3px' }}>
           {renderPips(blackChecksDelivered, '#ef4444')}
         </div>

@@ -30,7 +30,7 @@ describe('PlayerCard UI Component (Spec 06 RF-09 & Section 18)', () => {
     );
 
     expect(screen.getByText('Stockfish Bot')).toBeDefined();
-    expect(screen.getByText('🤖')).toBeDefined();
+    expect(screen.getByLabelText('Bot')).toBeDefined();
     expect(screen.getByText('Mestre (N5)')).toBeDefined();
   });
 
@@ -143,7 +143,7 @@ describe('PlayerCard UI Component (Spec 06 RF-09 & Section 18)', () => {
 
     const rankedBadge = screen.getByTestId('ranked-badge-P1');
     expect(rankedBadge).toBeDefined();
-    expect(rankedBadge.textContent).toContain('🏆 Ranqueada');
+    expect(rankedBadge.textContent).toContain('Ranqueada');
   });
 
   it('renders casual badge when isRanked is false', () => {
@@ -152,16 +152,16 @@ describe('PlayerCard UI Component (Spec 06 RF-09 & Section 18)', () => {
         playerId="P2"
         displayName="Bob"
         isTurnActive={false}
-        timeControlLabel="☕ Casual (∞)"
+        timeControlLabel="Casual (∞)"
         isRanked={false}
         isUnlimited={true}
       />
     );
 
     const tcBadge = screen.getByTestId('time-control-badge-P2');
-    expect(tcBadge.textContent).toContain('☕ Casual (∞)');
+    expect(tcBadge.textContent).toContain('Casual (∞)');
 
     const rankedBadge = screen.getByTestId('ranked-badge-P2');
-    expect(rankedBadge.textContent).toContain('☕ Casual');
+    expect(rankedBadge.textContent).toContain('Casual');
   });
 });

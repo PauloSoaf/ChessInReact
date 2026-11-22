@@ -401,12 +401,12 @@ const AppContent: React.FC = () => {
         const updated = [...prev];
         const last = { ...updated[updated.length - 1] };
         if (last.black) {
-          if (!last.black.includes('💥')) {
-            last.black = `${last.black}💥`;
+          if (!last.black.endsWith('#') && !last.black.endsWith('+')) {
+            last.black = `${last.black}#`;
           }
         } else if (last.white) {
-          if (!last.white.includes('💥')) {
-            last.white = `${last.white}💥`;
+          if (!last.white.endsWith('#') && !last.white.endsWith('+')) {
+            last.white = `${last.white}#`;
           }
         }
         updated[updated.length - 1] = last;
@@ -572,7 +572,7 @@ const AppContent: React.FC = () => {
             playerId: domain.activePlayer,
           });
           triggerFeedback('GAME_EVENT', {
-            message: `🦆 Pato posicionado na casa ${coord}! Lance concluído e vez passada.`,
+            message: `Pato posicionado na casa ${coord}. Lance concluído e vez passada.`,
           });
         }
         return placed;
@@ -598,7 +598,7 @@ const AppContent: React.FC = () => {
           });
           setSelectedOfficialSpell(null);
           triggerFeedback('GAME_EVENT', {
-            message: `✨ Feitiço ${sName} conjurado com sucesso em ${coord}! Agora faça seu lance no tabuleiro.`,
+            message: `Feitiço ${sName} conjurado com sucesso em ${coord}! Agora faça seu lance no tabuleiro.`,
           });
           return true;
         } else {
@@ -619,7 +619,7 @@ const AppContent: React.FC = () => {
           }
           setPortalFirstSquare(coord);
           triggerFeedback('GAME_EVENT', {
-            message: `🌀 Primeira entrada do Portal fixada em ${coord}. Clique na segunda casa vazia para conectar o vórtice!`,
+            message: `Primeira entrada do Portal fixada em ${coord}. Clique na segunda casa vazia para conectar o vórtice!`,
           });
           return true;
         }
@@ -640,7 +640,7 @@ const AppContent: React.FC = () => {
           setSelectedExpandedSpell(null);
           setPortalFirstSquare(null);
           triggerFeedback('GAME_EVENT', {
-            message: `✨ Feitiço ${spellName} conjurado em ${coord} (-${manaCost} mana)!`,
+            message: `Feitiço ${spellName} conjurado em ${coord} (-${manaCost} mana)!`,
           });
           return true;
         } else {
@@ -1720,7 +1720,9 @@ const AppContent: React.FC = () => {
                         boxShadow: '0 2px 8px rgba(56, 189, 248, 0.25)',
                       }}
                     >
-                      <span>📊</span>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 20V10M12 20V4M6 20v-6" />
+                      </svg>
                       <span>Revisão de Partida (Game Review & CAPS2)</span>
                     </button>
                   </>
@@ -1799,7 +1801,7 @@ const AppContent: React.FC = () => {
         blackPlayerName={isBotEnabled ? `Bot IA (${DIFFICULTY_LABELS[difficulty]})` : 'Humano (Pretas)'}
         onRetryMistake={(ply, bestMoveSan) => {
           triggerFeedback('GAME_EVENT', {
-            message: `🎯 Tente encontrar o melhor lance no ply #${ply}!${bestMoveSan ? ` (Sugestão: ${bestMoveSan})` : ''}`,
+            message: `Tente encontrar o melhor lance no ply #${ply}!${bestMoveSan ? ` (Sugestão: ${bestMoveSan})` : ''}`,
           });
         }}
       />

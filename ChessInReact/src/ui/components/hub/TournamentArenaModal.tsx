@@ -222,7 +222,7 @@ export const TournamentArenaModal: React.FC<ITournamentArenaModalProps> = ({
               cursor: 'pointer'
             }}
           >
-            🏆 Sistema Suíço Oficial (FIDE)
+            Sistema Suíço Oficial (FIDE)
           </button>
           <button
             onClick={() => setActiveFormat('ARENA')}
@@ -238,7 +238,7 @@ export const TournamentArenaModal: React.FC<ITournamentArenaModalProps> = ({
               cursor: 'pointer'
             }}
           >
-            ⚔️ Arena Contínua & Berserk
+            Arena Contínua &amp; Berserk
           </button>
         </div>
 
@@ -454,7 +454,7 @@ export const TournamentArenaModal: React.FC<ITournamentArenaModalProps> = ({
                     cursor: 'pointer'
                   }}
                 >
-                  ⚡ Parear Jogadores Livres (Fast Pairing)
+                  Parear Jogadores Livres (Fast Pairing)
                 </button>
               </div>
 

@@ -241,15 +241,6 @@ export class TimeControlManager {
     const inc = incrementSeconds ?? 0;
     const incStr = inc > 0 ? `+${inc}` : '+0';
 
-    const iconMap: Record<TimeControlCategory, string> = {
-      BULLET: '⚡',
-      BLITZ: '🔥',
-      RAPID: '⏱️',
-      CLASSICAL: '⏳',
-      CUSTOM: '⚙️',
-      UNLIMITED: '☕',
-    };
-
     const categoryNameMap: Record<TimeControlCategory, string> = {
       BULLET: 'Bullet',
       BLITZ: 'Blitz',
@@ -259,9 +250,12 @@ export class TimeControlManager {
       UNLIMITED: 'Casual',
     };
 
-    const icon = iconMap[category] ?? '⏱️';
     const catName = categoryNameMap[category] ?? 'Xadrez';
 
-    return `${icon} ${mins}${incStr} • ${catName}`;
+    if (category === 'UNLIMITED') {
+      return 'Casual (∞)';
+    }
+
+    return `${mins}${incStr} • ${catName}`;
   }
 }

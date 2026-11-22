@@ -25,122 +25,102 @@ export const VariantMatchBanner: React.FC<IVariantMatchBannerProps> = ({
   const variantDef = VariantCatalog.getById(normId);
 
   // Variant metadata heuristics
-  let icon = '♟️';
   let title = variantDef?.name ?? normId.replace(/_/g, ' ');
   let subtitle = variantDef?.description ?? '';
   let badge = variantDef?.badge ?? 'Variante Ativa';
   let accentColor = '#3b82f6';
 
   if (normId.includes('SPELL') || normId === 'SPELL_CHESS_OFFICIAL') {
-    icon = '🧙‍♂️';
-    title = 'Spell Chess (Regras Oficiais Chess.com)';
-    badge = 'Freeze & Jump (2 Cargas)';
-    subtitle = 'Use as cartas/botões abaixo para congelar áreas 3×3 ou saltar sobre peças com recarga de 3 turnos.';
+    title = 'Spell Chess';
+    badge = 'Oficial';
+    subtitle = 'Congele áreas 3×3 ou salte sobre peças com tempo de recarga.';
     accentColor = '#06b6d4';
   } else if (normId === 'SPELL_CHESS_EXPANDED') {
-    icon = '✨';
-    title = 'Spell Chess (Expanded RPG)';
+    title = 'Spell Chess (Expanded)';
     badge = '7 Feitiços & Mana';
-    subtitle = 'Economia dinâmica de mana (2 a 6). Conjure feitiços arcanos na sua mão de cartas.';
+    subtitle = 'Economia dinâmica de mana. Conjure feitiços arcanos na sua mão de cartas.';
     accentColor = '#9333ea';
   } else if (normId.includes('DUCK')) {
-    icon = '🦆';
-    title = 'Duck Chess (Xadrez do Pato)';
+    title = 'Duck Chess';
     badge = 'Pato Neutro';
     subtitle = 'Sem xeque tradicional. Mova sua peça e reposicione o pato neutro para bloquear o adversário.';
     accentColor = '#eab308';
   } else if (normId.includes('BUGHOUSE')) {
-    icon = '👯';
-    title = 'Bughouse Twin-Arena (2v2)';
+    title = 'Bughouse (2v2)';
     badge = '2 Tabuleiros & Drops';
     subtitle = 'Peças capturadas vão para a reserva do seu parceiro na mesa vizinha.';
     accentColor = '#10b981';
   } else if (normId.includes('FOG')) {
-    icon = '🌫️';
-    title = 'Fog of War (Névoa de Guerra)';
-    badge = 'Visão Oculta';
+    title = 'Fog of War';
+    badge = 'Névoa de Guerra';
     subtitle = 'Você só enxerga as casas alcançadas pelas suas próprias peças.';
     accentColor = '#64748b';
   } else if (normId.includes('ATOMIC')) {
-    icon = '💥';
-    title = 'Atomic Chess (Xadrez Atômico)';
+    title = 'Atomic Chess';
     badge = 'Explosão 3×3';
     subtitle = 'Toda captura gera uma explosão de raio 1 que elimina peças vizinhas exceto peões.';
     accentColor = '#ef4444';
   } else if (normId.includes('THREE_CHECK')) {
-    icon = '🎯';
     title = 'Three-Check Chess';
-    badge = '3 Xeques = Vitória';
+    badge = '3 Xeques';
     subtitle = 'O primeiro jogador a aplicar 3 xeques no rei adversário vence a partida.';
     accentColor = '#f59e0b';
   } else if (normId.includes('KING_OF_THE_HILL')) {
-    icon = '⛰️';
     title = 'King of the Hill';
     badge = 'Centro d4/d5/e4/e5';
     subtitle = 'Leve seu rei a uma das quatro casas centrais para vencer imediatamente.';
     accentColor = '#d97706';
   } else if (normId.includes('RACING_KINGS')) {
-    icon = '🏁';
     title = 'Racing Kings';
     badge = 'Corrida de Reis';
     subtitle = 'Corrida até a oitava fileira. O primeiro rei a alcançar a fileira 8 vence.';
     accentColor = '#8b5cf6';
   } else if (normId.includes('CAPABLANCA')) {
-    icon = '🏰';
     title = 'Capablanca Chess (10×8)';
     badge = 'Arcebispo & Chanceler';
-    subtitle = 'Tabuleiro expandido 10×8 com as lendárias peças compostas Arcebispo e Chanceler.';
+    subtitle = 'Tabuleiro expandido 10×8 com as peças compostas Arcebispo e Chanceler.';
     accentColor = '#0284c7';
   } else if (normId.includes('SHOGI')) {
-    icon = '☖';
-    title = 'Shogi (Xadrez Japonês - 将棋)';
+    title = 'Shogi (将棋)';
     badge = 'Drops & Komadai';
-    subtitle = 'Peças capturadas passam a pertencer ao captor e podem ser reintroduzidas (Drop) em qualquer casa livre.';
+    subtitle = 'Peças capturadas passam a pertencer ao captor e podem ser reintroduzidas.';
     accentColor = '#d97706';
   } else if (normId.includes('XIANGQI')) {
-    icon = '帥';
-    title = 'Xiangqi (Xadrez Chinês - 象棋)';
-    badge = 'Palácio & Rio Celestial';
-    subtitle = 'Canhões saltam para capturar; Generais e Conselheiros confinados ao Palácio 3×3; Elefantes não cruzam o Rio.';
+    title = 'Xiangqi (象棋)';
+    badge = 'Palácio & Rio';
+    subtitle = 'Canhões saltam para capturar; Generais confinados ao Palácio; Elefantes não cruzam o Rio.';
     accentColor = '#dc2626';
   } else if (normId.includes('ANTICHESS') || normId.includes('GIVEAWAY')) {
-    icon = '🔄';
-    title = 'Antichess (Losing Chess)';
-    badge = 'Captura Forçada';
-    subtitle = 'Perca todas as suas peças ou fique sem lances legais para triunfar! Capturas são obrigatórias.';
+    title = 'Antichess';
+    badge = 'Captura Obrigatória';
+    subtitle = 'Perca todas as suas peças ou fique sem lances legais para triunfar.';
     accentColor = '#10b981';
   } else if (normId.includes('CRAZYHOUSE')) {
-    icon = '📦';
-    title = 'Crazyhouse (Drops)';
-    badge = 'Drops de Reserva';
-    subtitle = 'Peças capturadas vão para seu inventário de reservas para serem recolocadas no tabuleiro.';
+    title = 'Crazyhouse';
+    badge = 'Drops';
+    subtitle = 'Peças capturadas vão para seu inventário de reservas para serem recolocadas.';
     accentColor = '#a855f7';
   } else if (normId.includes('HORDE')) {
-    icon = '🛡️';
     title = 'Horde Chess';
-    badge = '36 Peões vs Exército';
-    subtitle = 'Uma muralha assimétrica de 36 peões brancos marchando contra as peças tradicionais das pretas.';
+    badge = '36 Peões';
+    subtitle = 'Muralha assimétrica de 36 peões brancos marchando contra as peças tradicionais das pretas.';
     accentColor = '#e11d48';
   } else if (normId.includes('TORUS') || normId.includes('TOROIDAL')) {
-    icon = '🍩';
-    title = 'Toroidal Chess (Rosquinha 3D)';
+    title = 'Toroidal Chess';
     badge = 'Torus 3D';
-    subtitle = 'Geometria não-euclidiana em um Torus 3D. Bordas opostas conectadas continuamente!';
+    subtitle = 'Geometria não-euclidiana em um Torus 3D. Bordas opostas conectadas continuamente.';
     accentColor = '#f59e0b';
   } else if (normId.includes('CUBE') || normId.includes('CUBIC')) {
-    icon = '🎲';
-    title = 'Cubic Chess (Cubo 3D)';
-    badge = 'Cubo 3D (6 Faces)';
-    subtitle = 'Batalha tridimensional contínua nas 6 faces de um Cubo 3D. Marcha livre através das arestas!';
+    title = 'Cubic Chess';
+    badge = 'Cubo 3D';
+    subtitle = 'Batalha tridimensional contínua nas 6 faces de um Cubo 3D.';
     accentColor = '#06b6d4';
   } else if (normId.includes('PROCEDURAL') || normId.includes('ENDLESS')) {
-    icon = '🌌';
-    title = 'Endless Procedural Conquest';
-    badge = 'Procedural ∞';
-    subtitle = 'Mundo aberto gerado continuamente por Simplex Noise. Expanda e conquiste novos macro-chunks!';
+    title = 'Endless Procedural';
+    badge = 'Infinito';
+    subtitle = 'Mundo aberto gerado continuamente por Simplex Noise.';
     accentColor = '#10b981';
   } else if (participantCount > 2) {
-    icon = '⚔️';
     title = `${participantCount} Jogadores - Arena Massiva`;
     badge = `FFA / ${participantCount} Factions`;
     subtitle = 'Disputa de múltiplos jogadores com eliminação, ordem cíclica de turnos e pontuação.';
@@ -164,18 +144,17 @@ export const VariantMatchBanner: React.FC<IVariantMatchBannerProps> = ({
         justifyContent: 'space-between',
         width: '100%',
         maxWidth: '604px',
-        padding: '0.65rem 0.95rem',
+        padding: '0.5rem 0.85rem',
         borderRadius: 'var(--radius-md)',
         backgroundColor: 'var(--bg-elevated)',
-        border: `2px solid ${accentColor}`,
-        boxShadow: `0 2px 10px rgba(0, 0, 0, 0.15)`,
-        marginBottom: '0.5rem',
+        border: `1px solid ${accentColor}`,
+        boxShadow: `0 2px 8px rgba(0, 0, 0, 0.15)`,
+        marginBottom: '0.45rem',
         gap: '0.75rem',
         flexWrap: 'wrap',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-        <span style={{ fontSize: '1.45rem', lineHeight: 1 }}>{icon}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <span
@@ -242,7 +221,6 @@ export const VariantMatchBanner: React.FC<IVariantMatchBannerProps> = ({
                 gap: '0.4rem',
               }}
             >
-              <span aria-hidden="true">⚡</span>
               <span>Turno de Equalização: Pretas precisam alcançar a 8ª fileira para empatar!</span>
             </div>
           )}

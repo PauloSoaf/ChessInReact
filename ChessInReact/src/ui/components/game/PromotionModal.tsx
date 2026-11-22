@@ -197,7 +197,7 @@ export const PromotionModal: React.FC<IPromotionModalProps> = ({
                 gap: '0.5rem',
               }}
             >
-              <span>👑 Promoção de Peão</span>
+              <span>Promoção de Peão</span>
               <span
                 style={{
                   fontSize: '0.8rem',
@@ -361,7 +361,7 @@ export const PromotionModal: React.FC<IPromotionModalProps> = ({
           }}
         >
           <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #94a3b8)' }}>
-            💡 Dica: Pressione <kbd style={{ padding: '2px 5px', borderRadius: '3px', background: 'rgba(255,255,255,0.1)' }}>Q</kbd>, <kbd style={{ padding: '2px 5px', borderRadius: '3px', background: 'rgba(255,255,255,0.1)' }}>N</kbd>, <kbd style={{ padding: '2px 5px', borderRadius: '3px', background: 'rgba(255,255,255,0.1)' }}>R</kbd> ou <kbd style={{ padding: '2px 5px', borderRadius: '3px', background: 'rgba(255,255,255,0.1)' }}>B</kbd>
+            Dica: Pressione <kbd style={{ padding: '2px 5px', borderRadius: '3px', background: 'rgba(255,255,255,0.1)' }}>Q</kbd>, <kbd style={{ padding: '2px 5px', borderRadius: '3px', background: 'rgba(255,255,255,0.1)' }}>N</kbd>, <kbd style={{ padding: '2px 5px', borderRadius: '3px', background: 'rgba(255,255,255,0.1)' }}>R</kbd> ou <kbd style={{ padding: '2px 5px', borderRadius: '3px', background: 'rgba(255,255,255,0.1)' }}>B</kbd>
           </div>
           <button
             type="button"

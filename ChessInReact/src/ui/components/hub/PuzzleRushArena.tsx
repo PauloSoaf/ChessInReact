@@ -177,13 +177,13 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
         setFeedback({
           isCorrect: true,
           message: outcome.isPuzzleCompleted
-            ? '✅ Combinação correta! Próximo problema...'
-            : '✅ Lance correto! Complete a linha tática...',
+            ? 'Combinação correta! Próximo problema...'
+            : 'Lance correto! Complete a linha tática...',
         });
       } else {
         setFeedback({
           isCorrect: false,
-          message: `❌ Lance incorreto (${move}). Vida consumida!`,
+          message: `Lance incorreto (${move}). Vida consumida!`,
         });
       }
 
@@ -369,12 +369,12 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
             id="pr-score"
             style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '1.15rem',
+              fontSize: '1rem',
               fontWeight: 800,
               color: 'var(--color-accent)',
             }}
           >
-            🏆 {session.score}
+            Pontos: {session.score}
           </span>
 
           {session.mode === 'BATTLE' && (
@@ -383,21 +383,30 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
               aria-label={`Pontuação do bot: ${session.battleOpponentScore ?? 0}`}
               style={{
                 fontFamily: 'var(--font-mono)',
-                fontSize: '1.05rem',
+                fontSize: '0.95rem',
                 fontWeight: 800,
                 color: 'var(--color-warning)',
               }}
             >
-              🤖 {session.battleOpponentScore ?? 0}
+              Bot: {session.battleOpponentScore ?? 0}
             </span>
           )}
 
           {session.lives !== Infinity && (
-            <span id="pr-lives" style={{ fontSize: '1.1rem' }}>
+            <span id="pr-lives" style={{ display: 'inline-flex', gap: '4px', alignItems: 'center' }}>
               {Array.from({ length: 3 }).map((_, i) => (
-                <span key={i} style={{ opacity: i < session.lives ? 1 : 0.25 }}>
-                  ❤️
-                </span>
+                <span
+                  key={i}
+                  style={{
+                    display: 'inline-block',
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: i < session.lives ? '#ef4444' : 'rgba(255,255,255,0.15)',
+                    border: '1px solid rgba(239,68,68,0.5)',
+                  }}
+                  aria-label={i < session.lives ? 'Vida ativa' : 'Vida perdida'}
+                />
               ))}
             </span>
           )}

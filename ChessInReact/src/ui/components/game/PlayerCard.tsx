@@ -106,7 +106,13 @@ export const PlayerCard: React.FC<IPlayerCardProps> = ({
             flexShrink: 0,
           }}
         >
-          {isBot ? '🤖' : isWhite ? '♔' : '♚'}
+          {isBot ? (
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Bot">
+              <rect x="3" y="11" width="18" height="10" rx="2" />
+              <circle cx="12" cy="5" r="2" />
+              <path d="M12 7v4M8 16h.01M16 16h.01" />
+            </svg>
+          ) : isWhite ? '♔' : '♚'}
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', minWidth: 0 }}>
@@ -249,13 +255,13 @@ export const PlayerCard: React.FC<IPlayerCardProps> = ({
                   fontWeight: 800,
                   padding: '0.08rem 0.38rem',
                   borderRadius: 'var(--radius-sm)',
-                  backgroundColor: isRanked ? 'rgba(234, 179, 8, 0.14)' : 'var(--bg-sunken)',
-                  color: isRanked ? '#eab308' : 'var(--text-muted)',
-                  border: isRanked ? '1px solid rgba(234, 179, 8, 0.35)' : '1px solid var(--border-subtle)',
+                  backgroundColor: isRanked ? 'rgba(56, 189, 248, 0.12)' : 'var(--bg-sunken)',
+                  color: isRanked ? 'var(--color-accent)' : 'var(--text-muted)',
+                  border: isRanked ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid var(--border-subtle)',
                   whiteSpace: 'nowrap',
                 }}
               >
-                {isRanked ? '🏆 Ranqueada' : '☕ Casual'}
+                {isRanked ? 'Ranqueada' : 'Casual'}
               </span>
             )}
           </div>
@@ -294,7 +300,7 @@ export const PlayerCard: React.FC<IPlayerCardProps> = ({
               letterSpacing: '0.04em',
             }}
           >
-            ⏱ {isUnlimited ? '∞' : formatClockTime(timeLeftMs ?? 0)}
+            {isUnlimited ? '∞' : formatClockTime(timeLeftMs ?? 0)}
           </div>
         )}
 

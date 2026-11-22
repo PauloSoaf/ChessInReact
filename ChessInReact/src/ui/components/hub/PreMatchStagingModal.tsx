@@ -378,7 +378,7 @@ export const PreMatchStagingModal: React.FC<IPreMatchStagingModalProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                🏆 Ranqueada (Rating)
+                Ranqueada (Rating)
               </button>
               <button
                 type="button"
@@ -394,7 +394,7 @@ export const PreMatchStagingModal: React.FC<IPreMatchStagingModalProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                ☕ Casual (Sem Rating)
+                Casual (Sem Rating)
               </button>
             </div>
           </div>
@@ -403,16 +403,6 @@ export const PreMatchStagingModal: React.FC<IPreMatchStagingModalProps> = ({
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
             {TimeControlManager.PRESETS.map((preset) => {
               const isSelected = !isCustomTime && selectedPresetId === preset.id;
-              const icon =
-                preset.category === 'BULLET'
-                  ? '⚡'
-                  : preset.category === 'BLITZ'
-                  ? '🔥'
-                  : preset.category === 'RAPID'
-                  ? '⏱️'
-                  : preset.category === 'CLASSICAL'
-                  ? '⏳'
-                  : '♾️';
 
               return (
                 <button
@@ -432,7 +422,7 @@ export const PreMatchStagingModal: React.FC<IPreMatchStagingModalProps> = ({
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  {icon} {preset.label}
+                  {preset.label}
                 </button>
               );
             })}
@@ -450,7 +440,7 @@ export const PreMatchStagingModal: React.FC<IPreMatchStagingModalProps> = ({
                 cursor: 'pointer',
               }}
             >
-              ⚙️ Customizado
+              Customizado
             </button>
           </div>
 
@@ -514,7 +504,7 @@ export const PreMatchStagingModal: React.FC<IPreMatchStagingModalProps> = ({
                 cursor: 'pointer',
               }}
             >
-              👤 vs 🤖 Você vs Bot
+              Você vs Bot
             </button>
             <button
               type="button"
@@ -529,7 +519,7 @@ export const PreMatchStagingModal: React.FC<IPreMatchStagingModalProps> = ({
                 cursor: 'pointer',
               }}
             >
-              👤 vs 👤 2 Jogadores (Local)
+              2 Jogadores (Local)
             </button>
             <button
               type="button"
@@ -544,7 +534,7 @@ export const PreMatchStagingModal: React.FC<IPreMatchStagingModalProps> = ({
                 cursor: 'pointer',
               }}
             >
-              🤖 vs 🤖 Duelo de Bots
+              Duelo de Bots
             </button>
           </div>
         </div>
@@ -673,14 +663,14 @@ export const PreMatchStagingModal: React.FC<IPreMatchStagingModalProps> = ({
         >
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <ActionButton variant="ghost" size="sm" onClick={handleCopyJson}>
-              📋 Copiar JSON
+              Copiar JSON
             </ActionButton>
             <ActionButton
               variant="ghost"
               size="sm"
               onClick={() => setShowImportBox(!showImportBox)}
             >
-              📥 Importar JSON
+              Importar JSON
             </ActionButton>
           </div>
 
@@ -689,7 +679,7 @@ export const PreMatchStagingModal: React.FC<IPreMatchStagingModalProps> = ({
               Cancelar
             </ActionButton>
             <ActionButton variant="primary" onClick={() => onLaunchMatch(config)}>
-              ⚔️ Iniciar Arena
+              Iniciar Arena
             </ActionButton>
           </div>
         </div>

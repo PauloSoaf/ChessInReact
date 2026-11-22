@@ -758,7 +758,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                 transition: 'all var(--transition-fast)',
               }}
             >
-              ♟️ Clássico (2)
+              Clássico (2)
             </button>
 
             <button
@@ -782,7 +782,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                 transition: 'all var(--transition-fast)',
               }}
             >
-              ✨ Mágicos &amp; Híbridos (7)
+              Mágicos &amp; Híbridos (7)
             </button>
 
             <button
@@ -805,7 +805,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                 transition: 'all var(--transition-fast)',
               }}
             >
-              🛡️ Arenas Massivas (3-12P)
+              Arenas Massivas (3-12P)
             </button>
 
             <button
@@ -828,7 +828,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                 transition: 'all var(--transition-fast)',
               }}
             >
-              📐 Fadas &amp; Geometria
+              Fadas &amp; Geometria
             </button>
 
             <button
@@ -851,7 +851,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                 transition: 'all var(--transition-fast)',
               }}
             >
-              📜 Histórico &amp; Regional
+              Histórico &amp; Regional
             </button>
 
             <button
@@ -874,7 +874,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                 transition: 'all var(--transition-fast)',
               }}
             >
-              🎓 Academia &amp; Estudo
+              Academia &amp; Estudo
             </button>
           </div>
         </div>
@@ -1730,7 +1730,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                 boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)'
               }}
             >
-              🏆 Torneios (Suíço & Arena Berserk)
+              Torneios (Suíço & Arena Berserk)
             </button>
 
             {/* Category Filter Pills */}

@@ -199,7 +199,7 @@ export const OpeningExplorerModal: React.FC<IOpeningExplorerModalProps> = ({
               cursor: 'pointer'
             }}
           >
-            📖 Explorador Mestre
+            Explorador Mestre
           </button>
           <button
             onClick={() => setActiveTab('REPERTOIRE')}
@@ -215,7 +215,7 @@ export const OpeningExplorerModal: React.FC<IOpeningExplorerModalProps> = ({
               cursor: 'pointer'
             }}
           >
-            🧠 Treinador de Repertório (SM-2)
+            Treinador de Repertório (SM-2)
           </button>
         </div>
 

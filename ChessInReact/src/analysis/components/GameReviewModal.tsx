@@ -20,7 +20,7 @@ const CLASSIFICATION_LABELS: Record<MoveClassification, { label: string; glyph: 
   BEST: { label: 'Melhor Lance', glyph: '★', color: '#10b981' },
   EXCELLENT: { label: 'Excelente', glyph: '!?', color: '#22c55e' },
   GOOD: { label: 'Bom', glyph: '✓', color: '#84cc16' },
-  BOOK: { label: 'Abertura Teórica', glyph: '📖', color: '#a855f7' },
+  BOOK: { label: 'Abertura Teórica', glyph: 'T', color: '#a855f7' },
   INACCURACY: { label: 'Imprecisão', glyph: '?!', color: '#f59e0b' },
   MISTAKE: { label: 'Erro', glyph: '?', color: '#f97316' },
   BLUNDER: { label: 'Gafe (Blunder)', glyph: '??', color: '#ef4444' },
@@ -296,7 +296,7 @@ export const GameReviewModal: React.FC<IGameReviewModalProps> = ({
               }}
             >
               <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-subtle, #94a3b8)' }}>
-                📈 Curva de Vantagem Posicional (Centipawns & Win Chance)
+                Curva de Vantagem Posicional (Centipawns & Win Chance)
               </span>
               <span style={{ fontSize: '0.7rem', color: 'var(--text-subtle, #94a3b8)' }}>
                 Clique no gráfico para inspecionar o lance
@@ -321,7 +321,7 @@ export const GameReviewModal: React.FC<IGameReviewModalProps> = ({
                 marginBottom: '0.5rem',
               }}
             >
-              🏷️ Distribuição de Qualidade dos Lances
+              Distribuição de Qualidade dos Lances
             </span>
             <div
               style={{
@@ -384,7 +384,6 @@ export const GameReviewModal: React.FC<IGameReviewModalProps> = ({
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                <span style={{ fontSize: '1.1rem' }}>💡</span>
                 <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#fb923c' }}>
                   Corrija Seus Erros (Retry Mistakes)
                 </span>
@@ -396,7 +395,7 @@ export const GameReviewModal: React.FC<IGameReviewModalProps> = ({
 
             {mistakesList.length === 0 ? (
               <p style={{ margin: 0, fontSize: '0.78rem', color: '#10b981', fontWeight: 600 }}>
-                🎉 Excelente partida! Não foram identificadas gafes graves ou vitórias perdidas.
+                Excelente partida! Não foram identificadas gafes graves ou vitórias perdidas.
               </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
