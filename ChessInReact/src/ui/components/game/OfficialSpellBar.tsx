@@ -9,6 +9,7 @@ export interface IOfficialSpellBarProps {
   readonly onCastSpell?: (spellType: 'FREEZE' | 'JUMP') => void;
   readonly onCancelSpell?: () => void;
   readonly selectedSpellType?: 'FREEZE' | 'JUMP' | null;
+  readonly compact?: boolean;
 }
 
 export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
@@ -17,6 +18,7 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
   onCastSpell,
   onCancelSpell,
   selectedSpellType,
+  compact = false,
 }) => {
   const isWhite = activePlayer === 'P1' || (activePlayer as string) === 'WHITE';
   const charges = isWhite ? state.whiteCharges : state.blackCharges;
@@ -70,78 +72,89 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
     <div
       id="official-spell-bar"
       role="region"
-      aria-label="Feitiços Oficiais - Spell Chess (Chess.com)"
+      aria-label="Feitiços Oficiais - Spell Chess"
       data-testid="official-spell-bar"
       style={{
         display: 'flex',
         flexDirection: 'column',
         width: '100%',
-        maxWidth: '548px',
-        padding: '0.45rem 0.75rem',
+        maxWidth: compact ? '220px' : '548px',
+        padding: compact ? '0.35rem 0.5rem' : '0.45rem 0.75rem',
         borderRadius: 'var(--radius-md, 8px)',
-        backgroundColor: 'rgba(15, 23, 42, 0.88)',
-        backdropFilter: 'blur(8px)',
-        border: selectedSpellType ? '2px solid #06b6d4' : '1px solid var(--border-prominent, #334155)',
-        boxShadow: selectedSpellType ? '0 0 16px rgba(6, 182, 212, 0.45)' : 'var(--shadow-sm, 0 2px 4px rgba(0,0,0,0.3))',
-        marginBottom: '0.45rem',
+        backgroundColor: 'rgba(15, 23, 42, 0.92)',
+        backdropFilter: 'blur(10px)',
+        border: selectedSpellType ? '1.5px solid #06b6d4' : '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: selectedSpellType ? '0 0 16px rgba(6, 182, 212, 0.35)' : 'var(--shadow-sm, 0 2px 4px rgba(0,0,0,0.3))',
         gap: '0.4rem',
         transition: 'all 0.2s ease',
       }}
     >
-      {/* Top Header: Title, Active Turn & Opponent Inventory preview */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '0.5rem',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-          <span style={{ fontSize: '1.1rem' }}>🧙‍♂️</span>
-          <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#38bdf8', letterSpacing: '0.02em' }}>
-            Spell Chess Oficial (Chess.com)
-          </span>
-          <span
-            style={{
-              fontSize: '0.68rem',
-              color: 'var(--text-muted, #94a3b8)',
-              backgroundColor: 'rgba(255,255,255,0.06)',
-              padding: '2px 6px',
-              borderRadius: '4px',
-            }}
-          >
-            Vez: {isWhite ? 'Brancas' : 'Pretas'}
-          </span>
-        </div>
-
-        {/* Opponent Potion Inventory Pill (small corner badges like Chess.com) */}
+      {/* Header: Title and Opponent Inventory preview */}
+      {!compact && (
         <div
-          title={`Oponente (${isWhite ? 'Pretas' : 'Brancas'}): ${oppCharges.jumpCharges} Salto(s), ${oppCharges.freezeCharges} Congelamento(s)`}
           style={{
-            display: 'inline-flex',
+            display: 'flex',
             alignItems: 'center',
-            gap: '0.35rem',
-            fontSize: '0.68rem',
-            color: 'var(--text-muted, #94a3b8)',
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            padding: '2px 8px',
-            borderRadius: '12px',
-            border: '1px solid rgba(255,255,255,0.08)',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
           }}
         >
-          <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Oponente:
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', color: '#4ade80' }}>
-            🧪 x{oppCharges.jumpCharges}
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', color: '#38bdf8' }}>
-            ❄️ x{oppCharges.freezeCharges}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+            <span
+              style={{
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                color: '#38bdf8',
+                fontFamily: 'var(--font-sans, Inter, sans-serif)',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Spell Chess
+            </span>
+            <span
+              style={{
+                fontSize: '0.65rem',
+                fontFamily: 'var(--font-mono, monospace)',
+                color: 'var(--text-muted, #94a3b8)',
+                backgroundColor: 'rgba(255,255,255,0.06)',
+                padding: '2px 6px',
+                borderRadius: '4px',
+              }}
+            >
+              Vez: {isWhite ? 'Brancas' : 'Pretas'}
+            </span>
+          </div>
+
+          {/* Opponent Potion Inventory Pill (small corner badges like Chess.com) */}
+          <div
+            title={`Oponente (${isWhite ? 'Pretas' : 'Brancas'}): ${oppCharges.jumpCharges} Salto(s), ${oppCharges.freezeCharges} Congelamento(s)`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              fontSize: '0.68rem',
+              color: 'var(--text-muted, #94a3b8)',
+              backgroundColor: 'rgba(0,0,0,0.3)',
+              padding: '2px 8px',
+              borderRadius: '12px',
+              border: '1px solid rgba(255,255,255,0.08)',
+              fontFamily: 'var(--font-mono, monospace)',
+            }}
+          >
+            <span style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Oponente:
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: '#4ade80' }}>
+              Salto x{oppCharges.jumpCharges}
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: '#38bdf8' }}>
+              Freeze x{oppCharges.freezeCharges}
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Spell Deck: Sleek Compact Potion Cards matching Chess.com */}
       <div
@@ -176,16 +189,16 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '68px',
-            height: '62px',
-            padding: '4px',
+            width: '64px',
+            height: '58px',
+            padding: '3px',
             borderRadius: '8px',
             border:
               selectedSpellType === 'JUMP'
                 ? '2px solid #22c55e'
                 : isJumpAvailable
                   ? '1.5px solid rgba(34, 197, 94, 0.45)'
-                  : '1px solid rgba(255, 255, 255, 0.12)',
+                  : '1px solid rgba(255, 255, 255, 0.1)',
             backgroundColor:
               selectedSpellType === 'JUMP'
                 ? 'rgba(34, 197, 94, 0.28)'
@@ -194,19 +207,19 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
                   : 'rgba(15, 23, 42, 0.6)',
             boxShadow:
               selectedSpellType === 'JUMP'
-                ? '0 0 16px rgba(34, 197, 94, 0.7), inset 0 0 8px rgba(34, 197, 94, 0.3)'
+                ? '0 0 14px rgba(34, 197, 94, 0.6), inset 0 0 8px rgba(34, 197, 94, 0.3)'
                 : isJumpAvailable
-                  ? '0 2px 6px rgba(0, 0, 0, 0.4)'
+                  ? '0 2px 6px rgba(0, 0, 0, 0.35)'
                   : 'none',
             cursor: isJumpAvailable ? 'pointer' : 'not-allowed',
-            opacity: isJumpAvailable ? 1 : 0.42,
+            opacity: isJumpAvailable ? 1 : 0.4,
             transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: selectedSpellType === 'JUMP' ? 'scale(1.05)' : 'scale(1)',
+            transform: selectedSpellType === 'JUMP' ? 'scale(1.04)' : 'scale(1)',
             userSelect: 'none',
           }}
         >
           {/* Green Magic Flask SVG */}
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
             <path
               d="M10 2H14M12 2V8M8.5 20H15.5C17.5 20 18.5 18.5 17.5 16.5L14 9.5C13.6 8.7 13.5 8 13.5 7.5V4H10.5V7.5C10.5 8 10.4 8.7 10 9.5L6.5 16.5C5.5 18.5 6.5 20 8.5 20Z"
               stroke="#22c55e"
@@ -214,13 +227,11 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            {/* Potion Liquid Fill */}
             <path
               d="M7.8 17.5L9.5 14C10.5 14.5 13.5 14.5 14.5 14L16.2 17.5C16.8 18.8 16 19.5 15 19.5H9C8 19.5 7.2 18.8 7.8 17.5Z"
               fill="#22c55e"
               fillOpacity="0.75"
             />
-            {/* Bubbles */}
             <circle cx="11" cy="16.5" r="1" fill="#bbf7d0" />
             <circle cx="13.5" cy="17.5" r="0.75" fill="#bbf7d0" />
           </svg>
@@ -229,7 +240,7 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
             <kbd
               style={{
-                fontSize: '0.6rem',
+                fontSize: '0.58rem',
                 padding: '0 3px',
                 borderRadius: '2px',
                 backgroundColor: 'rgba(0,0,0,0.4)',
@@ -240,7 +251,7 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
             >
               2
             </kbd>
-            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#86efac' }}>Salto</span>
+            <span style={{ fontSize: '0.66rem', fontWeight: 700, color: '#86efac' }}>Salto</span>
           </div>
 
           {/* Charge Badge (Top-Right, matching Chess.com `x2`) */}
@@ -251,13 +262,14 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
               right: '-5px',
               backgroundColor: '#15803d',
               color: '#f0fdf4',
-              fontSize: '0.65rem',
-              fontWeight: 900,
+              fontSize: '0.62rem',
+              fontWeight: 800,
               padding: '1px 5px',
               borderRadius: '8px',
               border: '1.5px solid #22c55e',
               boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
               letterSpacing: '0.02em',
+              fontFamily: 'var(--font-mono, monospace)',
             }}
           >
             x{charges.jumpCharges}
@@ -270,7 +282,7 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
                 position: 'absolute',
                 inset: 0,
                 borderRadius: '8px',
-                backgroundColor: 'rgba(0, 0, 0, 0.72)',
+                backgroundColor: 'rgba(0, 0, 0, 0.75)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -307,16 +319,16 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '68px',
-            height: '62px',
-            padding: '4px',
+            width: '64px',
+            height: '58px',
+            padding: '3px',
             borderRadius: '8px',
             border:
               selectedSpellType === 'FREEZE'
                 ? '2px solid #06b6d4'
                 : isFreezeAvailable
                   ? '1.5px solid rgba(6, 182, 212, 0.45)'
-                  : '1px solid rgba(255, 255, 255, 0.12)',
+                  : '1px solid rgba(255, 255, 255, 0.1)',
             backgroundColor:
               selectedSpellType === 'FREEZE'
                 ? 'rgba(6, 182, 212, 0.28)'
@@ -325,20 +337,19 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
                   : 'rgba(15, 23, 42, 0.6)',
             boxShadow:
               selectedSpellType === 'FREEZE'
-                ? '0 0 16px rgba(6, 182, 212, 0.7), inset 0 0 8px rgba(6, 182, 212, 0.3)'
+                ? '0 0 14px rgba(6, 182, 212, 0.6), inset 0 0 8px rgba(6, 182, 212, 0.3)'
                 : isFreezeAvailable
-                  ? '0 2px 6px rgba(0, 0, 0, 0.4)'
+                  ? '0 2px 6px rgba(0, 0, 0, 0.35)'
                   : 'none',
             cursor: isFreezeAvailable ? 'pointer' : 'not-allowed',
-            opacity: isFreezeAvailable ? 1 : 0.42,
+            opacity: isFreezeAvailable ? 1 : 0.4,
             transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: selectedSpellType === 'FREEZE' ? 'scale(1.05)' : 'scale(1)',
+            transform: selectedSpellType === 'FREEZE' ? 'scale(1.04)' : 'scale(1)',
             userSelect: 'none',
           }}
         >
           {/* Icy Crystal Flask SVG */}
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-            {/* Hexagonal / Diamond vial cap & bottle */}
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
             <path
               d="M9 2H15M10.5 2V5H13.5V2M9.5 5H14.5L17.5 9.5V18.5C17.5 19.5 16.5 20.5 15.5 20.5H8.5C7.5 20.5 6.5 19.5 6.5 18.5V9.5L9.5 5Z"
               stroke="#06b6d4"
@@ -346,13 +357,11 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            {/* Icy Liquid Fill */}
             <path
               d="M7.5 12H16.5V18.5C16.5 19.5 15.5 20.5 14.5 20.5H9.5C8.5 20.5 7.5 19.5 7.5 18.5V12Z"
               fill="#06b6d4"
               fillOpacity="0.75"
             />
-            {/* Snowflake / Ice Crystal Core */}
             <line x1="12" y1="13.5" x2="12" y2="18.5" stroke="#e0f2fe" strokeWidth="1.2" strokeLinecap="round" />
             <line x1="9.5" y1="16" x2="14.5" y2="16" stroke="#e0f2fe" strokeWidth="1.2" strokeLinecap="round" />
             <line x1="10.2" y1="14.2" x2="13.8" y2="17.8" stroke="#e0f2fe" strokeWidth="1" strokeLinecap="round" />
@@ -363,7 +372,7 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
             <kbd
               style={{
-                fontSize: '0.6rem',
+                fontSize: '0.58rem',
                 padding: '0 3px',
                 borderRadius: '2px',
                 backgroundColor: 'rgba(0,0,0,0.4)',
@@ -374,7 +383,7 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
             >
               1
             </kbd>
-            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#67e8f9' }}>Freeze</span>
+            <span style={{ fontSize: '0.66rem', fontWeight: 700, color: '#67e8f9' }}>Freeze</span>
           </div>
 
           {/* Charge Badge (Top-Right, matching Chess.com `x5`) */}
@@ -385,13 +394,14 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
               right: '-5px',
               backgroundColor: '#0e7490',
               color: '#ecfeff',
-              fontSize: '0.65rem',
-              fontWeight: 900,
+              fontSize: '0.62rem',
+              fontWeight: 800,
               padding: '1px 5px',
               borderRadius: '8px',
               border: '1.5px solid #06b6d4',
               boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
               letterSpacing: '0.02em',
+              fontFamily: 'var(--font-mono, monospace)',
             }}
           >
             x{charges.freezeCharges}
@@ -404,7 +414,7 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
                 position: 'absolute',
                 inset: 0,
                 borderRadius: '8px',
-                backgroundColor: 'rgba(0, 0, 0, 0.72)',
+                backgroundColor: 'rgba(0, 0, 0, 0.75)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -426,7 +436,7 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
               alignItems: 'center',
               gap: '0.5rem',
               flex: 1,
-              minWidth: '220px',
+              minWidth: '200px',
               backgroundColor: 'rgba(0,0,0,0.3)',
               padding: '0.35rem 0.6rem',
               borderRadius: '6px',
@@ -438,13 +448,13 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
               style={{
                 fontSize: '0.72rem',
                 color: selectedSpellType === 'FREEZE' ? '#38bdf8' : '#4ade80',
-                fontWeight: 700,
+                fontWeight: 600,
                 flex: 1,
               }}
             >
               {selectedSpellType === 'FREEZE'
-                ? '🎯 Freeze ativado: Clique na casa central da área 3×3 no tabuleiro.'
-                : '⚡ Salto ativado: Clique na peça (aliada ou adversária) que você deseja pular.'}
+                ? 'Freeze ativado: Clique na casa central 3×3 no tabuleiro.'
+                : 'Salto ativado: Clique na peça que você deseja pular.'}
             </div>
 
             <button
@@ -460,7 +470,7 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
                 backgroundColor: 'rgba(239, 68, 68, 0.25)',
                 color: '#fca5a5',
                 fontSize: '0.72rem',
-                fontWeight: 800,
+                fontWeight: 700,
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
               }}
@@ -469,6 +479,117 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+};
+
+export interface IOpponentSpellDeckProps {
+  readonly state: IOfficialSpellState;
+  readonly activePlayer: PlayerId;
+}
+
+export const OpponentSpellDeck: React.FC<IOpponentSpellDeckProps> = ({ state, activePlayer }) => {
+  const isWhite = activePlayer === 'P1' || (activePlayer as string) === 'WHITE';
+  const oppCharges = isWhite ? state.blackCharges : state.whiteCharges;
+
+  return (
+    <div
+      aria-label="Feitiços do Oponente"
+      data-testid="opponent-spell-deck"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '3px 6px',
+        borderRadius: '8px',
+        backgroundColor: 'rgba(15, 23, 42, 0.88)',
+        backdropFilter: 'blur(8px)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+        userSelect: 'none',
+      }}
+    >
+      {/* Jump flask preview */}
+      <div
+        title={`Oponente: ${oppCharges.jumpCharges} Salto(s)`}
+        style={{
+          position: 'relative',
+          width: '28px',
+          height: '28px',
+          borderRadius: '6px',
+          backgroundColor: 'rgba(20, 83, 45, 0.35)',
+          border: '1px solid rgba(34, 197, 94, 0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M10 2H14M12 2V8M8.5 20H15.5C17.5 20 18.5 18.5 17.5 16.5L14 9.5C13.6 8.7 13.5 8 13.5 7.5V4H10.5V7.5C10.5 8 10.4 8.7 10 9.5L6.5 16.5C5.5 18.5 6.5 20 8.5 20Z"
+            stroke="#22c55e"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+        </svg>
+        <span
+          style={{
+            position: 'absolute',
+            top: '-5px',
+            right: '-5px',
+            backgroundColor: '#15803d',
+            color: '#f0fdf4',
+            fontSize: '0.58rem',
+            fontWeight: 800,
+            padding: '0 3px',
+            borderRadius: '6px',
+            fontFamily: 'monospace',
+          }}
+        >
+          x{oppCharges.jumpCharges}
+        </span>
+      </div>
+
+      {/* Freeze flask preview */}
+      <div
+        title={`Oponente: ${oppCharges.freezeCharges} Congelamento(s)`}
+        style={{
+          position: 'relative',
+          width: '28px',
+          height: '28px',
+          borderRadius: '6px',
+          backgroundColor: 'rgba(8, 51, 68, 0.35)',
+          border: '1px solid rgba(6, 182, 212, 0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M9 2H15M10.5 2V5H13.5V2M9.5 5H14.5L17.5 9.5V18.5C17.5 19.5 16.5 20.5 15.5 20.5H8.5C7.5 20.5 6.5 19.5 6.5 18.5V9.5L9.5 5Z"
+            stroke="#06b6d4"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+        </svg>
+        <span
+          style={{
+            position: 'absolute',
+            top: '-5px',
+            right: '-5px',
+            backgroundColor: '#0e7490',
+            color: '#ecfeff',
+            fontSize: '0.58rem',
+            fontWeight: 800,
+            padding: '0 3px',
+            borderRadius: '6px',
+            fontFamily: 'monospace',
+          }}
+        >
+          x{oppCharges.freezeCharges}
+        </span>
       </div>
     </div>
   );

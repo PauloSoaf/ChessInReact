@@ -686,18 +686,19 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
             fontWeight: 700,
             color: '#fff',
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+            pointerEvents: 'none',
           }}
         >
-          <span>
-            {hillVictoryMoveCoords.length > 0 && '👑 King of the Hill (3D): Lance da vitória disponível! Alcance o santuário central para vencer.'}
-            {forcedCapturePieceIds.length > 0 && !hillVictoryMoveCoords.length && '🔄 Antichess (3D): Captura obrigatória! Mova uma das peças de combate destacadas em esmeralda.'}
-            {selectedSpellType === 'FREEZE' && '❄️ Modo Congelamento (3D): Clique na casa central 3×3 para congelar.'}
-            {selectedSpellType === 'JUMP' && '⚡ Conceder Salto (3D): Clique sobre uma peça aliada para conceder a habilidade de saltar.'}
-            {duckPlacementActive && '🦆 Colocar Pato (3D): Clique em uma casa vazia para posicionar o pato.'}
-            {selectedDropPiece && `♟ Drop de ${selectedDropPiece} (3D): Clique em uma casa vazia para inserir a peça na reserva.`}
-            {selectedSpellType === 'PORTAL' && '🌀 Portal (3D): Clique em duas casas vazias para criar o atalho.'}
-            {selectedSpellType === 'STEALTH_TRAP' && '💣 Mina Oculta (3D): Clique em uma casa vazia para plantar.'}
-            {activeExplosion && !selectedSpellType && !selectedDropPiece && !duckPlacementActive && !forcedCapturePieceIds.length && !hillVictoryMoveCoords.length && '💥 Detonação Atômica! Área de impacto 3×3 detonada.'}
+          <span style={{ pointerEvents: 'auto' }}>
+            {hillVictoryMoveCoords.length > 0 && 'King of the Hill (3D): Lance da vitória disponível! Alcance o santuário central para vencer.'}
+            {forcedCapturePieceIds.length > 0 && !hillVictoryMoveCoords.length && 'Antichess (3D): Captura obrigatória! Mova uma das peças de combate destacadas em esmeralda.'}
+            {selectedSpellType === 'FREEZE' && 'Modo Congelamento (3D): Clique na casa central 3×3 para congelar.'}
+            {selectedSpellType === 'JUMP' && 'Conceder Salto (3D): Clique sobre uma peça aliada para conceder a habilidade de saltar.'}
+            {duckPlacementActive && 'Colocar Pato (3D): Clique em uma casa vazia para posicionar o pato.'}
+            {selectedDropPiece && `Drop de ${selectedDropPiece} (3D): Clique em uma casa vazia para inserir a peça na reserva.`}
+            {selectedSpellType === 'PORTAL' && 'Portal (3D): Clique em duas casas vazias para criar o atalho.'}
+            {selectedSpellType === 'STEALTH_TRAP' && 'Mina Oculta (3D): Clique em uma casa vazia para plantar.'}
+            {activeExplosion && !selectedSpellType && !selectedDropPiece && !duckPlacementActive && !forcedCapturePieceIds.length && !hillVictoryMoveCoords.length && 'Detonação Atômica! Área de impacto 3×3 detonada.'}
           </span>
           {onCancelAction && !duckPlacementActive && (
             <button
@@ -715,6 +716,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
                 color: '#fca5a5',
                 cursor: 'pointer',
                 fontWeight: 600,
+                pointerEvents: 'auto',
               }}
             >
               Cancelar

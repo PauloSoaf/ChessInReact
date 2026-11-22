@@ -19,7 +19,8 @@ import { SpectatorControlsBar } from './ui/components/game/SpectatorControlsBar'
 import { MultiplayerFactionRibbon } from './ui/components/game/MultiplayerFactionRibbon';
 import { DuckChessBanner } from './ui/components/game/DuckChessBanner';
 import { VariantMatchBanner } from './ui/components/game/VariantMatchBanner';
-import { OfficialSpellBar } from './ui/components/game/OfficialSpellBar';
+import { OfficialSpellBar, OpponentSpellDeck } from './ui/components/game/OfficialSpellBar';
+import { VictoryCelebrationModal } from './ui/components/game/VictoryCelebrationModal';
 import { ReserveDropsBar } from './ui/components/game/ReserveDropsBar';
 import { SpellCardHand } from './analysis/minigames/SpellCardHand';
 import { ISpellCard } from './analysis/minigames/SpellChessEngine';
@@ -154,6 +155,7 @@ const AppContent: React.FC = () => {
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isGameReviewOpen, setIsGameReviewOpen] = useState(false);
   const [isOpeningExplorerOpen, setIsOpeningExplorerOpen] = useState(false);
+  const [isVictoryModalDismissed, setIsVictoryModalDismissed] = useState(false);
   const [pendingDrawOffer, setPendingDrawOffer] = useState<PlayerId | null>(null);
   const [selectedOfficialSpell, setSelectedOfficialSpell] = useState<'FREEZE' | 'JUMP' | null>(null);
   const [selectedExpandedSpell, setSelectedExpandedSpell] = useState<ISpellCard | null>(null);
@@ -233,11 +235,11 @@ const AppContent: React.FC = () => {
   const timeControlLabel = useMemo(
     () =>
       isUnlimitedClock
-        ? '☕ Casual (∞)'
+        ? 'Casual (∞)'
         : TimeControlManager.getBadgeLabel(
-            activeClockConfig?.initialSeconds,
-            activeClockConfig?.incrementSeconds
-          ),
+          activeClockConfig?.initialSeconds,
+          activeClockConfig?.incrementSeconds
+        ),
     [isUnlimitedClock, activeClockConfig]
   );
   const lastTickSecondRef = useRef<number>(-1);
@@ -486,6 +488,7 @@ const AppContent: React.FC = () => {
   const handleReset = useCallback(() => {
     cancelSearch();
     clearFeedback();
+    setIsVictoryModalDismissed(false);
     setPendingDrawOffer(null);
     setSelectedOfficialSpell(null);
     setSelectedExpandedSpell(null);
@@ -1138,49 +1141,6 @@ const AppContent: React.FC = () => {
                 />
               )}
 
-              {/* Official Spell Chess Toolbar */}
-              {(universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_OFFICIAL' ||
-                universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS') &&
-                universalMatch.snapshot.officialSpellState && (
-                  <OfficialSpellBar
-                    state={universalMatch.snapshot.officialSpellState}
-                    activePlayer={activePlayer}
-                    selectedSpellType={selectedOfficialSpell}
-                    onCancelSpell={() => {
-                      setSelectedOfficialSpell(null);
-                      triggerFeedback('GAME_EVENT', {
-                        message: 'Lançamento cancelado.',
-                      });
-                    }}
-                    onCastSpell={(spellType) => {
-                      const selectedPieceId = gameStore.getState().ui.selectedPieceId;
-                      if (spellType === 'JUMP' && selectedPieceId) {
-                        const ok = universalMatch.castOfficialSpell('JUMP', selectedPieceId);
-                        if (ok) {
-                          setSelectedOfficialSpell(null);
-                          triggerFeedback('GAME_EVENT', {
-                            message: 'Feitiço JUMP conjurado na peça selecionada!',
-                          });
-                          return;
-                        }
-                      }
-                      if (selectedOfficialSpell === spellType) {
-                        setSelectedOfficialSpell(null);
-                        triggerFeedback('GAME_EVENT', {
-                          message: `Seleção de ${spellType} cancelada.`,
-                        });
-                        return;
-                      }
-                      setSelectedOfficialSpell(spellType);
-                      triggerFeedback('GAME_EVENT', {
-                        message:
-                          spellType === 'FREEZE'
-                            ? 'Feitiço FREEZE preparado! Passe o mouse no tabuleiro para ver a área 3×3 e clique na casa central (ou clique em Cancelar).'
-                            : 'Feitiço JUMP preparado! Clique na peça (aliada ou adversária) que deseja pular no tabuleiro (ou clique em Cancelar).',
-                      });
-                    }}
-                  />
-                )}
 
               {/* Expanded Spell Chess Hand */}
               {universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_EXPANDED' &&
@@ -1231,23 +1191,23 @@ const AppContent: React.FC = () => {
               {(universalMatch.snapshot.config.variantId.toUpperCase().includes('SHOGI') ||
                 universalMatch.snapshot.config.variantId.toUpperCase().includes('CRAZYHOUSE') ||
                 universalMatch.snapshot.config.variantId.toUpperCase().includes('SEIRAWAN')) && (
-                <ReserveDropsBar
-                  activePlayer={activePlayer}
-                  playerLabel={activePlayer === 'P1' ? 'Brancas' : 'Pretas'}
-                  reservePieces={
-                    activePlayer === 'P1'
-                      ? Object.values(domain.boardEntities).filter(
+                  <ReserveDropsBar
+                    activePlayer={activePlayer}
+                    playerLabel={activePlayer === 'P1' ? 'Brancas' : 'Pretas'}
+                    reservePieces={
+                      activePlayer === 'P1'
+                        ? Object.values(domain.boardEntities).filter(
                           (e): e is IPieceEntity => e.type === 'PIECE' && e.isCaptured && e.ownerId === 'P2'
                         )
-                      : Object.values(domain.boardEntities).filter(
+                        : Object.values(domain.boardEntities).filter(
                           (e): e is IPieceEntity => e.type === 'PIECE' && e.isCaptured && e.ownerId === 'P1'
                         )
-                  }
-                  selectedPieceVariant={selectedDropPiece}
-                  onSelectDropPiece={setSelectedDropPiece}
-                  isShogi={universalMatch.snapshot.config.variantId.toUpperCase().includes('SHOGI')}
-                />
-              )}
+                    }
+                    selectedPieceVariant={selectedDropPiece}
+                    onSelectDropPiece={setSelectedDropPiece}
+                    isShogi={universalMatch.snapshot.config.variantId.toUpperCase().includes('SHOGI')}
+                  />
+                )}
 
               {/* Top Player Strip (Opponent - Black P2 or Bot 2) */}
               <div className="match-stage-player-wrap">
@@ -1352,7 +1312,10 @@ const AppContent: React.FC = () => {
                       }}
                       title="Modo 2D Clássico / Vetorial (Atalho: V)"
                     >
-                      <span style={{ fontSize: '0.85rem' }}>📐</span>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                        <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+                      </svg>
                       <span>2D Vetorial</span>
                     </button>
                     <button
@@ -1379,7 +1342,11 @@ const AppContent: React.FC = () => {
                       }}
                       title="Modo 3D WebGL Realtime (Atalho: V)"
                     >
-                      <span style={{ fontSize: '0.85rem' }}>🎲</span>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                        <line x1="12" y1="22.08" x2="12" y2="12" />
+                      </svg>
                       <span>Modo 3D</span>
                     </button>
                   </div>
@@ -1416,7 +1383,7 @@ const AppContent: React.FC = () => {
               </div>
 
               {/* Sculpted Board Bezel: Real-time Evaluation Bar + Protagonist Board */}
-              <div className="match-board-bezel" style={{ width: '100%', maxWidth: '604px' }}>
+              <div className="match-board-bezel" style={{ width: '100%', maxWidth: '604px', position: 'relative' }}>
                 <div style={{ display: 'flex', flexShrink: 0, alignSelf: 'stretch' }}>
                   <EvaluationBar evalScore={lastEval} />
                 </div>
@@ -1550,6 +1517,79 @@ const AppContent: React.FC = () => {
                     />
                   </main>
                 )}
+
+                {/* Opponent Spell Deck Preview (Top Right of board - Chess.com layout) */}
+                {(universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_OFFICIAL' ||
+                  universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS') &&
+                  universalMatch.snapshot.officialSpellState && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '8px',
+                        right: '8px',
+                        zIndex: 26,
+                      }}
+                    >
+                      <OpponentSpellDeck
+                        state={universalMatch.snapshot.officialSpellState}
+                        activePlayer={activePlayer}
+                      />
+                    </div>
+                  )}
+
+                {/* Player Spell Deck (Bottom Right of board - Chess.com layout) */}
+                {(universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_OFFICIAL' ||
+                  universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS') &&
+                  universalMatch.snapshot.officialSpellState && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: '8px',
+                        right: '8px',
+                        zIndex: 26,
+                      }}
+                    >
+                      <OfficialSpellBar
+                        compact={true}
+                        state={universalMatch.snapshot.officialSpellState}
+                        activePlayer={activePlayer}
+                        selectedSpellType={selectedOfficialSpell}
+                        onCancelSpell={() => {
+                          setSelectedOfficialSpell(null);
+                          triggerFeedback('GAME_EVENT', {
+                            message: 'Lançamento cancelado.',
+                          });
+                        }}
+                        onCastSpell={(spellType) => {
+                          const selectedPieceId = gameStore.getState().ui.selectedPieceId;
+                          if (spellType === 'JUMP' && selectedPieceId) {
+                            const ok = universalMatch.castOfficialSpell('JUMP', selectedPieceId);
+                            if (ok) {
+                              setSelectedOfficialSpell(null);
+                              triggerFeedback('GAME_EVENT', {
+                                message: 'Feitiço JUMP conjurado na peça selecionada!',
+                              });
+                              return;
+                            }
+                          }
+                          if (selectedOfficialSpell === spellType) {
+                            setSelectedOfficialSpell(null);
+                            triggerFeedback('GAME_EVENT', {
+                              message: `Seleção de ${spellType} cancelada.`,
+                            });
+                            return;
+                          }
+                          setSelectedOfficialSpell(spellType);
+                          triggerFeedback('GAME_EVENT', {
+                            message:
+                              spellType === 'FREEZE'
+                                ? 'Feitiço FREEZE preparado! Passe o mouse no tabuleiro para ver a área 3×3 e clique na casa central (ou clique em Cancelar).'
+                                : 'Feitiço JUMP preparado! Clique na peça (aliada ou adversária) que deseja pular no tabuleiro (ou clique em Cancelar).',
+                          });
+                        }}
+                      />
+                    </div>
+                  )}
               </div>
 
               {/* Bottom Player Strip (Human - White P1 or Bot 1) */}
@@ -1587,89 +1627,6 @@ const AppContent: React.FC = () => {
 
             {/* Right Sidebar: Match Status & Tactical Controls Deck */}
             <aside className="match-hud-sidebar" aria-label="Estado e Controles da Partida">
-              {/* Check Constraint & Move Error Feedback Banner (US04-P06, SPEC07-CHECK-CONSTRAINT-FEEDBACK-01) */}
-              {invalidMoveFeedback && (
-                <div
-                  role="status"
-                  aria-live="polite"
-                  data-testid="check-constraint-banner"
-                  className={`check-constraint-banner ${invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
-                      ? 'check-constraint-banner--danger'
-                      : invalidMoveFeedback.reason === 'GAME_TERMINATION'
-                        ? 'check-constraint-banner--info'
-                        : invalidMoveFeedback.reason === 'GAME_EVENT'
-                          ? 'check-constraint-banner--event'
-                          : 'check-constraint-banner--warning'
-                    }`}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '0.65rem',
-                    padding: '0.65rem 0.85rem',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor:
-                      invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
-                        ? 'var(--color-danger-bg)'
-                        : invalidMoveFeedback.reason === 'GAME_TERMINATION'
-                          ? 'rgba(79, 140, 255, 0.12)'
-                          : invalidMoveFeedback.reason === 'GAME_EVENT'
-                            ? 'var(--bg-sunken)'
-                            : 'rgba(212, 155, 75, 0.14)',
-                    border:
-                      invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
-                        ? '1.5px solid var(--color-danger)'
-                        : invalidMoveFeedback.reason === 'GAME_TERMINATION'
-                          ? '1.5px solid var(--color-accent)'
-                          : invalidMoveFeedback.reason === 'GAME_EVENT'
-                            ? '1.5px solid var(--border-prominent)'
-                            : '1.5px solid var(--color-warning)',
-                    boxShadow:
-                      invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
-                        ? '0 4px 16px rgba(239, 68, 68, 0.22)'
-                        : '0 4px 16px rgba(0, 0, 0, 0.15)',
-                    animation: invalidMoveFeedback.reason === 'CHECK_CONSTRAINT' ? 'checkErrorShake 0.4s ease' : undefined,
-                  }}
-                >
-                  <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>
-                    {invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
-                      ? '⚠️'
-                      : invalidMoveFeedback.reason === 'GAME_TERMINATION'
-                        ? '🏁'
-                        : invalidMoveFeedback.reason === 'GAME_EVENT'
-                          ? '📢'
-                          : '⚠️'}
-                  </span>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0 }}>
-                    <strong
-                      style={{
-                        fontSize: '0.78rem',
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: 800,
-                        color:
-                          invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
-                            ? 'var(--color-danger)'
-                            : invalidMoveFeedback.reason === 'GAME_TERMINATION'
-                              ? 'var(--color-accent)'
-                              : invalidMoveFeedback.reason === 'GAME_EVENT'
-                                ? 'var(--text-primary)'
-                                : 'var(--color-warning)',
-                      }}
-                    >
-                      {invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
-                        ? 'MOVIMENTO INVÁLIDO: REI EM XEQUE'
-                        : invalidMoveFeedback.reason === 'GAME_TERMINATION'
-                          ? 'DESFECHO DA PARTIDA'
-                          : invalidMoveFeedback.reason === 'GAME_EVENT'
-                            ? 'AVISO DA PARTIDA'
-                            : 'MOVIMENTO NÃO PERMITIDO'}
-                    </strong>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
-                      {invalidMoveFeedback.message}
-                    </span>
-                  </div>
-                </div>
-              )}
-
               <div className="match-telemetry-card">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                   <button
@@ -1850,6 +1807,146 @@ const AppContent: React.FC = () => {
           setIsOpeningExplorerOpen(false);
         }}
       />
+
+      {/* Spec 06 & Spec 12: Victory Celebration Modal with Animated Canvas Confetti */}
+      <VictoryCelebrationModal
+        isOpen={Boolean(isGameOver && !isVictoryModalDismissed)}
+        winnerId={domain.winnerId}
+        reason={
+          invalidMoveFeedback?.reason === 'GAME_TERMINATION'
+            ? invalidMoveFeedback.message
+            : domain.winnerId
+              ? `Vitória: ${domain.winnerId === 'P1' ? 'Brancas' : 'Pretas'}`
+              : 'Partida finalizada.'
+        }
+        turnNumber={domain.turnNumber}
+        variantName={
+          universalMatch.snapshot.config.variantId.toUpperCase().includes('SPELL')
+            ? 'Spell Chess Oficial'
+            : universalMatch.snapshot.config.variantId.toUpperCase().includes('DUCK')
+              ? 'Duck Chess Oficial'
+              : 'Xadrez Padrão'
+        }
+        isRanked={isMatchRanked}
+        onRematch={handleReset}
+        onOpenReview={() => setIsGameReviewOpen(true)}
+        onClose={() => setIsVictoryModalDismissed(true)}
+      />
+
+      {/* Floating HUD Toast Notification (Spec 06) - Elevated z-index to eliminate layout reflow & scroll shifts */}
+      {invalidMoveFeedback && (
+        <div
+          role="status"
+          aria-live="polite"
+          data-testid="check-constraint-banner"
+          className={`check-constraint-banner ${
+            invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
+              ? 'check-constraint-banner--danger'
+              : invalidMoveFeedback.reason === 'GAME_TERMINATION'
+                ? 'check-constraint-banner--info'
+                : invalidMoveFeedback.reason === 'GAME_EVENT'
+                  ? 'check-constraint-banner--event'
+                  : 'check-constraint-banner--warning'
+          }`}
+          style={{
+            position: 'fixed',
+            top: '1.25rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 99999,
+            maxWidth: '520px',
+            width: 'calc(100vw - 2rem)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+            padding: '0.65rem 1rem',
+            borderRadius: '10px',
+            backgroundColor:
+              invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
+                ? 'rgba(220, 38, 38, 0.95)'
+                : invalidMoveFeedback.reason === 'GAME_TERMINATION'
+                  ? 'rgba(2, 132, 199, 0.95)'
+                  : invalidMoveFeedback.reason === 'GAME_EVENT'
+                    ? 'rgba(15, 23, 42, 0.95)'
+                    : 'rgba(217, 119, 6, 0.95)',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
+            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(255, 255, 255, 0.1)',
+            backdropFilter: 'blur(10px)',
+            color: '#ffffff',
+            pointerEvents: 'auto',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0, flex: 1 }}>
+            <span style={{ display: 'flex', flexShrink: 0 }}>
+              {invalidMoveFeedback.reason === 'CHECK_CONSTRAINT' ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+              ) : invalidMoveFeedback.reason === 'GAME_TERMINATION' ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                  <line x1="4" y1="22" x2="4" y2="15" />
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+              )}
+            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: 0 }}>
+              <strong
+                style={{
+                  fontSize: '0.76rem',
+                  fontFamily: 'var(--font-mono, monospace)',
+                  fontWeight: 800,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {invalidMoveFeedback.reason === 'CHECK_CONSTRAINT'
+                  ? 'MOVIMENTO INVÁLIDO: REI EM XEQUE'
+                  : invalidMoveFeedback.reason === 'GAME_TERMINATION'
+                    ? 'DESFECHO DA PARTIDA'
+                    : invalidMoveFeedback.reason === 'GAME_EVENT'
+                      ? 'AVISO DA PARTIDA'
+                      : 'MOVIMENTO NÃO PERMITIDO'}
+              </strong>
+              <span style={{ fontSize: '0.74rem', opacity: 0.95, lineHeight: 1.35 }}>
+                {invalidMoveFeedback.message}
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={clearFeedback}
+            aria-label="Dispensar notificação"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#ffffff',
+              opacity: 0.8,
+              cursor: 'pointer',
+              padding: '4px',
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.8')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

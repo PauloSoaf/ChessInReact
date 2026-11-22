@@ -737,28 +737,35 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
           ))}
         </div>
       )}
-      {/* Interactive Action Indicator Bar with explicit Cancel button */}
+      {/* Interactive Action Indicator Bar with explicit Cancel button - Floating HUD overlay to preserve board stability (Spec 06) */}
       {(selectedSpellType || selectedDropPiece || duckPlacementActive || Boolean(atomicBlastArea) || hasForcedCaptures) && (
         <div
           data-testid="board-action-indicator"
+          role="status"
+          aria-live="polite"
           style={{
+            position: 'absolute',
+            top: '8px',
+            left: '8px',
+            right: '8px',
+            zIndex: 35,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '5px 12px',
-            marginBottom: '6px',
+            padding: '6px 12px',
             borderRadius: 'var(--radius-sm, 6px)',
+            backdropFilter: 'blur(8px)',
             backgroundColor: selectedSpellType === 'FREEZE'
-              ? 'rgba(6, 182, 212, 0.22)'
+              ? 'rgba(6, 182, 212, 0.35)'
               : selectedSpellType === 'JUMP'
-              ? 'rgba(168, 85, 247, 0.22)'
+              ? 'rgba(168, 85, 247, 0.35)'
               : duckPlacementActive
-              ? 'rgba(234, 179, 8, 0.22)'
+              ? 'rgba(234, 179, 8, 0.35)'
               : atomicBlastArea
-              ? 'rgba(239, 68, 68, 0.25)'
+              ? 'rgba(239, 68, 68, 0.4)'
               : hasForcedCaptures
-              ? 'rgba(16, 185, 129, 0.22)'
-              : 'rgba(16, 185, 129, 0.22)',
+              ? 'rgba(16, 185, 129, 0.35)'
+              : 'rgba(16, 185, 129, 0.35)',
             border: selectedSpellType === 'FREEZE'
               ? '1.5px solid #06b6d4'
               : selectedSpellType === 'JUMP'
@@ -773,17 +780,19 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
             fontSize: '0.78rem',
             fontWeight: 700,
             color: 'var(--text-prominent, #fff)',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+            pointerEvents: 'none',
           }}
         >
-          <span>
-            {selectedSpellType === 'FREEZE' && '❄️ Modo Congelamento: Passe o mouse para ver a área 3×3 e clique para congelar.'}
-            {selectedSpellType === 'JUMP' && '⚡ Conceder Salto: Clique na peça (aliada ou adversária) que você deseja pular.'}
-            {duckPlacementActive && '🦆 Colocar Pato: Passe o mouse sobre uma casa vazia e clique para posicionar.'}
-            {selectedDropPiece && `♟ Drop de ${selectedDropPiece}: Passe o mouse sobre uma casa vazia e clique.`}
-            {selectedSpellType === 'PORTAL' && '🌀 Portal: Clique em duas casas vazias para criar o atalho.'}
-            {selectedSpellType === 'STEALTH_TRAP' && '💣 Mina Oculta: Clique em uma casa vazia para plantar.'}
-            {atomicBlastArea && !selectedSpellType && !selectedDropPiece && !duckPlacementActive && '💥 Detonação Atômica Iminente: Capturar detonará o atacante, a vítima e peças vizinhas (exceto peões)!'}
-            {hasForcedCaptures && !selectedSpellType && !selectedDropPiece && !duckPlacementActive && !atomicBlastArea && '🔄 Antichess: Captura obrigatória disponível! Mova uma das peças marcadas com ⚔️.'}
+          <span style={{ pointerEvents: 'auto' }}>
+            {selectedSpellType === 'FREEZE' && 'Congelamento: Passe o cursor para visualizar a área 3×3 e clique para congelar.'}
+            {selectedSpellType === 'JUMP' && 'Salto: Clique na peça que você deseja conceder permissão para pular.'}
+            {duckPlacementActive && 'Pato Neutro: Clique sobre uma casa vazia para posicionar o pato.'}
+            {selectedDropPiece && `Drop de ${selectedDropPiece}: Clique em uma casa vazia para introduzir a peça.`}
+            {selectedSpellType === 'PORTAL' && 'Portal: Clique em duas casas vazias para criar o atalho.'}
+            {selectedSpellType === 'STEALTH_TRAP' && 'Mina Oculta: Clique em uma casa vazia para plantar.'}
+            {atomicBlastArea && !selectedSpellType && !selectedDropPiece && !duckPlacementActive && 'Detonação Atômica Iminente: Capturar detonará atacante, vítima e peças vizinhas!'}
+            {hasForcedCaptures && !selectedSpellType && !selectedDropPiece && !duckPlacementActive && !atomicBlastArea && 'Antichess: Captura obrigatória disponível. Mova uma das peças de combate destacadas.'}
           </span>
           {onCancelAction && !duckPlacementActive && (
             <button
@@ -801,6 +810,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
                 color: '#fca5a5',
                 cursor: 'pointer',
                 fontWeight: 800,
+                pointerEvents: 'auto',
               }}
             >
               ✕ Cancelar (Esc)
