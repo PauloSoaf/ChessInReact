@@ -872,6 +872,23 @@ export class UniversalMatchController {
         }
       }
 
+      // Spell Chess Royal Capture Victory (Spec 12 / Spec 13)
+      if (this.config.variantId.toUpperCase().includes('SPELL')) {
+        const currentDomain = gameStore.getState().domain;
+        const p1King = CheckValidator.findRoyalPiece('P1', currentDomain);
+        const p2King = CheckValidator.findRoyalPiece('P2', currentDomain);
+        if (!p1King || !p2King) {
+          const winner = p1King ? 'P1' : p2King ? 'P2' : null;
+          gameStore.setState((s) => ({
+            domain: {
+              ...s.domain,
+              isGameOver: true,
+              winnerId: winner,
+            },
+          }));
+        }
+      }
+
       // 5. Complete Duck Chess' mandatory second phase through its engine.
       if (this.duckState) {
         this.duckState = DuckChessEngine.executePieceMove(this.duckState, {
@@ -1090,6 +1107,22 @@ export class UniversalMatchController {
             },
           }));
         }
+      }
+    }
+
+    // Spell Chess Royal Capture Victory (Spec 12 / Spec 13)
+    if (this.config.variantId.toUpperCase().includes('SPELL')) {
+      const p1King = CheckValidator.findRoyalPiece('P1', postMoveDomain);
+      const p2King = CheckValidator.findRoyalPiece('P2', postMoveDomain);
+      if (!p1King || !p2King) {
+        const winner = p1King ? 'P1' : p2King ? 'P2' : null;
+        gameStore.setState((s) => ({
+          domain: {
+            ...s.domain,
+            isGameOver: true,
+            winnerId: winner,
+          },
+        }));
       }
     }
 

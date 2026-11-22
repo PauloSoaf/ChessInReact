@@ -30,11 +30,11 @@ export const ProceduralPieceModel: React.FC<IProceduralPieceModelProps> = ({
   ownerId,
 }) => {
   const norm = variantId.toUpperCase();
-  const baseColor = (ownerId && FACTION_PALETTE[ownerId]) ?? (isWhite ? '#f3ede2' : '#14171f');
+  const baseColor = (ownerId && FACTION_PALETTE[ownerId]) ?? (isWhite ? '#faf7f0' : '#14161d');
   const emissiveColor = isSelected ? '#f59e0b' : '#000000';
   const emissiveIntensity = isSelected ? 0.6 : 0;
-  const metalness = isWhite ? 0.08 : 0.15;
-  const roughness = isWhite ? 0.28 : 0.32;
+  const metalness = isWhite ? 0.04 : 0.12;
+  const roughness = isWhite ? 0.22 : 0.24;
 
   const matProps = {
     color: baseColor,
@@ -106,6 +106,26 @@ export const ProceduralPieceModel: React.FC<IProceduralPieceModelProps> = ({
             geometry={stauntonGeometries.getKnightMane()}
           >
             <meshStandardMaterial {...matProps} />
+          </mesh>
+          <mesh
+            position={[0.18, 0.94, 0.095]}
+            geometry={stauntonGeometries.getKnightEye()}
+          >
+            <meshStandardMaterial
+              color="#090d16"
+              roughness={0.12}
+              metalness={0.85}
+            />
+          </mesh>
+          <mesh
+            position={[0.18, 0.94, -0.095]}
+            geometry={stauntonGeometries.getKnightEye()}
+          >
+            <meshStandardMaterial
+              color="#090d16"
+              roughness={0.12}
+              metalness={0.85}
+            />
           </mesh>
         </group>
       )}

@@ -768,8 +768,13 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
         />
         <directionalLight
           position={[-6, 6, -5]}
-          intensity={0.4}
+          intensity={0.5}
           color={rimLightColor}
+        />
+        <directionalLight
+          position={[0, 10, -2]}
+          intensity={0.35}
+          color="#f8fafc"
         />
 
         {/* Non-Euclidean 3D Boards (Torus Donut 3D vs Cube 3D vs Standard Instanced) */}

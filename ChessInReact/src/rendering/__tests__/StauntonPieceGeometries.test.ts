@@ -19,6 +19,7 @@ describe('StauntonPieceGeometries Suite (Spec 07 § 4, § 5, RF-01, RF-07)', () 
     const merlon = stauntonGeometries.getRookMerlon();
     const knightHead = stauntonGeometries.getKnightHead();
     const knightMane = stauntonGeometries.getKnightMane();
+    const knightEye = stauntonGeometries.getKnightEye();
     const bishopMitre = stauntonGeometries.getBishopMitre();
     const bishopOrb = stauntonGeometries.getBishopOrb();
     const queenBody = stauntonGeometries.getQueenBody();
@@ -34,6 +35,7 @@ describe('StauntonPieceGeometries Suite (Spec 07 § 4, § 5, RF-01, RF-07)', () 
     expect(merlon).toBeInstanceOf(THREE.BufferGeometry);
     expect(knightHead).toBeInstanceOf(THREE.BufferGeometry);
     expect(knightMane).toBeInstanceOf(THREE.BufferGeometry);
+    expect(knightEye).toBeInstanceOf(THREE.BufferGeometry);
     expect(bishopMitre).toBeInstanceOf(THREE.BufferGeometry);
     expect(bishopOrb).toBeInstanceOf(THREE.BufferGeometry);
     expect(queenBody).toBeInstanceOf(THREE.BufferGeometry);

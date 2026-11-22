@@ -77,9 +77,9 @@ const Piece3DModel: React.FC<{
 }) => {
   const normType = type.toUpperCase();
 
-  const bodyColor = (ownerId && FACTION_3D_COLORS[ownerId]) ?? (isWhite ? '#f3ede2' : '#14171f');
-  const metalness = isArcaneSkin ? 0.45 : isWhite ? 0.08 : 0.15;
-  const roughness = isArcaneSkin ? 0.18 : isWhite ? 0.28 : 0.32;
+  const bodyColor = (ownerId && FACTION_3D_COLORS[ownerId]) ?? (isWhite ? '#faf7f0' : '#14161d');
+  const metalness = isArcaneSkin ? 0.45 : isWhite ? 0.04 : 0.12;
+  const roughness = isArcaneSkin ? 0.18 : isWhite ? 0.22 : 0.24;
 
   const yPos = position[1] + (isSelected ? 0.22 : hasJump ? 0.16 : 0);
   const effectivePedestalColor = isCheckKing
@@ -231,6 +231,26 @@ const Piece3DModel: React.FC<{
               color={effectivePedestalColor}
               metalness={metalness}
               roughness={roughness}
+            />
+          </mesh>
+          <mesh
+            position={[0.18, 0.94, 0.095]}
+            geometry={stauntonGeometries.getKnightEye()}
+          >
+            <meshStandardMaterial
+              color="#090d16"
+              roughness={0.12}
+              metalness={0.85}
+            />
+          </mesh>
+          <mesh
+            position={[0.18, 0.94, -0.095]}
+            geometry={stauntonGeometries.getKnightEye()}
+          >
+            <meshStandardMaterial
+              color="#090d16"
+              roughness={0.12}
+              metalness={0.85}
             />
           </mesh>
         </group>
