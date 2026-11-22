@@ -1,9 +1,12 @@
-import React, { useRef } from 'react';
+import React, { useRef, Suspense } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { ProceduralKnight, KnightMaterialFinish } from './ProceduralKnight';
 import { StudioEnvironment } from './StudioEnvironment';
 import { UIThemeId } from '../../theme/types';
+import { PremiumChessPiece } from '../../../rendering/mesh/PremiumChessPiece';
+import { PremiumPieceErrorBoundary } from '../../../rendering/mesh/PieceRenderer3D';
+import { PREMIUM_STAUNTON_SCALE } from '../../../rendering/mesh/PremiumChessAssetRegistry';
 
 export interface IInteractiveKnightSceneProps {
   finish?: KnightMaterialFinish;
@@ -91,7 +94,17 @@ export const InteractiveKnightScene: React.FC<IInteractiveKnightSceneProps> = ({
         position={[0, 0.15, 0]}
         rotation={[baseRotationX, baseRotationY, 0]}
       >
-        <ProceduralKnight finish={finish} scale={0.72} />
+        <Suspense fallback={<ProceduralKnight finish={finish} scale={0.72} />}>
+          <PremiumPieceErrorBoundary fallback={<ProceduralKnight finish={finish} scale={0.72} />}>
+            <PremiumChessPiece
+              type="KNIGHT"
+              isWhite={finish !== 'obsidian'}
+              customFinish={finish}
+              scale={PREMIUM_STAUNTON_SCALE * 0.72}
+              position={[0, -0.42, 0]}
+            />
+          </PremiumPieceErrorBoundary>
+        </Suspense>
       </group>
     </>
   );

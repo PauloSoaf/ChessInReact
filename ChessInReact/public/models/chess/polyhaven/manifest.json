@@ -1,0 +1,28 @@
+{
+  "id": "polyhaven-chess-set",
+  "name": "Chess Set Model",
+  "author": "Riley Queen",
+  "source": "https://polyhaven.com/a/chess_set",
+  "license": "CC0",
+  "licenseUrl": "https://polyhaven.com/license",
+  "textureResolution": "1K PBR (albedo, normal, arm)",
+  "format": "glTF 2.0 with separate binary and textures",
+  "files": {
+    "chess_set_1k.gltf": {
+      "bytes": 53740,
+      "sha256": "3e21ecd0c2ffb703dfdb3f3ea7a379c1dbd4ec513ba2cb8e6cb1e5f276d7eb91"
+    },
+    "chess_set.bin": {
+      "bytes": 1732220,
+      "sha256": "c73476fd032a2cb4a9c256f70573eed260708132fdc42fec161c6216711560b3"
+    }
+  },
+  "nodes": {
+    "king": "piece_king_white / piece_king_black",
+    "queen": "piece_queen_white / piece_queen_black",
+    "bishop": "piece_bishop_white_01 / piece_bishop_black_01",
+    "knight": "piece_knight_white_01 / piece_knight_black_01",
+    "rook": "piece_rook_white_01 / piece_rook_black_01",
+    "pawn": "piece_pawn_white_01 / piece_pawn_black_01"
+  }
+}
