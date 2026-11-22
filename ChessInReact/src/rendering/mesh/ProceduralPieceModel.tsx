@@ -30,11 +30,11 @@ export const ProceduralPieceModel: React.FC<IProceduralPieceModelProps> = ({
   ownerId,
 }) => {
   const norm = variantId.toUpperCase();
-  const baseColor = (ownerId && FACTION_PALETTE[ownerId]) ?? (isWhite ? '#f8fafc' : '#1e293b');
+  const baseColor = (ownerId && FACTION_PALETTE[ownerId]) ?? (isWhite ? '#f3ede2' : '#14171f');
   const emissiveColor = isSelected ? '#f59e0b' : '#000000';
   const emissiveIntensity = isSelected ? 0.6 : 0;
-  const metalness = isWhite ? 0.15 : 0.4;
-  const roughness = 0.25;
+  const metalness = isWhite ? 0.08 : 0.15;
+  const roughness = isWhite ? 0.28 : 0.32;
 
   const matProps = {
     color: baseColor,

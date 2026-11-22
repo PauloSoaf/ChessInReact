@@ -34,25 +34,30 @@ class StauntonGeometriesCache {
 
   /**
    * Universal Turned Championship Pedestal (LatheGeometry)
-   * Base profile with bottom chamfer, concave scotia waist, and upper torus ring.
+   * High-definition multi-tiered championship pedestal with bottom felt recess,
+   * smooth concave scotia waist, and dual beaded torus collar.
    */
   public getBasePedestal(): THREE.BufferGeometry {
     if (!this.basePedestal) {
       const points: THREE.Vector2[] = [
         new THREE.Vector2(0.0, 0.0),
-        new THREE.Vector2(0.38, 0.0),
-        new THREE.Vector2(0.39, 0.03),
-        new THREE.Vector2(0.36, 0.06),
-        new THREE.Vector2(0.34, 0.08),
-        new THREE.Vector2(0.31, 0.11),
-        new THREE.Vector2(0.28, 0.14),
+        new THREE.Vector2(0.40, 0.0),
+        new THREE.Vector2(0.41, 0.015),
+        new THREE.Vector2(0.40, 0.035),
+        new THREE.Vector2(0.38, 0.05),
+        new THREE.Vector2(0.35, 0.07),
+        new THREE.Vector2(0.32, 0.09),
+        new THREE.Vector2(0.29, 0.12),
+        new THREE.Vector2(0.27, 0.15),
         new THREE.Vector2(0.26, 0.18),
-        new THREE.Vector2(0.28, 0.21),
-        new THREE.Vector2(0.30, 0.23),
-        new THREE.Vector2(0.26, 0.25),
+        new THREE.Vector2(0.28, 0.20),
+        new THREE.Vector2(0.31, 0.215),
+        new THREE.Vector2(0.32, 0.23),
+        new THREE.Vector2(0.29, 0.245),
+        new THREE.Vector2(0.25, 0.25),
         new THREE.Vector2(0.0, 0.25),
       ];
-      const geom = new THREE.LatheGeometry(points, 32);
+      const geom = new THREE.LatheGeometry(points, 48);
       geom.computeVertexNormals();
       this.basePedestal = geom;
     }
@@ -60,29 +65,34 @@ class StauntonGeometriesCache {
   }
 
   /**
-   * Staunton Pawn: Slender concave stem, collar groove, and polished spherical head.
+   * Staunton Pawn: Slender concave stem, pronounced collar groove, and polished spherical head.
    */
   public getPawnStemHead(): THREE.BufferGeometry {
     if (!this.pawnStemHead) {
       const points: THREE.Vector2[] = [
         new THREE.Vector2(0.0, 0.25),
-        new THREE.Vector2(0.22, 0.25),
-        new THREE.Vector2(0.18, 0.32),
-        new THREE.Vector2(0.15, 0.40),
-        new THREE.Vector2(0.14, 0.48),
-        new THREE.Vector2(0.16, 0.54),
-        new THREE.Vector2(0.20, 0.57),
-        new THREE.Vector2(0.21, 0.59),
-        new THREE.Vector2(0.15, 0.61),
-        new THREE.Vector2(0.16, 0.64),
-        new THREE.Vector2(0.20, 0.70),
-        new THREE.Vector2(0.21, 0.76),
-        new THREE.Vector2(0.18, 0.83),
-        new THREE.Vector2(0.12, 0.88),
-        new THREE.Vector2(0.04, 0.91),
-        new THREE.Vector2(0.0, 0.92),
+        new THREE.Vector2(0.23, 0.25),
+        new THREE.Vector2(0.19, 0.30),
+        new THREE.Vector2(0.15, 0.36),
+        new THREE.Vector2(0.13, 0.43),
+        new THREE.Vector2(0.12, 0.49),
+        new THREE.Vector2(0.13, 0.54),
+        new THREE.Vector2(0.16, 0.58),
+        new THREE.Vector2(0.21, 0.60),
+        new THREE.Vector2(0.22, 0.62),
+        new THREE.Vector2(0.15, 0.635),
+        // Spherical head profile
+        new THREE.Vector2(0.16, 0.66),
+        new THREE.Vector2(0.19, 0.70),
+        new THREE.Vector2(0.21, 0.75),
+        new THREE.Vector2(0.215, 0.80),
+        new THREE.Vector2(0.20, 0.85),
+        new THREE.Vector2(0.16, 0.90),
+        new THREE.Vector2(0.11, 0.94),
+        new THREE.Vector2(0.05, 0.965),
+        new THREE.Vector2(0.0, 0.97),
       ];
-      const geom = new THREE.LatheGeometry(points, 32);
+      const geom = new THREE.LatheGeometry(points, 48);
       geom.computeVertexNormals();
       this.pawnStemHead = geom;
     }
@@ -90,25 +100,26 @@ class StauntonGeometriesCache {
   }
 
   /**
-   * Staunton Rook Body: Tapered cylindrical column and flared upper capital.
+   * Staunton Rook Body: Tapered castle tower, flared upper capital, and hollow parapet.
    */
   public getRookBody(): THREE.BufferGeometry {
     if (!this.rookBodyTurret) {
       const points: THREE.Vector2[] = [
         new THREE.Vector2(0.0, 0.25),
-        new THREE.Vector2(0.26, 0.25),
-        new THREE.Vector2(0.24, 0.32),
-        new THREE.Vector2(0.22, 0.44),
-        new THREE.Vector2(0.22, 0.56),
-        new THREE.Vector2(0.24, 0.64),
-        new THREE.Vector2(0.28, 0.68),
-        new THREE.Vector2(0.30, 0.70),
-        new THREE.Vector2(0.30, 0.82),
-        new THREE.Vector2(0.22, 0.82),
-        new THREE.Vector2(0.22, 0.76),
+        new THREE.Vector2(0.25, 0.25),
+        new THREE.Vector2(0.23, 0.32),
+        new THREE.Vector2(0.21, 0.42),
+        new THREE.Vector2(0.20, 0.52),
+        new THREE.Vector2(0.21, 0.60),
+        new THREE.Vector2(0.23, 0.65),
+        new THREE.Vector2(0.27, 0.68),
+        new THREE.Vector2(0.31, 0.70),
+        new THREE.Vector2(0.31, 0.84),
+        new THREE.Vector2(0.23, 0.84),
+        new THREE.Vector2(0.23, 0.76),
         new THREE.Vector2(0.0, 0.76),
       ];
-      const geom = new THREE.LatheGeometry(points, 32);
+      const geom = new THREE.LatheGeometry(points, 48);
       geom.computeVertexNormals();
       this.rookBodyTurret = geom;
     }
@@ -155,10 +166,10 @@ class StauntonGeometriesCache {
       const extrudeSettings: THREE.ExtrudeGeometryOptions = {
         depth,
         bevelEnabled: true,
-        bevelSegments: 4,
-        steps: 1,
-        bevelSize: 0.045,
-        bevelThickness: 0.05,
+        bevelSegments: 6,
+        steps: 2,
+        bevelSize: 0.052,
+        bevelThickness: 0.055,
       };
 
       const geom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
@@ -187,10 +198,10 @@ class StauntonGeometriesCache {
       const geom = new THREE.ExtrudeGeometry(mane, {
         depth,
         bevelEnabled: true,
-        bevelSegments: 3,
-        steps: 1,
-        bevelSize: 0.02,
-        bevelThickness: 0.025,
+        bevelSegments: 5,
+        steps: 2,
+        bevelSize: 0.025,
+        bevelThickness: 0.03,
       });
       geom.translate(0, 0, -depth / 2);
       geom.computeVertexNormals();
@@ -200,29 +211,32 @@ class StauntonGeometriesCache {
   }
 
   /**
-   * Staunton Bishop Mitre: Slender waist and teardrop-shaped mitre bulb.
+   * Staunton Bishop Mitre: Slender waist, graceful collar and flame-shaped mitre bulb.
    */
   public getBishopMitre(): THREE.BufferGeometry {
     if (!this.bishopMitre) {
       const points: THREE.Vector2[] = [
         new THREE.Vector2(0.0, 0.25),
         new THREE.Vector2(0.24, 0.25),
-        new THREE.Vector2(0.19, 0.34),
-        new THREE.Vector2(0.15, 0.46),
-        new THREE.Vector2(0.14, 0.58),
-        new THREE.Vector2(0.17, 0.66),
-        new THREE.Vector2(0.22, 0.70),
+        new THREE.Vector2(0.18, 0.33),
+        new THREE.Vector2(0.15, 0.44),
+        new THREE.Vector2(0.13, 0.54),
+        new THREE.Vector2(0.15, 0.63),
+        new THREE.Vector2(0.19, 0.68),
+        new THREE.Vector2(0.23, 0.70),
         new THREE.Vector2(0.24, 0.72),
-        new THREE.Vector2(0.18, 0.74),
-        // Mitre bulb
-        new THREE.Vector2(0.19, 0.78),
-        new THREE.Vector2(0.23, 0.88),
-        new THREE.Vector2(0.21, 0.98),
-        new THREE.Vector2(0.14, 1.08),
-        new THREE.Vector2(0.06, 1.14),
-        new THREE.Vector2(0.0, 1.16),
+        new THREE.Vector2(0.17, 0.735),
+        // Mitre flame bulb
+        new THREE.Vector2(0.18, 0.76),
+        new THREE.Vector2(0.22, 0.84),
+        new THREE.Vector2(0.23, 0.92),
+        new THREE.Vector2(0.21, 1.00),
+        new THREE.Vector2(0.16, 1.08),
+        new THREE.Vector2(0.09, 1.14),
+        new THREE.Vector2(0.03, 1.17),
+        new THREE.Vector2(0.0, 1.18),
       ];
-      const geom = new THREE.LatheGeometry(points, 32);
+      const geom = new THREE.LatheGeometry(points, 48);
       geom.computeVertexNormals();
       this.bishopMitre = geom;
     }
@@ -231,7 +245,7 @@ class StauntonGeometriesCache {
 
   public getBishopOrb(): THREE.BufferGeometry {
     if (!this.bishopOrb) {
-      const geom = new THREE.SphereGeometry(0.048, 16, 16);
+      const geom = new THREE.SphereGeometry(0.052, 24, 24);
       this.bishopOrb = geom;
     }
     return this.bishopOrb;
@@ -245,21 +259,21 @@ class StauntonGeometriesCache {
       const points: THREE.Vector2[] = [
         new THREE.Vector2(0.0, 0.25),
         new THREE.Vector2(0.27, 0.25),
-        new THREE.Vector2(0.22, 0.36),
-        new THREE.Vector2(0.18, 0.50),
-        new THREE.Vector2(0.17, 0.64),
-        new THREE.Vector2(0.20, 0.74),
-        new THREE.Vector2(0.25, 0.78),
-        new THREE.Vector2(0.26, 0.81),
-        new THREE.Vector2(0.20, 0.83),
-        new THREE.Vector2(0.23, 0.86),
-        new THREE.Vector2(0.28, 0.96),
-        new THREE.Vector2(0.31, 1.04),
-        new THREE.Vector2(0.24, 1.06),
-        new THREE.Vector2(0.12, 1.08),
-        new THREE.Vector2(0.0, 1.08),
+        new THREE.Vector2(0.22, 0.35),
+        new THREE.Vector2(0.18, 0.48),
+        new THREE.Vector2(0.16, 0.62),
+        new THREE.Vector2(0.18, 0.72),
+        new THREE.Vector2(0.23, 0.76),
+        new THREE.Vector2(0.25, 0.79),
+        new THREE.Vector2(0.19, 0.81),
+        new THREE.Vector2(0.22, 0.84),
+        new THREE.Vector2(0.26, 0.93),
+        new THREE.Vector2(0.29, 1.01),
+        new THREE.Vector2(0.23, 1.04),
+        new THREE.Vector2(0.11, 1.06),
+        new THREE.Vector2(0.0, 1.06),
       ];
-      const geom = new THREE.LatheGeometry(points, 32);
+      const geom = new THREE.LatheGeometry(points, 48);
       geom.computeVertexNormals();
       this.queenBody = geom;
     }
@@ -268,7 +282,7 @@ class StauntonGeometriesCache {
 
   public getQueenCoronet(): THREE.BufferGeometry {
     if (!this.queenCoronet) {
-      const geom = new THREE.CylinderGeometry(0.30, 0.24, 0.12, 16);
+      const geom = new THREE.CylinderGeometry(0.29, 0.23, 0.12, 32);
       this.queenCoronet = geom;
     }
     return this.queenCoronet;
@@ -276,7 +290,7 @@ class StauntonGeometriesCache {
 
   public getQueenOrb(): THREE.BufferGeometry {
     if (!this.queenOrb) {
-      const geom = new THREE.SphereGeometry(0.065, 16, 16);
+      const geom = new THREE.SphereGeometry(0.068, 24, 24);
       this.queenOrb = geom;
     }
     return this.queenOrb;
@@ -290,20 +304,20 @@ class StauntonGeometriesCache {
       const points: THREE.Vector2[] = [
         new THREE.Vector2(0.0, 0.25),
         new THREE.Vector2(0.29, 0.25),
-        new THREE.Vector2(0.24, 0.38),
-        new THREE.Vector2(0.20, 0.54),
-        new THREE.Vector2(0.20, 0.70),
-        new THREE.Vector2(0.23, 0.82),
-        new THREE.Vector2(0.28, 0.87),
-        new THREE.Vector2(0.29, 0.90),
-        new THREE.Vector2(0.23, 0.92),
-        new THREE.Vector2(0.26, 0.96),
-        new THREE.Vector2(0.30, 1.06),
-        new THREE.Vector2(0.30, 1.14),
-        new THREE.Vector2(0.22, 1.16),
-        new THREE.Vector2(0.0, 1.16),
+        new THREE.Vector2(0.24, 0.37),
+        new THREE.Vector2(0.20, 0.52),
+        new THREE.Vector2(0.19, 0.67),
+        new THREE.Vector2(0.21, 0.79),
+        new THREE.Vector2(0.26, 0.84),
+        new THREE.Vector2(0.28, 0.88),
+        new THREE.Vector2(0.22, 0.90),
+        new THREE.Vector2(0.25, 0.94),
+        new THREE.Vector2(0.29, 1.03),
+        new THREE.Vector2(0.30, 1.11),
+        new THREE.Vector2(0.22, 1.14),
+        new THREE.Vector2(0.0, 1.14),
       ];
-      const geom = new THREE.LatheGeometry(points, 32);
+      const geom = new THREE.LatheGeometry(points, 48);
       geom.computeVertexNormals();
       this.kingBody = geom;
     }
@@ -312,7 +326,7 @@ class StauntonGeometriesCache {
 
   public getKingCrown(): THREE.BufferGeometry {
     if (!this.kingCrown) {
-      const geom = new THREE.CylinderGeometry(0.28, 0.22, 0.14, 16);
+      const geom = new THREE.CylinderGeometry(0.28, 0.22, 0.13, 32);
       this.kingCrown = geom;
     }
     return this.kingCrown;

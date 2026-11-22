@@ -77,9 +77,9 @@ const Piece3DModel: React.FC<{
 }) => {
   const normType = type.toUpperCase();
 
-  const bodyColor = (ownerId && FACTION_3D_COLORS[ownerId]) ?? (isWhite ? '#f8fafc' : '#1e293b');
-  const metalness = isArcaneSkin ? 0.55 : isWhite ? 0.2 : 0.45;
-  const roughness = isArcaneSkin ? 0.18 : 0.25;
+  const bodyColor = (ownerId && FACTION_3D_COLORS[ownerId]) ?? (isWhite ? '#f3ede2' : '#14171f');
+  const metalness = isArcaneSkin ? 0.45 : isWhite ? 0.08 : 0.15;
+  const roughness = isArcaneSkin ? 0.18 : isWhite ? 0.28 : 0.32;
 
   const yPos = position[1] + (isSelected ? 0.22 : hasJump ? 0.16 : 0);
   const effectivePedestalColor = isCheckKing
