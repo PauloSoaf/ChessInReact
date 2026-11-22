@@ -221,7 +221,7 @@ export class SpellChessEngine {
     const nextFrozen = { ...stateAfterMana.frozenCoordinates };
 
     for (const c of coords) {
-      nextFrozen[c] = 1; // 1 full turn
+      nextFrozen[c] = 2; // Lasts through caster's move finish (2->1) AND opponent's full reply turn (1->0)
     }
 
     return {

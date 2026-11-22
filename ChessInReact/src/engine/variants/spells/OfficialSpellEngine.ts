@@ -73,7 +73,7 @@ export class OfficialSpellEngine {
         const f = centerCoord.file + df;
         const r = centerCoord.rank + dr;
         if (f >= 0 && f < 8 && r >= 0 && r < 8) {
-          updatedFrozen[`${f},${r}`] = 1; // 1 full turn duration
+          updatedFrozen[`${f},${r}`] = 2; // Lasts through caster's move finish (2->1) AND opponent's full reply turn (1->0)
         }
       }
     }

@@ -45,7 +45,7 @@ export class CheckValidator {
           const raw = state.boardEntities[occId];
           if (raw?.type === 'OBSTACLE') break;
           const piece = raw as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
             if (piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'ROOK' || v === 'QUEEN' || v === 'R' || v === 'Q' || v === 'CHANCELLOR' || v === 'AMAZON') return true;
@@ -66,7 +66,7 @@ export class CheckValidator {
           const raw = state.boardEntities[occId];
           if (raw?.type === 'OBSTACLE') break;
           const piece = raw as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
             if (piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'BISHOP' || v === 'QUEEN' || v === 'B' || v === 'Q' || v === 'ARCHBISHOP' || v === 'AMAZON') return true;
@@ -88,7 +88,7 @@ export class CheckValidator {
           const occId = state.occupancy[kc];
           if (occId) {
             const piece = state.boardEntities[occId] as IPieceEntity | undefined;
-            if (piece && piece.type === 'PIECE' && !piece.isCaptured && piece.ownerId === attackerPlayerId) {
+            if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen && piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'KNIGHT' || v === 'N' || v === 'AMAZON' || v === 'CHANCELLOR' || v === 'ARCHBISHOP') return true;
             }
@@ -103,6 +103,7 @@ export class CheckValidator {
           piece &&
           piece.type === 'PIECE' &&
           !piece.isCaptured &&
+          !piece.metadata?.isFrozen &&
           piece.ownerId === attackerPlayerId
         ) {
           const v = piece.variantId.toUpperCase();
@@ -134,7 +135,7 @@ export class CheckValidator {
           const rawEntity = state.boardEntities[occId];
           if (rawEntity?.type === 'OBSTACLE') break;
           const piece = rawEntity as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
             if (piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'ROOK' || v === 'QUEEN' || v === 'R' || v === 'Q' || v === 'CHANCELLOR' || v === 'AMAZON') return true;
@@ -151,7 +152,7 @@ export class CheckValidator {
           const rawEntity = state.boardEntities[occId];
           if (rawEntity?.type === 'OBSTACLE') break;
           const piece = rawEntity as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
             if (piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'ROOK' || v === 'QUEEN' || v === 'R' || v === 'Q' || v === 'CHANCELLOR' || v === 'AMAZON') return true;
@@ -168,7 +169,7 @@ export class CheckValidator {
           const rawEntity = state.boardEntities[occId];
           if (rawEntity?.type === 'OBSTACLE') break;
           const piece = rawEntity as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
             if (piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'ROOK' || v === 'QUEEN' || v === 'R' || v === 'Q' || v === 'CHANCELLOR' || v === 'AMAZON') return true;
@@ -185,7 +186,7 @@ export class CheckValidator {
           const rawEntity = state.boardEntities[occId];
           if (rawEntity?.type === 'OBSTACLE') break;
           const piece = rawEntity as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
             if (piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'ROOK' || v === 'QUEEN' || v === 'R' || v === 'Q' || v === 'CHANCELLOR' || v === 'AMAZON') return true;
@@ -202,7 +203,7 @@ export class CheckValidator {
           const rawEntity = state.boardEntities[occId];
           if (rawEntity?.type === 'OBSTACLE') break;
           const piece = rawEntity as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
             if (piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'BISHOP' || v === 'QUEEN' || v === 'B' || v === 'Q' || v === 'ARCHBISHOP' || v === 'AMAZON') return true;
@@ -219,7 +220,7 @@ export class CheckValidator {
           const rawEntity = state.boardEntities[occId];
           if (rawEntity?.type === 'OBSTACLE') break;
           const piece = rawEntity as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
             if (piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'BISHOP' || v === 'QUEEN' || v === 'B' || v === 'Q' || v === 'ARCHBISHOP' || v === 'AMAZON') return true;
@@ -236,7 +237,7 @@ export class CheckValidator {
           const rawEntity = state.boardEntities[occId];
           if (rawEntity?.type === 'OBSTACLE') break;
           const piece = rawEntity as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
             if (piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'BISHOP' || v === 'QUEEN' || v === 'B' || v === 'Q' || v === 'ARCHBISHOP' || v === 'AMAZON') return true;
@@ -253,7 +254,7 @@ export class CheckValidator {
           const rawEntity = state.boardEntities[occId];
           if (rawEntity?.type === 'OBSTACLE') break;
           const piece = rawEntity as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
             if (piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'BISHOP' || v === 'QUEEN' || v === 'B' || v === 'Q' || v === 'ARCHBISHOP' || v === 'AMAZON') return true;
@@ -275,7 +276,7 @@ export class CheckValidator {
           const occId = state.occupancy[next];
           if (occId) {
             const piece = state.boardEntities[occId] as IPieceEntity | undefined;
-            if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+            if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
               if (piece.ownerId === attackerPlayerId) {
                 const v = piece.variantId.toUpperCase();
                 if (v === 'ROOK' || v === 'QUEEN' || v === 'R' || v === 'Q' || v === 'CHANCELLOR' || v === 'AMAZON') return true;
@@ -298,7 +299,7 @@ export class CheckValidator {
           const occId = state.occupancy[next];
           if (occId) {
             const piece = state.boardEntities[occId] as IPieceEntity | undefined;
-            if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+            if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
               if (piece.ownerId === attackerPlayerId) {
                 const v = piece.variantId.toUpperCase();
                 if (v === 'BISHOP' || v === 'QUEEN' || v === 'B' || v === 'Q' || v === 'ARCHBISHOP' || v === 'AMAZON') return true;
@@ -324,7 +325,7 @@ export class CheckValidator {
       const occId = state.occupancy[knightCoord];
       if (occId) {
         const piece = state.boardEntities[occId] as IPieceEntity | undefined;
-        if (piece && piece.type === 'PIECE' && !piece.isCaptured && piece.ownerId === attackerPlayerId) {
+        if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen && piece.ownerId === attackerPlayerId) {
           const v = piece.variantId.toUpperCase();
           if (
             v === 'KNIGHT' ||
@@ -387,7 +388,7 @@ export class CheckValidator {
       const occId = state.occupancy[pawnCoord];
       if (occId) {
         const piece = state.boardEntities[occId] as IPieceEntity | undefined;
-        if (piece && piece.type === 'PIECE' && !piece.isCaptured && piece.ownerId === attackerPlayerId) {
+        if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen && piece.ownerId === attackerPlayerId) {
           const v = piece.variantId.toUpperCase();
           if (v === 'PAWN' || v === 'P') {
             return true;
