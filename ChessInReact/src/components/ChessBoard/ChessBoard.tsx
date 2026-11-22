@@ -170,7 +170,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
       const nextSquare = document.querySelector<HTMLElement>(
         `[data-square-col="${activeVisualCoord.col}"][data-square-row="${activeVisualCoord.row}"]`
       );
-      nextSquare?.focus();
+      nextSquare?.focus({ preventScroll: true });
     }
   }, [isFlipped, boardSize, activeVisualCoord.col, activeVisualCoord.row]);
 

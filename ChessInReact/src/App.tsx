@@ -8,6 +8,7 @@ import { bootstrapGame } from './core/bootstrap/GameInitializer';
 import { gameStore } from './core/state/gameStore';
 import { ThemeProvider, useTheme } from './ui/theme/ThemeContext';
 import { TopNavBar, AppView } from './ui/components/navigation/TopNavBar';
+import { AppSidebar, NavDestination } from './ui/components/navigation/AppSidebar';
 import { ThemeCustomizerModal } from './ui/components/navigation/ThemeCustomizerModal';
 import { GameHub } from './ui/components/hub/GameHub';
 import { PuzzleRushArena } from './ui/components/hub/PuzzleRushArena';
@@ -188,6 +189,13 @@ const AppContent: React.FC = () => {
   const winnerId = useGameStore((state) => state.domain.winnerId);
   const entityCount = useGameStore((state) => Object.keys(state.domain.boardEntities).length);
   const hasActiveMatch = turnNumber > 1 || revision > 0;
+
+  // Automatically ensure victory celebration modal triggers when game concludes
+  useEffect(() => {
+    if (isGameOver) {
+      setIsVictoryModalDismissed(false);
+    }
+  }, [isGameOver]);
 
   const domain = useGameStore((state) => state.domain);
   const topology = useMemo(
@@ -974,6 +982,7 @@ const AppContent: React.FC = () => {
     (config: IMatchConfiguration) => {
       cancelSearch();
       clearFeedback();
+      setIsVictoryModalDismissed(false);
       setPendingDrawOffer(null);
       setMatchMoves([]);
       const slot0Clock = config.slots[0]?.clock;
@@ -1057,8 +1066,42 @@ const AppContent: React.FC = () => {
     [clearFeedback, navigateTo, handleLaunchMatch]
   );
 
+  const currentNavDestination: NavDestination = useMemo(() => {
+    if (currentView === 'PUZZLE_RUSH') return 'PUZZLES';
+    if (currentView === 'BUGHOUSE') return 'VARIANTS';
+    if (currentView === 'GAME') return 'PLAY';
+    return 'PLAY';
+  }, [currentView]);
+
+  const handleSelectNavDestination = useCallback(
+    (dest: NavDestination) => {
+      if (dest === 'PUZZLES') {
+        navigateTo('PUZZLE_RUSH');
+      } else if (dest === 'VARIANTS') {
+        navigateTo('HUB');
+      } else if (dest === 'PLAY') {
+        navigateTo('GAME');
+      } else if (dest === 'ANALYZE') {
+        setIsGameReviewOpen(true);
+      } else if (dest === 'SETTINGS') {
+        setIsThemeModalOpen(true);
+      }
+    },
+    [navigateTo]
+  );
+
   return (
-    <div className="app-shell">
+    <div className="app-shell-with-sidebar">
+      {/* Sleek Ergonomic Navigation Rail (Desktop) / Bottom Bar (Mobile) */}
+      <AppSidebar
+        currentDestination={currentNavDestination}
+        onSelectDestination={handleSelectNavDestination}
+        onOpenSettings={() => setIsThemeModalOpen(true)}
+        onOpenAnalysis={() => setIsGameReviewOpen(true)}
+        isMatchActive={currentView === 'GAME' || hasActiveMatch}
+      />
+
+      <div className="app-shell">
       {/* Decoupled Web Audio API Sound Synthesizer & EventBus Listener (Spec 01 & Spec 12) */}
       <AudioManager />
 
@@ -1244,164 +1287,18 @@ const AppContent: React.FC = () => {
                   isUnlimited={isUnlimitedClock}
                   timeControlLabel={timeControlLabel}
                   isRanked={isMatchRanked}
+                  actionSlot={
+                    (universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_OFFICIAL' ||
+                      universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS') &&
+                    universalMatch.snapshot.officialSpellState ? (
+                      <OpponentSpellDeck
+                        state={universalMatch.snapshot.officialSpellState}
+                        activePlayer={activePlayer}
+                      />
+                    ) : undefined
+                  }
                 />
               </div>
-
-              {/* Board Perspective & View Mode Switcher Ribbon (2D vs 3D and Board Flip) */}
-              <div
-                className="match-stage-controls-ribbon"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  width: '100%',
-                  maxWidth: '604px',
-                  padding: '0.45rem 0.75rem',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--bg-sunken)',
-                  border: '1px solid var(--border-prominent)',
-                  boxShadow: 'var(--shadow-sm)',
-                  gap: '0.5rem',
-                  flexWrap: 'wrap',
-                }}
-              >
-                {/* 2D / 3D Prominent Segmented Switcher */}
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span
-                    style={{
-                      fontSize: '0.7rem',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 800,
-                      letterSpacing: '0.06em',
-                      textTransform: 'uppercase',
-                      color: 'var(--text-muted)',
-                    }}
-                  >
-                    Visualização:
-                  </span>
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      borderRadius: 'var(--radius-sm)',
-                      overflow: 'hidden',
-                      border: '1.5px solid var(--border-prominent)',
-                      backgroundColor: 'var(--bg-card)',
-                      boxShadow: 'var(--shadow-sm)',
-                    }}
-                  >
-                    <button
-                      id="arena-view-mode-2d-btn"
-                      type="button"
-                      aria-label="Ativar Visão 2D Clássica"
-                      onClick={() => {
-                        clearFeedback();
-                        updatePreferences({ boardViewMode: '2D' });
-                      }}
-                      style={{
-                        padding: '0.36rem 0.75rem',
-                        fontSize: '0.78rem',
-                        fontWeight: preferences.boardViewMode !== '3D' ? 800 : 600,
-                        cursor: 'pointer',
-                        backgroundColor: preferences.boardViewMode !== '3D' ? 'var(--color-accent)' : 'transparent',
-                        color: preferences.boardViewMode !== '3D' ? '#ffffff' : 'var(--text-secondary)',
-                        border: 'none',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.35rem',
-                        transition: 'all var(--transition-fast)',
-                      }}
-                      title="Modo 2D Clássico / Vetorial (Atalho: V)"
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                        <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
-                      </svg>
-                      <span>2D Vetorial</span>
-                    </button>
-                    <button
-                      id="arena-view-mode-3d-btn"
-                      type="button"
-                      aria-label="Ativar Visão 3D"
-                      onClick={() => {
-                        clearFeedback();
-                        updatePreferences({ boardViewMode: '3D' });
-                      }}
-                      style={{
-                        padding: '0.36rem 0.75rem',
-                        fontSize: '0.78rem',
-                        fontWeight: preferences.boardViewMode === '3D' ? 800 : 600,
-                        cursor: 'pointer',
-                        backgroundColor: preferences.boardViewMode === '3D' ? 'var(--color-accent)' : 'transparent',
-                        color: preferences.boardViewMode === '3D' ? '#ffffff' : 'var(--text-secondary)',
-                        border: 'none',
-                        borderLeft: '1px solid var(--border-subtle)',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.35rem',
-                        transition: 'all var(--transition-fast)',
-                      }}
-                      title="Modo 3D WebGL Realtime (Atalho: V)"
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                        <line x1="12" y1="22.08" x2="12" y2="12" />
-                      </svg>
-                      <span>Modo 3D</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Flip Board Quick Trigger */}
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <button
-                    id="arena-flip-board-quick-btn"
-                    type="button"
-                    onClick={handleFlipBoard}
-                    title="Inverter orientação do tabuleiro (Atalho: F)"
-                    style={{
-                      padding: '0.36rem 0.75rem',
-                      fontSize: '0.76rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      backgroundColor: isBoardFlipped ? 'var(--color-accent-subtle)' : 'var(--bg-card)',
-                      color: isBoardFlipped ? 'var(--color-accent)' : 'var(--text-secondary)',
-                      border: isBoardFlipped ? '1.5px solid var(--border-active)' : '1px solid var(--border-subtle)',
-                      borderRadius: 'var(--radius-sm)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                      boxShadow: 'var(--shadow-sm)',
-                    }}
-                  >
-                    <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M4 10a6 6 0 0110.24-4.24L16 7M16 3v4h-4M16 10a6 6 0 01-10.24 4.24L4 13M4 17v-4h4" />
-                    </svg>
-                    <span>Girar</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Opponent Spell Deck Preview (Top Right, above board - 0% square obstruction) */}
-              {(universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_OFFICIAL' ||
-                universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS') &&
-                universalMatch.snapshot.officialSpellState && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'flex-end',
-                      width: '100%',
-                      maxWidth: '604px',
-                      padding: '0 4px',
-                      marginBottom: '2px',
-                    }}
-                  >
-                    <OpponentSpellDeck
-                      state={universalMatch.snapshot.officialSpellState}
-                      activePlayer={activePlayer}
-                    />
-                  </div>
-                )}
 
               {/* Sculpted Board Bezel: Real-time Evaluation Bar + Protagonist Board */}
               <div className="match-board-bezel" style={{ width: '100%', maxWidth: '604px', position: 'relative' }}>
@@ -1540,64 +1437,6 @@ const AppContent: React.FC = () => {
                 )}
               </div>
 
-              {/* Player Spell Deck (Bottom Right, below board - 0% square obstruction) */}
-              {(universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_OFFICIAL' ||
-                universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS') &&
-                universalMatch.snapshot.officialSpellState && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'flex-end',
-                      width: '100%',
-                      maxWidth: '604px',
-                      padding: '0 4px',
-                      marginTop: '6px',
-                      marginBottom: '4px',
-                    }}
-                  >
-                    <OfficialSpellBar
-                      compact={true}
-                      state={universalMatch.snapshot.officialSpellState}
-                      activePlayer={activePlayer}
-                      selectedSpellType={selectedOfficialSpell}
-                      hasCastSpellThisTurn={universalMatch.snapshot.hasCastSpellThisTurn}
-                      onCancelSpell={() => {
-                        setSelectedOfficialSpell(null);
-                        triggerFeedback('GAME_EVENT', {
-                          message: 'Lançamento cancelado.',
-                        });
-                      }}
-                      onCastSpell={(spellType) => {
-                        const selectedPieceId = gameStore.getState().ui.selectedPieceId;
-                        if (spellType === 'JUMP' && selectedPieceId) {
-                          const ok = universalMatch.castOfficialSpell('JUMP', selectedPieceId);
-                          if (ok) {
-                            setSelectedOfficialSpell(null);
-                            triggerFeedback('GAME_EVENT', {
-                              message: 'Feitiço JUMP conjurado na peça selecionada!',
-                            });
-                            return;
-                          }
-                        }
-                        if (selectedOfficialSpell === spellType) {
-                          setSelectedOfficialSpell(null);
-                          triggerFeedback('GAME_EVENT', {
-                            message: `Seleção de ${spellType} cancelada.`,
-                          });
-                          return;
-                        }
-                        setSelectedOfficialSpell(spellType);
-                        triggerFeedback('GAME_EVENT', {
-                          message:
-                            spellType === 'FREEZE'
-                              ? 'Feitiço FREEZE preparado! Passe o mouse no tabuleiro para ver a área 3×3 e clique na casa central (ou clique em Cancelar).'
-                              : 'Feitiço JUMP preparado! Clique na peça (aliada ou adversária) que deseja pular no tabuleiro (ou clique em Cancelar).',
-                        });
-                      }}
-                    />
-                  </div>
-                )}
-
               {/* Bottom Player Strip (Human - White P1 or Bot 1) */}
               <div className="match-stage-player-wrap">
                 <PlayerCard
@@ -1627,6 +1466,52 @@ const AppContent: React.FC = () => {
                   isUnlimited={isUnlimitedClock}
                   timeControlLabel={timeControlLabel}
                   isRanked={isMatchRanked}
+                  actionSlot={
+                    (universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_OFFICIAL' ||
+                      universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS') &&
+                    universalMatch.snapshot.officialSpellState ? (
+                      <OfficialSpellBar
+                        compact={true}
+                        state={universalMatch.snapshot.officialSpellState}
+                        activePlayer={activePlayer}
+                        selectedSpellType={selectedOfficialSpell}
+                        hasCastSpellThisTurn={universalMatch.snapshot.hasCastSpellThisTurn}
+                        onCancelSpell={() => {
+                          setSelectedOfficialSpell(null);
+                          triggerFeedback('GAME_EVENT', {
+                            message: 'Lançamento cancelado.',
+                          });
+                        }}
+                        onCastSpell={(spellType) => {
+                          const selectedPieceId = gameStore.getState().ui.selectedPieceId;
+                          if (spellType === 'JUMP' && selectedPieceId) {
+                            const ok = universalMatch.castOfficialSpell('JUMP', selectedPieceId);
+                            if (ok) {
+                              setSelectedOfficialSpell(null);
+                              triggerFeedback('GAME_EVENT', {
+                                message: 'Feitiço JUMP conjurado na peça selecionada!',
+                              });
+                              return;
+                            }
+                          }
+                          if (selectedOfficialSpell === spellType) {
+                            setSelectedOfficialSpell(null);
+                            triggerFeedback('GAME_EVENT', {
+                              message: `Seleção de ${spellType} cancelada.`,
+                            });
+                            return;
+                          }
+                          setSelectedOfficialSpell(spellType);
+                          triggerFeedback('GAME_EVENT', {
+                            message:
+                              spellType === 'FREEZE'
+                                ? 'Feitiço FREEZE preparado! Passe o mouse no tabuleiro para ver a área 3×3 e clique na casa central (ou clique em Cancelar).'
+                                : 'Feitiço JUMP preparado! Clique na peça (aliada ou adversária) que deseja pular no tabuleiro (ou clique em Cancelar).',
+                          });
+                        }}
+                      />
+                    ) : undefined
+                  }
                 />
               </div>
             </div>
@@ -1955,6 +1840,7 @@ const AppContent: React.FC = () => {
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 };

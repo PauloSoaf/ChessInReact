@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { IconTrophy } from '../../icons/AppIcons';
 import { Card } from '../primitives/Card';
 import { ActionButton } from '../primitives/ActionButton';
 import {
@@ -426,7 +427,7 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
             gap: '1.25rem',
           }}
         >
-          <span style={{ fontSize: '3rem' }}>🏁</span>
+          <IconTrophy size={48} color="var(--color-accent, #638a75)" />
           <h2 style={{ margin: 0, fontSize: '1.6rem', color: 'var(--text-primary)' }}>
             Fim do Desafio Tático!
           </h2>

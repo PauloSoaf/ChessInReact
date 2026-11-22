@@ -1,5 +1,6 @@
 import React from 'react';
 import { DuckTurnPhase } from '../../../analysis/minigames/DuckChessEngine';
+import { IconDuck } from '../../icons/AppIcons';
 
 export interface IDuckChessBannerProps {
   readonly duckCoordinate: string | null;
@@ -35,8 +36,8 @@ export const DuckChessBanner: React.FC<IDuckChessBannerProps> = ({
         animation: isPhasePlaceDuck ? 'pulse 1.5s infinite' : 'none',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <span style={{ fontSize: '1.25rem' }}>🦆</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+        <IconDuck size={22} color="#eab308" />
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-prominent)' }}>
             Duck Chess • {activePlayerLabel}

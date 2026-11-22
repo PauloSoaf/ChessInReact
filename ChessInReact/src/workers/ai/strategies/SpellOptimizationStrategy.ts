@@ -155,10 +155,18 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
 
           if (threatsAfter.length > 0) {
             // CATASTROPHIC PENALTY: Move leaves King directly vulnerable to an immediate Royal Jump capture!
-            score -= 90000;
+            score -= 200000;
           } else if (currentThreats.length > 0 && threatsAfter.length === 0) {
             // HIGH DEFENSIVE BONUS: Move successfully eliminates or blocks the Jump assassination!
-            score += 8000;
+            const isCaptureThreat = currentThreats.some((t) => t.threateningCoord === move.to);
+            const isKingEvasion = move.from === friendlyKingCoord;
+            if (isCaptureThreat) {
+              score += 35000;
+            } else if (isKingEvasion) {
+              score += 25000;
+            } else {
+              score += 20000; // Ray block
+            }
           }
         }
 
@@ -282,7 +290,8 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
         entity.type !== 'PIECE' ||
         entity.isCaptured ||
         entity.ownerId === kingOwner ||
-        entity.ownerId === 'NONE'
+        entity.ownerId === 'NONE' ||
+        entity.metadata?.isFrozen
       ) {
         continue;
       }

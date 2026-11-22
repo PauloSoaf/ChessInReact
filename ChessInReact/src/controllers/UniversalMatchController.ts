@@ -411,6 +411,7 @@ export class UniversalMatchController {
 
     this.syncVariantModifiersToDomain();
     this.notify();
+    this.notify();
     return wasSpellOnly || coreUndone;
   }
 
@@ -453,6 +454,7 @@ export class UniversalMatchController {
     }
 
     this.syncVariantModifiersToDomain();
+    this.notify();
     this.notify();
     return wasSpellOnly || coreRedone;
   }
@@ -1028,6 +1030,7 @@ export class UniversalMatchController {
     try {
       this.duckState = DuckChessEngine.executePlaceDuck(this.duckState, targetCoord, occupied);
       this.syncVariantModifiersToDomain();
+    this.notify();
 
       GlobalEventBus.emit('DUCK_PLACED', {
         coordinate: asCoordinateKey(targetCoord),
@@ -1219,6 +1222,7 @@ export class UniversalMatchController {
         this.hasCastSpellThisTurn = true;
         this.officialSpellState = res.state;
         this.syncVariantModifiersToDomain();
+    this.notify();
         GlobalEventBus.emit('SPELL_CAST', {
           spellType: 'FREEZE',
           coordinate: asCoordinateKey(`${center.file},${center.rank}`),
@@ -1245,6 +1249,7 @@ export class UniversalMatchController {
         this.hasCastSpellThisTurn = true;
         this.officialSpellState = res.state;
         this.syncVariantModifiersToDomain();
+    this.notify();
         GlobalEventBus.emit('SPELL_CAST', {
           spellType: 'JUMP',
           coordinate: asCoordinateKey(typeof target === 'string' ? target : '0,0'),
@@ -1370,6 +1375,7 @@ export class UniversalMatchController {
       this.recordHistorySnapshot('SPELL');
       this.expandedSpellState = nextState;
       this.syncVariantModifiersToDomain();
+    this.notify();
       GlobalEventBus.emit('SPELL_CAST', {
         spellType: spell.type,
         coordinate: asCoordinateKey(normTarget),
@@ -1592,6 +1598,7 @@ export class UniversalMatchController {
     }
 
     this.syncVariantModifiersToDomain();
+    this.notify();
   }
 
   private getEmptySquares(): string[] {

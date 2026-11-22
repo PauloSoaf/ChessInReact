@@ -14,6 +14,44 @@ import { TournamentArenaModal } from './TournamentArenaModal';
 import { IMatchConfiguration } from '../../../matchmaking/config/IMatchConfiguration';
 import { VariantCatalog } from '../../../engine/variants/catalog/VariantCatalog';
 import { CompositeArenaLayouts } from '../../../engine/multiplayer/arenas/CompositeArenaLayouts';
+import {
+  IconDuck,
+  IconFreeze,
+  IconSparkles,
+  IconPuzzle,
+  IconUsers,
+  IconEye,
+  IconFlame,
+  IconRefresh,
+  IconTarget,
+  IconTrophy,
+  IconCheck,
+  IconBox,
+  IconCastle,
+  IconShield,
+  IconGrid,
+  IconSwords,
+  IconBookOpen,
+} from '../../icons/AppIcons';
+
+export const getVariantIcon = (variantId: string, size = 20): React.ReactNode => {
+  const norm = variantId.toLowerCase();
+  if (norm.includes('duck')) return <IconDuck size={size} color="#eab308" />;
+  if (norm.includes('spell_chess_official') || norm === 'spell_chess') return <IconFreeze size={size} color="#06b6d4" />;
+  if (norm.includes('spell_chess_expanded') || norm.includes('expanded')) return <IconSparkles size={size} color="#9333ea" />;
+  if (norm.includes('puzzle')) return <IconPuzzle size={size} color="#ef4444" />;
+  if (norm.includes('bughouse')) return <IconUsers size={size} color="#06b6d4" />;
+  if (norm.includes('fog')) return <IconEye size={size} color="#94a3b8" />;
+  if (norm.includes('atomic')) return <IconFlame size={size} color="#f97316" />;
+  if (norm.includes('anti')) return <IconRefresh size={size} color="#10b981" />;
+  if (norm.includes('hill')) return <IconTarget size={size} color="#d97706" />;
+  if (norm.includes('racing')) return <IconTrophy size={size} color="#8b5cf6" />;
+  if (norm.includes('three_check')) return <IconCheck size={size} color="#f59e0b" />;
+  if (norm.includes('crazyhouse')) return <IconBox size={size} color="#a855f7" />;
+  if (norm.includes('capablanca')) return <IconCastle size={size} color="#0284c7" />;
+  if (norm.includes('horde')) return <IconShield size={size} color="#e11d48" />;
+  return <IconGrid size={size} color="var(--color-accent, #638a75)" />;
+};
 
 const LazyChessPieceShowcase = React.lazy(() =>
   import('../showcase/ChessPieceShowcase').then((m) => ({
@@ -137,7 +175,6 @@ const MINIGAMES_CATALOG = [
     title: 'Puzzle Rush & Sobrevivência',
     badge: 'Pronto para Jogar',
     accentColor: '#ef4444',
-    icon: '⚡',
     desc: 'Resolva o maior número de combinações táticas e problemas de mate contra o relógio em 3 ou 5 minutos antes de esgotar suas 3 vidas.',
     features: ['Modo 3 Minutos & 5 Minutos', 'Modo Sobrevivência Sem Limite', 'Catálogo Calibrado de Puzzles'],
     status: 'READY' as const,
@@ -149,7 +186,6 @@ const MINIGAMES_CATALOG = [
     title: 'Spell Chess Oficial (Chess.com)',
     badge: 'Freeze & Jump (2 Cargas)',
     accentColor: '#06b6d4',
-    icon: '❄️',
     desc: 'Regras Oficiais do Chess.com: 2 cargas de Freeze (congelamento 3×3) e 2 cargas de Jump (salto de peça) por jogador, com recarga de 3 turnos.',
     features: ['Freeze 3×3 (2 Cargas)', 'Jump sobre Peças (2 Cargas)', 'Recarga de 3 Turnos'],
     status: 'READY' as const,
@@ -161,7 +197,6 @@ const MINIGAMES_CATALOG = [
     title: 'Spell Chess RPG Expandido',
     badge: '7 Feitiços & Mana (SPEC12)',
     accentColor: '#9333ea',
-    icon: '🧙‍♂️',
     desc: 'Cartas arcanas de magia com mana compartilhado: Congelamento em área (Freeze), Salto sobre peças (Jump), Camuflagem furtiva, Portais dimensionais e Ressurreição.',
     features: ['Deck de 7 Feitiços & Mana', 'Topologia Clássica & Hexagonal', 'Cartas Colecionáveis'],
     status: 'READY' as const,
@@ -173,7 +208,6 @@ const MINIGAMES_CATALOG = [
     title: 'Duck Chess (Xadrez do Pato)',
     badge: 'Pronto para Jogar (SPEC13/16)',
     accentColor: '#eab308',
-    icon: '🦆',
     desc: 'Um pato de borracha neutro bloqueia uma casa após cada lance. O pato não pode ser capturado e impede a passagem de ambas as cores.',
     features: ['Pato Neutro Móvel', 'Sem Regra de Xeque Tradicional', 'Bloqueio Tático Total'],
     status: 'READY' as const,
@@ -185,7 +219,6 @@ const MINIGAMES_CATALOG = [
     title: 'Bughouse (Xadrez Duplo 2v2)',
     badge: 'Pronto para Jogar (SPEC13/16)',
     accentColor: '#06b6d4',
-    icon: '👯',
     desc: 'Disputa cooperativa em 2 tabuleiros paralelos. Peças capturadas pelo seu parceiro vão direto para o seu bolso de drops no tabuleiro vizinho.',
     features: ['Dois Tabuleiros Gêmeos', 'Repasse Imediato de Peças', 'Salas Síncronas Colyseus'],
     status: 'READY' as const,
@@ -197,7 +230,6 @@ const MINIGAMES_CATALOG = [
     title: 'Fog of War (Névoa de Guerra)',
     badge: 'Pronto para Jogar (SPEC13/16)',
     accentColor: '#64748b',
-    icon: '🌫️',
     desc: 'Visão tática restrita: veja apenas as casas e peças dentro do raio de visão e ataque dos seus guerreiros. Surpreenda o adversário no escuro!',
     features: ['Campo de Visão Dinâmico', 'Emboscadas & Furtividade', 'Desafio Estratégico'],
     status: 'READY' as const,
@@ -209,7 +241,6 @@ const MINIGAMES_CATALOG = [
     title: 'Atomic Chess (Xadrez Atômico)',
     badge: 'Pronto para Jogar (SPEC13/16)',
     accentColor: '#f97316',
-    icon: '💥',
     desc: 'Cada captura explode em uma detonação de 3×3 casas, destruindo a peça capturada, a peça agressora e todas as peças adjacentes não-peões.',
     features: ['Explosões de Raio 1', 'Destruição em Cadeia', 'Risco Extremo ao Rei'],
     status: 'READY' as const,
@@ -221,7 +252,6 @@ const MINIGAMES_CATALOG = [
     title: 'Antichess (Losing Chess)',
     badge: 'Pronto para Jogar (SPEC13/16)',
     accentColor: '#10b981',
-    icon: '🔄',
     desc: 'O objetivo é perder todas as suas peças ou ficar sem movimentos legais! Capturas são estritamente obrigatórias quando disponíveis.',
     features: ['Capturas Forçadas', 'Sem Xeque nem Roque', 'Vitória por Desarmamento'],
     status: 'READY' as const,
@@ -233,7 +263,6 @@ const MINIGAMES_CATALOG = [
     title: 'King of the Hill',
     badge: 'Centro d4/e4/d5/e5 (SPEC13)',
     accentColor: '#d97706',
-    icon: '⛰️',
     desc: 'Guie seu Rei até uma das 4 casas do santuário central (d4, e4, d5, e5) para vencer instantaneamente a partida ou vença por mate!',
     features: ['Santuário Central 2×2', 'Vitória Instantânea de Rei', 'IA Especializada em Rush'],
     status: 'READY' as const,
@@ -245,7 +274,6 @@ const MINIGAMES_CATALOG = [
     title: 'Racing Kings',
     badge: 'Corrida até Fileira 8',
     accentColor: '#8b5cf6',
-    icon: '🏁',
     desc: 'Corrida tática: o primeiro rei a alcançar a oitava fileira vence a partida! Xeques ao rei adversário são estritamente proibidos.',
     features: ['Proibição Total de Xeque', 'Corrida de Reis', 'Compensação de Lance Preto'],
     status: 'READY' as const,
@@ -257,7 +285,6 @@ const MINIGAMES_CATALOG = [
     title: 'Three-Check Chess',
     badge: '3 Xeques = Vitória',
     accentColor: '#f59e0b',
-    icon: '🎯',
     desc: 'Disputa agressiva onde aplicar 3 xeques acumulados no rei adversário concede a vitória imediata antes do xeque-mate!',
     features: ['Contador de Xeques ao Vivo', 'Ataque Implacável', 'Finalizações Rápidas'],
     status: 'READY' as const,
@@ -269,7 +296,6 @@ const MINIGAMES_CATALOG = [
     title: 'Crazyhouse (Drops de Reserva)',
     badge: 'Drops de Peças (SPEC13)',
     accentColor: '#a855f7',
-    icon: '📦',
     desc: 'Peças capturadas entram no seu bolso de reservas. No seu turno, faça o drop de qualquer peça em uma casa desocupada!',
     features: ['Bolso de Peças Capturadas', 'Drops Livres no Turno', 'Reviravoltas Constantes'],
     status: 'READY' as const,
@@ -281,7 +307,6 @@ const MINIGAMES_CATALOG = [
     title: 'Capablanca Chess (10×8)',
     badge: 'Arcebispo & Chanceler',
     accentColor: '#0284c7',
-    icon: '🏰',
     desc: 'Tabuleiro expandido de 10×8 criado pelo campeão mundial José Raúl Capablanca, apresentando o Arcebispo (Bispo+Cavalo) e o Chanceler (Torre+Cavalo).',
     features: ['Grade 10×8 Expandida', 'Peças Compostas Lendárias', 'Domínio Espacial'],
     status: 'READY' as const,
@@ -293,7 +318,6 @@ const MINIGAMES_CATALOG = [
     title: 'Horde Chess (36 Peões vs Exército)',
     badge: 'Batalha Assimétrica',
     accentColor: '#e11d48',
-    icon: '🛡️',
     desc: 'Disputa assimétrica épica: uma legião de 36 peões brancos avançando em muralha contra as peças tradicionais das pretas!',
     features: ['Muralha de 36 Peões', 'Sem Rei Branco (Extinção)', 'Defesa vs Ofensiva Total'],
     status: 'READY' as const,
@@ -414,7 +438,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
             <div className="hub-eyebrow-row">
               <div className="hub-eyebrow-pill">
                 <StatusIndicator status="active" pulse />
-                <span>Experiência de Xadrez Avançada</span>
+                <span>Central de Partidas</span>
               </div>
 
               {isMatchInProgress && (
@@ -436,21 +460,19 @@ export const GameHub: React.FC<IGameHubProps> = ({
             </div>
 
             <h1 className="hub-hero-title">
-              Domínio Tático &amp;{' '}
+              Jogue Xadrez &amp;{' '}
               <span
                 style={{
                   color: 'var(--color-accent)',
                   display: 'inline-block',
                 }}
               >
-                Estudo de Partida
+                Variantes
               </span>
             </h1>
 
             <p className="hub-hero-lead">
-              Pratique contra cinco níveis de desafio ou dispute partidas presenciais no mesmo
-              dispositivo, com avaliação posicional, revisão livre de jogadas e três atmosferas
-              visuais.
+              Escolha seu modo de jogo: enfrente a inteligência artificial, dispute partidas locais com amigos, explore variantes táticas ou resolva desafios.
             </p>
 
             {/* Primary & Secondary Hero Actions */}
@@ -486,7 +508,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                     variant="primary"
                     size="lg"
                     onClick={() => onStartBotMatch(botDifficulty)}
-                    leadingIcon={<span>⚔️</span>}
+                    leadingIcon={<IconSwords size={16} />}
                   >
                     Iniciar Nova Partida vs IA
                   </ActionButton>
@@ -1053,7 +1075,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                         transition: 'all var(--transition-fast)',
                       }}
                     >
-                      📐 2D Vetorial
+                      2D Vetorial
                     </button>
                     <button
                       id="hub-ai-card-view-3d"
@@ -1071,7 +1093,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                         transition: 'all var(--transition-fast)',
                       }}
                     >
-                      🎲 3D WebGL
+                      3D WebGL
                     </button>
                   </div>
                 </div>
@@ -1319,7 +1341,9 @@ export const GameHub: React.FC<IGameHubProps> = ({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>{mg.icon}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {getVariantIcon(mg.id, 24)}
+                    </span>
                     <div>
                       <h3
                         style={{
@@ -1444,7 +1468,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>🛡️</span>
+                  <IconShield size={28} color="var(--color-accent)" />
                   <span
                     style={{
                       fontSize: '0.72rem',
@@ -1543,7 +1567,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>📐</span>
+                  <IconBox size={28} color="var(--color-accent)" />
                   <span
                     style={{
                       fontSize: '0.72rem',
@@ -1623,7 +1647,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>📜</span>
+                  <IconCastle size={28} color="var(--color-accent)" />
                   <span
                     style={{
                       fontSize: '0.72rem',
@@ -1861,7 +1885,10 @@ export const GameHub: React.FC<IGameHubProps> = ({
                           fontStyle: 'italic',
                         }}
                       >
-                        💡 {ex.hint}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <IconBookOpen size={13} color="var(--color-accent)" />
+                          <span>Dica: {ex.hint}</span>
+                        </span>
                       </div>
                     )}
 
@@ -2011,8 +2038,9 @@ export const GameHub: React.FC<IGameHubProps> = ({
                           gap: '0.25rem',
                         }}
                       >
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-accent)' }}>
-                          💡 Solução Didática: {ex.solutionSequence.join(' ➔ ')}
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-accent)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <IconCheck size={14} color="var(--color-accent)" />
+                          <span>Solução Didática: {ex.solutionSequence.join(' ➔ ')}</span>
                         </span>
                         <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
                           {ex.solutionExplanation}

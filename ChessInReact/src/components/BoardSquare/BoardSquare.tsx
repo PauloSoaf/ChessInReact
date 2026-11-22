@@ -131,7 +131,7 @@ const BoardSquare: React.FC<IBoardSquare> = ({
       const nextSquare = document.querySelector<HTMLElement>(
         `[data-square-col="${targetCol}"][data-square-row="${squareInfo.row}"]`
       );
-      nextSquare?.focus();
+      nextSquare?.focus({ preventScroll: true });
       return;
     } else if (e.key === 'End') {
       e.preventDefault();
@@ -140,7 +140,7 @@ const BoardSquare: React.FC<IBoardSquare> = ({
       const nextSquare = document.querySelector<HTMLElement>(
         `[data-square-col="${targetCol}"][data-square-row="${squareInfo.row}"]`
       );
-      nextSquare?.focus();
+      nextSquare?.focus({ preventScroll: true });
       return;
     }
 
@@ -152,7 +152,7 @@ const BoardSquare: React.FC<IBoardSquare> = ({
       const nextSquare = document.querySelector<HTMLElement>(
         `[data-square-col="${targetCol}"][data-square-row="${targetRow}"]`
       );
-      nextSquare?.focus();
+      nextSquare?.focus({ preventScroll: true });
     }
   };
 

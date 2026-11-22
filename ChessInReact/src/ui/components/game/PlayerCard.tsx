@@ -16,6 +16,7 @@ export interface IPlayerCardProps {
   isUnlimited?: boolean;
   timeControlLabel?: string;
   isRanked?: boolean;
+  readonly actionSlot?: React.ReactNode;
 }
 
 const PIECE_GLYPHS: Record<string, string> = {
@@ -53,6 +54,7 @@ export const PlayerCard: React.FC<IPlayerCardProps> = ({
   isUnlimited = false,
   timeControlLabel,
   isRanked,
+  actionSlot,
 }) => {
   const isWhite = playerId === 'P1';
   const isCriticalTime = isTurnActive && timeLeftMs !== undefined && timeLeftMs < 10000 && timeLeftMs > 0;
@@ -214,8 +216,9 @@ export const PlayerCard: React.FC<IPlayerCardProps> = ({
         </div>
       </div>
 
-      {/* Right: Clock & Turn Status */}
+      {/* Right: Clock, Spell Action Deck & Turn Status */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+        {actionSlot}
         {/* Match Mode & Time Control Badges (Spec 06 RF-09 & Spec 16 § 4) */}
         {(timeControlLabel || isRanked !== undefined) && (
           <div
@@ -324,8 +327,12 @@ export const PlayerCard: React.FC<IPlayerCardProps> = ({
               animation: 'pulseCheck 1.2s infinite',
             }}
           >
-            <span>⚠️</span>
-            <span>EM XEQUE</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span>XEQUE</span>
           </div>
         )}
 
