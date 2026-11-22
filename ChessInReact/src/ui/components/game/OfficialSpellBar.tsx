@@ -10,6 +10,7 @@ export interface IOfficialSpellBarProps {
   readonly onCancelSpell?: () => void;
   readonly selectedSpellType?: 'FREEZE' | 'JUMP' | null;
   readonly compact?: boolean;
+  readonly hasCastSpellThisTurn?: boolean;
 }
 
 export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
@@ -19,6 +20,7 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
   onCancelSpell,
   selectedSpellType,
   compact = false,
+  hasCastSpellThisTurn = false,
 }) => {
   const isWhite = activePlayer === 'P1' || (activePlayer as string) === 'WHITE';
   const charges = isWhite ? state.whiteCharges : state.blackCharges;
@@ -32,6 +34,10 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
         e.target instanceof HTMLTextAreaElement ||
         e.target instanceof HTMLSelectElement
       ) {
+        return;
+      }
+
+      if (hasCastSpellThisTurn) {
         return;
       }
 
@@ -61,12 +67,13 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
     charges.jumpCharges,
     charges.jumpCooldownTurns,
     selectedSpellType,
+    hasCastSpellThisTurn,
     onCastSpell,
     onCancelSpell,
   ]);
 
-  const isFreezeAvailable = charges.freezeCharges > 0 && charges.freezeCooldownTurns === 0;
-  const isJumpAvailable = charges.jumpCharges > 0 && charges.jumpCooldownTurns === 0;
+  const isFreezeAvailable = !hasCastSpellThisTurn && charges.freezeCharges > 0 && charges.freezeCooldownTurns === 0;
+  const isJumpAvailable = !hasCastSpellThisTurn && charges.jumpCharges > 0 && charges.jumpCooldownTurns === 0;
 
   return (
     <div
@@ -179,11 +186,13 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
           }}
           disabled={!isJumpAvailable}
           title={
-            charges.jumpCharges <= 0
-              ? 'Sem cargas restantes de Salto (Jump)'
-              : charges.jumpCooldownTurns > 0
-                ? `Salto em recarga (${charges.jumpCooldownTurns} turno(s) restante(s))`
-                : 'Salto (Jump): Concede permissão para saltar por cima de uma peça no tabuleiro (Atalho: tecla 2)'
+            hasCastSpellThisTurn
+              ? 'Você já lançou um feitiço nesta rodada. Mova uma peça no tabuleiro para concluir o turno.'
+              : charges.jumpCharges <= 0
+                ? 'Sem cargas restantes de Salto (Jump)'
+                : charges.jumpCooldownTurns > 0
+                  ? `Salto em recarga (${charges.jumpCooldownTurns} turno(s) restante(s))`
+                  : 'Salto (Jump): Concede permissão para saltar por cima de uma peça no tabuleiro (Atalho: tecla 2)'
           }
           style={{
             position: 'relative',
@@ -309,11 +318,13 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
           }}
           disabled={!isFreezeAvailable}
           title={
-            charges.freezeCharges <= 0
-              ? 'Sem cargas restantes de Congelamento (Freeze)'
-              : charges.freezeCooldownTurns > 0
-                ? `Congelamento em recarga (${charges.freezeCooldownTurns} turno(s) restante(s))`
-                : 'Congelamento (Freeze): Congela uma área 3×3 impedindo o movimento por 1 turno (Atalho: tecla 1)'
+            hasCastSpellThisTurn
+              ? 'Você já lançou um feitiço nesta rodada. Mova uma peça no tabuleiro para concluir o turno.'
+              : charges.freezeCharges <= 0
+                ? 'Sem cargas restantes de Congelamento (Freeze)'
+                : charges.freezeCooldownTurns > 0
+                  ? `Congelamento em recarga (${charges.freezeCooldownTurns} turno(s) restante(s))`
+                  : 'Congelamento (Freeze): Congela uma área 3×3 impedindo o movimento por 1 turno (Atalho: tecla 1)'
           }
           style={{
             position: 'relative',
@@ -479,6 +490,28 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
             >
               ✕ Cancelar (Esc)
             </button>
+          </div>
+        )}
+
+        {/* Has Cast Spell This Turn Status Chip */}
+        {hasCastSpellThisTurn && (
+          <div
+            data-testid="spell-turn-completed-chip"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              backgroundColor: 'rgba(56, 189, 248, 0.12)',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              padding: '0.25rem 0.6rem',
+              borderRadius: '6px',
+              fontSize: '0.68rem',
+              color: '#7dd3fc',
+              fontWeight: 500,
+              fontFamily: 'var(--font-sans, sans-serif)',
+            }}
+          >
+            <span>Feitiço conjurado nesta rodada. Faça seu lance no tabuleiro para passar a vez.</span>
           </div>
         )}
       </div>

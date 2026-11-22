@@ -68,6 +68,7 @@ export interface IUniversalMatchSnapshot {
   readonly racingKingsState: IRacingKingsState | null;
   readonly scores: Readonly<Record<string, number>>;
   readonly eliminatedPlayers: ReadonlyArray<string>;
+  readonly hasCastSpellThisTurn: boolean;
 }
 
 export interface IUniversalMatchHistorySnapshot {
@@ -80,6 +81,7 @@ export interface IUniversalMatchHistorySnapshot {
   readonly turnCycleState: ITurnCycleState | null;
   readonly lastMoveSummaryStr: string | null;
   readonly actionType?: 'SPELL' | 'PIECE_MOVE' | 'DUCK' | 'DROP' | 'BOT_MOVE';
+  readonly hasCastSpellThisTurn?: boolean;
 }
 
 export class UniversalMatchController {
@@ -99,6 +101,7 @@ export class UniversalMatchController {
   private expandedSpellState: ISpellGameState | null = null;
   private threeCheckState: ICheckCountState | null = null;
   private racingKingsState: IRacingKingsState | null = null;
+  private hasCastSpellThisTurn = false;
 
   // Multiplayer Arena states
   private turnCycleState: ITurnCycleState | null = null;
@@ -358,6 +361,7 @@ export class UniversalMatchController {
       turnCycleState: this.turnCycleState ? JSON.parse(JSON.stringify(this.turnCycleState)) : null,
       lastMoveSummaryStr: this.lastMoveSummaryStr,
       actionType,
+      hasCastSpellThisTurn: this.hasCastSpellThisTurn,
     };
     this.minigameUndoStack.push(snapshot);
     if (this.minigameUndoStack.length > 100) {
@@ -397,6 +401,7 @@ export class UniversalMatchController {
       this.scoresState = prev.scoresState;
       this.turnCycleState = prev.turnCycleState;
       this.lastMoveSummaryStr = prev.lastMoveSummaryStr;
+      this.hasCastSpellThisTurn = prev.hasCastSpellThisTurn ?? false;
     }
 
     let coreUndone = false;
@@ -438,6 +443,7 @@ export class UniversalMatchController {
       this.racingKingsState = next.racingKingsState;
       this.scoresState = next.scoresState;
       this.turnCycleState = next.turnCycleState;
+      this.hasCastSpellThisTurn = next.hasCastSpellThisTurn ?? false;
       this.lastMoveSummaryStr = next.lastMoveSummaryStr;
     }
 
@@ -525,6 +531,7 @@ export class UniversalMatchController {
       racingKingsState: this.racingKingsState ? { ...this.racingKingsState } : null,
       scores,
       eliminatedPlayers: eliminated,
+      hasCastSpellThisTurn: this.hasCastSpellThisTurn,
     };
   }
 
@@ -1176,6 +1183,7 @@ export class UniversalMatchController {
       const res = OfficialSpellEngine.castFreeze(this.officialSpellState, player, center);
       if (res.success) {
         this.recordHistorySnapshot('SPELL');
+        this.hasCastSpellThisTurn = true;
         this.officialSpellState = res.state;
         this.syncVariantModifiersToDomain();
         GlobalEventBus.emit('SPELL_CAST', {
@@ -1201,6 +1209,7 @@ export class UniversalMatchController {
       const res = OfficialSpellEngine.castJump(this.officialSpellState, player, pieceId);
       if (res.success) {
         this.recordHistorySnapshot('SPELL');
+        this.hasCastSpellThisTurn = true;
         this.officialSpellState = res.state;
         this.syncVariantModifiersToDomain();
         GlobalEventBus.emit('SPELL_CAST', {
@@ -1473,6 +1482,7 @@ export class UniversalMatchController {
     if (!this.officialSpellState && !this.expandedSpellState) return;
 
     const toCoord = this.normalizeToGameCoord(toCoordRaw);
+    this.hasCastSpellThisTurn = false;
 
     if (this.officialSpellState) {
       const nextJumps = { ...this.officialSpellState.activeJumpPieceIds };

@@ -1560,6 +1560,7 @@ const AppContent: React.FC = () => {
                       state={universalMatch.snapshot.officialSpellState}
                       activePlayer={activePlayer}
                       selectedSpellType={selectedOfficialSpell}
+                      hasCastSpellThisTurn={universalMatch.snapshot.hasCastSpellThisTurn}
                       onCancelSpell={() => {
                         setSelectedOfficialSpell(null);
                         triggerFeedback('GAME_EVENT', {

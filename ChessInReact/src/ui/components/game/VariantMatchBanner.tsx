@@ -33,7 +33,7 @@ export const VariantMatchBanner: React.FC<IVariantMatchBannerProps> = ({
   if (normId.includes('SPELL') || normId === 'SPELL_CHESS_OFFICIAL') {
     title = 'Spell Chess';
     badge = 'Oficial';
-    subtitle = 'Congele áreas 3×3 ou salte sobre peças com tempo de recarga.';
+    subtitle = 'Opcionalmente lance 1 feitiço por rodada antes da sua jogada no tabuleiro.';
     accentColor = '#06b6d4';
   } else if (normId === 'SPELL_CHESS_EXPANDED') {
     title = 'Spell Chess (Expanded)';
