@@ -258,7 +258,7 @@ export const TournamentArenaModal: React.FC<ITournamentArenaModalProps> = ({
               >
                 <div style={{ fontSize: '13px', color: '#94a3b8' }}>
                   {swissState.isCompleted
-                    ? '🎉 Torneio Concluído!'
+                    ? 'Torneio Concluído!'
                     : `Rodada Ativa: ${swissState.currentRound} / ${swissState.totalRounds}`}
                 </div>
                 {!swissState.isCompleted && (
@@ -303,8 +303,8 @@ export const TournamentArenaModal: React.FC<ITournamentArenaModalProps> = ({
                           backgroundColor: idx === 0 ? 'rgba(59, 130, 246, 0.08)' : 'transparent'
                         }}
                       >
-                        <td style={{ padding: '10px 14px', fontWeight: 700 }}>
-                          {idx === 0 ? '🥇 1º' : idx === 1 ? '🥈 2º' : idx === 2 ? '🥉 3º' : `${idx + 1}º`}
+                        <td style={{ padding: '10px 14px', fontWeight: 700, color: idx === 0 ? '#38bdf8' : idx === 1 ? '#94a3b8' : idx === 2 ? '#f59e0b' : 'inherit' }}>
+                          {`${idx + 1}º`}
                         </td>
                         <td style={{ padding: '10px 14px', fontWeight: 600, color: '#f8fafc' }}>
                           {p.name}
@@ -481,8 +481,8 @@ export const TournamentArenaModal: React.FC<ITournamentArenaModalProps> = ({
                           backgroundColor: idx === 0 ? 'rgba(245, 158, 11, 0.08)' : 'transparent'
                         }}
                       >
-                        <td style={{ padding: '10px 14px', fontWeight: 700 }}>
-                          {idx === 0 ? '🥇 1º' : idx === 1 ? '🥈 2º' : idx === 2 ? '🥉 3º' : `${idx + 1}º`}
+                        <td style={{ padding: '10px 14px', fontWeight: 700, color: idx === 0 ? '#38bdf8' : idx === 1 ? '#94a3b8' : idx === 2 ? '#f59e0b' : 'inherit' }}>
+                          {`${idx + 1}º`}
                         </td>
                         <td style={{ padding: '10px 14px', fontWeight: 600, color: '#f8fafc' }}>
                           {p.name}
@@ -495,7 +495,7 @@ export const TournamentArenaModal: React.FC<ITournamentArenaModalProps> = ({
                         </td>
                         <td style={{ padding: '10px 14px' }}>
                           {p.currentStreak >= 2 ? (
-                            <span style={{ color: '#ef4444', fontWeight: 700 }}>🔥 {p.currentStreak} (2x pts)</span>
+                            <span style={{ color: '#ef4444', fontWeight: 700 }}>Sequência: {p.currentStreak} (2x pts)</span>
                           ) : (
                             <span style={{ color: '#94a3b8' }}>{p.currentStreak}</span>
                           )}

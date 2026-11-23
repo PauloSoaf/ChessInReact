@@ -195,7 +195,7 @@ const MINIGAMES_CATALOG = [
   {
     id: 'spell_chess_expanded',
     title: 'Spell Chess RPG Expandido',
-    badge: '7 Feitiços & Mana (SPEC12)',
+    badge: '7 Feitiços & Mana',
     accentColor: '#9333ea',
     desc: 'Cartas arcanas de magia com mana compartilhado: Congelamento em área (Freeze), Salto sobre peças (Jump), Camuflagem furtiva, Portais dimensionais e Ressurreição.',
     features: ['Deck de 7 Feitiços & Mana', 'Topologia Clássica & Hexagonal', 'Cartas Colecionáveis'],
@@ -206,7 +206,7 @@ const MINIGAMES_CATALOG = [
   {
     id: 'duck_chess',
     title: 'Duck Chess (Xadrez do Pato)',
-    badge: 'Pronto para Jogar (SPEC13/16)',
+    badge: 'Pronto para Jogar',
     accentColor: '#eab308',
     desc: 'Um pato de borracha neutro bloqueia uma casa após cada lance. O pato não pode ser capturado e impede a passagem de ambas as cores.',
     features: ['Pato Neutro Móvel', 'Sem Regra de Xeque Tradicional', 'Bloqueio Tático Total'],
@@ -217,7 +217,7 @@ const MINIGAMES_CATALOG = [
   {
     id: 'bughouse',
     title: 'Bughouse (Xadrez Duplo 2v2)',
-    badge: 'Pronto para Jogar (SPEC13/16)',
+    badge: 'Pronto para Jogar',
     accentColor: '#06b6d4',
     desc: 'Disputa cooperativa em 2 tabuleiros paralelos. Peças capturadas pelo seu parceiro vão direto para o seu bolso de drops no tabuleiro vizinho.',
     features: ['Dois Tabuleiros Gêmeos', 'Repasse Imediato de Peças', 'Salas Síncronas Colyseus'],
@@ -228,7 +228,7 @@ const MINIGAMES_CATALOG = [
   {
     id: 'fog_of_war',
     title: 'Fog of War (Névoa de Guerra)',
-    badge: 'Pronto para Jogar (SPEC13/16)',
+    badge: 'Pronto para Jogar',
     accentColor: '#64748b',
     desc: 'Visão tática restrita: veja apenas as casas e peças dentro do raio de visão e ataque dos seus guerreiros. Surpreenda o adversário no escuro!',
     features: ['Campo de Visão Dinâmico', 'Emboscadas & Furtividade', 'Desafio Estratégico'],
@@ -239,7 +239,7 @@ const MINIGAMES_CATALOG = [
   {
     id: 'atomic',
     title: 'Atomic Chess (Xadrez Atômico)',
-    badge: 'Pronto para Jogar (SPEC13/16)',
+    badge: 'Pronto para Jogar',
     accentColor: '#f97316',
     desc: 'Cada captura explode em uma detonação de 3×3 casas, destruindo a peça capturada, a peça agressora e todas as peças adjacentes não-peões.',
     features: ['Explosões de Raio 1', 'Destruição em Cadeia', 'Risco Extremo ao Rei'],
@@ -250,7 +250,7 @@ const MINIGAMES_CATALOG = [
   {
     id: 'antichess',
     title: 'Antichess (Losing Chess)',
-    badge: 'Pronto para Jogar (SPEC13/16)',
+    badge: 'Pronto para Jogar',
     accentColor: '#10b981',
     desc: 'O objetivo é perder todas as suas peças ou ficar sem movimentos legais! Capturas são estritamente obrigatórias quando disponíveis.',
     features: ['Capturas Forçadas', 'Sem Xeque nem Roque', 'Vitória por Desarmamento'],
@@ -261,7 +261,7 @@ const MINIGAMES_CATALOG = [
   {
     id: 'king_of_the_hill',
     title: 'King of the Hill',
-    badge: 'Centro d4/e4/d5/e5 (SPEC13)',
+    badge: 'Centro d4/e4/d5/e5',
     accentColor: '#d97706',
     desc: 'Guie seu Rei até uma das 4 casas do santuário central (d4, e4, d5, e5) para vencer instantaneamente a partida ou vença por mate!',
     features: ['Santuário Central 2×2', 'Vitória Instantânea de Rei', 'IA Especializada em Rush'],
@@ -294,7 +294,7 @@ const MINIGAMES_CATALOG = [
   {
     id: 'crazyhouse',
     title: 'Crazyhouse (Drops de Reserva)',
-    badge: 'Drops de Peças (SPEC13)',
+    badge: 'Drops de Peças',
     accentColor: '#a855f7',
     desc: 'Peças capturadas entram no seu bolso de reservas. No seu turno, faça o drop de qualquer peça em uma casa desocupada!',
     features: ['Bolso de Peças Capturadas', 'Drops Livres no Turno', 'Reviravoltas Constantes'],
@@ -1407,7 +1407,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
                 size="sm"
                 fullWidth
                 disabled={mg.disabled}
-                title={mg.disabled ? 'Variante em desenvolvimento especializado na SPEC12' : `Jogar ${mg.title}`}
+                title={mg.disabled ? 'Variante em desenvolvimento' : `Jogar ${mg.title}`}
                 onClick={() => {
                   if (mg.disabled) return;
                   if (mg.id === 'puzzle_rush' || mg.id === 'bughouse') {

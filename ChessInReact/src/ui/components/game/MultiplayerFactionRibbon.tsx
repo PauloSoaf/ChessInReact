@@ -88,7 +88,7 @@ export const MultiplayerFactionRibbon: React.FC<IMultiplayerFactionRibbonProps> 
                 }}
               >
                 {slot.displayName}
-                {isActive && isThinking && ' 💭'}
+                {isActive && isThinking && ' (Pensando...)'}
               </span>
               <span
                 style={{
