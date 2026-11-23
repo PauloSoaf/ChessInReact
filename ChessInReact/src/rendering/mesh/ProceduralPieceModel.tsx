@@ -5,6 +5,12 @@ export interface IProceduralPieceModelProps {
   variantId: string;
   isWhite: boolean;
   isSelected?: boolean;
+  isCheckKing?: boolean;
+  isCheckSource?: boolean;
+  hasJump?: boolean;
+  isShielded?: boolean;
+  scale?: number;
+  rotationY?: number;
   ownerId?: string;
 }
 
@@ -27,12 +33,36 @@ export const ProceduralPieceModel: React.FC<IProceduralPieceModelProps> = ({
   variantId,
   isWhite,
   isSelected = false,
+  isCheckKing = false,
+  isCheckSource = false,
+  hasJump = false,
+  isShielded = false,
+  scale,
+  rotationY,
   ownerId,
 }) => {
   const norm = variantId.toUpperCase();
   const baseColor = (ownerId && FACTION_PALETTE[ownerId]) ?? (isWhite ? '#faf7f0' : '#14161d');
-  const emissiveColor = isSelected ? '#f59e0b' : '#000000';
-  const emissiveIntensity = isSelected ? 0.6 : 0;
+
+  let emissiveColor = '#000000';
+  let emissiveIntensity = 0;
+  if (isCheckKing) {
+    emissiveColor = '#ef4444';
+    emissiveIntensity = 0.85;
+  } else if (isCheckSource) {
+    emissiveColor = '#dc2626';
+    emissiveIntensity = 0.75;
+  } else if (hasJump) {
+    emissiveColor = '#0284c7';
+    emissiveIntensity = 0.7;
+  } else if (isShielded) {
+    emissiveColor = '#10b981';
+    emissiveIntensity = 0.7;
+  } else if (isSelected) {
+    emissiveColor = '#f59e0b';
+    emissiveIntensity = 0.6;
+  }
+
   const metalness = isWhite ? 0.04 : 0.12;
   const roughness = isWhite ? 0.22 : 0.24;
 
@@ -44,8 +74,15 @@ export const ProceduralPieceModel: React.FC<IProceduralPieceModelProps> = ({
     roughness,
   };
 
+  const finalScale = scale ?? 0.75;
+
   return (
-    <group castShadow receiveShadow scale={[0.75, 0.75, 0.75]}>
+    <group
+      castShadow
+      receiveShadow
+      scale={[finalScale, finalScale, finalScale]}
+      rotation={[0, rotationY ?? 0, 0]}
+    >
       {/* Turned Staunton Pedestal */}
       <mesh
         castShadow
@@ -229,6 +266,21 @@ export const ProceduralPieceModel: React.FC<IProceduralPieceModelProps> = ({
         </mesh>
       )}
 
+      {/* Duck Chess: Authentic Rubber Duck Model */}
+      {norm.includes('DUCK') && (
+        <group position={[0, 0.28, 0]}>
+          <mesh castShadow receiveShadow geometry={stauntonGeometries.getDuckBody()}>
+            <meshStandardMaterial color="#facc15" roughness={0.3} metalness={0.08} />
+          </mesh>
+          <mesh castShadow receiveShadow position={[0, 0.24, 0.18]} geometry={stauntonGeometries.getDuckHead()}>
+            <meshStandardMaterial color="#facc15" roughness={0.3} metalness={0.08} />
+          </mesh>
+          <mesh castShadow receiveShadow position={[0, 0.23, 0.34]} geometry={stauntonGeometries.getDuckBeak()}>
+            <meshStandardMaterial color="#f97316" roughness={0.35} metalness={0.05} />
+          </mesh>
+        </group>
+      )}
+
       {/* Fairy piece crystal */}
       {!norm.includes('PAWN') &&
         !norm.includes('SOLDIER') &&
@@ -248,7 +300,8 @@ export const ProceduralPieceModel: React.FC<IProceduralPieceModelProps> = ({
         !norm.includes('GYOKU') &&
         !norm.includes('JIANG') &&
         !norm.includes('SHUAI') &&
-        !norm.includes('CANNON') && (
+        !norm.includes('CANNON') &&
+        !norm.includes('DUCK') && (
           <mesh
             castShadow
             position={[0, 0.58, 0]}

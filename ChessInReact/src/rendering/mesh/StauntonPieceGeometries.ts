@@ -444,6 +444,59 @@ class StauntonGeometriesCache {
     }
     return this.fairyCrystal;
   }
+
+  /**
+   * Disposes all cached procedural geometries, reclaiming GPU and VRAM memory (Spec 07 § 6).
+   */
+  public dispose(): void {
+    const geometries = [
+      this.basePedestal,
+      this.pawnStemHead,
+      this.rookBodyTurret,
+      this.rookMerlons,
+      this.knightHead,
+      this.knightMane,
+      this.knightEye,
+      this.bishopMitre,
+      this.bishopOrb,
+      this.queenBody,
+      this.queenCoronet,
+      this.queenOrb,
+      this.kingBody,
+      this.kingCrown,
+      this.kingCrossV,
+      this.kingCrossH,
+      this.duckBody,
+      this.duckHead,
+      this.duckBeak,
+      this.cannonBarrel,
+      this.fairyCrystal,
+    ];
+    for (const g of geometries) {
+      g?.dispose();
+    }
+    this.basePedestal = null;
+    this.pawnStemHead = null;
+    this.rookBodyTurret = null;
+    this.rookMerlons = null;
+    this.knightHead = null;
+    this.knightMane = null;
+    this.knightEye = null;
+    this.bishopMitre = null;
+    this.bishopOrb = null;
+    this.queenBody = null;
+    this.queenCoronet = null;
+    this.queenOrb = null;
+    this.kingBody = null;
+    this.kingCrown = null;
+    this.kingCrossV = null;
+    this.kingCrossH = null;
+    this.duckBody = null;
+    this.duckHead = null;
+    this.duckBeak = null;
+    this.cannonBarrel = null;
+    this.fairyCrystal = null;
+  }
 }
 
 export const stauntonGeometries = new StauntonGeometriesCache();

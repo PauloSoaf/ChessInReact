@@ -74,6 +74,12 @@ export const PieceRenderer3D: React.FC<IPieceRenderer3DProps> = ({
       variantId={type}
       isWhite={isWhite}
       isSelected={isSelected}
+      isCheckKing={isCheckKing}
+      isCheckSource={isCheckSource}
+      hasJump={hasJump}
+      isShielded={isShielded}
+      scale={scale}
+      rotationY={rotationY}
       ownerId={ownerId}
     />
   );

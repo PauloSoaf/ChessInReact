@@ -60,5 +60,16 @@ describe('StauntonPieceGeometries Suite (Spec 07 § 4, § 5, RF-01, RF-07)', () 
     expect(cannon).toBeInstanceOf(THREE.BufferGeometry);
     expect(crystal).toBeInstanceOf(THREE.BufferGeometry);
   });
+
+  it('safely disposes all cached geometries and re-instantiates on demand (Spec 07 § 6)', () => {
+    const p1 = stauntonGeometries.getPawnStemHead();
+    expect(p1).toBeInstanceOf(THREE.BufferGeometry);
+
+    stauntonGeometries.dispose();
+
+    const p2 = stauntonGeometries.getPawnStemHead();
+    expect(p2).toBeInstanceOf(THREE.BufferGeometry);
+    expect(p2).not.toBe(p1); // New instance after disposal
+  });
 });
 
