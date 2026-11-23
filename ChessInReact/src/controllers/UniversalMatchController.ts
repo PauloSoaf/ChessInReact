@@ -50,6 +50,7 @@ import { IEntity, IPieceEntity } from '../core/entities/types';
 import { ParticipantClockManager } from '../matchmaking/config/ParticipantClockManager';
 import { SANNotationGenerator } from '../engine/rules/notation/SANNotationGenerator';
 import { IDomainState } from '../core/state/gameState';
+import { BoardEvaluator } from '../workers/ai/heuristics/BoardEvaluator';
 
 export interface IMoveItem {
   turnNumber: number;
@@ -76,6 +77,7 @@ export interface IMoveRecord {
   readonly san: string;
   readonly uci: string;
   readonly clockTimeLeftMs?: number;
+  readonly evalCp?: number;
   readonly actionType: 'PIECE_MOVE' | 'DUCK' | 'DROP' | 'SPELL' | 'BOT_MOVE';
   readonly spellType?: string;
 }
@@ -712,8 +714,28 @@ export class UniversalMatchController {
   }
 
   private recordMoveEntry(record: IMoveRecord): void {
+    if (record.evalCp === undefined) {
+      try {
+        const domain = gameStore.getState().domain;
+        const scores = BoardEvaluator.evaluate(domain, this.topology);
+        const evalCp = (scores.P1 ?? 0) - (scores.P2 ?? 0);
+        record = { ...record, evalCp };
+      } catch {
+        // Fallback gracefully if evaluator cannot compute
+      }
+    }
     this.moveHistory.push(record);
     this.lastMoveSummaryStr = record.san;
+  }
+
+  public getEvaluationsStream(): readonly number[] {
+    const stream: number[] = [0];
+    for (const move of this.moveHistory) {
+      if (move.actionType !== 'SPELL' && move.actionType !== 'DUCK') {
+        stream.push(move.evalCp ?? 0);
+      }
+    }
+    return stream;
   }
 
   public getFormattedMoveItems(): IMoveItem[] {

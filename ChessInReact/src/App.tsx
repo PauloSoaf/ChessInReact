@@ -1566,7 +1566,7 @@ const AppContent: React.FC = () => {
         isOpen={isGameReviewOpen}
         onClose={() => setIsGameReviewOpen(false)}
         moveSans={matchMoveSans}
-        evaluationsCp={matchEvaluationsCp}
+        evaluationsCp={universalMatch.controller?.getEvaluationsStream() ?? matchEvaluationsCp}
         variantId={universalMatch.snapshot.config.variantId}
         whitePlayerName="Humano (Brancas)"
         blackPlayerName={isBotEnabled ? `Bot IA (${DIFFICULTY_LABELS[difficulty]})` : 'Humano (Pretas)'}

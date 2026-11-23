@@ -71,12 +71,12 @@ describe('Spec 12 Game Review Modal & CAPS2 Analysis Component Suite', () => {
     expect(screen.queryByTestId('advantage-graph-container')).toBeNull();
   });
 
-  it('renders variant-unsupported notice for non-standard variants (PATCH-04)', () => {
+  it('renders variant-unsupported notice for multiplayer FFA arenas (PATCH-04)', () => {
     render(
       <GameReviewModal
         isOpen={true}
         onClose={vi.fn()}
-        variantId="SPELL_CHESS_OFFICIAL"
+        variantId="FOUR_PLAYER_FFA"
         moveSans={['e4', 'e5']}
         evaluationsCp={[10, 20]}
       />
@@ -85,6 +85,22 @@ describe('Spec 12 Game Review Modal & CAPS2 Analysis Component Suite', () => {
     expect(screen.getByTestId('variant-unsupported-notice')).toBeDefined();
     expect(screen.queryByTestId('white-accuracy-card')).toBeNull();
     expect(screen.queryByTestId('advantage-graph-container')).toBeNull();
+  });
+
+  it('renders CAPS2 review successfully for 2-player variants such as Spell Chess and Duck Chess', () => {
+    render(
+      <GameReviewModal
+        isOpen={true}
+        onClose={vi.fn()}
+        variantId="SPELL_CHESS_OFFICIAL"
+        moveSans={['e4', 'e5', 'Nf3', 'Nc6']}
+        evaluationsCp={[15, 20, 25, 22]}
+      />
+    );
+
+    expect(screen.queryByTestId('variant-unsupported-notice')).toBeNull();
+    expect(screen.getByTestId('white-accuracy-card')).toBeDefined();
+    expect(screen.getByTestId('advantage-graph-container')).toBeDefined();
   });
 
   it('handles close button click and Escape key navigation', () => {

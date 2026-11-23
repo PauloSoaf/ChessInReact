@@ -50,11 +50,18 @@ export const GameReviewModal: React.FC<IGameReviewModalProps> = ({
   const [selectedPly, setSelectedPly] = useState<number>(0);
   const [copiedPgn, setCopiedPgn] = useState<boolean>(false);
 
-  // Check if variant supports classical comparative centipawn review (FIDE 8x8 rules)
+  // Check if variant supports comparative centipawn review (2-player standard & fairy boards)
   const isVariantSupported = useMemo(() => {
     if (!variantId) return true;
     const v = variantId.toUpperCase();
-    return v === 'CLASSIC_SQUARE' || v === 'STANDARD' || v === 'CHESS' || v === 'FIDE';
+    // Exclude only massive radial multiplayer arenas with 3+ players where 2-player centipawns are ill-defined
+    return (
+      !v.includes('FOUR_PLAYER') &&
+      !v.includes('SIX_PLAYER') &&
+      !v.includes('DODECAGON') &&
+      !v.includes('FFA') &&
+      !v.includes('ARENA_')
+    );
   }, [variantId]);
 
   const hasEvaluations = evaluationsCp.length > 0;
