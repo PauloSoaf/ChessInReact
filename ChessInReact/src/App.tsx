@@ -1111,7 +1111,7 @@ const AppContent: React.FC = () => {
                 <PlayerCard
                   playerId="P2"
                   displayName={
-                    universalMatch.snapshot.config.slots[1]?.displayName.replace(/\s*\(N[1-5]\)$/, '') ??
+                    universalMatch.snapshot.config.slots[1]?.displayName.replace(/\s*\(N[1-5]\).*$/, '').trim() ??
                     (isBotEnabled ? 'Oponente IA' : 'Jogador 2 (Pretas)')
                   }
                   subtitle={
@@ -1296,7 +1296,10 @@ const AppContent: React.FC = () => {
               <div className="match-stage-player-wrap">
                 <PlayerCard
                   playerId="P1"
-                  displayName={universalMatch.snapshot.config.slots[0]?.displayName ?? 'Você (Brancas)'}
+                  displayName={
+                    universalMatch.snapshot.config.slots[0]?.displayName.replace(/\s*\(N[1-5]\).*$/, '').trim() ??
+                    'Você (Brancas)'
+                  }
                   subtitle={
                     universalMatch.snapshot.config.slots[0]?.role === 'AI_BOT' ||
                       universalMatch.snapshot.config.slots[0]?.role === 'BOT_STANDIN'

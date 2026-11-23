@@ -353,10 +353,14 @@ export const OpeningExplorerModal: React.FC<IOpeningExplorerModalProps> = ({
                     border: '1px solid #3b82f6',
                     backgroundColor: repertoireColor === 'WHITE' ? '#3b82f6' : 'transparent',
                     color: '#ffffff',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px'
                   }}
                 >
-                  ⚪ Repertório de Brancas
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#ffffff', display: 'inline-block' }} />
+                  Repertório de Brancas
                 </button>
                 <button
                   onClick={() => {
@@ -372,10 +376,14 @@ export const OpeningExplorerModal: React.FC<IOpeningExplorerModalProps> = ({
                     border: '1px solid #a855f7',
                     backgroundColor: repertoireColor === 'BLACK' ? '#a855f7' : 'transparent',
                     color: '#ffffff',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px'
                   }}
                 >
-                  ⚫ Repertório de Pretas
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#090d11', border: '1px solid #c084fc', display: 'inline-block' }} />
+                  Repertório de Pretas
                 </button>
               </div>
 

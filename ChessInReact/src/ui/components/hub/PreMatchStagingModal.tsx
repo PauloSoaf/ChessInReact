@@ -2,7 +2,6 @@ import React from 'react';
 import {
   IMatchConfiguration,
   ParticipantRole,
-  IBotSlotConfig,
 } from '../../../matchmaking/config/IMatchConfiguration';
 import { MatchConfigurationManager } from '../../../matchmaking/config/MatchConfigurationManager';
 import { TimeControlManager, ITimeControlPreset } from '../../../matchmaking/config/TimeControlManager';
@@ -118,18 +117,7 @@ export const PreMatchStagingModal: React.FC<IPreMatchStagingModalProps> = ({
   };
 
   const handleBotDifficultyChange = (slotIndex: number, level: 1 | 2 | 3 | 4 | 5) => {
-    const currentSlot = config.slots[slotIndex];
-    const newBotConfig: IBotSlotConfig = {
-      difficultyLevel: level,
-      archetype: currentSlot?.botConfig?.archetype ?? 'TACTICAL',
-      thinkTimeMs: level * 300,
-    };
-    const updated = MatchConfigurationManager.updateSlotRole(
-      config,
-      slotIndex,
-      'AI_BOT',
-      newBotConfig
-    );
+    const updated = MatchConfigurationManager.updateBotDifficulty(config, slotIndex, level);
     setConfig(updated);
   };
 

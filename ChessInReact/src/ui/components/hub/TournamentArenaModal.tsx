@@ -358,10 +358,14 @@ export const TournamentArenaModal: React.FC<ITournamentArenaModalProps> = ({
                             }}
                           >
                             <div>
-                              <span style={{ fontWeight: 600, color: '#ffffff' }}>⚪ {whitePlayer?.name ?? 'Brancas'}</span>
+                              <span style={{ fontWeight: 600, color: '#ffffff', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#ffffff', display: 'inline-block' }} />
+                                {whitePlayer?.name ?? 'Brancas'}
+                              </span>
                               <span style={{ margin: '0 8px', color: '#94a3b8' }}>vs</span>
-                              <span style={{ fontWeight: 600, color: '#ffffff' }}>
-                                ⚫ {match.blackPlayerId === 'BYE' ? 'FOLGA (BYE)' : (blackPlayer?.name ?? 'Pretas')}
+                              <span style={{ fontWeight: 600, color: '#ffffff', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#090d11', border: '1px solid #94a3b8', display: 'inline-block' }} />
+                                {match.blackPlayerId === 'BYE' ? 'FOLGA (BYE)' : (blackPlayer?.name ?? 'Pretas')}
                               </span>
                             </div>
 
