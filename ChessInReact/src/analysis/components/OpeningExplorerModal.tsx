@@ -10,6 +10,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { OpeningExplorerEngine } from '../openings/OpeningExplorerEngine';
 import { RepertoireTrainerEngine } from '../openings/RepertoireTrainerEngine';
 import { IRepertoireCard, ITrainingFeedback } from '../openings/types';
+import { IconCopy, IconCheck } from '../../ui/icons/AppIcons';
 
 export interface IOpeningExplorerModalProps {
   readonly isOpen: boolean;
@@ -555,7 +556,10 @@ export const OpeningExplorerModal: React.FC<IOpeningExplorerModalProps> = ({
                     cursor: 'pointer'
                   }}
                 >
-                  {copySuccess ? '✓ Copiado para Clipboard!' : '📋 Exportar Repertório JSON'}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    {copySuccess ? <IconCheck size={14} color="#10b981" /> : <IconCopy size={14} />}
+                    {copySuccess ? 'Copiado para Clipboard!' : 'Exportar Repertório JSON'}
+                  </span>
                 </button>
               </div>
             </div>

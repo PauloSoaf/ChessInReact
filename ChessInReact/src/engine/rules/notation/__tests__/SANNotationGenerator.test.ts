@@ -221,3 +221,4 @@ describe('SANNotationGenerator (Spec 04 § 4, Spec 09 § 4, Spec 16 § 4)', () =
     });
   });
 });
+

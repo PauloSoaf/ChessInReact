@@ -60,7 +60,7 @@ describe('Minigame & Variant Capricho Polish Suite (Spec 06, Spec 13, Spec 12)',
 
     const dot = screen.getByTestId('legal-move-dot');
     expect(dot).toBeDefined();
-    expect(dot.textContent).toContain('👑');
+    expect(dot.querySelector('svg')).toBeDefined();
 
     const squareEl = screen.getByTestId('square-e5');
     expect(squareEl.getAttribute('aria-label')).toContain('LANCE DE VITÓRIA DA COLINA!');

@@ -2,6 +2,19 @@ import React from 'react';
 import { IBoardSquare } from '../../Interfaces/Interfaces';
 import { useTheme } from '../../ui/theme/ThemeContext';
 import { PieceRenderer } from '../../ui/components/pieces/PieceRenderer';
+import {
+  IconCrown,
+  IconSwords,
+  IconExplosion,
+  IconFinishFlag,
+  IconPortal,
+  IconTrap,
+  IconJump,
+  IconShield,
+  IconDuck,
+  IconFreeze,
+  IconAlertTriangle,
+} from '../../ui/icons/AppIcons';
 
 const BoardSquare: React.FC<IBoardSquare> = ({
   piece,
@@ -295,8 +308,8 @@ const BoardSquare: React.FC<IBoardSquare> = ({
           }}
         >
           {isHillVictoryMove && (
-            <span style={{ fontSize: '0.85rem', lineHeight: 1 }} aria-hidden="true">
-              👑
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden="true">
+              <IconCrown size={15} color="#78350f" style={{ filter: 'drop-shadow(0 1px 2px rgba(251, 191, 36, 0.9))' }} />
             </span>
           )}
         </div>
@@ -322,7 +335,7 @@ const BoardSquare: React.FC<IBoardSquare> = ({
           }}
           aria-hidden="true"
         >
-          <span style={{ fontSize: '0.65rem', filter: 'drop-shadow(0 0 3px #10b981)' }}>⚔️</span>
+          <IconSwords size={12} color="#10b981" style={{ filter: 'drop-shadow(0 0 3px #10b981)' }} />
         </div>
       )}
 
@@ -351,15 +364,11 @@ const BoardSquare: React.FC<IBoardSquare> = ({
           aria-hidden="true"
         >
           {isExplosionCenter && (
-            <span
-              style={{
-                fontSize: '1.4rem',
-                filter: 'drop-shadow(0 0 8px rgba(239, 68, 68, 0.95))',
-                lineHeight: 1,
-              }}
-            >
-              💥
-            </span>
+            <IconExplosion
+              size={28}
+              color="#ef4444"
+              style={{ filter: 'drop-shadow(0 0 8px rgba(239, 68, 68, 0.95))' }}
+            />
           )}
         </div>
       )}
@@ -383,7 +392,7 @@ const BoardSquare: React.FC<IBoardSquare> = ({
             zIndex: 1,
           }}
         >
-          <span style={{ opacity: 0.78 }}>👑</span>
+          <IconCrown size={12} color="#d97706" style={{ opacity: 0.85 }} />
         </div>
       )}
 
@@ -406,7 +415,7 @@ const BoardSquare: React.FC<IBoardSquare> = ({
             zIndex: 1,
           }}
         >
-          <span style={{ opacity: 0.8 }}>🏁</span>
+          <IconFinishFlag size={12} color="#10b981" style={{ opacity: 0.85 }} />
         </div>
       )}
 
@@ -505,11 +514,10 @@ const BoardSquare: React.FC<IBoardSquare> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '0.95rem',
             zIndex: 2,
           }}
         >
-          🌀
+          <IconPortal size={18} color="#c084fc" style={{ filter: 'drop-shadow(0 0 6px #c084fc)' }} />
         </div>
       )}
 
@@ -522,13 +530,12 @@ const BoardSquare: React.FC<IBoardSquare> = ({
             position: 'absolute',
             bottom: '2px',
             left: '3px',
-            fontSize: '0.72rem',
             pointerEvents: 'none',
             zIndex: 3,
             filter: 'drop-shadow(0 0 4px rgba(244, 63, 94, 0.85))',
           }}
         >
-          💣
+          <IconTrap size={13} color="#f43f5e" />
         </div>
       )}
 
@@ -582,12 +589,12 @@ const BoardSquare: React.FC<IBoardSquare> = ({
                 position: 'absolute',
                 top: '1px',
                 right: '2px',
-                fontSize: '0.62rem',
                 lineHeight: 1,
                 pointerEvents: 'none',
+                filter: 'drop-shadow(0 0 3px #c084fc)',
               }}
             >
-              ⚡
+              <IconJump size={10} color="#c084fc" />
             </span>
           )}
           {isShielded && (
@@ -596,12 +603,12 @@ const BoardSquare: React.FC<IBoardSquare> = ({
                 position: 'absolute',
                 top: '1px',
                 left: '2px',
-                fontSize: '0.62rem',
                 lineHeight: 1,
                 pointerEvents: 'none',
+                filter: 'drop-shadow(0 0 3px #38bdf8)',
               }}
             >
-              🛡️
+              <IconShield size={10} color="#38bdf8" />
             </span>
           )}
         </div>
@@ -635,13 +642,12 @@ const BoardSquare: React.FC<IBoardSquare> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '1.5rem',
             pointerEvents: 'none',
             zIndex: 3,
-            filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.5))',
+            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.65))',
           }}
         >
-          🦆
+          <IconDuck size={30} color="#f59e0b" />
         </span>
       )}
 
@@ -729,25 +735,25 @@ const BoardSquare: React.FC<IBoardSquare> = ({
           }}
         >
           {hoverPreview.type === 'ATOMIC_EPICENTER' && (
-            <span style={{ fontSize: '1.5rem', filter: 'drop-shadow(0 0 8px #ef4444)' }}>💥</span>
+            <IconExplosion size={26} color="#ef4444" style={{ filter: 'drop-shadow(0 0 8px #ef4444)' }} />
           )}
           {hoverPreview.type === 'ATOMIC_BLAST' && (
-            <span style={{ fontSize: '0.85rem', opacity: 0.85, filter: 'drop-shadow(0 0 4px #f97316)' }}>⚠️</span>
+            <IconAlertTriangle size={15} color="#f97316" style={{ opacity: 0.9, filter: 'drop-shadow(0 0 4px #f97316)' }} />
           )}
           {hoverPreview.type === 'ATOMIC_IMMUNE' && (
-            <span style={{ fontSize: '0.85rem', opacity: 0.9, filter: 'drop-shadow(0 0 4px #10b981)' }}>🛡️</span>
+            <IconShield size={16} color="#10b981" style={{ opacity: 0.95, filter: 'drop-shadow(0 0 4px #10b981)' }} />
           )}
           {hoverPreview.type === 'FREEZE' && hoverPreview.isCenter && (
-            <span style={{ fontSize: '1.4rem', filter: 'drop-shadow(0 0 6px #38bdf8)' }}>❄️</span>
+            <IconFreeze size={24} color="#38bdf8" style={{ filter: 'drop-shadow(0 0 6px #38bdf8)' }} />
           )}
           {hoverPreview.type === 'FREEZE' && !hoverPreview.isCenter && (
-            <span style={{ fontSize: '0.85rem', opacity: 0.7 }}>❄️</span>
+            <IconFreeze size={14} color="#38bdf8" style={{ opacity: 0.75 }} />
           )}
           {hoverPreview.type === 'JUMP' && hoverPreview.isValid && (
-            <span style={{ fontSize: '1.4rem', filter: 'drop-shadow(0 0 6px #c084fc)' }}>⚡</span>
+            <IconJump size={22} color="#c084fc" style={{ filter: 'drop-shadow(0 0 6px #c084fc)' }} />
           )}
           {hoverPreview.type === 'DUCK' && hoverPreview.isValid && (
-            <span style={{ fontSize: '1.4rem', opacity: 0.85, filter: 'drop-shadow(0 0 6px #facc15)' }}>🦆</span>
+            <IconDuck size={24} color="#facc15" style={{ opacity: 0.9, filter: 'drop-shadow(0 0 6px #facc15)' }} />
           )}
           {hoverPreview.type === 'DROP' && hoverPreview.isValid && (
             <span style={{ fontSize: '1.4rem', opacity: 0.85, filter: 'drop-shadow(0 0 6px #4ade80)' }}>
@@ -755,10 +761,10 @@ const BoardSquare: React.FC<IBoardSquare> = ({
             </span>
           )}
           {hoverPreview.type === 'PORTAL' && hoverPreview.isValid && (
-            <span style={{ fontSize: '1.4rem', filter: 'drop-shadow(0 0 6px #e879f9)' }}>🌀</span>
+            <IconPortal size={22} color="#e879f9" style={{ filter: 'drop-shadow(0 0 6px #e879f9)' }} />
           )}
           {hoverPreview.type === 'TRAP' && hoverPreview.isValid && (
-            <span style={{ fontSize: '1.4rem', filter: 'drop-shadow(0 0 6px #fbbf24)' }}>💣</span>
+            <IconTrap size={20} color="#fbbf24" style={{ filter: 'drop-shadow(0 0 6px #fbbf24)' }} />
           )}
         </div>
       )}

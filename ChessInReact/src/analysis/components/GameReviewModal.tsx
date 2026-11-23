@@ -3,6 +3,7 @@ import { GameReviewEngine } from '../GameReviewEngine';
 import { AdvantageGraph } from './AdvantageGraph';
 import { IGameReviewSummary, MoveClassification } from '../types';
 import { globalAudioSynthesizer } from '../../audio/WebAudioSynthesizer';
+import { IconBarChart, IconCopy, IconCheck } from '../../ui/icons/AppIcons';
 
 export interface IGameReviewModalProps {
   isOpen: boolean;
@@ -155,7 +156,7 @@ export const GameReviewModal: React.FC<IGameReviewModalProps> = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <span style={{ fontSize: '1.4rem' }}>📊</span>
+            <IconBarChart size={22} color="var(--color-accent, #38bdf8)" />
             <div>
               <h2
                 id="game-review-title"
@@ -477,7 +478,7 @@ export const GameReviewModal: React.FC<IGameReviewModalProps> = ({
               gap: '0.45rem',
             }}
           >
-            <span>{copiedPgn ? '✓' : '📋'}</span>
+            <span>{copiedPgn ? <IconCheck size={14} color="#10b981" /> : <IconCopy size={14} />}</span>
             <span>{copiedPgn ? 'PGN Anotado Copiado!' : 'Copiar PGN Anotado (FIDE NAG)'}</span>
           </button>
 

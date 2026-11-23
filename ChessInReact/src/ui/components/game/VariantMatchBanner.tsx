@@ -143,7 +143,7 @@ export const VariantMatchBanner: React.FC<IVariantMatchBannerProps> = ({
         alignItems: 'center',
         justifyContent: 'space-between',
         width: '100%',
-        maxWidth: '604px',
+        maxWidth: 'min(calc(100vh - 170px), 720px)',
         padding: '0.5rem 0.85rem',
         borderRadius: 'var(--radius-md)',
         backgroundColor: 'var(--bg-elevated)',

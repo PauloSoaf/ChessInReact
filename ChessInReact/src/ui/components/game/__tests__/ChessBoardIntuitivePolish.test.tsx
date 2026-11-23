@@ -318,10 +318,12 @@ describe('Intuitive UI & Fluid Polish Suite (Spec 06 RF-14, RF-15 & Lichess/Ches
         </ThemeProvider>
       );
 
-      expect(screen.getByTestId('atomic-shockwave-cell').textContent).toContain('💥');
+      const epicenterCell = screen.getByTestId('atomic-shockwave-cell');
+      expect(epicenterCell).toBeDefined();
+      expect(epicenterCell.querySelector('svg')).toBeDefined();
     });
 
-    it('renders immune shield indicator 🛡️ on collateral squares containing pawns during atomic targeting', () => {
+    it('renders immune shield SVG indicator on collateral squares containing pawns during atomic targeting', () => {
       const dummySquareInfo = {
         row: 3,
         column: 2,
@@ -349,7 +351,7 @@ describe('Intuitive UI & Fluid Polish Suite (Spec 06 RF-14, RF-15 & Lichess/Ches
 
       const immunePreview = screen.getByTestId('hover-preview-atomic_immune');
       expect(immunePreview).toBeDefined();
-      expect(immunePreview.textContent).toContain('🛡️');
+      expect(immunePreview.querySelector('svg')).toBeDefined();
       expect(immunePreview.style.boxShadow).toContain('#10b981');
     });
   });

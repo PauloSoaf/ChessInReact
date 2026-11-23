@@ -1155,7 +1155,7 @@ const AppContent: React.FC = () => {
               </div>
 
               {/* Sculpted Board Bezel: Real-time Evaluation Bar + Protagonist Board */}
-              <div className="match-board-bezel" style={{ width: '100%', maxWidth: '604px', position: 'relative' }}>
+              <div className="match-board-bezel" style={{ width: '100%', maxWidth: 'min(calc(100vh - 170px), 720px)', position: 'relative' }}>
                 <div style={{ display: 'flex', flexShrink: 0, alignSelf: 'stretch' }}>
                   <EvaluationBar evalScore={lastEval} />
                 </div>
@@ -1171,8 +1171,8 @@ const AppContent: React.FC = () => {
                         <div
                           data-testid="chess-board-3d-loading"
                           style={{
-                            width: 'min(75vw, 520px)',
-                            height: 'min(75vw, 520px)',
+                            width: 'min(calc(100vh - 170px), 720px)',
+                            height: 'min(calc(100vh - 170px), 720px)',
                             borderRadius: 'var(--radius-lg)',
                             border: '2px solid var(--border-prominent)',
                             backgroundColor: 'var(--bg-card)',
@@ -1237,7 +1237,8 @@ const AppContent: React.FC = () => {
                   <main
                     style={{
                       flex: 1,
-                      maxWidth: '548px',
+                      width: '100%',
+                      maxWidth: 'min(calc(100vh - 170px), 720px)',
                       aspectRatio: `${(universalMatch.controller?.getTopology() as { width?: number })?.width ?? boardSize} / ${(universalMatch.controller?.getTopology() as { height?: number })?.height ?? boardSize}`,
                       borderRadius: 'var(--radius-md)',
                       overflow: 'hidden',

@@ -10,6 +10,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { SwissTournamentEngine } from '../../../engine/tournament/SwissTournamentEngine';
 import { ArenaTournamentEngine } from '../../../engine/tournament/ArenaTournamentEngine';
 import { ISwissTournamentState, IArenaTournamentState, GameOutcome } from '../../../engine/tournament/types';
+import { IconSwords } from '../../icons/AppIcons';
 
 export interface ITournamentArenaModalProps {
   readonly isOpen: boolean;
@@ -513,7 +514,10 @@ export const TournamentArenaModal: React.FC<ITournamentArenaModalProps> = ({
                               fontWeight: 600
                             }}
                           >
-                            {p.isBerserkActive ? '⚔️ Berserk ATIVO' : '⚔️ Ativar Berserk'}
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <IconSwords size={12} color={p.isBerserkActive ? '#ffffff' : '#f59e0b'} />
+                              <span>{p.isBerserkActive ? 'Berserk ATIVO' : 'Ativar Berserk'}</span>
+                            </span>
                           </button>
                         </td>
                       </tr>
@@ -550,12 +554,14 @@ export const TournamentArenaModal: React.FC<ITournamentArenaModalProps> = ({
                             }}
                           >
                             <div>
-                              <span style={{ fontWeight: 600, color: '#ffffff' }}>
-                                ⚪ {whitePlayer?.name} {match.isWhiteBerserk && '⚔️'}
+                              <span style={{ fontWeight: 600, color: '#ffffff', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffffff', border: '1px solid #94a3b8' }} />
+                                {whitePlayer?.name} {match.isWhiteBerserk && <IconSwords size={12} color="#f59e0b" />}
                               </span>
                               <span style={{ margin: '0 8px', color: '#94a3b8' }}>vs</span>
-                              <span style={{ fontWeight: 600, color: '#ffffff' }}>
-                                ⚫ {blackPlayer?.name} {match.isBlackBerserk && '⚔️'}
+                              <span style={{ fontWeight: 600, color: '#ffffff', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#334155', border: '1px solid #64748b' }} />
+                                {blackPlayer?.name} {match.isBlackBerserk && <IconSwords size={12} color="#f59e0b" />}
                               </span>
                             </div>
 

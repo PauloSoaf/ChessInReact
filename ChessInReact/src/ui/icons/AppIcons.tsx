@@ -365,3 +365,65 @@ export const IconCopy: React.FC<IIconProps> = (p) =>
     </>
   );
 
+export const IconCrown: React.FC<IIconProps> = (p) =>
+  baseSvg(
+    p,
+    <>
+      <path d="M3 8l4 6 5-8 5 8 4-6v11H3V8z" />
+      <circle cx="3" cy="7" r="1" fill={p.color ?? 'currentColor'} />
+      <circle cx="12" cy="5" r="1" fill={p.color ?? 'currentColor'} />
+      <circle cx="21" cy="7" r="1" fill={p.color ?? 'currentColor'} />
+    </>
+  );
+
+export const IconFinishFlag: React.FC<IIconProps> = (p) =>
+  baseSvg(
+    p,
+    <>
+      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+      <line x1="4" y1="22" x2="4" y2="15" />
+      <line x1="10" y1="3" x2="10" y2="15" />
+      <line x1="16" y1="4" x2="16" y2="16" />
+    </>
+  );
+
+export const IconPortal: React.FC<IIconProps> = (p) =>
+  baseSvg(
+    p,
+    <>
+      <ellipse cx="12" cy="12" rx="9" ry="4.5" transform="rotate(-30 12 12)" />
+      <ellipse cx="12" cy="12" rx="6" ry="3" transform="rotate(-30 12 12)" />
+      <circle cx="12" cy="12" r="1.5" fill={p.color ?? 'currentColor'} />
+    </>
+  );
+
+export const IconTrap: React.FC<IIconProps> = (p) =>
+  baseSvg(
+    p,
+    <>
+      <circle cx="12" cy="14" r="6" />
+      <line x1="12" y1="8" x2="12" y2="4" />
+      <line x1="15" y1="4" x2="9" y2="4" />
+      <circle cx="12" cy="14" r="2" fill={p.color ?? 'currentColor'} />
+    </>
+  );
+
+export const IconExplosion: React.FC<IIconProps> = (p) =>
+  baseSvg(
+    p,
+    <>
+      <path d="M12 2l2.5 5.5L20 6l-3.5 5 5 3-6 1.5L17 22l-5-4-5 4 1.5-6.5L2 14l5-3-3.5-5 5.5 1.5L12 2z" />
+    </>
+  );
+
+export const IconAlertTriangle: React.FC<IIconProps> = (p) =>
+  baseSvg(
+    p,
+    <>
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </>
+  );
+
+

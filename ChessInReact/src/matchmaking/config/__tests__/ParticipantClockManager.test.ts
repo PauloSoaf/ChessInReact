@@ -106,3 +106,4 @@ describe('ParticipantClockManager (Spec 16 § 4, Spec 06 RF-09, RNF-16-02)', () 
     expect(manager.getTimeLeftMs('P2')).toBe(300000);
   });
 });
+
