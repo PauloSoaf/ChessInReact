@@ -77,10 +77,14 @@ export function useUniversalMatch(initialConfig?: IMatchConfiguration) {
     return false;
   }, []);
 
-  const onHumanPieceMoved = useCallback((from: string, to: string, pieceId: string) => {
+  const onHumanPieceMoved = useCallback((from: string, to: string, pieceId: string, promotionVariant?: string) => {
     if (controllerRef.current) {
-      controllerRef.current.onHumanPieceMoved(from, to, pieceId);
+      controllerRef.current.onHumanPieceMoved(from, to, pieceId, promotionVariant);
     }
+  }, []);
+
+  const getFormattedMoveItems = useCallback(() => {
+    return controllerRef.current ? controllerRef.current.getFormattedMoveItems() : [];
   }, []);
 
   const castOfficialSpell = useCallback(
@@ -168,6 +172,7 @@ export function useUniversalMatch(initialConfig?: IMatchConfiguration) {
     redo,
     canUndo,
     canRedo,
+    getFormattedMoveItems,
   };
 }
 

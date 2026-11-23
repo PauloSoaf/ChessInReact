@@ -47,6 +47,38 @@ import { ThreeCheckTracker, ICheckCountState } from '../engine/variants/modifier
 import { RacingKingsValidator, IRacingKingsState } from '../engine/variants/modifiers/RacingKingsValidator';
 import { KingOfTheHillEvaluator } from '../engine/variants/modifiers/KingOfTheHillEvaluator';
 import { IEntity, IPieceEntity } from '../core/entities/types';
+import { ParticipantClockManager } from '../matchmaking/config/ParticipantClockManager';
+import { SANNotationGenerator } from '../engine/rules/notation/SANNotationGenerator';
+import { IDomainState } from '../core/state/gameState';
+
+export interface IMoveItem {
+  turnNumber: number;
+  white?: string;
+  black?: string;
+  timestamp?: number;
+}
+
+export interface IMoveRecord {
+  readonly matchId: string;
+  readonly ply: number;
+  readonly turnNumber: number;
+  readonly playerId: PlayerId;
+  readonly from: string;
+  readonly to: string;
+  readonly pieceId: string;
+  readonly pieceVariant: string;
+  readonly isCapture: boolean;
+  readonly capturedPieceId?: string | null;
+  readonly isPromotion?: boolean;
+  readonly promotionVariant?: string;
+  readonly isCastling?: boolean;
+  readonly isEnPassant?: boolean;
+  readonly san: string;
+  readonly uci: string;
+  readonly clockTimeLeftMs?: number;
+  readonly actionType: 'PIECE_MOVE' | 'DUCK' | 'DROP' | 'SPELL' | 'BOT_MOVE';
+  readonly spellType?: string;
+}
 
 export interface IUniversalMatchSnapshot {
   readonly config: IMatchConfiguration;
@@ -67,6 +99,8 @@ export interface IUniversalMatchSnapshot {
   readonly scores: Readonly<Record<string, number>>;
   readonly eliminatedPlayers: ReadonlyArray<string>;
   readonly hasCastSpellThisTurn: boolean;
+  readonly clocks: Readonly<Record<string, number>>;
+  readonly moveHistory: ReadonlyArray<IMoveRecord>;
 }
 
 export interface IUniversalMatchHistorySnapshot {
@@ -80,6 +114,8 @@ export interface IUniversalMatchHistorySnapshot {
   readonly lastMoveSummaryStr: string | null;
   readonly actionType?: 'SPELL' | 'PIECE_MOVE' | 'DUCK' | 'DROP' | 'BOT_MOVE';
   readonly hasCastSpellThisTurn?: boolean;
+  readonly clocksSnapshot?: Readonly<Record<string, number>>;
+  readonly moveHistoryCount?: number;
 }
 
 export class UniversalMatchController {
@@ -105,6 +141,12 @@ export class UniversalMatchController {
   private turnCycleState: ITurnCycleState | null = null;
   private scoresState: Record<string, IFFAPlayerScore> = {};
 
+  // Monotonic participant clock & move history managers (Spec 16 § 4, Spec 09 § 4)
+  private clockManager = new ParticipantClockManager();
+  private clockInterval: number | null = null;
+  private moveHistory: IMoveRecord[] = [];
+  private lastDomain: IDomainState | null = null;
+
   // Minigame & variant lossless history stacks (Spec 01 & Spec 12)
   private minigameUndoStack: IUniversalMatchHistorySnapshot[] = [];
   private minigameRedoStack: IUniversalMatchHistorySnapshot[] = [];
@@ -124,6 +166,8 @@ export class UniversalMatchController {
     this.isSpectator = this.config.slots.every(
       (s) => s.role === 'AI_BOT' || s.role === 'BOT_STANDIN'
     );
+    this.clockManager.initializeFromConfig(this.config);
+    this.lastDomain = gameStore.getState().domain;
 
     this.initializeVariantStates();
   }
@@ -207,7 +251,10 @@ export class UniversalMatchController {
     }
 
     this.clearAutonomousTimer();
+    this.stopClockTicking();
     this.initializeVariantStates();
+    this.clockManager.initializeFromConfig(this.config);
+    this.moveHistory = [];
 
     // Spawn pieces appropriate for this variant and player count
     const initialPieces = VariantPieceInitializer.createPiecesForVariant(
@@ -236,6 +283,8 @@ export class UniversalMatchController {
       });
     }
 
+    this.lastDomain = gameStore.getState().domain;
+    this.startClockTicking();
     this.notify();
 
     // If initial player is a bot, trigger turn!
@@ -300,6 +349,9 @@ export class UniversalMatchController {
     this.isPausedState = !this.isPausedState;
     if (this.isPausedState) {
       this.activeBotRequestId = 0;
+      this.stopClockTicking();
+    } else {
+      this.startClockTicking();
     }
     this.notify();
     if (!this.isPausedState) {
@@ -322,6 +374,14 @@ export class UniversalMatchController {
     return this.isThinkingState;
   }
 
+  public getClockManager(): ParticipantClockManager {
+    return this.clockManager;
+  }
+
+  public getMoveHistory(): readonly IMoveRecord[] {
+    return this.moveHistory;
+  }
+
   /**
    * Records a snapshot of all active minigame states before a game action occurs.
    */
@@ -337,6 +397,8 @@ export class UniversalMatchController {
       lastMoveSummaryStr: this.lastMoveSummaryStr,
       actionType,
       hasCastSpellThisTurn: this.hasCastSpellThisTurn,
+      clocksSnapshot: this.clockManager.captureSnapshot(),
+      moveHistoryCount: this.moveHistory.length,
     };
     this.minigameUndoStack.push(snapshot);
     if (this.minigameUndoStack.length > 100) {
@@ -365,6 +427,8 @@ export class UniversalMatchController {
         turnCycleState: this.turnCycleState ? JSON.parse(JSON.stringify(this.turnCycleState)) : null,
         lastMoveSummaryStr: this.lastMoveSummaryStr,
         actionType: prev.actionType,
+        clocksSnapshot: this.clockManager.captureSnapshot(),
+        moveHistoryCount: this.moveHistory.length,
       };
       this.minigameRedoStack.push(currentSnapshot);
 
@@ -377,6 +441,13 @@ export class UniversalMatchController {
       this.turnCycleState = prev.turnCycleState;
       this.lastMoveSummaryStr = prev.lastMoveSummaryStr;
       this.hasCastSpellThisTurn = prev.hasCastSpellThisTurn ?? false;
+
+      if (prev.clocksSnapshot) {
+        this.clockManager.restoreSnapshot(prev.clocksSnapshot);
+      }
+      if (prev.moveHistoryCount !== undefined) {
+        this.moveHistory = this.moveHistory.slice(0, prev.moveHistoryCount);
+      }
     }
 
     let coreUndone = false;
@@ -384,8 +455,11 @@ export class UniversalMatchController {
       coreUndone = gameStore.getState().undo();
     }
 
+    const currentDomain = gameStore.getState().domain;
+    this.lastDomain = currentDomain;
+    this.clockManager.setActivePlayer(currentDomain.activePlayer);
+
     this.syncVariantModifiersToDomain();
-    this.notify();
     this.notify();
     return wasSpellOnly || coreUndone;
   }
@@ -409,6 +483,8 @@ export class UniversalMatchController {
         turnCycleState: this.turnCycleState ? JSON.parse(JSON.stringify(this.turnCycleState)) : null,
         lastMoveSummaryStr: this.lastMoveSummaryStr,
         actionType: next.actionType,
+        clocksSnapshot: this.clockManager.captureSnapshot(),
+        moveHistoryCount: this.moveHistory.length,
       };
       this.minigameUndoStack.push(currentSnapshot);
 
@@ -421,6 +497,10 @@ export class UniversalMatchController {
       this.turnCycleState = next.turnCycleState;
       this.hasCastSpellThisTurn = next.hasCastSpellThisTurn ?? false;
       this.lastMoveSummaryStr = next.lastMoveSummaryStr;
+
+      if (next.clocksSnapshot) {
+        this.clockManager.restoreSnapshot(next.clocksSnapshot);
+      }
     }
 
     let coreRedone = false;
@@ -428,8 +508,11 @@ export class UniversalMatchController {
       coreRedone = gameStore.getState().redo();
     }
 
+    const currentDomain = gameStore.getState().domain;
+    this.lastDomain = currentDomain;
+    this.clockManager.setActivePlayer(currentDomain.activePlayer);
+
     this.syncVariantModifiersToDomain();
-    this.notify();
     this.notify();
     return wasSpellOnly || coreRedone;
   }
@@ -509,7 +592,167 @@ export class UniversalMatchController {
       scores,
       eliminatedPlayers: eliminated,
       hasCastSpellThisTurn: this.hasCastSpellThisTurn,
+      clocks: this.clockManager.getClocksMap(),
+      moveHistory: [...this.moveHistory],
     };
+  }
+
+  public startClockTicking(): void {
+    this.stopClockTicking();
+    const domain = gameStore.getState().domain;
+    if (domain.isGameOver || this.isPausedState || this.isDisposedFlag) return;
+
+    const firstSlotClock = this.config.slots[0]?.clock;
+    if (firstSlotClock && firstSlotClock.initialSeconds === 0) return;
+
+    this.clockManager.setActivePlayer(domain.activePlayer);
+    this.clockManager.start();
+
+    this.clockInterval = (typeof window !== 'undefined' ? window.setInterval : setInterval)(() => {
+      this.tickClocks();
+    }, 100) as unknown as number;
+  }
+
+  public stopClockTicking(): void {
+    if (this.clockInterval !== null) {
+      clearInterval(this.clockInterval);
+      this.clockInterval = null;
+    }
+    this.clockManager.pause();
+  }
+
+  private tickClocks(): void {
+    const domain = gameStore.getState().domain;
+    if (domain.isGameOver || this.isPausedState || this.isDisposedFlag) {
+      this.stopClockTicking();
+      return;
+    }
+
+    const tickResult = this.clockManager.tick();
+    const activePlayer = tickResult.activePlayer;
+    const timeLeftMs = tickResult.updatedClocks[activePlayer] ?? 0;
+    const isUrgent = timeLeftMs > 0 && timeLeftMs < 10000;
+    const isExpired = tickResult.timedOutPlayer !== null;
+
+    const secondsLeft = Math.floor(timeLeftMs / 1000);
+
+    if (secondsLeft <= 30 && secondsLeft > 0) {
+      GlobalEventBus.emit('CLOCK_TICK', {
+        playerId: activePlayer,
+        secondsLeft,
+        isUrgent,
+      });
+    }
+
+    if (isUrgent && timeLeftMs >= 9800 && timeLeftMs <= 10000) {
+      GlobalEventBus.emit('TIME_WARNING', {
+        playerId: activePlayer,
+        secondsLeft: Math.round(timeLeftMs / 1000),
+      });
+    }
+
+    if (isExpired) {
+      this.handleClockTimeout(tickResult.timedOutPlayer ?? activePlayer);
+    } else {
+      this.notify();
+    }
+  }
+
+  private handleClockTimeout(timedOutPlayer: PlayerId): void {
+    this.stopClockTicking();
+    const domain = gameStore.getState().domain;
+    if (domain.isGameOver) return;
+
+    if (this.config.totalParticipants > 2 && this.turnCycleState) {
+      const currentFaction = `FACTION_${timedOutPlayer.replace('P', '')}`;
+      this.turnCycleState = TurnCycleManager.eliminateFaction(this.turnCycleState, currentFaction);
+      const surviving = TurnCycleManager.getSurvivingFactions(this.turnCycleState);
+
+      if (surviving.length <= 1) {
+        const winner = surviving.length === 1 ? this.factionToPlayerId(surviving[0]) : null;
+        gameStore.setState((s) => ({
+          domain: {
+            ...s.domain,
+            isGameOver: true,
+            winnerId: winner,
+          },
+        }));
+        GlobalEventBus.emit('GAME_ENDED', { winnerId: winner, reason: 'Tempo Esgotado' });
+        this.notify();
+        return;
+      }
+
+      const nextFaction = TurnCycleManager.getActiveFaction(this.turnCycleState);
+      const nextPlayerId = this.factionToPlayerId(nextFaction);
+      gameStore.setState((s) => ({
+        domain: {
+          ...s.domain,
+          activePlayer: nextPlayerId,
+        },
+      }));
+      this.clockManager.setActivePlayer(nextPlayerId);
+      this.startClockTicking();
+      this.notify();
+      this.scheduleAutonomousTurnIfNeeded();
+      return;
+    }
+
+    const winnerId: PlayerId = timedOutPlayer === 'P1' ? 'P2' : 'P1';
+    gameStore.setState((s) => ({
+      domain: {
+        ...s.domain,
+        isGameOver: true,
+        winnerId,
+      },
+    }));
+
+    GlobalEventBus.emit('GAME_ENDED', { winnerId, reason: 'Tempo Esgotado' });
+    this.notify();
+  }
+
+  private recordMoveEntry(record: IMoveRecord): void {
+    this.moveHistory.push(record);
+    this.lastMoveSummaryStr = record.san;
+  }
+
+  public getFormattedMoveItems(): IMoveItem[] {
+    const items: IMoveItem[] = [];
+    let currentItem: IMoveItem | null = null;
+
+    for (const move of this.moveHistory) {
+      if (move.actionType === 'SPELL' || move.actionType === 'DUCK') {
+        continue;
+      }
+      const isP1 = move.playerId === 'P1';
+      if (isP1) {
+        if (currentItem) {
+          items.push(currentItem);
+        }
+        currentItem = {
+          turnNumber: move.turnNumber,
+          white: move.san,
+          timestamp: move.clockTimeLeftMs,
+        };
+      } else {
+        if (currentItem && currentItem.turnNumber === move.turnNumber) {
+          currentItem.black = move.san;
+          items.push(currentItem);
+          currentItem = null;
+        } else {
+          if (currentItem) items.push(currentItem);
+          items.push({
+            turnNumber: move.turnNumber,
+            black: move.san,
+            timestamp: move.clockTimeLeftMs,
+          });
+          currentItem = null;
+        }
+      }
+    }
+    if (currentItem) {
+      items.push(currentItem);
+    }
+    return items;
   }
 
   public subscribe(listener: (snapshot: IUniversalMatchSnapshot) => void): () => void {
@@ -733,10 +976,17 @@ export class UniversalMatchController {
       // 4. Execute MovePieceCommand on core domain
       const best = decision.move;
       const movingPlayerSide: 'WHITE' | 'BLACK' = domain.activePlayer === 'P1' ? 'WHITE' : 'BLACK';
+      const movingPieceEntity = domain.boardEntities[asEntityId(best.pieceId)] as IPieceEntity | undefined;
       const targetEntityId = domain.occupancy[asCoordinateKey(best.to)];
       const capturedEntity = targetEntityId
         ? domain.boardEntities[targetEntityId]
         : undefined;
+
+      const fromAlg = SANNotationGenerator.coordToAlgebraic(best.from);
+      const toAlg = SANNotationGenerator.coordToAlgebraic(best.to);
+      const isCastling = (movingPieceEntity?.variantId.toUpperCase() === 'KING') &&
+        ((fromAlg === 'e1' && (toAlg === 'g1' || toAlg === 'c1')) || (fromAlg === 'e8' && (toAlg === 'g8' || toAlg === 'c8')));
+
       const cmd = new MovePieceCommand(
         asEntityId(best.pieceId),
         asCoordinateKey(best.from),
@@ -750,7 +1000,52 @@ export class UniversalMatchController {
       );
 
       gameStore.getState().executeCommand(cmd);
-      this.lastMoveSummaryStr = `${best.from} → ${best.to}`;
+      const postMoveDomain = gameStore.getState().domain;
+      this.lastDomain = postMoveDomain;
+
+      const sanResult = SANNotationGenerator.generateSAN({
+        from: best.from,
+        to: best.to,
+        pieceId: best.pieceId,
+        domainBefore: domain,
+        domainAfter: postMoveDomain,
+        topology: this.topology,
+        isCapture: Boolean(targetEntityId),
+        isCastling,
+        promotionVariant: best.promotion,
+      });
+      const uciResult = SANNotationGenerator.generateUCI(best.from, best.to, best.promotion);
+
+      const movingPlayerId = domain.activePlayer;
+      const ply = this.moveHistory.length + 1;
+      const fullmoveNumber = Math.ceil(ply / 2);
+      const moveEntry: IMoveRecord = {
+        matchId: domain.matchId,
+        ply,
+        turnNumber: fullmoveNumber,
+        playerId: movingPlayerId,
+        from: best.from,
+        to: best.to,
+        pieceId: best.pieceId,
+        pieceVariant: movingPieceEntity?.variantId ?? 'UNKNOWN',
+        isCapture: Boolean(targetEntityId),
+        capturedPieceId: targetEntityId ?? null,
+        isPromotion: Boolean(best.promotion),
+        promotionVariant: best.promotion,
+        isCastling,
+        san: sanResult,
+        uci: uciResult,
+        clockTimeLeftMs: this.clockManager.getTimeLeftMs(movingPlayerId),
+        actionType: 'BOT_MOVE',
+      };
+      this.recordMoveEntry(moveEntry);
+
+      if (!this.duckState) {
+        this.clockManager.applyIncrement(movingPlayerId);
+        this.clockManager.setActivePlayer(postMoveDomain.activePlayer);
+      }
+
+      this.lastMoveSummaryStr = sanResult;
 
       // Decoupled Audio & Feedback Event Dispatching for autonomous bot moves
       if (capturedEntity && (capturedEntity as { type?: string }).type === 'PIECE') {
@@ -976,10 +1271,39 @@ export class UniversalMatchController {
     const cmd = new DropPieceCommand(domain.activePlayer, pieceVariant, coordKey);
     gameStore.getState().executeCommand(cmd);
 
+    const mover = domain.activePlayer;
+    const toAlg = SANNotationGenerator.coordToAlgebraic(targetCoord);
+    const v = pieceVariant.toUpperCase();
+    const pieceLetter = v === 'KNIGHT' ? 'N' : v[0];
+    const san = `${pieceLetter}@${toAlg}`;
+    const ply = this.moveHistory.length + 1;
+    const fullmoveNumber = Math.ceil(ply / 2);
+
+    this.recordMoveEntry({
+      matchId: domain.matchId,
+      ply,
+      turnNumber: fullmoveNumber,
+      playerId: mover,
+      from: 'reserve',
+      to: targetCoord,
+      pieceId: `drop_${pieceVariant}`,
+      pieceVariant,
+      isCapture: false,
+      san,
+      uci: `${pieceLetter}@${toAlg}`,
+      clockTimeLeftMs: this.clockManager.getTimeLeftMs(mover),
+      actionType: 'DROP',
+    });
+
+    const postDomain = gameStore.getState().domain;
+    this.lastDomain = postDomain;
+    this.clockManager.applyIncrement(mover);
+    this.clockManager.setActivePlayer(postDomain.activePlayer);
+
     GlobalEventBus.emit('PIECE_DROPPED', {
       pieceVariant,
       coordinate: coordKey,
-      playerId: domain.activePlayer,
+      playerId: mover,
     });
 
     this.notify();
@@ -1005,13 +1329,38 @@ export class UniversalMatchController {
     );
 
     try {
+      const mover: PlayerId = this.duckState.activePlayer === 'WHITE' ? 'P1' : 'P2';
+      const opponent: PlayerId = mover === 'P1' ? 'P2' : 'P1';
+
       this.duckState = DuckChessEngine.executePlaceDuck(this.duckState, targetCoord, occupied);
       this.syncVariantModifiersToDomain();
-    this.notify();
+
+      const duckAlg = SANNotationGenerator.coordToAlgebraic(targetCoord);
+      const ply = this.moveHistory.length + 1;
+      const fullmoveNumber = Math.ceil(ply / 2);
+      this.recordMoveEntry({
+        matchId: domain.matchId,
+        ply,
+        turnNumber: fullmoveNumber,
+        playerId: mover,
+        from: 'duck',
+        to: targetCoord,
+        pieceId: 'duck_obstacle',
+        pieceVariant: 'DUCK',
+        isCapture: false,
+        san: `[DUCK:${duckAlg}]`,
+        uci: `@${duckAlg}`,
+        clockTimeLeftMs: this.clockManager.getTimeLeftMs(mover),
+        actionType: 'DUCK',
+      });
+
+      // Apply Fischer increment now that the full turn is finished
+      this.clockManager.applyIncrement(mover);
+      this.clockManager.setActivePlayer(opponent);
 
       GlobalEventBus.emit('DUCK_PLACED', {
         coordinate: asCoordinateKey(targetCoord),
-        playerId: domain.activePlayer,
+        playerId: mover,
       });
 
       this.notify();
@@ -1026,10 +1375,64 @@ export class UniversalMatchController {
   /**
    * Triggered when a human makes a piece move in Duck Chess, Spell Chess, or multiplayer arenas.
    */
-  public onHumanPieceMoved(from: string, to: string, pieceId: string): void {
+  public onHumanPieceMoved(from: string, to: string, pieceId: string, promotionVariant?: string): void {
     this.recordHistorySnapshot('PIECE_MOVE');
     const postMoveDomain = gameStore.getState().domain;
     const movedPlayerSide: 'WHITE' | 'BLACK' = postMoveDomain.activePlayer === 'P2' ? 'WHITE' : 'BLACK';
+    const movingPlayerId: PlayerId = postMoveDomain.activePlayer === 'P2' ? 'P1' : 'P2';
+    const ply = this.moveHistory.length + 1;
+    const fullmoveNumber = Math.ceil(ply / 2);
+
+    const domainBefore = this.lastDomain ?? postMoveDomain;
+    const movedEntity = (domainBefore.boardEntities[asEntityId(pieceId)] ?? postMoveDomain.boardEntities[asEntityId(pieceId)]) as IPieceEntity | undefined;
+    const fromAlg = SANNotationGenerator.coordToAlgebraic(from);
+    const toAlg = SANNotationGenerator.coordToAlgebraic(to);
+    const isCastling = (movedEntity?.variantId.toUpperCase() === 'KING') &&
+      ((fromAlg === 'e1' && (toAlg === 'g1' || toAlg === 'c1')) || (fromAlg === 'e8' && (toAlg === 'g8' || toAlg === 'c8')));
+
+    const destOccupantBefore = domainBefore.occupancy[asCoordinateKey(to)];
+    const isCapture = Boolean(destOccupantBefore && destOccupantBefore !== pieceId);
+
+    const sanResult = SANNotationGenerator.generateSAN({
+      from,
+      to,
+      pieceId,
+      domainBefore,
+      domainAfter: postMoveDomain,
+      topology: this.topology,
+      isCapture,
+      isCastling,
+      promotionVariant,
+    });
+    const uciResult = SANNotationGenerator.generateUCI(from, to, promotionVariant);
+
+    const moveEntry: IMoveRecord = {
+      matchId: postMoveDomain.matchId,
+      ply,
+      turnNumber: fullmoveNumber,
+      playerId: movingPlayerId,
+      from,
+      to,
+      pieceId,
+      pieceVariant: movedEntity?.variantId ?? 'UNKNOWN',
+      isCapture,
+      capturedPieceId: destOccupantBefore ?? null,
+      isPromotion: Boolean(promotionVariant),
+      promotionVariant,
+      isCastling,
+      san: sanResult,
+      uci: uciResult,
+      clockTimeLeftMs: this.clockManager.getTimeLeftMs(movingPlayerId),
+      actionType: 'PIECE_MOVE',
+    };
+    this.recordMoveEntry(moveEntry);
+    this.lastDomain = postMoveDomain;
+
+    if (!this.duckState) {
+      this.clockManager.applyIncrement(movingPlayerId);
+      this.clockManager.setActivePlayer(postMoveDomain.activePlayer);
+    }
+
     this.applySpellEffectsAfterMove(pieceId, to, movedPlayerSide);
 
     // Three-Check / Five-Check evaluation
@@ -1055,7 +1458,6 @@ export class UniversalMatchController {
 
     // Racing Kings evaluation
     if (this.racingKingsState) {
-      const movedEntity = postMoveDomain.boardEntities[asEntityId(pieceId)] as IPieceEntity | undefined;
       const isKing = movedEntity?.type === 'PIECE' && (movedEntity.variantId.toUpperCase() === 'KING' || movedEntity.variantId.toUpperCase() === 'K');
       if (isKing) {
         const destY = Number(to.split(',')[1]);
@@ -1087,23 +1489,6 @@ export class UniversalMatchController {
             },
           }));
         }
-      }
-    }
-
-    // Spell Chess Royal Capture Victory (Spec 12 / Spec 13)
-    if (this.config.variantId.toUpperCase().includes('SPELL')) {
-      const p1King = CheckValidator.findRoyalPiece('P1', postMoveDomain);
-      const p2King = CheckValidator.findRoyalPiece('P2', postMoveDomain);
-      if (!p1King || !p2King) {
-        const winner = p1King ? 'P1' : p2King ? 'P2' : null;
-        gameStore.setState((s) => ({
-          domain: {
-            ...s.domain,
-            isGameOver: true,
-            winnerId: winner,
-          },
-        }));
-        this.notify();
       }
     }
 
@@ -1616,6 +2001,7 @@ export class UniversalMatchController {
     this.matchGeneration++;
     this.activeBotRequestId = 0;
     this.clearAutonomousTimer();
+    this.stopClockTicking();
     if (this.storeUnsubscribe) {
       this.storeUnsubscribe();
       this.storeUnsubscribe = null;

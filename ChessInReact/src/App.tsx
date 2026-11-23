@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import ChessBoard from './components/ChessBoard/ChessBoard';
 import { useActivePlayer, useGameStore, useTurnNumber } from './bindings/react/useGameStore';
 import { useBotMatch } from './bindings/react/useBotMatch';
@@ -40,7 +40,6 @@ import { PlayerId, asCoordinateKey } from './core/coordinates/types';
 import { IPieceEntity } from './core/entities/types';
 import { GlobalEventBus } from './core/events/EventBus';
 import { AudioManager } from './audio';
-import { IMoveItem } from './ui/components/game/MoveHistoryList';
 import './ui/theme/theme.css';
 
 const PIECE_VALUES: Record<string, number> = {
@@ -70,20 +69,7 @@ function coordToAlgebraic(coordStr: string): string {
   return coordStr;
 }
 
-/**
- * Returns canonical piece notation letter for drop actions (Spec 06 & Spec 13 RF-13-10).
- * Specifically maps Knight to 'N' to prevent collision with King ('K').
- */
-function getCanonicalDropInitial(variant: string): string {
-  const v = variant.toUpperCase();
-  if (v === 'KNIGHT') return 'N';
-  if (v === 'PAWN') return 'P';
-  if (v === 'BISHOP') return 'B';
-  if (v === 'ROOK') return 'R';
-  if (v === 'QUEEN') return 'Q';
-  if (v === 'KING') return 'K';
-  return v[0] ?? '?';
-}
+
 
 // Lazy-loaded 3D WebGL Chessboard to preserve initial 2D bundle size (Spec 07 Priority 2)
 const LazyChessBoard3D = React.lazy(() =>
@@ -177,23 +163,8 @@ const AppContent: React.FC = () => {
   const [selectedDropPiece, setSelectedDropPiece] = useState<string | null>(null);
   const [portalFirstSquare, setPortalFirstSquare] = useState<string | null>(null);
 
-  // Move History & PGN Notation state (Spec 06 Section 18.1 & Spec 09)
-  const [matchMoves, setMatchMoves] = useState<IMoveItem[]>([]);
   // Authoritative real-time centipawn evaluations recorded per move ply
   const [matchEvaluationsCp, setMatchEvaluationsCp] = useState<number[]>([0]);
-
-  const matchMoveSans = useMemo(() => {
-    const sans: string[] = [];
-    for (const m of matchMoves) {
-      if (m.white) sans.push(m.white);
-      if (m.black) sans.push(m.black);
-    }
-    return sans;
-  }, [matchMoves]);
-
-  // Synchronized Digital Chess Clocks (Spec 06 RF-09: 5 min default with <10s critical alert)
-  const [p1TimeLeft, setP1TimeLeft] = useState<number>(300000);
-  const [p2TimeLeft, setP2TimeLeft] = useState<number>(300000);
 
   const { preferences, updatePreferences } = useTheme();
   const isBoardFlipped = Boolean(preferences.flipBoard);
@@ -266,8 +237,21 @@ const AppContent: React.FC = () => {
         ),
     [isUnlimitedClock, activeClockConfig]
   );
-  const lastTickSecondRef = useRef<number>(-1);
-  const activeIncrementSeconds = activeClockConfig?.incrementSeconds ?? 0;
+
+  // Move History & PGN Notation state (Spec 06 Section 18.1 & Spec 09)
+  const matchMoves = useMemo(() => {
+    return universalMatch.getFormattedMoveItems();
+  }, [universalMatch.snapshot.moveHistory, universalMatch.getFormattedMoveItems]);
+
+  const matchMoveSans = useMemo(() => {
+    return universalMatch.snapshot.moveHistory
+      .filter((m) => m.actionType === 'PIECE_MOVE' || m.actionType === 'BOT_MOVE' || m.actionType === 'DROP')
+      .map((m) => m.san);
+  }, [universalMatch.snapshot.moveHistory]);
+
+  // Synchronized Digital Chess Clocks (Spec 06 RF-09, Spec 16 § 4)
+  const p1TimeLeft = universalMatch.snapshot.clocks['P1'] ?? (isUnlimitedClock ? 0 : 300000);
+  const p2TimeLeft = universalMatch.snapshot.clocks['P2'] ?? (isUnlimitedClock ? 0 : 300000);
   const isUniversalBotMatch = useMemo(
     () =>
       universalMatch.snapshot.config.matchId === domain.matchId &&
@@ -292,70 +276,9 @@ const AppContent: React.FC = () => {
     [universalMatch.snapshot.frozenCoordinates]
   );
 
-  // Synchronized digital chess clocks (Spec 06 RF-09, Spec 16 § 4)
-  useEffect(() => {
-    if (isGameOver || currentView === 'HUB' || isUnlimitedClock) return;
-    const timer = setInterval(() => {
-      if (activePlayer === 'P1') {
-        setP1TimeLeft((t) => {
-          const next = Math.max(0, t - 100);
-          const currentSec = Math.floor(next / 1000);
-
-          if (currentSec !== lastTickSecondRef.current && next <= 30000 && next > 0) {
-            lastTickSecondRef.current = currentSec;
-            GlobalEventBus.emit('CLOCK_TICK', {
-              playerId: 'P1',
-              secondsLeft: currentSec,
-              isUrgent: next < 10000,
-            });
-          }
-
-          if (next === 0 && t > 0) {
-            GlobalEventBus.emit('GAME_ENDED', { winnerId: 'P2', reason: 'Tempo Esgotado' });
-          } else if (next < 10000 && t >= 10000) {
-            GlobalEventBus.emit('TIME_WARNING', { playerId: 'P1', secondsLeft: Math.round(next / 1000) });
-          }
-          return next;
-        });
-      } else {
-        setP2TimeLeft((t) => {
-          const next = Math.max(0, t - 100);
-          const currentSec = Math.floor(next / 1000);
-
-          if (currentSec !== lastTickSecondRef.current && next <= 30000 && next > 0) {
-            lastTickSecondRef.current = currentSec;
-            GlobalEventBus.emit('CLOCK_TICK', {
-              playerId: 'P2',
-              secondsLeft: currentSec,
-              isUrgent: next < 10000,
-            });
-          }
-
-          if (next === 0 && t > 0) {
-            GlobalEventBus.emit('GAME_ENDED', { winnerId: 'P1', reason: 'Tempo Esgotado' });
-          } else if (next < 10000 && t >= 10000) {
-            GlobalEventBus.emit('TIME_WARNING', { playerId: 'P2', secondsLeft: Math.round(next / 1000) });
-          }
-          return next;
-        });
-      }
-    }, 100);
-    return () => clearInterval(timer);
-  }, [activePlayer, isGameOver, currentView, isUnlimitedClock]);
-
-  // Real-time Move History logging via GlobalEventBus (Spec 06 Section 18.1 & Spec 09)
+  // Acoustic trigger listeners for Castling & Promotion (Spec 06 & Spec 01)
   useEffect(() => {
     const unsubMoved = GlobalEventBus.subscribe('PIECE_MOVED', (payload) => {
-      // Fischer increment application (Spec 16 § 4)
-      if (activeIncrementSeconds > 0) {
-        const incMs = activeIncrementSeconds * 1000;
-        if (payload.actingPlayer === 'P1') {
-          setP1TimeLeft((t) => t + incMs);
-        } else {
-          setP2TimeLeft((t) => t + incMs);
-        }
-      }
-
       const fromAlg = coordToAlgebraic(payload.from);
       const toAlg = coordToAlgebraic(payload.to);
 
@@ -383,67 +306,12 @@ const AppContent: React.FC = () => {
           });
         }
       }
-
-      const san = `${fromAlg}-${toAlg}`;
-      setMatchMoves((prev) => {
-        const currentTurn = turnNumber;
-        if (payload.actingPlayer === 'P1') {
-          return [...prev, { turnNumber: currentTurn, white: san }];
-        } else {
-          if (prev.length === 0) return [{ turnNumber: currentTurn, black: san }];
-          const last = prev[prev.length - 1];
-          if (last.black) return [...prev, { turnNumber: currentTurn, black: san }];
-          const updated = [...prev];
-          updated[updated.length - 1] = { ...last, black: san };
-          return updated;
-        }
-      });
-    });
-
-    const unsubDrop = GlobalEventBus.subscribe('PIECE_DROPPED', (payload) => {
-      const toAlg = coordToAlgebraic(payload.coordinate);
-      const initial = getCanonicalDropInitial(payload.pieceVariant);
-      const san = `${initial}@${toAlg}`;
-      setMatchMoves((prev) => {
-        const currentTurn = turnNumber;
-        if (payload.playerId === 'P1') {
-          return [...prev, { turnNumber: currentTurn, white: san }];
-        } else {
-          if (prev.length === 0) return [{ turnNumber: currentTurn, black: san }];
-          const last = prev[prev.length - 1];
-          if (last.black) return [...prev, { turnNumber: currentTurn, black: san }];
-          const updated = [...prev];
-          updated[updated.length - 1] = { ...last, black: san };
-          return updated;
-        }
-      });
-    });
-
-    const unsubExplosion = GlobalEventBus.subscribe('EXPLOSION', () => {
-      setMatchMoves((prev) => {
-        if (prev.length === 0) return prev;
-        const updated = [...prev];
-        const last = { ...updated[updated.length - 1] };
-        if (last.black) {
-          if (!last.black.endsWith('#') && !last.black.endsWith('+')) {
-            last.black = `${last.black}#`;
-          }
-        } else if (last.white) {
-          if (!last.white.endsWith('#') && !last.white.endsWith('+')) {
-            last.white = `${last.white}#`;
-          }
-        }
-        updated[updated.length - 1] = last;
-        return updated;
-      });
     });
 
     return () => {
       unsubMoved();
-      unsubDrop();
-      unsubExplosion();
     };
-  }, [turnNumber, activeIncrementSeconds]);
+  }, []);
 
   // Captured pieces & material balance calculation (Spec 06 RF-09 & Section 18)
   const { p1Captured, p2Captured, p1Material, p2Material } = useMemo(() => {
@@ -523,12 +391,7 @@ const AppContent: React.FC = () => {
     setSelectedExpandedSpell(null);
     setSelectedDropPiece(null);
     setPortalFirstSquare(null);
-    setMatchMoves([]);
     setMatchEvaluationsCp([0]);
-    const slot0Clock = universalMatch.snapshot.config.slots[0]?.clock;
-    const initialMs = slot0Clock && slot0Clock.initialSeconds > 0 ? slot0Clock.initialSeconds * 1000 : 0;
-    setP1TimeLeft(initialMs);
-    setP2TimeLeft(initialMs);
     if (universalMatch.snapshot.config.matchId === gameStore.getState().domain.matchId) {
       universalMatch.resetUniversalMatch();
     } else {
@@ -722,22 +585,6 @@ const AppContent: React.FC = () => {
     } else {
       universalMatch.undo();
     }
-
-    setMatchMoves((prev) => {
-      if (prev.length === 0) return prev;
-      const updated = [...prev];
-      const pops = isBotEnabled && initialPlayer !== 'P2' ? 2 : 1;
-      for (let i = 0; i < pops; i++) {
-        if (updated.length === 0) break;
-        const last = updated[updated.length - 1];
-        if (last.black) {
-          updated[updated.length - 1] = { ...last, black: undefined };
-        } else {
-          updated.pop();
-        }
-      }
-      return updated;
-    });
   }, [cancelSearch, clearFeedback, isBotEnabled, universalMatch]);
 
   const handleRedo = useCallback(() => {
@@ -1006,12 +853,7 @@ const AppContent: React.FC = () => {
       clearFeedback();
       setIsVictoryModalDismissed(false);
       setPendingDrawOffer(null);
-      setMatchMoves([]);
       setMatchEvaluationsCp([0]);
-      const slot0Clock = config.slots[0]?.clock;
-      const initialMs = slot0Clock && slot0Clock.initialSeconds > 0 ? slot0Clock.initialSeconds * 1000 : 0;
-      setP1TimeLeft(initialMs);
-      setP2TimeLeft(initialMs);
       universalMatch.startUniversalMatch(config);
 
       const topology = VariantCatalog.getTopologyForVariant(config.variantId);

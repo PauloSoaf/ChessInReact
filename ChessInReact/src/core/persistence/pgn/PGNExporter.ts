@@ -93,7 +93,7 @@ export class PGNExporter {
           notation = `${this.coordToAlgebraic(move.fromCoord)}-${this.coordToAlgebraic(move.toCoord)}`;
         }
       }
-      const suffix = move.isCheckmate ? '#' : move.isCheck ? '+' : '';
+      const suffix = (notation.endsWith('+') || notation.endsWith('#')) ? '' : (move.isCheckmate ? '#' : move.isCheck ? '+' : '');
 
       if (move.player === 'P1') {
         currentTurn++;

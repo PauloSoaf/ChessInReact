@@ -65,3 +65,4 @@ describe('PremiumChessAssetRegistry (Spec 07 § 5, § 7)', () => {
     });
   });
 });
+

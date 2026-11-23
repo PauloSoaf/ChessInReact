@@ -233,7 +233,7 @@ export class TimeControlManager {
    */
   public static getBadgeLabel(initialSeconds?: number, incrementSeconds?: number): string {
     if (!initialSeconds || initialSeconds <= 0) {
-      return '☕ Casual (∞)';
+      return 'Casual (∞)';
     }
 
     const category = this.categorizeTimeControl(initialSeconds, incrementSeconds ?? 0);

@@ -163,6 +163,28 @@ export class MatchConfigurationManager {
   }
 
   /**
+   * Updates time control (initialSeconds and incrementSeconds) across all participant slots.
+   */
+  public static updateTimeControl(
+    config: IMatchConfiguration,
+    initialSeconds: number,
+    incrementSeconds: number = 0
+  ): IMatchConfiguration {
+    const nextSlots = config.slots.map((slot) => ({
+      ...slot,
+      clock: {
+        initialSeconds: Math.max(0, initialSeconds),
+        incrementSeconds: Math.max(0, incrementSeconds),
+      },
+    }));
+
+    return {
+      ...config,
+      slots: nextSlots,
+    };
+  }
+
+  /**
    * Exports configuration to a formatted JSON string (RF-16-07).
    */
   public static exportToJson(config: IMatchConfiguration): string {
