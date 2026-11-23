@@ -8,6 +8,7 @@ import { TimeControlManager, ITimeControlPreset } from '../../../matchmaking/con
 import { VariantCatalog } from '../../../engine/variants/catalog/VariantCatalog';
 import { ActionButton } from '../primitives/ActionButton';
 import { Card } from '../primitives/Card';
+import { IconClock } from '../../icons/AppIcons';
 
 export interface IPreMatchStagingModalProps {
   readonly isOpen: boolean;
@@ -348,8 +349,8 @@ export const PreMatchStagingModal: React.FC<IPreMatchStagingModalProps> = ({
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#f8fafc' }}>
-              ⏱️ Ritmo de Jogo e Relógio
+            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#f8fafc', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+              <IconClock size={16} color="currentColor" /> Ritmo de Jogo e Relógio
             </span>
             <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
               <button

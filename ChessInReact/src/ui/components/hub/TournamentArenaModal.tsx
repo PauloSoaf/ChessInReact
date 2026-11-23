@@ -10,7 +10,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { SwissTournamentEngine } from '../../../engine/tournament/SwissTournamentEngine';
 import { ArenaTournamentEngine } from '../../../engine/tournament/ArenaTournamentEngine';
 import { ISwissTournamentState, IArenaTournamentState, GameOutcome } from '../../../engine/tournament/types';
-import { IconSwords } from '../../icons/AppIcons';
+import { IconSwords, IconClock } from '../../icons/AppIcons';
 
 export interface ITournamentArenaModalProps {
   readonly isOpen: boolean;
@@ -443,8 +443,8 @@ export const TournamentArenaModal: React.FC<ITournamentArenaModalProps> = ({
                   marginBottom: '16px'
                 }}
               >
-                <div style={{ fontSize: '13px', color: '#f59e0b', fontWeight: 600 }}>
-                  ⏱️ Tempo de Arena: {arenaState.durationMinutes} minutos restantes
+                <div style={{ fontSize: '13px', color: '#f59e0b', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <IconClock size={15} color="currentColor" /> Tempo de Arena: {arenaState.durationMinutes} minutos restantes
                 </div>
                 <button
                   onClick={handleArenaFastPairings}

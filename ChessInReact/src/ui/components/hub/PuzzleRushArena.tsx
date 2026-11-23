@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { IconTrophy } from '../../icons/AppIcons';
+import { IconTrophy, IconClock } from '../../icons/AppIcons';
 import { Card } from '../primitives/Card';
 import { ActionButton } from '../primitives/ActionButton';
 import {
@@ -148,6 +148,18 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
   }, [botPuzzleIndex, puzzles, session.isGameOver, session.isPaused, session.mode, botDifficulty]);
 
   const currentPuzzle: ITacticalPuzzle | undefined = puzzles[session.currentPuzzleIndex];
+  const lastMoveObj = useMemo(() => {
+    if (!currentPuzzle || session.currentMoveIndex <= 0) return null;
+    const prevUci = currentPuzzle.solutionMoves[session.currentMoveIndex - 1];
+    if (prevUci && prevUci.length >= 4) {
+      return {
+        from: prevUci.slice(0, 2).toLowerCase(),
+        to: prevUci.slice(2, 4).toLowerCase(),
+      };
+    }
+    return null;
+  }, [currentPuzzle, session.currentMoveIndex]);
+
   const boardPiecesMap = useMemo(
     () =>
       currentPuzzle
@@ -360,9 +372,12 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
               fontSize: '1.15rem',
               fontWeight: 800,
               color: session.timeRemainingMs < 30000 ? 'var(--color-danger)' : 'var(--text-primary)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
             }}
           >
-            ⏱️ {formatTime(session.timeRemainingMs)}
+            <IconClock size={16} color="currentColor" /> {formatTime(session.timeRemainingMs)}
           </span>
 
           <span
@@ -489,6 +504,7 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
             selectedSquare={selectedSquare}
             onSquareClick={handleBoardSquareClick}
             viewMode={viewMode}
+            lastMove={lastMoveObj}
             testId="puzzle-rush-board"
             squareTestIdPrefix="puzzle-sq"
             coordFormat="algebraic"

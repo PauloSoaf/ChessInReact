@@ -326,6 +326,7 @@ export const GameBoardView: React.FC<IGameBoardViewProps> = ({
                 boardSize={8}
                 pieces={pieceEntities3D}
                 selectedPieceId={selectedPieceId3D}
+                checkConstraintCoords={checkCoord ? { kingCoord: toCartesianStr(checkCoord) } : null}
                 onPieceClick={(_, pos) => {
                   const [cx, cy] = pos.split(',').map(Number);
                   const outCoord = formatOutputCoord(cx, cy);

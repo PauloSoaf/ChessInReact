@@ -54,9 +54,19 @@ const BughouseBoard: React.FC<{
   selected: string | null;
   legalDestinations: ReadonlyMap<string, boolean>;
   viewMode: '2D' | '3D';
+  lastMove?: { from: string; to: string } | null;
   onSquareClick: (boardId: BughouseBoardId, coord: string) => void;
-}> = ({ board, boardId, selected, legalDestinations, viewMode, onSquareClick }) => {
+}> = ({ board, boardId, selected, legalDestinations, viewMode, lastMove, onSquareClick }) => {
   const pieces = useMemo(() => boardPieces(board), [board]);
+
+  const checkCoord = useMemo(() => {
+    const activePlayerId = board.activeColor === 'WHITE' ? 'P1' : 'P2';
+    if (board.domainState && CheckValidator.isRoyalInCheck(activePlayerId, board.domainState, TOPOLOGY_8X8)) {
+      const king = CheckValidator.findRoyalPiece(activePlayerId, board.domainState);
+      return king?.position ?? null;
+    }
+    return null;
+  }, [board.domainState, board.activeColor]);
 
   return (
     <div>
@@ -73,6 +83,8 @@ const BughouseBoard: React.FC<{
         testId={`bughouse-board-${boardId}`}
         squareTestIdPrefix={`bughouse-sq-${boardId}`}
         coordFormat="cartesian"
+        checkCoord={checkCoord}
+        lastMove={lastMove}
         onSquareClick={(coord) => onSquareClick(boardId, coord)}
       />
     </div>
@@ -99,6 +111,10 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
   const [viewMode, setViewMode] = useState<'2D' | '3D'>('2D');
   const [isPaused, setIsPaused] = useState(false);
   const [partnerRequest, setPartnerRequest] = useState<string | null>(null);
+  const [lastMoves, setLastMoves] = useState<Record<BughouseBoardId, { from: string; to: string } | null>>({
+    BOARD_A: null,
+    BOARD_B: null,
+  });
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -219,9 +235,17 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
             const dropType = decision.secondaryAction.payload.pieceType as BughousePieceType;
             const targetCoord = decision.secondaryAction.payload.targetCoordinate as string;
             if (prev.players[seatId]?.reservePieces.includes(dropType)) {
+              setLastMoves((lm) => ({
+                ...lm,
+                [boardId]: { from: targetCoord, to: targetCoord },
+              }));
               return BughouseEngine.executeDrop(prev, boardId, seatId, dropType, targetCoord);
             }
           }
+          setLastMoves((lm) => ({
+            ...lm,
+            [boardId]: { from: decision.move.from, to: decision.move.to },
+          }));
           return BughouseEngine.executeMove(prev, boardId, seatId, {
             from: decision.move.from,
             to: decision.move.to,
@@ -283,6 +307,10 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
     try {
       if (reserveType) {
         setMatch(BughouseEngine.executeDrop(match, boardId, activePlayer, reserveType, coord));
+        setLastMoves((lm) => ({
+          ...lm,
+          [boardId]: { from: coord, to: coord },
+        }));
         setReserveType(null);
         setSelected(null);
         setFeedback(null);
@@ -312,6 +340,10 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
           to: coord,
         })
       );
+      setLastMoves((lm) => ({
+        ...lm,
+        [boardId]: { from: selected.coord, to: coord },
+      }));
       setSelected(null);
       setFeedback(null);
     } catch (error) {
@@ -324,6 +356,7 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
     setSelected(null);
     setReserveType(null);
     setFeedback(null);
+    setLastMoves({ BOARD_A: null, BOARD_B: null });
   };
 
   const handleResign = () => {
@@ -520,6 +553,7 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
             selected={selected?.boardId === 'BOARD_A' ? selected.coord : null}
             legalDestinations={legalMapA}
             viewMode={viewMode}
+            lastMove={lastMoves.BOARD_A}
             onSquareClick={handleSquareClick}
           />
         </Card>
@@ -530,6 +564,7 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
             selected={selected?.boardId === 'BOARD_B' ? selected.coord : null}
             legalDestinations={legalMapB}
             viewMode={viewMode}
+            lastMove={lastMoves.BOARD_B}
             onSquareClick={handleSquareClick}
           />
         </Card>
