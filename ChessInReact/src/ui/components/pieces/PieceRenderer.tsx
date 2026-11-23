@@ -360,8 +360,8 @@ export const PieceRenderer: React.FC<IPieceRendererProps> = ({
           width: '100%',
           height: '100%',
           filter: isWhite
-            ? 'drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45))'
-            : 'drop-shadow(0 2px 4px rgba(212, 175, 55, 0.28))',
+            ? 'drop-shadow(0 2px 4px rgba(255, 255, 255, 0.25)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6))'
+            : 'drop-shadow(0 2px 4px rgba(212, 175, 55, 0.35))',
           overflow: 'visible',
         }}
         fill={bodyFill}

@@ -195,16 +195,16 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
           const movingEntity = request.domain.boardEntities[move.pieceId as import('../../../core/coordinates/types').EntityId];
           const variant = movingEntity && movingEntity.type === 'PIECE' ? movingEntity.variantId.toUpperCase() : undefined;
           if (variant === 'KNIGHT' || variant === 'N') {
-            score += 3000; // Developing knights covers central files, ranks, and diagonals
+            score += level >= 4 ? 8000 : 3000; // Developing knights covers central files, ranks, and diagonals
           } else if (variant === 'PAWN' || variant === 'P') {
             const [fx] = this.parseCoord(move.from);
             if (fx === 4) {
               // In Spell Chess, pushing the e-pawn leaves the king file guarded by only 1 piece,
               // exposing the king to orthogonal Queen/Rook Jump assassination!
-              score -= 1000;
+              score -= level >= 4 ? 40000 : 1000;
             } else if (fx === 3) {
               // Queen's pawn (d4/d5) without knight coverage leaves the king's diagonal ray open in Spell Chess!
-              score -= 1500;
+              score -= level >= 4 ? 40000 : 1500;
             }
           }
         }
@@ -218,9 +218,60 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
           }
         }
 
-        // King exposed center penalty & Hurdle Evasion in early/mid game (Spec 12 & Spec 15)
+        // Hurdle Evasion & King Threat Evasion in Spell Chess (Spec 12 & Spec 15):
+        // In Spell Chess, any enemy piece (active or frozen) within distance <= 2 of friendly King is a mortal hurdle.
+        if (request.domain) {
+          const [fkx, fky] = this.parseCoord(friendlyKingCoord);
+          let nearestEnemyDistToKing = 99;
+          for (const entity of Object.values(request.domain.boardEntities)) {
+            if (
+              entity.type === 'PIECE' &&
+              !entity.isCaptured &&
+              entity.ownerId === opponentPlayer &&
+              entity.position !== move.to
+            ) {
+              const [ex, ey] = this.parseCoord(entity.position);
+              const dist = Math.max(Math.abs(fkx - ex), Math.abs(fky - ey));
+              if (dist < nearestEnemyDistToKing) {
+                nearestEnemyDistToKing = dist;
+              }
+            }
+          }
+
+          if (nearestEnemyDistToKing <= 2) {
+            if (!isKingMove) {
+              // Enemy is breathing down King's neck! Heavily penalize non-King moves that don't capture the threat
+              if (!move.isCapture) {
+                score -= 50000;
+              }
+            } else {
+              // King move: reward fleeing away from the enemy hurdle, penalize moving closer
+              const [toX, toY] = this.parseCoord(move.to);
+              let newDistToEnemy = 99;
+              for (const entity of Object.values(request.domain.boardEntities)) {
+                if (
+                  entity.type === 'PIECE' &&
+                  !entity.isCaptured &&
+                  entity.ownerId === opponentPlayer &&
+                  entity.position !== move.to
+                ) {
+                  const [ex, ey] = this.parseCoord(entity.position);
+                  const dist = Math.max(Math.abs(toX - ex), Math.abs(toY - ey));
+                  if (dist < newDistToEnemy) newDistToEnemy = dist;
+                }
+              }
+              if (newDistToEnemy > nearestEnemyDistToKing) {
+                score += 60000; // Reward fleeing away from hurdle to safety!
+              } else if (newDistToEnemy <= 1) {
+                score -= 50000; // Penalize moving adjacent to enemy hurdle!
+              }
+            }
+          }
+        }
+
+        // King exposed center penalty in early/mid game (Spec 12 & Spec 15)
         if (isKingMove && request.domain) {
-          const [fx, fy] = this.parseCoord(move.from);
+          const [, fy] = this.parseCoord(move.from);
 
           if (turnNumber <= 30) {
             if (actingPlayer === 'P2' && toY < 6) {
@@ -236,36 +287,6 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
             if (isKingMarchingForward) {
               score -= 60000;
             }
-          }
-
-          // Hurdle Evasion: In Spell Chess, any enemy piece (active or frozen) near King is a mortal hurdle.
-          // Heavily penalize moving adjacent to enemy pieces, and reward moving away from them!
-          let currentMinDist = 99;
-          let newMinDist = 99;
-
-          for (const entity of Object.values(request.domain.boardEntities)) {
-            if (
-              entity.type === 'PIECE' &&
-              !entity.isCaptured &&
-              entity.ownerId === opponentPlayer &&
-              entity.position !== move.to
-            ) {
-              const [ex, ey] = this.parseCoord(entity.position);
-              const distFromOrigin = Math.max(Math.abs(fx - ex), Math.abs(fy - ey));
-              const distFromDest = Math.max(Math.abs(toX - ex), Math.abs(toY - ey));
-              if (distFromOrigin < currentMinDist) currentMinDist = distFromOrigin;
-              if (distFromDest < newMinDist) newMinDist = distFromDest;
-            }
-          }
-
-          if (newMinDist <= 1) {
-            score -= 50000; // Mortal danger: moving King adjacent to an enemy hurdle!
-          } else if (newMinDist <= 2) {
-            score -= 20000;
-          }
-
-          if (currentMinDist <= 2 && newMinDist > currentMinDist) {
-            score += 35000; // Rewarding King fleeing away from nearby enemy hurdles!
           }
         }
 
@@ -463,8 +484,7 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
         entity.type !== 'PIECE' ||
         entity.isCaptured ||
         entity.ownerId === kingOwner ||
-        entity.ownerId === 'NONE' ||
-        entity.metadata?.isFrozen
+        entity.ownerId === 'NONE'
       ) {
         continue;
       }
@@ -574,10 +594,10 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
     if (!domain) return defaultTarget;
 
     const turnNumber = domain.turnNumber ?? 1;
-    // Spec 15 & User Directive: Never burn Freeze on move 1 or 2 (turnNumber <= 2) for level 5 (Master bot)
+    // Spec 15 & User Directive: Never burn Freeze on move 1 to 3 (turnNumber <= 3) for level >= 4 (Master/Expert bot)
     // when enemy pieces are still undeveloped on their back rank!
     const level = request.difficultyLevel ?? 3;
-    if (level >= 5 && turnNumber <= 2) {
+    if (level >= 4 && turnNumber <= 3) {
       return null;
     }
 
@@ -643,7 +663,7 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
       }
     }
 
-    return bestCenter ?? (level < 5 ? defaultTarget : null);
+    return bestCenter ?? (level < 4 ? defaultTarget : null);
   }
 
   /**

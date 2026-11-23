@@ -317,7 +317,10 @@ describe('Spec 03 - End-to-End Authoritative Multiplayer Integration', () => {
     );
 
     // Wait for server tick and delta sync
-    await new Promise((r) => setTimeout(r, 150));
+    for (let i = 0; i < 20; i++) {
+      if (roomW.state.turnNumber === 2) break;
+      await new Promise((r) => setTimeout(r, 25));
+    }
 
     // Verify Server State
     expect(roomW.state.boardEntities.get('piece-w-p-e')?.position).toBe('e4');

@@ -961,6 +961,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               key={`${columnIndex}-${rowIndex}`}
               testId={`square-${gameX},${gameY}`}
               piece={piece}
+              pieceOwnerId={pieceEntity?.ownerId}
               boardDisplay={derivedBoard}
               squareInfo={{
                 row: rowIndex,

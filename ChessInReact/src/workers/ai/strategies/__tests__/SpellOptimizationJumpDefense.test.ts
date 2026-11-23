@@ -697,7 +697,7 @@ describe('SpellOptimizationStrategy: Proactive Jump Threat Defense (Spec 05 & Sp
     // White Bishop frozen at c5 (2,4) - distance 1 hurdle!
     const wBishopId = asEntityId('w_bishop_c5');
     domain.boardEntities[wBishopId] = {
-      id: bKingId,
+      id: wBishopId,
       type: 'PIECE',
       ownerId: 'P1',
       position: asCoordinateKey('2,4'),

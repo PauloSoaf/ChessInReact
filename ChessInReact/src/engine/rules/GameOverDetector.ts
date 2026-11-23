@@ -182,7 +182,8 @@ export class GameOverDetector {
         // Spell Chess Check Defense: If activePlayer has an available Freeze spell, they can freeze the checking piece!
         const isSpellChess = Boolean(
           state.variantId?.toUpperCase().includes('SPELL') ||
-          variantConfig?.variantId?.toUpperCase().includes('SPELL')
+          variantConfig?.variantId?.toUpperCase().includes('SPELL') ||
+          Boolean((state.metadata as { officialSpellState?: unknown })?.officialSpellState)
         );
         if (isSpellChess) {
           const officialSpellMeta = (state.metadata as { officialSpellState?: { whiteCharges?: { freezeCharges: number; freezeCooldownTurns: number }; blackCharges?: { freezeCharges: number; freezeCooldownTurns: number } } })?.officialSpellState;
@@ -238,6 +239,34 @@ export class GameOverDetector {
           reason: `Checkmate: Player ${activePlayer}'s King is trapped in check with no legal moves.`,
         };
       } else {
+        const isSpellChess = Boolean(
+          state.variantId?.toUpperCase().includes('SPELL') ||
+          variantConfig?.variantId?.toUpperCase().includes('SPELL') ||
+          Boolean((state.metadata as { officialSpellState?: unknown })?.officialSpellState)
+        );
+        if (isSpellChess) {
+          const officialSpellMeta = (state.metadata as { officialSpellState?: { whiteCharges?: { freezeCharges: number; freezeCooldownTurns: number; jumpCharges: number; jumpCooldownTurns: number }; blackCharges?: { freezeCharges: number; freezeCooldownTurns: number; jumpCharges: number; jumpCooldownTurns: number } } })?.officialSpellState;
+          const charges = officialSpellMeta
+            ? (activePlayer === 'P1' ? officialSpellMeta.whiteCharges : officialSpellMeta.blackCharges)
+            : { freezeCharges: 2, freezeCooldownTurns: 0, jumpCharges: 1, jumpCooldownTurns: 0 };
+          const hasSpellAvailable = Boolean(
+            charges &&
+              ((charges.freezeCharges > 0 && charges.freezeCooldownTurns === 0) ||
+                (charges.jumpCharges > 0 && charges.jumpCooldownTurns === 0))
+          );
+          const hasFrozenPieces = Object.values(state.boardEntities).some(
+            (e) => e.type === 'PIECE' && !e.isCaptured && e.metadata?.isFrozen
+          );
+          if (hasSpellAvailable || hasFrozenPieces) {
+            return {
+              isGameOver: false,
+              status: 'IN_PROGRESS',
+              winnerId: null,
+              reason: `Spell Chess: Player ${activePlayer} has temporary frozen pieces or available spells to cast.`,
+            };
+          }
+        }
+
         return {
           isGameOver: true,
           status: 'STALEMATE',

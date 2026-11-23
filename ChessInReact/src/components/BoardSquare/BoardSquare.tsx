@@ -2,6 +2,7 @@ import React from 'react';
 import { IBoardSquare } from '../../Interfaces/Interfaces';
 import { useTheme } from '../../ui/theme/ThemeContext';
 import { PieceRenderer } from '../../ui/components/pieces/PieceRenderer';
+import { PlayerId } from '../../core/coordinates/types';
 import {
   IconCrown,
   IconSwords,
@@ -16,8 +17,13 @@ import {
   IconAlertTriangle,
 } from '../../ui/icons/AppIcons';
 
-const BoardSquare: React.FC<IBoardSquare> = ({
+export interface IBoardSquareProps extends IBoardSquare {
+  pieceOwnerId?: PlayerId;
+}
+
+const BoardSquare: React.FC<IBoardSquareProps> = ({
   piece,
+  pieceOwnerId,
   backgroundColor,
   handleClick,
   squareInfo,
@@ -581,12 +587,15 @@ const BoardSquare: React.FC<IBoardSquare> = ({
           <PieceRenderer
             variantId={piece.name}
             ownerId={
+              pieceOwnerId === 'P1' ||
+              (typeof pieceOwnerId === 'string' &&
+                ['P1', 'WHITE', 'PLAYER1', 'W'].includes(pieceOwnerId.toUpperCase())) ||
               piece.ownerId === 'P1' ||
               (typeof piece.ownerId === 'string' &&
                 ['P1', 'WHITE', 'PLAYER1', 'W'].includes(piece.ownerId.toUpperCase())) ||
               piece.color?.toLowerCase() === 'white'
                 ? 'P1'
-                : (piece.ownerId as 'P1' | 'P2' | undefined) ?? 'P2'
+                : (pieceOwnerId as 'P1' | 'P2' | undefined) ?? (piece.ownerId as 'P1' | 'P2' | undefined) ?? 'P2'
             }
             pieceSet={pieceSet}
           />

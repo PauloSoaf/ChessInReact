@@ -115,6 +115,22 @@ export class VariantRegistry {
       topologyType: 'SQUARE',
       config: { variantId: 'CAPABLANCA_CHESS', enforceCheck: true },
     });
+
+    this.registerVariant({
+      id: 'SPELL_CHESS_OFFICIAL',
+      name: 'Spell Chess (Official)',
+      description: 'Official Chess.com Spell Chess rules with Freeze 3x3 and Jump spells',
+      topologyType: 'SQUARE',
+      config: { variantId: 'SPELL_CHESS_OFFICIAL', enforceCheck: true },
+    });
+
+    this.registerVariant({
+      id: 'SPELL_CHESS_EXPANDED',
+      name: 'Spell Chess (Expanded)',
+      description: 'Expanded Spell Chess with Mana, Portals, Shields, and Traps',
+      topologyType: 'SQUARE',
+      config: { variantId: 'SPELL_CHESS_EXPANDED', enforceCheck: true },
+    });
   }
 
   public static registerPiece(piece: IPieceDefinition): void {
@@ -158,6 +174,7 @@ export class VariantRegistry {
     if (k.includes('DUCK')) return this.variants.get('DUCK_CHESS')?.config;
     if (k.includes('RACING')) return this.variants.get('RACING_KINGS')?.config;
     if (k.includes('CAPABLANCA')) return this.variants.get('CAPABLANCA_CHESS')?.config;
+    if (k.includes('SPELL')) return this.variants.get('SPELL_CHESS_OFFICIAL')?.config;
     return undefined;
   }
 

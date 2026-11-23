@@ -2,6 +2,7 @@ import React from 'react';
 import { IOfficialSpellState } from '../../../engine/variants/spells/OfficialSpellEngine';
 import { PlayerId } from '../../../core/coordinates/types';
 import { globalAudioSynthesizer } from '../../../audio/WebAudioSynthesizer';
+import { IconClock } from '../../icons/AppIcons';
 
 export interface IOfficialSpellBarProps {
   readonly state: IOfficialSpellState;
@@ -310,9 +311,13 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
                   fontWeight: 900,
                   fontFamily: 'var(--font-mono, monospace)',
                   lineHeight: 1.1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '2px',
                 }}
               >
-                ⏳ {charges.jumpCooldownTurns}{compact ? 'T' : ' rodadas'}
+                <IconClock size={compact ? 10 : 12} color="#fef08a" />
+                {charges.jumpCooldownTurns}{compact ? 'T' : ' rodadas'}
               </span>
               <span
                 style={{
@@ -501,9 +506,13 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
                   fontWeight: 900,
                   fontFamily: 'var(--font-mono, monospace)',
                   lineHeight: 1.1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '2px',
                 }}
               >
-                ⏳ {charges.freezeCooldownTurns}{compact ? 'T' : ' rodadas'}
+                <IconClock size={compact ? 10 : 12} color="#fef08a" />
+                {charges.freezeCooldownTurns}{compact ? 'T' : ' rodadas'}
               </span>
               <span
                 style={{
@@ -698,9 +707,19 @@ export const OpponentSpellDeck: React.FC<IOpponentSpellDeckProps> = ({ state, ac
             padding: '0 3px',
             borderRadius: '6px',
             fontFamily: 'monospace',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '1px',
           }}
         >
-          {oppCharges.jumpCooldownTurns > 0 ? `⏳${oppCharges.jumpCooldownTurns}` : `x${oppCharges.jumpCharges}`}
+          {oppCharges.jumpCooldownTurns > 0 ? (
+            <>
+              <IconClock size={8} color="#fef08a" />
+              {oppCharges.jumpCooldownTurns}T
+            </>
+          ) : (
+            `x${oppCharges.jumpCharges}`
+          )}
         </span>
       </div>
 
@@ -743,9 +762,19 @@ export const OpponentSpellDeck: React.FC<IOpponentSpellDeckProps> = ({ state, ac
             padding: '0 3px',
             borderRadius: '6px',
             fontFamily: 'monospace',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '1px',
           }}
         >
-          {oppCharges.freezeCooldownTurns > 0 ? `⏳${oppCharges.freezeCooldownTurns}` : `x${oppCharges.freezeCharges}`}
+          {oppCharges.freezeCooldownTurns > 0 ? (
+            <>
+              <IconClock size={8} color="#fef08a" />
+              {oppCharges.freezeCooldownTurns}T
+            </>
+          ) : (
+            `x${oppCharges.freezeCharges}`
+          )}
         </span>
       </div>
     </div>
