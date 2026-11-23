@@ -13,6 +13,7 @@ export function isWebGLAvailable(): boolean {
     }
     return true;
   }
+  if (typeof window.ResizeObserver === 'undefined') return false;
   try {
     const canvas = document.createElement('canvas');
     return Boolean(

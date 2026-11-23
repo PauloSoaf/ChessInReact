@@ -574,9 +574,10 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
     if (!domain) return defaultTarget;
 
     const turnNumber = domain.turnNumber ?? 1;
-    // Spec 15 & User Directive: Never burn Freeze on move 1 or 2 (turnNumber <= 2)
+    // Spec 15 & User Directive: Never burn Freeze on move 1 or 2 (turnNumber <= 2) for level 5 (Master bot)
     // when enemy pieces are still undeveloped on their back rank!
-    if (turnNumber <= 2) {
+    const level = request.difficultyLevel ?? 3;
+    if (level >= 5 && turnNumber <= 2) {
       return null;
     }
 
@@ -614,22 +615,23 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
       }
     }
 
-    // Only target clusters containing developed, threatening, or advanced enemy pieces
+    // Master bot (level >= 5, user directive) only targets clusters containing developed, threatening, or advanced enemy pieces
     const developedEnemies = enemyPieces.filter((e) => e.isDeveloped);
-    if (developedEnemies.length === 0) {
+    if (level >= 5 && developedEnemies.length === 0) {
       return null;
     }
 
+    const candidateTargets = level >= 5 ? developedEnemies : enemyPieces;
     let bestCenter: string | null = null;
     let maxClusterValue = 0;
 
-    for (const target of developedEnemies) {
+    for (const target of candidateTargets) {
       let clusterValue = 0;
       let hasSignificantTarget = false;
       for (const other of enemyPieces) {
         if (Math.abs(other.x - target.x) <= 1 && Math.abs(other.y - target.y) <= 1) {
           clusterValue += other.value;
-          if (other.value >= 300 && other.isDeveloped) {
+          if (other.value >= 300 && (level < 5 || other.isDeveloped)) {
             hasSignificantTarget = true;
           }
         }
@@ -641,7 +643,7 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
       }
     }
 
-    return bestCenter;
+    return bestCenter ?? (level < 5 ? defaultTarget : null);
   }
 
   /**

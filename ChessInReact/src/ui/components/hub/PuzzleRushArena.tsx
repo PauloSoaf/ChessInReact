@@ -9,8 +9,7 @@ import {
   PuzzleRushMode,
 } from '../../../analysis/minigames/PuzzleRushEngine';
 import { PuzzleBattleBotStrategy } from '../../../workers/ai/strategies/PuzzleBattleBotStrategy';
-import { PieceRenderer } from '../pieces/PieceRenderer';
-import { useTheme } from '../../theme/ThemeContext';
+import { GameBoardView } from '../game/GameBoardView';
 import { PlayerId } from '../../../core/coordinates/types';
 import { GlobalEventBus } from '../../../core/events/EventBus';
 import { AIDifficultyLevel } from '../../../workers/ai/interfaces/IAIEngineContracts';
@@ -89,7 +88,6 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
   onBackToHub,
   initialMode = 'TIMED_3MIN',
 }) => {
-  const { pieceSet, activeBoardColors } = useTheme();
   const [puzzles] = useState<readonly ITacticalPuzzle[]>(() =>
     PuzzleRushEngine.getCanonicalPuzzleCatalog()
   );
@@ -485,78 +483,20 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
             </span>
           </div>
 
-          {/* Interactive 2D / 3D Tactical Chessboard for Puzzle Rush */}
-          <div
-            role="grid"
-            aria-label="Tabuleiro Tático do Puzzle"
-            data-testid="puzzle-rush-board"
+          {/* Interactive 2D / 3D Tactical Chessboard for Puzzle Rush (GameBoardView Adapter) */}
+          <GameBoardView
+            pieces={boardPiecesMap}
+            selectedSquare={selectedSquare}
+            onSquareClick={handleBoardSquareClick}
+            viewMode={viewMode}
+            testId="puzzle-rush-board"
+            squareTestIdPrefix="puzzle-sq"
+            coordFormat="algebraic"
             style={{
-              width: '100%',
               maxWidth: '380px',
               margin: '0 auto',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(8, 1fr)',
-              aspectRatio: '1 / 1',
-              borderRadius: 'var(--radius-sm)',
-              overflow: 'hidden',
-              border: '2px solid var(--border-prominent)',
-              transform:
-                viewMode === '3D'
-                  ? 'perspective(760px) rotateX(22deg) scale(0.96)'
-                  : 'none',
-              boxShadow:
-                viewMode === '3D'
-                  ? '0 18px 32px rgba(0, 0, 0, 0.48), 0 6px 0 rgba(15, 23, 42, 0.9)'
-                  : 'var(--shadow-md)',
-              transition: 'transform 220ms ease, box-shadow 220ms ease',
             }}
-          >
-            {Array.from({ length: 64 }, (_, idx) => {
-              const file = idx % 8;
-              const rank = 7 - Math.floor(idx / 8);
-              const alg = `${String.fromCharCode(97 + file)}${rank + 1}`;
-              const piece = boardPiecesMap.get(alg);
-              const isSelected = selectedSquare === alg;
-              const isDark = (file + rank) % 2 === 0;
-
-              return (
-                <button
-                  key={alg}
-                  type="button"
-                  role="gridcell"
-                  data-testid={`puzzle-sq-${alg}`}
-                  aria-label={`Casa ${alg}${piece ? ` ${piece.variantId}` : ''}`}
-                  onClick={() => handleBoardSquareClick(alg)}
-                  style={{
-                    position: 'relative',
-                    aspectRatio: '1',
-                    padding: 0,
-                    border: isSelected
-                      ? '2px solid var(--color-accent)'
-                      : '0.5px solid rgba(0,0,0,0.08)',
-                    background: isSelected
-                      ? activeBoardColors.selectedSquare
-                      : isDark
-                      ? activeBoardColors.darkSquare
-                      : activeBoardColors.lightSquare,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {piece ? (
-                    <PieceRenderer
-                      variantId={piece.variantId}
-                      ownerId={piece.ownerId}
-                      pieceSet={pieceSet}
-                      size="78%"
-                    />
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
+          />
 
           <div
             style={{

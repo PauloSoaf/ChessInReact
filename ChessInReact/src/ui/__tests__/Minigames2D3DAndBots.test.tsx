@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
+import React from 'react';
 import { render, fireEvent, screen } from '@testing-library/react';
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { ThemeProvider } from '../theme/ThemeContext';
 import { BughouseArena } from '../components/hub/BughouseArena';
 import { PuzzleRushArena } from '../components/hub/PuzzleRushArena';
@@ -11,6 +12,39 @@ import { RulesEngine } from '../../engine/rules/RulesEngine';
 import { CompositeArenaLayouts } from '../../engine/multiplayer/arenas/CompositeArenaLayouts';
 import { BughouseCoordinatedAgent } from '../../workers/ai/strategies/BughouseCoordinatedAgent';
 import { MaxNMultiplayerStrategy } from '../../workers/ai/strategies/MaxNMultiplayerStrategy';
+
+if (typeof window !== 'undefined' && !window.ResizeObserver) {
+  window.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+}
+
+// Mock WebGL and Three.js canvas in JSDOM environment
+vi.mock('@react-three/fiber', () => ({
+  Canvas: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="mock-r3f-canvas">
+      {children}
+    </div>
+  ),
+  useFrame: vi.fn(),
+  useThree: () => ({
+    pointer: { x: 0, y: 0 },
+    invalidate: vi.fn(),
+    gl: { domElement: document.createElement('canvas'), getContext: () => ({ isContextLost: () => false }) },
+    camera: { position: { x: 0, y: 8.5, z: 7.5 }, lookAt: vi.fn(), project: vi.fn() },
+    size: { width: 500, height: 500 },
+  }),
+}));
+
+vi.mock('@react-three/drei', () => ({
+  OrbitControls: () => <div data-testid="mock-orbit-controls" />,
+  useGLTF: Object.assign(vi.fn(() => ({ scene: { clone: () => ({ traverse: () => {} }) } })), {
+    preload: vi.fn(),
+    clear: vi.fn(),
+  }),
+}));
 
 describe('Minigames 2D/3D Interactive Boards & Multi-Level Rule-Intelligent Bots', () => {
   let controller: UniversalMatchController | null = null;
@@ -84,7 +118,7 @@ describe('Minigames 2D/3D Interactive Boards & Multi-Level Rule-Intelligent Bots
 
     const sqE4 = screen.getByTestId('bughouse-sq-BOARD_A-4,3');
     fireEvent.click(sqE4);
-    expect(boardA.parentElement?.textContent).toContain('Turno: Pretas');
+    expect(screen.getByTestId('bughouse-board-BOARD_A').parentElement?.textContent).toContain('Turno: Pretas');
   });
 
   it('BughouseCoordinatedAgent executes tactical reserve drops near opponent king at Master level', () => {

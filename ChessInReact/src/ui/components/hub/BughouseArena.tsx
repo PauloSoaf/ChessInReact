@@ -8,8 +8,7 @@ import {
   IBughouseMatchState,
 } from '../../../analysis/minigames/BughouseEngine';
 import { IPieceEntity } from '../../../core/entities/types';
-import { PieceRenderer } from '../pieces/PieceRenderer';
-import { useTheme } from '../../theme/ThemeContext';
+import { GameBoardView } from '../game/GameBoardView';
 import { RulesEngine } from '../../../engine/rules/RulesEngine';
 import { SquareTopology } from '../../../core/topology/SquareTopology';
 import { CheckValidator } from '../../../engine/rules/CheckValidator';
@@ -39,14 +38,6 @@ const PLAYER_LABELS: Record<string, string> = {
 
 const TOPOLOGY_8X8 = new SquareTopology({ width: 8, height: 8 });
 
-function coordinate(file: number, rank: number): string {
-  return `${file},${rank}`;
-}
-
-function algebraic(file: number, rank: number): string {
-  return `${String.fromCharCode(97 + file)}${rank + 1}`;
-}
-
 function boardPieces(board: IBughouseMatchState['boardA']): Map<string, IPieceEntity> {
   const result = new Map<string, IPieceEntity>();
   for (const entity of Object.values(board.domainState?.boardEntities ?? {})) {
@@ -65,7 +56,6 @@ const BughouseBoard: React.FC<{
   viewMode: '2D' | '3D';
   onSquareClick: (boardId: BughouseBoardId, coord: string) => void;
 }> = ({ board, boardId, selected, legalDestinations, viewMode, onSquareClick }) => {
-  const { pieceSet, activeBoardColors } = useTheme();
   const pieces = useMemo(() => boardPieces(board), [board]);
 
   return (
@@ -74,103 +64,17 @@ const BughouseBoard: React.FC<{
         <strong>{boardId === 'BOARD_A' ? 'Mesa A (Time 1 Brancas × Time 2 Pretas)' : 'Mesa B (Time 2 Brancas × Time 1 Pretas)'}</strong>
         <span>Turno: {board.activeColor === 'WHITE' ? 'Brancas' : 'Pretas'}</span>
       </div>
-      <div
-        role="grid"
-        aria-label={`Tabuleiro ${boardId}`}
-        data-testid={`bughouse-board-${boardId}`}
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(8, 1fr)',
-          aspectRatio: '1',
-          borderRadius: 'var(--radius-sm)',
-          overflow: 'hidden',
-          border: '2px solid var(--border-prominent)',
-          transform:
-            viewMode === '3D'
-              ? 'perspective(760px) rotateX(22deg) scale(0.96)'
-              : 'none',
-          transformOrigin: 'center center',
-          boxShadow:
-            viewMode === '3D'
-              ? '0 18px 32px rgba(0, 0, 0, 0.48), 0 6px 0 rgba(15, 23, 42, 0.9)'
-              : 'var(--shadow-md)',
-          transition: 'transform 220ms ease, box-shadow 220ms ease',
-        }}
-      >
-        {Array.from({ length: 64 }, (_, index) => {
-          const file = index % 8;
-          const rank = 7 - Math.floor(index / 8);
-          const coord = coordinate(file, rank);
-          const piece = pieces.get(coord);
-          const isSelected = selected === coord;
-          const isDark = (file + rank) % 2 === 0;
-          const destCapture = legalDestinations.get(coord);
-          const isMoveDest = destCapture !== undefined && !destCapture;
-          const isCaptureDest = destCapture !== undefined && destCapture;
-
-          return (
-            <button
-              key={coord}
-              type="button"
-              role="gridcell"
-              data-testid={`bughouse-sq-${boardId}-${coord}`}
-              aria-label={`${algebraic(file, rank)}${piece ? ` ${piece.variantId}` : ''}`}
-              onClick={() => onSquareClick(boardId, coord)}
-              style={{
-                position: 'relative',
-                border: isSelected
-                  ? '2px solid var(--color-accent)'
-                  : '0.5px solid rgba(0,0,0,0.08)',
-                background: isSelected
-                  ? activeBoardColors.selectedSquare
-                  : isDark
-                  ? activeBoardColors.darkSquare
-                  : activeBoardColors.lightSquare,
-                aspectRatio: '1',
-                cursor: 'pointer',
-                padding: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {isMoveDest && (
-                <span
-                  data-testid="bughouse-legal-dot"
-                  style={{
-                    position: 'absolute',
-                    width: '26%',
-                    height: '26%',
-                    borderRadius: '50%',
-                    backgroundColor: activeBoardColors.legalMoveDot,
-                    pointerEvents: 'none',
-                  }}
-                />
-              )}
-              {isCaptureDest && (
-                <span
-                  data-testid="bughouse-capture-ring"
-                  style={{
-                    position: 'absolute',
-                    inset: '3px',
-                    borderRadius: '50%',
-                    border: `2.5px solid ${activeBoardColors.captureSquare}`,
-                    pointerEvents: 'none',
-                  }}
-                />
-              )}
-              {piece ? (
-                <PieceRenderer
-                  variantId={piece.variantId}
-                  ownerId={piece.ownerId}
-                  pieceSet={pieceSet}
-                  size="78%"
-                />
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
+      <GameBoardView
+        boardId={boardId}
+        pieces={pieces}
+        selectedSquare={selected}
+        legalDestinations={legalDestinations}
+        viewMode={viewMode}
+        testId={`bughouse-board-${boardId}`}
+        squareTestIdPrefix={`bughouse-sq-${boardId}`}
+        coordFormat="cartesian"
+        onSquareClick={(coord) => onSquareClick(boardId, coord)}
+      />
     </div>
   );
 };

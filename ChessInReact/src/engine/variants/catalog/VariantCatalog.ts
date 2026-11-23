@@ -71,6 +71,13 @@ export class VariantCatalog {
     }
     const v = variantId.toUpperCase();
 
+    // Composite Multiplayer Arenas (Spec 14: 18 layouts across 14x14 or 16x16 matrix)
+    const arenaLayout = CompositeArenaLayouts.getLayout(v as ArenaModeId);
+    if (arenaLayout) {
+      const boardLimit = arenaLayout.boardType === 'SQUARE_CROSS' ? 14 : 16;
+      return new SquareTopology({ width: boardLimit, height: boardLimit });
+    }
+
     if (v === 'CAPABLANCA_CHESS' || v.includes('CAPABLANCA')) {
       return new SquareTopology({ width: 10, height: 8 });
     }
@@ -83,7 +90,7 @@ export class VariantCatalog {
     if (v === 'GLINSKI_HEXAGONAL' || v.includes('GLINSKI')) {
       return new HexTopology({ orientation: 'POINTY', radius: 5 });
     }
-    if (v === 'TRIANGULAR_CHAOS_3P' || v.includes('TRIANGULAR')) {
+    if (v.includes('TRIANGULAR')) {
       return new TriangleTopology({ boundingRadius: 6 });
     }
     if (v === 'TOROIDAL_CHESS' || v.includes('TORUS') || v.includes('TOROIDAL')) {
@@ -91,20 +98,6 @@ export class VariantCatalog {
     }
     if (v === 'CUBIC_CHESS' || v.includes('CUBIC')) {
       return new CubicTopology({ boardSize: 8 });
-    }
-
-    const arenaLayout = CompositeArenaLayouts.getLayout(v as ArenaModeId);
-    if (arenaLayout) {
-      if (arenaLayout.boardType === 'SQUARE_CROSS') {
-        return new SquareTopology({ width: 14, height: 14 });
-      }
-      if (arenaLayout.boardType.includes('HEX')) {
-        return new HexTopology({ orientation: 'FLAT', radius: 7 });
-      }
-      if (arenaLayout.boardType.includes('TRI')) {
-        return new TriangleTopology({ boundingRadius: 8 });
-      }
-      return new SquareTopology({ width: 16, height: 16 });
     }
 
     this.ensureInitialized();

@@ -130,7 +130,7 @@ export class MatchConfigurationManager {
         ...slot,
         role:
           slot.role === 'BOT_STANDIN' || slot.role === 'AI_BOT' ? slot.role : 'AI_BOT',
-        displayName: slot.displayName.replace(/\s*\(N[1-5]\)$/, ''),
+        displayName: `${slot.displayName.replace(/\s*\(N[1-5]\)$/, '')} (N${difficultyLevel})`,
         botConfig: {
           ...currentBotConfig,
           difficultyLevel,

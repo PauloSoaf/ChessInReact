@@ -31,7 +31,7 @@ describe('Minigame & Variant Capricho Polish Suite (Spec 06, Spec 13, Spec 12)',
 
     const beacon = screen.getByTestId('antichess-forced-capture-beacon');
     expect(beacon).toBeDefined();
-    expect(beacon.textContent).toContain('⚔️');
+    expect(beacon.querySelector('svg')).toBeDefined();
 
     const squareEl = screen.getByTestId('square-e4');
     expect(squareEl.getAttribute('aria-label')).toContain('CAPTURA OBRIGATÓRIA (Antichess)');

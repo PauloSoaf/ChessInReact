@@ -31,8 +31,8 @@ export const VariantMatchBanner: React.FC<IVariantMatchBannerProps> = ({
   let accentColor = '#3b82f6';
 
   if (normId.includes('SPELL') || normId === 'SPELL_CHESS_OFFICIAL') {
-    title = 'Spell Chess';
-    badge = 'Oficial';
+    title = 'Spell Chess (Regras Oficiais Chess.com)';
+    badge = 'Freeze & Jump (2 Cargas)';
     subtitle = 'Opcionalmente lance 1 feitiço por rodada antes da sua jogada no tabuleiro.';
     accentColor = '#06b6d4';
   } else if (normId === 'SPELL_CHESS_EXPANDED') {
@@ -81,13 +81,13 @@ export const VariantMatchBanner: React.FC<IVariantMatchBannerProps> = ({
     subtitle = 'Tabuleiro expandido 10×8 com as peças compostas Arcebispo e Chanceler.';
     accentColor = '#0284c7';
   } else if (normId.includes('SHOGI')) {
-    title = 'Shogi (将棋)';
+    title = 'Shogi (Xadrez Japonês - 将棋)';
     badge = 'Drops & Komadai';
     subtitle = 'Peças capturadas passam a pertencer ao captor e podem ser reintroduzidas.';
     accentColor = '#d97706';
   } else if (normId.includes('XIANGQI')) {
-    title = 'Xiangqi (象棋)';
-    badge = 'Palácio & Rio';
+    title = 'Xiangqi (Xadrez Chinês - 象棋)';
+    badge = 'Palácio & Rio Celestial';
     subtitle = 'Canhões saltam para capturar; Generais confinados ao Palácio; Elefantes não cruzam o Rio.';
     accentColor = '#dc2626';
   } else if (normId.includes('ANTICHESS') || normId.includes('GIVEAWAY')) {
@@ -106,17 +106,17 @@ export const VariantMatchBanner: React.FC<IVariantMatchBannerProps> = ({
     subtitle = 'Muralha assimétrica de 36 peões brancos marchando contra as peças tradicionais das pretas.';
     accentColor = '#e11d48';
   } else if (normId.includes('TORUS') || normId.includes('TOROIDAL')) {
-    title = 'Toroidal Chess';
+    title = 'Toroidal Chess (Rosquinha 3D)';
     badge = 'Torus 3D';
     subtitle = 'Geometria não-euclidiana em um Torus 3D. Bordas opostas conectadas continuamente.';
     accentColor = '#f59e0b';
   } else if (normId.includes('CUBE') || normId.includes('CUBIC')) {
-    title = 'Cubic Chess';
+    title = 'Cubic Chess (Cubo 3D)';
     badge = 'Cubo 3D';
     subtitle = 'Batalha tridimensional contínua nas 6 faces de um Cubo 3D.';
     accentColor = '#06b6d4';
   } else if (normId.includes('PROCEDURAL') || normId.includes('ENDLESS')) {
-    title = 'Endless Procedural';
+    title = 'Endless Procedural Conquest';
     badge = 'Infinito';
     subtitle = 'Mundo aberto gerado continuamente por Simplex Noise.';
     accentColor = '#10b981';
