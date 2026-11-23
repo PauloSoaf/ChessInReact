@@ -109,6 +109,17 @@ export class GameReviewEngine {
       P2: emptyCounts(),
     };
 
+    if (evaluationsCp.length === 0) {
+      return {
+        isAvailable: false,
+        unavailableReason: 'Nenhuma avaliação registrada por motor para esta partida.',
+        whiteAccuracy: 0,
+        blackAccuracy: 0,
+        counts,
+        evalStream: [],
+      };
+    }
+
     let prevWinChance = 50.0;
 
     for (let ply = 0; ply < evaluationsCp.length; ply++) {
@@ -146,6 +157,7 @@ export class GameReviewEngine {
     }
 
     return {
+      isAvailable: true,
       whiteAccuracy: this.computeCAPS2Accuracy(whiteDrops),
       blackAccuracy: this.computeCAPS2Accuracy(blackDrops),
       counts,

@@ -133,7 +133,8 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
     const result = PuzzleBattleBotStrategy.simulatePuzzleAttempt(
       botElo,
       puzzle.rating,
-      puzzle.solutionMoves[0] ?? ''
+      puzzle.solutionMoves[0] ?? '',
+      puzzle.fen
     );
     const timeout = setTimeout(() => {
       setSession((prev) =>

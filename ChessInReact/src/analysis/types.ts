@@ -23,6 +23,8 @@ export interface IEvalPoint {
 }
 
 export interface IGameReviewSummary {
+  readonly isAvailable?: boolean;
+  readonly unavailableReason?: string;
   readonly whiteAccuracy: number;
   readonly blackAccuracy: number;
   readonly counts: {

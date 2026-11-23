@@ -1111,7 +1111,7 @@ const AppContent: React.FC = () => {
                 <PlayerCard
                   playerId="P2"
                   displayName={
-                    universalMatch.snapshot.config.slots[1]?.displayName ??
+                    universalMatch.snapshot.config.slots[1]?.displayName.replace(/\s*\(N[1-5]\)$/, '') ??
                     (isBotEnabled ? 'Oponente IA' : 'Jogador 2 (Pretas)')
                   }
                   subtitle={
@@ -1567,6 +1567,7 @@ const AppContent: React.FC = () => {
         onClose={() => setIsGameReviewOpen(false)}
         moveSans={matchMoveSans}
         evaluationsCp={matchEvaluationsCp}
+        variantId={universalMatch.snapshot.config.variantId}
         whitePlayerName="Humano (Brancas)"
         blackPlayerName={isBotEnabled ? `Bot IA (${DIFFICULTY_LABELS[difficulty]})` : 'Humano (Pretas)'}
         onRetryMistake={(ply, bestMoveSan) => {

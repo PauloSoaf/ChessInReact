@@ -161,8 +161,27 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
         let score = 0;
         const isKingMove = move.pieceId.toLowerCase().includes('king') || move.from === friendlyKingCoord;
 
-        // Base heuristic evaluation (centrality for normal pieces only)
-        if (move.isCapture) score += 300;
+        // Material capture evaluation (prioritizing high-value target elimination)
+        if (move.isCapture && request.domain) {
+          const targetPieceId = request.domain.occupancy[move.to as import('../../../core/coordinates/types').CoordinateKey];
+          const targetPiece = targetPieceId ? request.domain.boardEntities[targetPieceId] : undefined;
+          const pieceVariant = targetPiece && targetPiece.type === 'PIECE' ? targetPiece.variantId.toUpperCase() : 'PAWN';
+          const pieceValues: Record<string, number> = {
+            QUEEN: 9000,
+            Q: 9000,
+            ROOK: 5000,
+            R: 5000,
+            BISHOP: 3200,
+            B: 3200,
+            KNIGHT: 3000,
+            N: 3000,
+            PAWN: 1000,
+            P: 1000,
+          };
+          score += pieceValues[pieceVariant] ?? 1000;
+        } else if (move.isCapture) {
+          score += 300;
+        }
         const [toX, toY] = this.parseCoord(move.to);
         if (!isKingMove) {
           score += (4 - Math.abs(toX - 3.5)) * 10 + (4 - Math.abs(toY - 3.5)) * 10;
@@ -201,6 +220,8 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
 
         // King exposed center penalty & Hurdle Evasion in early/mid game (Spec 12 & Spec 15)
         if (isKingMove && request.domain) {
+          const [fx, fy] = this.parseCoord(move.from);
+
           if (turnNumber <= 30) {
             if (actingPlayer === 'P2' && toY < 6) {
               score -= (6 - toY) * 25000;
@@ -209,9 +230,16 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
             }
           }
 
+          // Anti-suicide king walk: King marching forward deeper into board center under check is lethal!
+          if (currentThreats.length > 0) {
+            const isKingMarchingForward = actingPlayer === 'P2' ? toY < fy : toY > fy;
+            if (isKingMarchingForward) {
+              score -= 60000;
+            }
+          }
+
           // Hurdle Evasion: In Spell Chess, any enemy piece (active or frozen) near King is a mortal hurdle.
           // Heavily penalize moving adjacent to enemy pieces, and reward moving away from them!
-          const [fx, fy] = this.parseCoord(move.from);
           let currentMinDist = 99;
           let newMinDist = 99;
 

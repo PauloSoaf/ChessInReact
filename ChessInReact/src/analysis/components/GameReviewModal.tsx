@@ -13,6 +13,7 @@ export interface IGameReviewModalProps {
   whitePlayerName?: string;
   blackPlayerName?: string;
   onRetryMistake?: (ply: number, bestMoveSan?: string) => void;
+  variantId?: string;
 }
 
 const CLASSIFICATION_LABELS: Record<MoveClassification, { label: string; glyph: string; color: string }> = {
@@ -29,9 +30,12 @@ const CLASSIFICATION_LABELS: Record<MoveClassification, { label: string; glyph: 
 };
 
 /**
- * Spec 12 § 1 & RF-01, RF-02, RF-03, RF-04:
- * Interactive Post-Game Review Modal with CAPS2 accuracy metrics,
+ * Spec 12 § 1 & RF-01, RF-02, RF-03, RF-04, PATCH-04:
+ * Interactive Post-Game Review Modal with real engine evaluations, CAPS2 accuracy metrics,
  * SVG positional advantage graph, FIDE NAG annotations, and Retry Mistakes drill.
+ *
+ * Invariant (PATCH-04): Zero synthetic sinusoidal oscillations, zero artificial centipawn
+ * fabrication when evaluations are missing, and explicit blocking for unsupported variants.
  */
 export const GameReviewModal: React.FC<IGameReviewModalProps> = ({
   isOpen,
@@ -41,28 +45,73 @@ export const GameReviewModal: React.FC<IGameReviewModalProps> = ({
   whitePlayerName = 'Brancas',
   blackPlayerName = 'Pretas',
   onRetryMistake,
+  variantId,
 }) => {
   const [selectedPly, setSelectedPly] = useState<number>(0);
   const [copiedPgn, setCopiedPgn] = useState<boolean>(false);
 
+  // Check if variant supports classical comparative centipawn review (FIDE 8x8 rules)
+  const isVariantSupported = useMemo(() => {
+    if (!variantId) return true;
+    const v = variantId.toUpperCase();
+    return v === 'CLASSIC_SQUARE' || v === 'STANDARD' || v === 'CHESS' || v === 'FIDE';
+  }, [variantId]);
+
+  const hasEvaluations = evaluationsCp.length > 0;
+
   // Authoritative evaluation stream: consumes real evaluations emitted by engine/AI Worker.
-  // Zero synthetic sinusoidal oscillations (P0 Audit Resolution).
   const effectiveEvals = useMemo(() => {
-    if (evaluationsCp.length > 0) {
-      const evals = [...evaluationsCp];
-      const last = evals[evals.length - 1] ?? 0;
-      while (evals.length <= moveSans.length) {
-        evals.push(last);
-      }
-      return evals;
+    if (!hasEvaluations || !isVariantSupported) {
+      return [];
     }
-    // Baseline zero-advantage stream without fabricated blunders or mistakes
-    return new Array(moveSans.length + 1).fill(0);
-  }, [evaluationsCp, moveSans]);
+    const evals = [...evaluationsCp];
+    const last = evals[evals.length - 1] ?? 0;
+    while (evals.length <= moveSans.length) {
+      evals.push(last);
+    }
+    return evals;
+  }, [evaluationsCp, moveSans, hasEvaluations, isVariantSupported]);
 
   const reviewSummary: IGameReviewSummary = useMemo(() => {
+    if (!isVariantSupported || !hasEvaluations) {
+      return {
+        isAvailable: false,
+        unavailableReason: !isVariantSupported
+          ? 'Variante não clássica sem suporte a centipawns.'
+          : 'Nenhuma avaliação registrada por motor.',
+        whiteAccuracy: 0,
+        blackAccuracy: 0,
+        counts: {
+          P1: {
+            BRILLIANT: 0,
+            GREAT: 0,
+            BEST: 0,
+            EXCELLENT: 0,
+            GOOD: 0,
+            BOOK: 0,
+            INACCURACY: 0,
+            MISTAKE: 0,
+            BLUNDER: 0,
+            MISSED_WIN: 0,
+          },
+          P2: {
+            BRILLIANT: 0,
+            GREAT: 0,
+            BEST: 0,
+            EXCELLENT: 0,
+            GOOD: 0,
+            BOOK: 0,
+            INACCURACY: 0,
+            MISTAKE: 0,
+            BLUNDER: 0,
+            MISSED_WIN: 0,
+          },
+        },
+        evalStream: [],
+      };
+    }
     return GameReviewEngine.analyzeMatch(effectiveEvals, moveSans);
-  }, [effectiveEvals, moveSans]);
+  }, [effectiveEvals, moveSans, isVariantSupported, hasEvaluations]);
 
   // Extract mistakes and blunders for the "Retry Mistakes" training feature
   const mistakesList = useMemo(() => {
@@ -89,6 +138,8 @@ export const GameReviewModal: React.FC<IGameReviewModalProps> = ({
   if (!isOpen) return null;
 
   const handleCopyAnnotatedPgn = async () => {
+    if (!reviewSummary.isAvailable) return;
+
     const pgn = GameReviewEngine.exportAnnotatedPGN(reviewSummary, {
       White: whitePlayerName,
       Black: blackPlayerName,
@@ -171,7 +222,9 @@ export const GameReviewModal: React.FC<IGameReviewModalProps> = ({
                 Revisão de Partida (Game Review & CAPS2)
               </h2>
               <span style={{ fontSize: '0.72rem', color: 'var(--text-subtle, #94a3b8)' }}>
-                Análise determinística pós-jogo com classificação científica de lances
+                {isVariantSupported && hasEvaluations
+                  ? 'Análise determinística pós-jogo com classificação científica de lances'
+                  : 'Auditoria de integridade analítica da partida'}
               </span>
             </div>
           </div>
@@ -185,8 +238,10 @@ export const GameReviewModal: React.FC<IGameReviewModalProps> = ({
               border: 'none',
               color: 'var(--text-subtle, #94a3b8)',
               cursor: 'pointer',
-              fontSize: '1.25rem',
-              padding: '0.25rem 0.5rem',
+              padding: '0.35rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               borderRadius: 'var(--radius-sm, 4px)',
             }}
           >
@@ -194,260 +249,422 @@ export const GameReviewModal: React.FC<IGameReviewModalProps> = ({
           </button>
         </div>
 
-        {/* Scrollable Content Body */}
-        <div
-          style={{
-            padding: '1.15rem 1.25rem',
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1.25rem',
-          }}
-        >
-          {/* CAPS2 Accuracy Cards */}
+        {/* Modal Body */}
+        {!isVariantSupported ? (
+          // Unsupported Variant State (PATCH-04 Acceptance Gate)
           <div
+            data-testid="variant-unsupported-notice"
             style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
+              padding: '2.5rem 1.5rem',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
               gap: '1rem',
             }}
           >
-            {/* White Player Card */}
-            <div
-              data-testid="white-accuracy-card"
-              style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                border: '1.5px solid rgba(255, 255, 255, 0.15)',
-                borderRadius: 'var(--radius-md, 8px)',
-                padding: '0.85rem 1rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.35rem',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>⚪ {whitePlayerName}</span>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-subtle, #94a3b8)' }}>Precisão CAPS2</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem' }}>
-                <span
-                  style={{
-                    fontSize: '1.75rem',
-                    fontWeight: 900,
-                    fontFamily: 'var(--font-mono, monospace)',
-                    color: '#38bdf8',
-                  }}
-                >
-                  {reviewSummary.whiteAccuracy.toFixed(1)}%
-                </span>
-                <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>
-                  {reviewSummary.whiteAccuracy >= 90 ? 'Excelente' : reviewSummary.whiteAccuracy >= 75 ? 'Muito Bom' : 'Sólido'}
-                </span>
-              </div>
-            </div>
-
-            {/* Black Player Card */}
-            <div
-              data-testid="black-accuracy-card"
-              style={{
-                backgroundColor: 'rgba(0, 0, 0, 0.25)',
-                border: '1.5px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: 'var(--radius-md, 8px)',
-                padding: '0.85rem 1rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.35rem',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>⚫ {blackPlayerName}</span>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-subtle, #94a3b8)' }}>Precisão CAPS2</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem' }}>
-                <span
-                  style={{
-                    fontSize: '1.75rem',
-                    fontWeight: 900,
-                    fontFamily: 'var(--font-mono, monospace)',
-                    color: '#a855f7',
-                  }}
-                >
-                  {reviewSummary.blackAccuracy.toFixed(1)}%
-                </span>
-                <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>
-                  {reviewSummary.blackAccuracy >= 90 ? 'Excelente' : reviewSummary.blackAccuracy >= 75 ? 'Muito Bom' : 'Sólido'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Interactive Advantage Graph */}
-          <div>
             <div
               style={{
+                width: 52,
+                height: 52,
+                borderRadius: '50%',
+                backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                border: '1.5px solid rgba(239, 68, 68, 0.4)',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '0.45rem',
+                justifyContent: 'center',
+                color: '#ef4444',
+                fontSize: '1.4rem',
+                fontWeight: 900,
               }}
             >
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-subtle, #94a3b8)' }}>
-                Curva de Vantagem Posicional (Centipawns & Win Chance)
-              </span>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-subtle, #94a3b8)' }}>
-                Clique no gráfico para inspecionar o lance
-              </span>
+              !
             </div>
-            <AdvantageGraph
-              evalStream={reviewSummary.evalStream}
-              currentPly={selectedPly}
-              onSelectPly={setSelectedPly}
-              height={130}
-            />
-          </div>
-
-          {/* Move Classification Tally Badges */}
-          <div>
-            <span
+            <div>
+              <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', fontWeight: 800 }}>
+                Análise Indisponível para esta Variante
+              </h3>
+              <p
+                style={{
+                  margin: 0,
+                  maxWidth: '520px',
+                  fontSize: '0.82rem',
+                  lineHeight: 1.5,
+                  color: 'var(--text-subtle, #94a3b8)',
+                }}
+              >
+                O motor de análise posicional opera sob as regras e dimensões clássicas FIDE (8x8).
+                Variantes com regras especiais (Spell, Duck, Bughouse), peças fadas ou geometrias estendidas
+                não possuem escala posicional padronizada em centipawns para emissão de precisão CAPS2.
+              </p>
+            </div>
+            <div
               style={{
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                color: 'var(--text-subtle, #94a3b8)',
-                display: 'block',
-                marginBottom: '0.5rem',
+                padding: '0.65rem 1rem',
+                backgroundColor: 'var(--bg-sunken, #0f172a)',
+                borderRadius: 'var(--radius-md, 8px)',
+                border: '1px solid var(--border-subtle, #334155)',
+                fontSize: '0.74rem',
+                color: 'var(--text-muted, #64748b)',
               }}
             >
-              Distribuição de Qualidade dos Lances
-            </span>
+              Princípio de Rigor (PATCH-04): Nenhuma métrica ou gráfico sintético é fabricado para variantes não suportadas.
+            </div>
+          </div>
+        ) : !hasEvaluations ? (
+          // Missing Evaluations State (PATCH-04 Acceptance Gate)
+          <div
+            data-testid="no-evaluations-notice"
+            style={{
+              padding: '2.5rem 1.5rem',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '1rem',
+            }}
+          >
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: '50%',
+                backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                border: '1.5px solid rgba(245, 158, 11, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#f59e0b',
+                fontSize: '1.4rem',
+                fontWeight: 900,
+              }}
+            >
+              i
+            </div>
+            <div>
+              <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', fontWeight: 800 }}>
+                Nenhuma Avaliação de Engine Registrada
+              </h3>
+              <p
+                style={{
+                  margin: 0,
+                  maxWidth: '520px',
+                  fontSize: '0.82rem',
+                  lineHeight: 1.5,
+                  color: 'var(--text-subtle, #94a3b8)',
+                }}
+              >
+                Esta partida não possui registros de avaliação posicional calculados por lance pelo motor de IA.
+                Para manter a fidelidade científica, curvas de vantagem, contagem de gafes e pontuações de precisão
+                não são geradas a partir de dados ausentes.
+              </p>
+            </div>
+            <div
+              style={{
+                padding: '0.65rem 1rem',
+                backgroundColor: 'var(--bg-sunken, #0f172a)',
+                borderRadius: 'var(--radius-md, 8px)',
+                border: '1px solid var(--border-subtle, #334155)',
+                fontSize: '0.74rem',
+                color: 'var(--text-muted, #64748b)',
+              }}
+            >
+              Métricas e estimativas são exclusivas de partidas com cálculo de centipawns ativo por ply.
+            </div>
+          </div>
+        ) : (
+          // Full Supported Review with Real Evaluations
+          <div
+            style={{
+              padding: '1.15rem 1.25rem',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.25rem',
+            }}
+          >
+            {/* CAPS2 Accuracy Cards */}
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))',
-                gap: '0.5rem',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '1rem',
               }}
             >
-              {(['BRILLIANT', 'BEST', 'EXCELLENT', 'INACCURACY', 'MISTAKE', 'BLUNDER'] as MoveClassification[]).map(
-                (c) => {
-                  const meta = CLASSIFICATION_LABELS[c];
-                  const countP1 = reviewSummary.counts.P1[c] || 0;
-                  const countP2 = reviewSummary.counts.P2[c] || 0;
-                  return (
-                    <div
-                      key={c}
+              {/* White Player Card */}
+              <div
+                data-testid="white-accuracy-card"
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  border: '1.5px solid rgba(255, 255, 255, 0.15)',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  padding: '0.85rem 1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.35rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <span
                       style={{
-                        padding: '0.45rem 0.65rem',
-                        borderRadius: 'var(--radius-sm, 6px)',
-                        backgroundColor: 'var(--bg-sunken, #0f172a)',
-                        border: `1px solid ${meta.color}40`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        fontSize: '0.75rem',
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        backgroundColor: '#f8fafc',
+                        display: 'inline-block',
                       }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <span style={{ color: meta.color, fontWeight: 900 }}>{meta.glyph}</span>
-                        <span>{meta.label}</span>
-                      </div>
-                      <span
-                        style={{
-                          fontWeight: 800,
-                          fontFamily: 'var(--font-mono, monospace)',
-                          color: meta.color,
-                        }}
-                      >
-                        {countP1 + countP2}
-                      </span>
-                    </div>
-                  );
-                }
-              )}
-            </div>
-          </div>
+                      aria-hidden="true"
+                    />
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{whitePlayerName}</span>
+                  </div>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-subtle, #94a3b8)' }}>Precisão CAPS2</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem' }}>
+                  <span
+                    style={{
+                      fontSize: '1.75rem',
+                      fontWeight: 900,
+                      fontFamily: 'var(--font-mono, monospace)',
+                      color: '#38bdf8',
+                    }}
+                  >
+                    {reviewSummary.whiteAccuracy.toFixed(1)}%
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>
+                    {reviewSummary.whiteAccuracy >= 90 ? 'Excelente' : reviewSummary.whiteAccuracy >= 75 ? 'Muito Bom' : 'Sólido'}
+                  </span>
+                </div>
+              </div>
 
-          {/* Retry Mistakes Section (Spec 12 Diamond Feature / Free on ChessInReact) */}
-          <div
-            data-testid="retry-mistakes-container"
-            style={{
-              backgroundColor: 'rgba(249, 115, 22, 0.08)',
-              border: '1.5px solid rgba(249, 115, 22, 0.3)',
-              borderRadius: 'var(--radius-md, 8px)',
-              padding: '0.85rem 1rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.65rem',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#fb923c' }}>
-                  Corrija Seus Erros (Retry Mistakes)
+              {/* Black Player Card */}
+              <div
+                data-testid="black-accuracy-card"
+                style={{
+                  backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                  border: '1.5px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  padding: '0.85rem 1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.35rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <span
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        backgroundColor: '#0f172a',
+                        border: '1.5px solid #94a3b8',
+                        display: 'inline-block',
+                      }}
+                      aria-hidden="true"
+                    />
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{blackPlayerName}</span>
+                  </div>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-subtle, #94a3b8)' }}>Precisão CAPS2</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem' }}>
+                  <span
+                    style={{
+                      fontSize: '1.75rem',
+                      fontWeight: 900,
+                      fontFamily: 'var(--font-mono, monospace)',
+                      color: '#a855f7',
+                    }}
+                  >
+                    {reviewSummary.blackAccuracy.toFixed(1)}%
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>
+                    {reviewSummary.blackAccuracy >= 90 ? 'Excelente' : reviewSummary.blackAccuracy >= 75 ? 'Muito Bom' : 'Sólido'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Interactive Advantage Graph */}
+            <div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '0.45rem',
+                }}
+              >
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-subtle, #94a3b8)' }}>
+                  Curva de Vantagem Posicional (Centipawns & Win Chance)
+                </span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-subtle, #94a3b8)' }}>
+                  Clique no gráfico para inspecionar o lance
                 </span>
               </div>
-              <span style={{ fontSize: '0.7rem', color: '#fed7aa', fontWeight: 600 }}>
-                {mistakesList.length} lance(s) passível(is) de melhoria
-              </span>
+              <AdvantageGraph
+                evalStream={reviewSummary.evalStream}
+                currentPly={selectedPly}
+                onSelectPly={setSelectedPly}
+                height={130}
+              />
             </div>
 
-            {mistakesList.length === 0 ? (
-              <p style={{ margin: 0, fontSize: '0.78rem', color: '#10b981', fontWeight: 600 }}>
-                Excelente partida! Não foram identificadas gafes graves ou vitórias perdidas.
-              </p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-                {mistakesList.slice(0, 4).map((m) => {
-                  const meta = CLASSIFICATION_LABELS[m.classification];
-                  return (
-                    <div
-                      key={m.ply}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '0.4rem 0.65rem',
-                        borderRadius: 'var(--radius-sm, 4px)',
-                        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                        border: `1px solid ${meta.color}40`,
-                        fontSize: '0.75rem',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ color: meta.color, fontWeight: 900 }}>{meta.glyph}</span>
-                        <span>
-                          Lance #{m.turnNumber} ({m.isWhite ? 'Brancas' : 'Pretas'}):{' '}
-                          <strong>{m.moveSan ?? `ply ${m.ply}`}</strong>
-                        </span>
-                      </div>
-                      {onRetryMistake && (
-                        <button
-                          type="button"
-                          data-testid={`btn-retry-ply-${m.ply}`}
-                          onClick={() => {
-                            globalAudioSynthesizer.playTactileClick();
-                            onRetryMistake(m.ply, m.bestMoveSan);
-                            onClose();
-                          }}
+            {/* Move Classification Tally Badges */}
+            <div>
+              <span
+                style={{
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  color: 'var(--text-subtle, #94a3b8)',
+                  display: 'block',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                Distribuição de Qualidade dos Lances
+              </span>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))',
+                  gap: '0.5rem',
+                }}
+              >
+                {(['BRILLIANT', 'BEST', 'EXCELLENT', 'INACCURACY', 'MISTAKE', 'BLUNDER'] as MoveClassification[]).map(
+                  (c) => {
+                    const meta = CLASSIFICATION_LABELS[c];
+                    const countP1 = reviewSummary.counts.P1[c] || 0;
+                    const countP2 = reviewSummary.counts.P2[c] || 0;
+                    return (
+                      <div
+                        key={c}
+                        style={{
+                          padding: '0.45rem 0.65rem',
+                          borderRadius: 'var(--radius-sm, 6px)',
+                          backgroundColor: 'var(--bg-sunken, #0f172a)',
+                          border: `1px solid ${meta.color}40`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          fontSize: '0.75rem',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <span style={{ color: meta.color, fontWeight: 900 }}>{meta.glyph}</span>
+                          <span>{meta.label}</span>
+                        </div>
+                        <span
                           style={{
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            border: '1px solid #f97316',
-                            backgroundColor: 'rgba(249, 115, 22, 0.25)',
-                            color: '#fed7aa',
-                            cursor: 'pointer',
-                            fontSize: '0.7rem',
-                            fontWeight: 700,
+                            fontWeight: 800,
+                            fontFamily: 'var(--font-mono, monospace)',
+                            color: meta.color,
                           }}
                         >
-                          Tentar Novamente
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
+                          {countP1 + countP2}
+                        </span>
+                      </div>
+                    );
+                  }
+                )}
               </div>
-            )}
+            </div>
+
+            {/* Retry Mistakes Section (Spec 12 Feature) */}
+            <div
+              data-testid="retry-mistakes-container"
+              style={{
+                backgroundColor: 'rgba(249, 115, 22, 0.08)',
+                border: '1.5px solid rgba(249, 115, 22, 0.3)',
+                borderRadius: 'var(--radius-md, 8px)',
+                padding: '0.85rem 1rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.65rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#fb923c' }}>
+                    Corrija Seus Erros (Retry Mistakes)
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.7rem', color: '#fed7aa', fontWeight: 600 }}>
+                  {mistakesList.length} lance(s) passível(is) de melhoria
+                </span>
+              </div>
+
+              {mistakesList.length === 0 ? (
+                <p style={{ margin: 0, fontSize: '0.78rem', color: '#10b981', fontWeight: 600 }}>
+                  Excelente partida! Não foram identificadas gafes graves ou vitórias perdidas.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                  {mistakesList.slice(0, 4).map((m) => {
+                    const meta = CLASSIFICATION_LABELS[m.classification];
+                    return (
+                      <div
+                        key={m.ply}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.4rem 0.65rem',
+                          borderRadius: 'var(--radius-sm, 4px)',
+                          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                          border: `1px solid ${meta.color}40`,
+                          fontSize: '0.75rem',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ color: meta.color, fontWeight: 900 }}>{meta.glyph}</span>
+                          <span>
+                            Lance #{m.turnNumber} ({m.isWhite ? 'Brancas' : 'Pretas'}):{' '}
+                            <strong>{m.moveSan ?? `ply ${m.ply}`}</strong>
+                          </span>
+                        </div>
+                        {onRetryMistake && (
+                          <button
+                            type="button"
+                            data-testid={`btn-retry-ply-${m.ply}`}
+                            onClick={() => {
+                              globalAudioSynthesizer.playTactileClick();
+                              onRetryMistake(m.ply, m.bestMoveSan);
+                              onClose();
+                            }}
+                            style={{
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              border: '1px solid #f97316',
+                              backgroundColor: 'rgba(249, 115, 22, 0.25)',
+                              color: '#fed7aa',
+                              cursor: 'pointer',
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                            }}
+                          >
+                            Tentar Novamente
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Scientific Transparency Notice */}
+            <div
+              style={{
+                fontSize: '0.68rem',
+                color: 'var(--text-muted, #64748b)',
+                textAlign: 'center',
+                paddingTop: '0.25rem',
+              }}
+            >
+              Estimativas e probabilidades geradas pelo motor local heurístico/Minimax (Spec 12/Spec 15).
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Modal Footer */}
         <div
@@ -460,27 +677,33 @@ export const GameReviewModal: React.FC<IGameReviewModalProps> = ({
             justifyContent: 'space-between',
           }}
         >
-          <button
-            type="button"
-            data-testid="btn-copy-annotated-pgn"
-            onClick={handleCopyAnnotatedPgn}
-            style={{
-              padding: '0.45rem 0.95rem',
-              borderRadius: 'var(--radius-sm, 6px)',
-              border: '1px solid #38bdf8',
-              backgroundColor: copiedPgn ? 'rgba(16, 185, 129, 0.25)' : 'rgba(56, 189, 248, 0.15)',
-              color: copiedPgn ? '#10b981' : '#38bdf8',
-              fontWeight: 700,
-              fontSize: '0.8rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-            }}
-          >
-            <span>{copiedPgn ? <IconCheck size={14} color="#10b981" /> : <IconCopy size={14} />}</span>
-            <span>{copiedPgn ? 'PGN Anotado Copiado!' : 'Copiar PGN Anotado (FIDE NAG)'}</span>
-          </button>
+          {isVariantSupported && hasEvaluations ? (
+            <button
+              type="button"
+              data-testid="btn-copy-annotated-pgn"
+              onClick={handleCopyAnnotatedPgn}
+              style={{
+                padding: '0.45rem 0.95rem',
+                borderRadius: 'var(--radius-sm, 6px)',
+                border: '1px solid #38bdf8',
+                backgroundColor: copiedPgn ? 'rgba(16, 185, 129, 0.25)' : 'rgba(56, 189, 248, 0.15)',
+                color: copiedPgn ? '#10b981' : '#38bdf8',
+                fontWeight: 700,
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+              }}
+            >
+              <span>{copiedPgn ? <IconCheck size={14} color="#10b981" /> : <IconCopy size={14} />}</span>
+              <span>{copiedPgn ? 'PGN Anotado Copiado!' : 'Copiar PGN Anotado (FIDE NAG)'}</span>
+            </button>
+          ) : (
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted, #64748b)' }}>
+              Revisão posicional bloqueada (Critério de Integridade)
+            </div>
+          )}
 
           <button
             type="button"
@@ -506,4 +729,3 @@ export const GameReviewModal: React.FC<IGameReviewModalProps> = ({
 };
 
 export default GameReviewModal;
-

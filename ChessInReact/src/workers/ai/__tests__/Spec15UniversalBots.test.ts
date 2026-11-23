@@ -155,9 +155,9 @@ describe('Spec 15: Universal Bot Intelligence & Pluggable Engines', () => {
       expect(masterAttempt.solutionMoveSan).toBe('Qxf7#');
       expect(masterAttempt.thinkTimeMs).toBeLessThanOrEqual(3000);
 
-      const beginnerAttempt = PuzzleBattleBotStrategy.simulatePuzzleAttempt(800, 2400, 'Qxf7#');
+      const beginnerAttempt = PuzzleBattleBotStrategy.simulatePuzzleAttempt(800, 2400, 'Qxf7#', undefined, 0.5);
       expect(beginnerAttempt.isSolved).toBe(false);
-      expect(beginnerAttempt.solutionMoveSan).toBe('Qxf7??');
+      expect(beginnerAttempt.solutionMoveSan).not.toBe('Qxf7#');
     });
   });
 

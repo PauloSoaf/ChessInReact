@@ -83,6 +83,14 @@ describe('Spec 12 Game Review, CAPS2 Accuracy & Advantage Graph Suite (S12-RF01,
 
       expect(summary.counts.P1.BEST + summary.counts.P1.EXCELLENT + summary.counts.P1.GOOD).toBeGreaterThan(0);
     });
+
+    it('returns isAvailable: false without fabricated metrics when evaluations are empty (PATCH-04)', () => {
+      const summary = GameReviewEngine.analyzeMatch([], ['e4', 'e5']);
+      expect(summary.isAvailable).toBe(false);
+      expect(summary.evalStream).toHaveLength(0);
+      expect(summary.whiteAccuracy).toBe(0);
+      expect(summary.blackAccuracy).toBe(0);
+    });
   });
 
   describe('5. Interactive SVG AdvantageGraph Component (Spec 12 § 1, RF-03)', () => {

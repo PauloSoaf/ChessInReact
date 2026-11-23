@@ -22,14 +22,16 @@ describe('Spec 12 Game Review Modal & CAPS2 Analysis Component Suite', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders CAPS2 accuracy cards, advantage graph, and tally badges when open', () => {
+  it('renders CAPS2 accuracy cards, advantage graph, and tally badges when open with real evaluations', () => {
     const sampleMoves = ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Nf6', 'd3', 'd5', 'exd5', 'Nxd5'];
+    const sampleEvals = [10, 15, 20, 18, 30, 25, 40, -10, 50, 35];
 
     render(
       <GameReviewModal
         isOpen={true}
         onClose={vi.fn()}
         moveSans={sampleMoves}
+        evaluationsCp={sampleEvals}
         whitePlayerName="Grande Mestre Branco"
         blackPlayerName="Bot Mestre"
       />
@@ -54,6 +56,37 @@ describe('Spec 12 Game Review Modal & CAPS2 Analysis Component Suite', () => {
     expect(screen.getByTestId('retry-mistakes-container')).toBeDefined();
   });
 
+  it('renders no-evaluations notice when evaluations are missing (PATCH-04)', () => {
+    render(
+      <GameReviewModal
+        isOpen={true}
+        onClose={vi.fn()}
+        moveSans={['e4', 'e5']}
+        evaluationsCp={[]}
+      />
+    );
+
+    expect(screen.getByTestId('no-evaluations-notice')).toBeDefined();
+    expect(screen.queryByTestId('white-accuracy-card')).toBeNull();
+    expect(screen.queryByTestId('advantage-graph-container')).toBeNull();
+  });
+
+  it('renders variant-unsupported notice for non-standard variants (PATCH-04)', () => {
+    render(
+      <GameReviewModal
+        isOpen={true}
+        onClose={vi.fn()}
+        variantId="SPELL_CHESS_OFFICIAL"
+        moveSans={['e4', 'e5']}
+        evaluationsCp={[10, 20]}
+      />
+    );
+
+    expect(screen.getByTestId('variant-unsupported-notice')).toBeDefined();
+    expect(screen.queryByTestId('white-accuracy-card')).toBeNull();
+    expect(screen.queryByTestId('advantage-graph-container')).toBeNull();
+  });
+
   it('handles close button click and Escape key navigation', () => {
     const handleClose = vi.fn();
 
@@ -62,6 +95,7 @@ describe('Spec 12 Game Review Modal & CAPS2 Analysis Component Suite', () => {
         isOpen={true}
         onClose={handleClose}
         moveSans={['e4', 'e5']}
+        evaluationsCp={[10, 15]}
       />
     );
 
@@ -93,6 +127,7 @@ describe('Spec 12 Game Review Modal & CAPS2 Analysis Component Suite', () => {
         isOpen={true}
         onClose={vi.fn()}
         moveSans={['e4', 'e5', 'Qh5', 'g6', 'Qxe5+']}
+        evaluationsCp={[20, 25, 45, -250, 600]}
       />
     );
 
