@@ -298,15 +298,28 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
     return moves.map((m) => m.to);
   }, [selectedPiece, domain, topology, preferences.showLegalMoves, disabled, botPlayer]);
 
-  // Check constraint coordinates for visual highlighting
+  // Check constraint coordinates for visual highlighting (Spec 07 RF-05, RF-10 & Spec 04)
   const checkConstraintCoords = useMemo(() => {
-    if (!invalidMoveFeedback) return null;
+    let kingCoord = invalidMoveFeedback?.kingCoord;
+    const sourceCoord = invalidMoveFeedback?.sourceCoord;
+    const targetCoord = invalidMoveFeedback?.targetCoord;
+
+    // Proactive check detection: highlight King immediately whenever currently in check
+    if (!kingCoord && CheckValidator.isRoyalInCheck(domain.activePlayer, domain, topology)) {
+      const king = CheckValidator.findRoyalPiece(domain.activePlayer, domain);
+      if (king) {
+        kingCoord = king.position;
+      }
+    }
+
+    if (!kingCoord && !sourceCoord && !targetCoord) return null;
+
     return {
-      kingCoord: invalidMoveFeedback.kingCoord,
-      sourceCoord: invalidMoveFeedback.sourceCoord,
-      targetCoord: invalidMoveFeedback.targetCoord,
+      kingCoord,
+      sourceCoord,
+      targetCoord,
     };
-  }, [invalidMoveFeedback]);
+  }, [invalidMoveFeedback, domain, topology]);
 
   // Antichess forced captures detection (Spec 04 & Spec 13)
   const isAntichess = useMemo(() => {
@@ -722,6 +735,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
             legalMoveCoords.length,
             lastMoveCoords.join('|'),
             invalidMoveFeedback?.timestamp,
+            checkConstraintCoords?.kingCoord,
             uiTheme,
             duckCoordinate,
             frozenCoordinates?.join('|'),
