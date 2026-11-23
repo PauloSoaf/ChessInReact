@@ -55,9 +55,12 @@ describe('Spec 12 - SpellChessEngine (S12-RF07, S12-RNF-16)', () => {
     expect(SpellChessEngine.isCoordinateFrozen(state, 'e4')).toBe(true);
     expect(SpellChessEngine.isCoordinateFrozen(state, 'a1')).toBe(false);
 
-    // Advancing turns decrements frozen cooldowns
+    // Advancing turns decrements frozen cooldowns (lasts through opponent turn)
     const stateNextTurn = SpellChessEngine.advanceTurn(state, 'BLACK');
-    expect(SpellChessEngine.isCoordinateFrozen(stateNextTurn, 'e4')).toBe(false);
+    expect(SpellChessEngine.isCoordinateFrozen(stateNextTurn, 'e4')).toBe(true);
+
+    const stateTurnAfter = SpellChessEngine.advanceTurn(stateNextTurn, 'WHITE');
+    expect(SpellChessEngine.isCoordinateFrozen(stateTurnAfter, 'e4')).toBe(false);
   });
 
   it('executes Jump spell, enabling obstacle leaping for selected piece', () => {

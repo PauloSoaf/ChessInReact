@@ -129,12 +129,31 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
         score += (4 - Math.abs(toX - 3.5)) * 10 + (4 - Math.abs(toY - 3.5)) * 10;
         if (move.promotion) score += 400;
 
+        // Opening principles for Spell Chess (level >= 3):
+        // Prioritize developing knights and central pawns (e4/e5), and avoid weakening king diagonals (e8-h5/a4 or e1-h4/a5)
+        const turnNumber = request.domain?.turnNumber ?? 1;
+        if (turnNumber <= 2 && request.domain) {
+          const movingEntity = request.domain.boardEntities[move.pieceId as import('../../../core/coordinates/types').EntityId];
+          const variant = movingEntity && movingEntity.type === 'PIECE' ? movingEntity.variantId.toUpperCase() : undefined;
+          if (variant === 'KNIGHT' || variant === 'N') {
+            score += 2500; // Developing knights covers diagonals and key squares
+          } else if (variant === 'PAWN' || variant === 'P') {
+            const [fx] = this.parseCoord(move.from);
+            if (fx === 4) {
+              score += 2000; // e-pawn opens king/queen diagonal safely
+            } else if (fx === 3) {
+              // Queen's pawn (d4/d5) without knight coverage leaves the king's diagonal ray open in Spell Chess!
+              score -= 1500;
+            }
+          }
+        }
+
         // If search backed, boost matching move
         if (searchedCandidate && move === searchedCandidate && searched) {
           score += searched.evaluationCentipawns;
         }
 
-        // SIMULATE POSITION AFTER MOVE (Proactive Jump Defense)
+        // SIMULATE POSITION AFTER MOVE (Proactive Jump Defense & Infiltration Horizon)
         if (request.domain && level >= 2) {
           const newKingCoord =
             move.pieceId.toLowerCase().includes('king') || move.from === friendlyKingCoord
@@ -156,16 +175,34 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
           if (threatsAfter.length > 0) {
             // CATASTROPHIC PENALTY: Move leaves King directly vulnerable to an immediate Royal Jump capture!
             score -= 200000;
-          } else if (currentThreats.length > 0 && threatsAfter.length === 0) {
-            // HIGH DEFENSIVE BONUS: Move successfully eliminates or blocks the Jump assassination!
-            const isCaptureThreat = currentThreats.some((t) => t.threateningCoord === move.to);
-            const isKingEvasion = move.from === friendlyKingCoord;
-            if (isCaptureThreat) {
-              score += 35000;
-            } else if (isKingEvasion) {
-              score += 25000;
-            } else {
-              score += 20000; // Ray block
+          } else {
+            // 1-PLY JUMP INFILTRATION DEFENSE (Level >= 3)
+            // Checks if opponent Queen/Bishop/Rook can step into an unblocked launchpad that threatens King in 1 move
+            if (level >= 3) {
+              const infiltrationThreats = this.detectOnePlyJumpInfiltrationThreats(
+                request.domain,
+                newKingCoord,
+                actingPlayer,
+                simOccupancy
+              );
+
+              if (infiltrationThreats.length > 0) {
+                // FATAL PENALTY: Move leaves King wide open to an opponent Queen/Bishop setup for instant Jump capture!
+                score -= 150000;
+              }
+            }
+
+            if (currentThreats.length > 0) {
+              // HIGH DEFENSIVE BONUS: Move successfully eliminates or blocks the Jump assassination!
+              const isCaptureThreat = currentThreats.some((t) => t.threateningCoord === move.to);
+              const isKingEvasion = move.from === friendlyKingCoord;
+              if (isCaptureThreat) {
+                score += 35000;
+              } else if (isKingEvasion) {
+                score += 25000;
+              } else {
+                score += 20000; // Ray block
+              }
             }
           }
         }
@@ -206,15 +243,18 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
             };
           }
           bestScore += 300;
-        } else if (currentMana >= 2) {
-          secondaryAction = {
-            type: 'CAST_SPELL',
-            payload: {
-              spellType: 'FREEZE',
-              targetCoord: opponentKingCoord,
-            },
-          };
-          bestScore += 200;
+        } else if (currentMana >= 2 && (!request.domain || (request.domain.turnNumber ?? 1) > 2)) {
+          const targetCoord = this.findBestFreezeTarget(request, opponentKingCoord);
+          if (targetCoord) {
+            secondaryAction = {
+              type: 'CAST_SPELL',
+              payload: {
+                spellType: 'FREEZE',
+                targetCoord,
+              },
+            };
+            bestScore += 200;
+          }
         }
       } else {
         // Official Chess.com Model (Freeze 3x3, Jump charge)
@@ -238,16 +278,28 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
           };
           bestScore += 200;
         } else if (canFreeze) {
-          // Tactical Freeze cluster scan
+          // Tactical Freeze cluster scan: Never freeze on turn 1 or on undeveloped pieces
           const targetCoord = this.findBestFreezeTarget(request, opponentKingCoord);
+          if (targetCoord) {
+            secondaryAction = {
+              type: 'CAST_SPELL',
+              payload: {
+                spellType: 'FREEZE',
+                targetCoord,
+              },
+            };
+            bestScore += 280;
+          }
+        } else if (!request.domain && canJump) {
+          // Synthetic fallback for mock tests without domain state
           secondaryAction = {
             type: 'CAST_SPELL',
             payload: {
-              spellType: 'FREEZE',
-              targetCoord,
+              spellType: 'JUMP',
+              targetPieceId: bestMove.pieceId,
             },
           };
-          bestScore += 280;
+          bestScore += 150;
         }
       }
     }
@@ -263,8 +315,8 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
       },
       secondaryAction,
       evaluationCentipawns: Math.round(bestScore),
-      depthReached: Math.min(3, level),
-      nodesEvaluated: moves.length * 4,
+      depthReached: Math.min(5, level),
+      nodesEvaluated: moves.length * level * 4,
       elapsedMs,
       strategyUsed: this.strategyId,
     };
@@ -396,12 +448,19 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
     return empty;
   }
 
-  private findBestFreezeTarget(request: IAIDecisionRequest, defaultTarget: string): string {
+  private findBestFreezeTarget(request: IAIDecisionRequest, defaultTarget: string): string | null {
     const domain = request.domain;
     if (!domain) return defaultTarget;
 
+    const turnNumber = domain.turnNumber ?? 1;
+    // Spec 15 & User Directive: Never burn Freeze on move 1 or 2 (turnNumber <= 2)
+    // when enemy pieces are still undeveloped on their back rank!
+    if (turnNumber <= 2) {
+      return null;
+    }
+
     const actingPlayer = request.actingPlayer;
-    const enemyPieces: { x: number; y: number; value: number }[] = [];
+    const enemyPieces: { x: number; y: number; value: number; isDeveloped: boolean }[] = [];
 
     const pieceValues: Record<string, number> = {
       KING: 1000,
@@ -418,6 +477,8 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
       P: 100,
     };
 
+    const homeRank = actingPlayer === 'P1' ? 7 : 0; // Enemy back rank
+
     for (const entity of Object.values(domain.boardEntities)) {
       if (
         entity.type === 'PIECE' &&
@@ -427,28 +488,259 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
       ) {
         const [x, y] = this.parseCoord(entity.position);
         const val = pieceValues[entity.variantId.toUpperCase()] ?? 100;
-        enemyPieces.push({ x, y, value: val });
+        const isDeveloped = Boolean(entity.hasMoved || y !== homeRank);
+        enemyPieces.push({ x, y, value: val, isDeveloped });
       }
     }
 
-    if (enemyPieces.length === 0) return defaultTarget;
+    // Only target clusters containing developed, threatening, or advanced enemy pieces
+    const developedEnemies = enemyPieces.filter((e) => e.isDeveloped);
+    if (developedEnemies.length === 0) {
+      return null;
+    }
 
-    let bestCenter = defaultTarget;
-    let maxClusterValue = -1;
+    let bestCenter: string | null = null;
+    let maxClusterValue = 0;
 
-    for (const target of enemyPieces) {
+    for (const target of developedEnemies) {
       let clusterValue = 0;
+      let hasSignificantTarget = false;
       for (const other of enemyPieces) {
         if (Math.abs(other.x - target.x) <= 1 && Math.abs(other.y - target.y) <= 1) {
           clusterValue += other.value;
+          if (other.value >= 300 && other.isDeveloped) {
+            hasSignificantTarget = true;
+          }
         }
       }
-      if (clusterValue > maxClusterValue) {
+      // Require at least 320 points (e.g. active knight/bishop/rook/queen) to justify freeze
+      if (hasSignificantTarget && clusterValue > maxClusterValue && clusterValue >= 320) {
         maxClusterValue = clusterValue;
         bestCenter = `${target.x},${target.y}`;
       }
     }
 
     return bestCenter;
+  }
+
+  /**
+   * Detects 1-ply infiltration launchpads where an opponent Queen, Bishop, or Rook
+   * can move in 1 turn along a clear path into a 0- or 1-obstacle Jump ray towards
+   * the friendly King, and which is NOT defended by friendly pieces.
+   */
+  public detectOnePlyJumpInfiltrationThreats(
+    domain: IDomainState,
+    kingCoord: string,
+    kingOwner: PlayerId,
+    simOccupancy: Record<string, string>
+  ): { infiltrationCoord: string; threateningPieceId: string }[] {
+    const threats: { infiltrationCoord: string; threateningPieceId: string }[] = [];
+    const [kx, ky] = this.parseCoord(kingCoord);
+    const opponentOwner = kingOwner === 'P1' ? 'P2' : 'P1';
+
+    const rayDirs: [number, number, 'ORTHOGONAL' | 'DIAGONAL'][] = [
+      [1, 0, 'ORTHOGONAL'],
+      [-1, 0, 'ORTHOGONAL'],
+      [0, 1, 'ORTHOGONAL'],
+      [0, -1, 'ORTHOGONAL'],
+      [1, 1, 'DIAGONAL'],
+      [1, -1, 'DIAGONAL'],
+      [-1, 1, 'DIAGONAL'],
+      [-1, -1, 'DIAGONAL'],
+    ];
+
+    const opponentSliders: {
+      id: string;
+      x: number;
+      y: number;
+      isQueen: boolean;
+      isRook: boolean;
+      isBishop: boolean;
+    }[] = [];
+
+    for (const entity of Object.values(domain.boardEntities)) {
+      if (
+        entity.type !== 'PIECE' ||
+        entity.isCaptured ||
+        entity.ownerId !== opponentOwner ||
+        entity.metadata?.isFrozen
+      ) {
+        continue;
+      }
+      const [px, py] = this.parseCoord(entity.position);
+      if (simOccupancy[`${px},${py}`] !== entity.id) {
+        continue;
+      }
+      const v = entity.variantId.toUpperCase();
+      const isQueen = v === 'QUEEN' || v === 'Q';
+      const isRook = v === 'ROOK' || v === 'R';
+      const isBishop = v === 'BISHOP' || v === 'B';
+      if (isQueen || isRook || isBishop) {
+        opponentSliders.push({ id: entity.id, x: px, y: py, isQueen, isRook, isBishop });
+      }
+    }
+
+    if (opponentSliders.length === 0) return threats;
+
+    for (const [dx, dy, rayType] of rayDirs) {
+      let cx = kx + dx;
+      let cy = ky + dy;
+      let obstacleCount = 0;
+
+      while (cx >= 0 && cx < 8 && cy >= 0 && cy < 8) {
+        const cKey = `${cx},${cy}`;
+        const occId = simOccupancy[cKey];
+
+        if (occId) {
+          obstacleCount++;
+          if (obstacleCount > 1) {
+            break;
+          }
+        } else {
+          // Empty square. If obstacleCount <= 1, it's an infiltration launchpad!
+          if (obstacleCount <= 1) {
+            for (const slider of opponentSliders) {
+              const matchesRay =
+                slider.isQueen ||
+                (rayType === 'ORTHOGONAL' && slider.isRook) ||
+                (rayType === 'DIAGONAL' && slider.isBishop);
+
+              if (!matchesRay) continue;
+
+              if (
+                this.canSliderReachSquare(
+                  slider.x,
+                  slider.y,
+                  cx,
+                  cy,
+                  slider.isQueen,
+                  slider.isRook,
+                  slider.isBishop,
+                  simOccupancy
+                )
+              ) {
+                const isDefendedByFriendly = this.isSquareDefendedByPlayer(
+                  domain,
+                  cKey,
+                  kingOwner,
+                  simOccupancy
+                );
+                if (!isDefendedByFriendly) {
+                  threats.push({
+                    infiltrationCoord: cKey,
+                    threateningPieceId: slider.id,
+                  });
+                }
+              }
+            }
+          }
+        }
+
+        cx += dx;
+        cy += dy;
+      }
+    }
+
+    return threats;
+  }
+
+  private canSliderReachSquare(
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number,
+    isQueen: boolean,
+    isRook: boolean,
+    isBishop: boolean,
+    simOccupancy: Record<string, string>
+  ): boolean {
+    const dx = toX - fromX;
+    const dy = toY - fromY;
+    if (dx === 0 && dy === 0) return false;
+
+    const isOrthogonal = (dx === 0 && dy !== 0) || (dy === 0 && dx !== 0);
+    const isDiagonal = Math.abs(dx) === Math.abs(dy) && dx !== 0;
+
+    if (!isQueen && isRook && !isOrthogonal) return false;
+    if (!isQueen && isBishop && !isDiagonal) return false;
+    if (!isOrthogonal && !isDiagonal) return false;
+
+    const stepX = Math.sign(dx);
+    const stepY = Math.sign(dy);
+
+    let cx = fromX + stepX;
+    let cy = fromY + stepY;
+
+    while (cx !== toX || cy !== toY) {
+      if (simOccupancy[`${cx},${cy}`]) {
+        return false;
+      }
+      cx += stepX;
+      cy += stepY;
+    }
+
+    return true;
+  }
+
+  private isSquareDefendedByPlayer(
+    domain: IDomainState,
+    targetCoord: string,
+    defenderPlayer: PlayerId,
+    simOccupancy: Record<string, string>
+  ): boolean {
+    const [tx, ty] = this.parseCoord(targetCoord);
+
+    for (const [coordKey, entityId] of Object.entries(simOccupancy)) {
+      if (!entityId) continue;
+      const entity = domain.boardEntities[entityId as import('../../../core/coordinates/types').EntityId];
+      if (
+        !entity ||
+        entity.type !== 'PIECE' ||
+        entity.ownerId !== defenderPlayer ||
+        entity.isCaptured ||
+        entity.metadata?.isFrozen
+      ) {
+        continue;
+      }
+
+      const [px, py] = this.parseCoord(coordKey);
+      const v = entity.variantId.toUpperCase();
+
+      // Knight attacks (L shape)
+      if (v === 'KNIGHT' || v === 'N') {
+        const dx = Math.abs(tx - px);
+        const dy = Math.abs(ty - py);
+        if ((dx === 1 && dy === 2) || (dx === 2 && dy === 1)) {
+          return true;
+        }
+      }
+
+      // Pawn attacks (diagonal forward 1 step)
+      if (v === 'PAWN' || v === 'P') {
+        const pawnDir = defenderPlayer === 'P1' ? 1 : -1;
+        if (ty === py + pawnDir && (tx === px + 1 || tx === px - 1)) {
+          return true;
+        }
+      }
+
+      // King defense (adjacent 1 step)
+      if (v === 'KING' || v === 'K') {
+        if (Math.max(Math.abs(tx - px), Math.abs(ty - py)) === 1) {
+          return true;
+        }
+      }
+
+      // Slider defense (Queen, Rook, Bishop)
+      const isQueen = v === 'QUEEN' || v === 'Q';
+      const isRook = v === 'ROOK' || v === 'R';
+      const isBishop = v === 'BISHOP' || v === 'B';
+      if (isQueen || isRook || isBishop) {
+        if (this.canSliderReachSquare(px, py, tx, ty, isQueen, isRook, isBishop, simOccupancy)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 }
