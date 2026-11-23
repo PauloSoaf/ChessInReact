@@ -286,25 +286,82 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
             x{charges.jumpCharges}
           </div>
 
-          {/* Cooldown Overlay */}
-          {charges.jumpCooldownTurns > 0 && (
+          {/* Cooldown Overlay or Cast Status */}
+          {charges.jumpCooldownTurns > 0 ? (
             <div
               style={{
                 position: 'absolute',
                 inset: 0,
                 borderRadius: '8px',
-                backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                backgroundColor: 'rgba(15, 23, 42, 0.88)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backdropFilter: 'blur(3px)',
+                border: '1.5px solid rgba(251, 191, 36, 0.7)',
+                zIndex: 4,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: compact ? '0.66rem' : '0.74rem',
+                  color: '#fef08a',
+                  fontWeight: 900,
+                  fontFamily: 'var(--font-mono, monospace)',
+                  lineHeight: 1.1,
+                }}
+              >
+                ⏳ {charges.jumpCooldownTurns}{compact ? 'T' : ' rodadas'}
+              </span>
+              <span
+                style={{
+                  fontSize: compact ? '0.50rem' : '0.58rem',
+                  color: '#cbd5e1',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                Espera
+              </span>
+            </div>
+          ) : hasCastSpellThisTurn ? (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: '8px',
+                backgroundColor: 'rgba(5, 46, 22, 0.82)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
                 backdropFilter: 'blur(2px)',
+                border: '1.5px solid rgba(34, 197, 94, 0.6)',
+                zIndex: 4,
               }}
             >
-              <span style={{ fontSize: '0.62rem', color: '#fbbf24', fontWeight: 800 }}>CD: {charges.jumpCooldownTurns}</span>
-              <span style={{ fontSize: '0.55rem', color: '#94a3b8' }}>turnos</span>
+              <span
+                style={{
+                  fontSize: compact ? '0.58rem' : '0.66rem',
+                  color: '#86efac',
+                  fontWeight: 800,
+                  lineHeight: 1.1,
+                }}
+              >
+                ✓ Ativo
+              </span>
+              <span
+                style={{
+                  fontSize: compact ? '0.48rem' : '0.54rem',
+                  color: '#bbf7d0',
+                }}
+              >
+                mova
+              </span>
             </div>
-          )}
+          ) : null}
         </button>
 
         {/* BLUE FREEZE FLASK CARD (Atalho: 1) */}
@@ -420,25 +477,82 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
             x{charges.freezeCharges}
           </div>
 
-          {/* Cooldown Overlay */}
-          {charges.freezeCooldownTurns > 0 && (
+          {/* Cooldown Overlay or Cast Status */}
+          {charges.freezeCooldownTurns > 0 ? (
             <div
               style={{
                 position: 'absolute',
                 inset: 0,
                 borderRadius: '8px',
-                backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                backgroundColor: 'rgba(15, 23, 42, 0.88)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backdropFilter: 'blur(3px)',
+                border: '1.5px solid rgba(251, 191, 36, 0.7)',
+                zIndex: 4,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: compact ? '0.66rem' : '0.74rem',
+                  color: '#fef08a',
+                  fontWeight: 900,
+                  fontFamily: 'var(--font-mono, monospace)',
+                  lineHeight: 1.1,
+                }}
+              >
+                ⏳ {charges.freezeCooldownTurns}{compact ? 'T' : ' rodadas'}
+              </span>
+              <span
+                style={{
+                  fontSize: compact ? '0.50rem' : '0.58rem',
+                  color: '#cbd5e1',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                Espera
+              </span>
+            </div>
+          ) : hasCastSpellThisTurn ? (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: '8px',
+                backgroundColor: 'rgba(5, 46, 22, 0.82)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
                 backdropFilter: 'blur(2px)',
+                border: '1.5px solid rgba(34, 197, 94, 0.6)',
+                zIndex: 4,
               }}
             >
-              <span style={{ fontSize: '0.62rem', color: '#fbbf24', fontWeight: 800 }}>CD: {charges.freezeCooldownTurns}</span>
-              <span style={{ fontSize: '0.55rem', color: '#94a3b8' }}>turnos</span>
+              <span
+                style={{
+                  fontSize: compact ? '0.58rem' : '0.66rem',
+                  color: '#86efac',
+                  fontWeight: 800,
+                  lineHeight: 1.1,
+                }}
+              >
+                ✓ Ativo
+              </span>
+              <span
+                style={{
+                  fontSize: compact ? '0.48rem' : '0.54rem',
+                  color: '#bbf7d0',
+                }}
+              >
+                mova
+              </span>
             </div>
-          )}
+          ) : null}
         </button>
 
         {/* Selected Spell Targeting Details & Cancel Button */}
@@ -547,7 +661,11 @@ export const OpponentSpellDeck: React.FC<IOpponentSpellDeckProps> = ({ state, ac
     >
       {/* Jump flask preview */}
       <div
-        title={`Oponente: ${oppCharges.jumpCharges} Salto(s)`}
+        title={
+          oppCharges.jumpCooldownTurns > 0
+            ? `Oponente: Salto em recarga (${oppCharges.jumpCooldownTurns} rodadas restantes)`
+            : `Oponente: ${oppCharges.jumpCharges} Salto(s)`
+        }
         style={{
           position: 'relative',
           width: '28px',
@@ -573,7 +691,7 @@ export const OpponentSpellDeck: React.FC<IOpponentSpellDeckProps> = ({ state, ac
             position: 'absolute',
             top: '-5px',
             right: '-5px',
-            backgroundColor: '#15803d',
+            backgroundColor: oppCharges.jumpCooldownTurns > 0 ? '#b45309' : '#15803d',
             color: '#f0fdf4',
             fontSize: '0.58rem',
             fontWeight: 800,
@@ -582,13 +700,17 @@ export const OpponentSpellDeck: React.FC<IOpponentSpellDeckProps> = ({ state, ac
             fontFamily: 'monospace',
           }}
         >
-          x{oppCharges.jumpCharges}
+          {oppCharges.jumpCooldownTurns > 0 ? `⏳${oppCharges.jumpCooldownTurns}` : `x${oppCharges.jumpCharges}`}
         </span>
       </div>
 
       {/* Freeze flask preview */}
       <div
-        title={`Oponente: ${oppCharges.freezeCharges} Congelamento(s)`}
+        title={
+          oppCharges.freezeCooldownTurns > 0
+            ? `Oponente: Congelamento em recarga (${oppCharges.freezeCooldownTurns} rodadas restantes)`
+            : `Oponente: ${oppCharges.freezeCharges} Congelamento(s)`
+        }
         style={{
           position: 'relative',
           width: '28px',
@@ -614,7 +736,7 @@ export const OpponentSpellDeck: React.FC<IOpponentSpellDeckProps> = ({ state, ac
             position: 'absolute',
             top: '-5px',
             right: '-5px',
-            backgroundColor: '#0e7490',
+            backgroundColor: oppCharges.freezeCooldownTurns > 0 ? '#b45309' : '#0e7490',
             color: '#ecfeff',
             fontSize: '0.58rem',
             fontWeight: 800,
@@ -623,7 +745,7 @@ export const OpponentSpellDeck: React.FC<IOpponentSpellDeckProps> = ({ state, ac
             fontFamily: 'monospace',
           }}
         >
-          x{oppCharges.freezeCharges}
+          {oppCharges.freezeCooldownTurns > 0 ? `⏳${oppCharges.freezeCooldownTurns}` : `x${oppCharges.freezeCharges}`}
         </span>
       </div>
     </div>

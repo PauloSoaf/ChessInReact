@@ -199,7 +199,10 @@ export const PieceRenderer: React.FC<IPieceRendererProps> = ({
   size = '100%',
 }) => {
   const normVariant = variantId.toUpperCase();
-  const isWhite = ownerId === 'P1';
+  const isWhite =
+    ownerId === 'P1' ||
+    (typeof ownerId === 'string' &&
+      ['P1', 'WHITE', 'PLAYER1', 'W'].includes(ownerId.toUpperCase()));
   const glyph = UNICODE_GLYPHS[normVariant] ?? '♟';
 
   // 1. Modern Championship Vector Set
@@ -218,7 +221,9 @@ export const PieceRenderer: React.FC<IPieceRendererProps> = ({
           height: size,
           maxWidth: '76%',
           maxHeight: '76%',
-          filter: 'drop-shadow(0 2px 3px rgba(0, 0, 0, 0.42))',
+          filter: isWhite
+            ? 'drop-shadow(0 2px 3px rgba(0, 0, 0, 0.42))'
+            : 'drop-shadow(0 2px 4px rgba(212, 175, 55, 0.25))',
           transition: 'transform 150ms ease-out',
         }}
         fill={fillColor}
@@ -251,7 +256,6 @@ export const PieceRenderer: React.FC<IPieceRendererProps> = ({
           height: size,
           maxWidth: '76%',
           maxHeight: '76%',
-          shapeRendering: 'crispEdges',
           filter: 'drop-shadow(0 2px 0 rgba(0, 0, 0, 0.45))',
           transition: 'transform 150ms ease-out',
         }}
@@ -328,9 +332,11 @@ export const PieceRenderer: React.FC<IPieceRendererProps> = ({
   // 4. Default: Neo Classic Staunton Atelier (Sculpted Staunton Vector + Semantic Glyph)
   const staunton = STAUNTON_ATELIER_PIECES[normVariant] ?? STAUNTON_ATELIER_PIECES.PAWN;
   const factionTheme = FACTION_FILL_COLORS[ownerId];
+  // White pieces: Brilliant ivory/cream (#FAF8F4) with dark obsidian contour (#0F172A)
+  // Black pieces: Deep onyx/slate (#141B24) with warm imperial gold contour (#D4AF37)
   const bodyFill = factionTheme ? factionTheme.fill : isWhite ? '#FAF8F4' : '#141B24';
-  const bodyStroke = factionTheme ? factionTheme.stroke : isWhite ? '#18202A' : '#DFC9A6';
-  const collarStroke = factionTheme ? factionTheme.collar : isWhite ? '#475569' : '#C8AB82';
+  const bodyStroke = factionTheme ? factionTheme.stroke : isWhite ? '#0F172A' : '#D4AF37';
+  const collarStroke = factionTheme ? factionTheme.collar : isWhite ? '#475569' : '#EAB308';
 
   return (
     <span
@@ -355,7 +361,7 @@ export const PieceRenderer: React.FC<IPieceRendererProps> = ({
           height: '100%',
           filter: isWhite
             ? 'drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45))'
-            : 'drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55))',
+            : 'drop-shadow(0 2px 4px rgba(212, 175, 55, 0.28))',
           overflow: 'visible',
         }}
         fill={bodyFill}

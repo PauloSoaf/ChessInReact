@@ -7,6 +7,7 @@ import { asCoordinateKey, asEntityId } from '../../core/coordinates';
 import { MovePieceCommand } from '../../core/commands/MovePieceCommand';
 import { IPieceEntity } from '../../core/entities/types';
 import { ITopology } from '../../core/topology/types';
+import { SquareTopology } from '../../core/topology/SquareTopology';
 import { RulesEngine } from '../../engine/rules/RulesEngine';
 import { VariantRegistry } from '../../engine/rules/VariantRegistry';
 import { PlayerId } from '../../core/coordinates/types';
@@ -114,8 +115,11 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
   // Single authoritative topology resolved from prop or master variant catalog (Spec 02 § 6 & Audit)
   const topology = useMemo(() => {
     if (propTopology) return propTopology;
+    if (boardSize && boardSize !== 8) {
+      return new SquareTopology({ width: boardSize, height: boardSize });
+    }
     return VariantCatalog.getTopologyForVariant(domain.variantId);
-  }, [propTopology, domain.variantId]);
+  }, [propTopology, boardSize, domain.variantId]);
 
   const effectiveWidth = (topology as { readonly width?: number }).width ?? boardSize;
   const effectiveHeight = (topology as { readonly height?: number }).height ?? boardSize;
@@ -266,7 +270,10 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
 
         if (entity && entity.type === 'PIECE' && !entity.isCaptured) {
           const vUpper = entity.variantId.toUpperCase();
-          const isP1 = entity.ownerId === 'P1';
+          const isP1 =
+            entity.ownerId === 'P1' ||
+            (typeof entity.ownerId === 'string' &&
+              ['P1', 'WHITE', 'PLAYER1', 'W'].includes(entity.ownerId.toUpperCase()));
           const isXiangqi = Boolean(domain.variantId?.toUpperCase().includes('XIANGQI'));
           const isShogi = Boolean(domain.variantId?.toUpperCase().includes('SHOGI'));
 
@@ -318,8 +325,8 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
           row.push({
             name: entity.variantId,
             symbol,
-            color: entity.ownerId === 'P1' ? 'white' : '#ed2fed',
-            ownerId: entity.ownerId,
+            color: isP1 ? 'white' : '#ed2fed',
+            ownerId: isP1 ? 'P1' : (entity.ownerId ?? 'P2'),
           });
         } else {
           row.push(chessPieces.none);

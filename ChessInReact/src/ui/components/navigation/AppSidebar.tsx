@@ -36,7 +36,6 @@ export const AppSidebar: React.FC<IAppSidebarProps> = ({
   onSelectDestination,
   onOpenSettings,
   onOpenAnalysis,
-  isMatchActive: _isMatchActive = false,
 }) => {
   const { preferences, updatePreferences } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);

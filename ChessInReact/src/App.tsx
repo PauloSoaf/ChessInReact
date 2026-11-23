@@ -241,7 +241,7 @@ const AppContent: React.FC = () => {
   // Move History & PGN Notation state (Spec 06 Section 18.1 & Spec 09)
   const matchMoves = useMemo(() => {
     return universalMatch.getFormattedMoveItems();
-  }, [universalMatch.snapshot.moveHistory, universalMatch.getFormattedMoveItems]);
+  }, [universalMatch]);
 
   const matchMoveSans = useMemo(() => {
     return universalMatch.snapshot.moveHistory

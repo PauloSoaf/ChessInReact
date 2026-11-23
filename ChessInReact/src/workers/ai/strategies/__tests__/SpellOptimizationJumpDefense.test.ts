@@ -384,4 +384,297 @@ describe('SpellOptimizationStrategy: Proactive Jump Threat Defense (Spec 05 & Sp
     expect(decision.move.pieceId).toBe(bKnightG8Id);
     expect(decision.move.to).toBe('5,5');
   });
+
+  it('reproduces user position: White Queen on e4 threatening Jump to e8 over e5 pawn, Black MUST NOT play g5', () => {
+    const domain = createCustomDomain('test-user-e4-threat', 4);
+
+    // Black pieces
+    const bKingId = asEntityId('b_king_e8');
+    domain.boardEntities[bKingId] = {
+      id: bKingId,
+      type: 'PIECE',
+      ownerId: 'P2',
+      position: asCoordinateKey('4,7'),
+      variantId: 'KING',
+      hasMoved: false,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('4,7')] = bKingId;
+
+    const bKnightF6Id = asEntityId('b_knight_f6');
+    domain.boardEntities[bKnightF6Id] = {
+      id: bKnightF6Id,
+      type: 'PIECE',
+      ownerId: 'P2',
+      position: asCoordinateKey('5,5'),
+      variantId: 'KNIGHT',
+      hasMoved: true,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('5,5')] = bKnightF6Id;
+
+    const bPawnE5Id = asEntityId('b_pawn_e5');
+    domain.boardEntities[bPawnE5Id] = {
+      id: bPawnE5Id,
+      type: 'PIECE',
+      ownerId: 'P2',
+      position: asCoordinateKey('4,4'),
+      variantId: 'PAWN',
+      hasMoved: true,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('4,4')] = bPawnE5Id;
+
+    const bPawnG7Id = asEntityId('b_pawn_g7');
+    domain.boardEntities[bPawnG7Id] = {
+      id: bPawnG7Id,
+      type: 'PIECE',
+      ownerId: 'P2',
+      position: asCoordinateKey('6,6'),
+      variantId: 'PAWN',
+      hasMoved: false,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('6,6')] = bPawnG7Id;
+
+    const bBishopF8Id = asEntityId('b_bishop_f8');
+    domain.boardEntities[bBishopF8Id] = {
+      id: bBishopF8Id,
+      type: 'PIECE',
+      ownerId: 'P2',
+      position: asCoordinateKey('5,7'),
+      variantId: 'BISHOP',
+      hasMoved: false,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('5,7')] = bBishopF8Id;
+
+    // White pieces
+    const wQueenE4Id = asEntityId('w_queen_e4');
+    domain.boardEntities[wQueenE4Id] = {
+      id: wQueenE4Id,
+      type: 'PIECE',
+      ownerId: 'P1',
+      position: asCoordinateKey('4,3'),
+      variantId: 'QUEEN',
+      hasMoved: true,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('4,3')] = wQueenE4Id;
+
+    const wBishopB5Id = asEntityId('w_bishop_b5');
+    domain.boardEntities[wBishopB5Id] = {
+      id: wBishopB5Id,
+      type: 'PIECE',
+      ownerId: 'P1',
+      position: asCoordinateKey('1,4'),
+      variantId: 'BISHOP',
+      hasMoved: true,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('1,4')] = wBishopB5Id;
+
+    const legalMoves = [
+      { from: '6,6', to: '6,4', pieceId: bPawnG7Id, isCapture: false }, // g7-g5 (suicidal blunder)
+      { from: '5,5', to: '4,3', pieceId: bKnightF6Id, isCapture: true }, // Nf6xe4 (captures queen!)
+      { from: '5,7', to: '4,6', pieceId: bBishopF8Id, isCapture: false }, // Bf8-e7 (blocks the ray!)
+    ];
+
+    const request: IAIDecisionRequest = {
+      matchId: 'test-user-e4-threat',
+      variantId: 'SPELL_CHESS_OFFICIAL',
+      actingPlayer: 'P2',
+      difficultyLevel: 3,
+      timeBudgetMs: 500,
+      legalMoves,
+      domain,
+      topology,
+      specializedContext: {
+        friendlyKingCoord: '4,7',
+        opponentKingCoord: '4,0',
+        freezeCharges: 2,
+        freezeCooldown: 0,
+        jumpCharges: 2,
+        jumpCooldown: 0,
+      },
+    };
+
+    const decision = strategy.decideMove(request);
+    console.log('User Position Decision:', decision.move);
+    expect(decision.move.to).not.toBe('6,4'); // MUST NOT play g5!
+    expect(decision.move.to).toBe('4,3'); // Prioritizes capturing the attacking Queen!
+  });
+
+  it('detects and defends against orthogonal horizontal (rank) Jump threats', () => {
+    const domain = createCustomDomain('test-horizontal-threat', 5);
+
+    // Black King at a8 (0,7)
+    const bKingId = asEntityId('b_king_a8');
+    domain.boardEntities[bKingId] = {
+      id: bKingId,
+      type: 'PIECE',
+      ownerId: 'P2',
+      position: asCoordinateKey('0,7'),
+      variantId: 'KING',
+      hasMoved: true,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('0,7')] = bKingId;
+
+    // Black Pawn at c8 (2,7) - obstacle #1 on 8th rank
+    const bPawnC8Id = asEntityId('b_pawn_c8');
+    domain.boardEntities[bPawnC8Id] = {
+      id: bPawnC8Id,
+      type: 'PIECE',
+      ownerId: 'P2',
+      position: asCoordinateKey('2,7'),
+      variantId: 'PAWN',
+      hasMoved: true,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('2,7')] = bPawnC8Id;
+
+    // White Rook at h8 (7,7) - threatening horizontal Jump capture over c8 to a8!
+    const wRookH8Id = asEntityId('w_rook_h8');
+    domain.boardEntities[wRookH8Id] = {
+      id: wRookH8Id,
+      type: 'PIECE',
+      ownerId: 'P1',
+      position: asCoordinateKey('7,7'),
+      variantId: 'ROOK',
+      hasMoved: true,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('7,7')] = wRookH8Id;
+
+    // Black Knight at e5 (4,4) capable of moving to e8 (4,7) to insert obstacle #2!
+    const bKnightE5Id = asEntityId('b_knight_e5');
+    domain.boardEntities[bKnightE5Id] = {
+      id: bKnightE5Id,
+      type: 'PIECE',
+      ownerId: 'P2',
+      position: asCoordinateKey('4,4'),
+      variantId: 'KNIGHT',
+      hasMoved: true,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('4,4')] = bKnightE5Id;
+
+    // Black Pawn at h7 (7,6) capable of capturing the Rook on h8!
+    const bPawnH7Id = asEntityId('b_pawn_h7');
+    domain.boardEntities[bPawnH7Id] = {
+      id: bPawnH7Id,
+      type: 'PIECE',
+      ownerId: 'P2',
+      position: asCoordinateKey('7,6'),
+      variantId: 'PAWN',
+      hasMoved: true,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('7,6')] = bPawnH7Id;
+
+    const legalMoves = [
+      { from: '4,4', to: '4,6', pieceId: bKnightE5Id, isCapture: false }, // Ne5-e6 (irrelevant move)
+      { from: '4,4', to: '4,7', pieceId: bKnightE5Id, isCapture: false }, // Ne5-e8 (blocks the horizontal ray!)
+      { from: '7,6', to: '7,7', pieceId: bPawnH7Id, isCapture: true }, // h7xh8 (captures the threatening rook!)
+    ];
+
+    const request: IAIDecisionRequest = {
+      matchId: 'test-horizontal-threat',
+      variantId: 'SPELL_CHESS_OFFICIAL',
+      actingPlayer: 'P2',
+      difficultyLevel: 5,
+      timeBudgetMs: 500,
+      legalMoves,
+      domain,
+      topology,
+      specializedContext: {
+        friendlyKingCoord: '0,7',
+        opponentKingCoord: '4,0',
+        freezeCharges: 2,
+        freezeCooldown: 0,
+        jumpCharges: 2,
+        jumpCooldown: 0,
+      },
+    };
+
+    const decision = strategy.decideMove(request);
+    // Level 5 bot MUST eliminate the threat by capturing the Rook on h8!
+    expect(decision.move.to).toBe('7,7');
+  });
+
+  it('casts reactive Freeze on a lethal threatening major piece if no capture is possible', () => {
+    const domain = createCustomDomain('test-reactive-freeze', 4);
+
+    // Black King at e8 (4,7)
+    const bKingId = asEntityId('b_king_e8');
+    domain.boardEntities[bKingId] = {
+      id: bKingId,
+      type: 'PIECE',
+      ownerId: 'P2',
+      position: asCoordinateKey('4,7'),
+      variantId: 'KING',
+      hasMoved: false,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('4,7')] = bKingId;
+
+    // Pawn on e5 (4,4) - 1 obstacle
+    const bPawnE5Id = asEntityId('b_pawn_e5');
+    domain.boardEntities[bPawnE5Id] = {
+      id: bPawnE5Id,
+      type: 'PIECE',
+      ownerId: 'P2',
+      position: asCoordinateKey('4,4'),
+      variantId: 'PAWN',
+      hasMoved: true,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('4,4')] = bPawnE5Id;
+
+    // White Queen on e4 (4,3) - cannot be captured this turn
+    const wQueenE4Id = asEntityId('w_queen_e4');
+    domain.boardEntities[wQueenE4Id] = {
+      id: wQueenE4Id,
+      type: 'PIECE',
+      ownerId: 'P1',
+      position: asCoordinateKey('4,3'),
+      variantId: 'QUEEN',
+      hasMoved: true,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('4,3')] = wQueenE4Id;
+
+    // Black King can step to d8 (3,7)
+    const legalMoves = [
+      { from: '4,7', to: '3,7', pieceId: bKingId, isCapture: false }, // King evades to d8
+    ];
+
+    const request: IAIDecisionRequest = {
+      matchId: 'test-reactive-freeze',
+      variantId: 'SPELL_CHESS_OFFICIAL',
+      actingPlayer: 'P2',
+      difficultyLevel: 5,
+      timeBudgetMs: 500,
+      legalMoves,
+      domain,
+      topology,
+      specializedContext: {
+        friendlyKingCoord: '4,7',
+        opponentKingCoord: '4,0',
+        freezeCharges: 2,
+        freezeCooldown: 0,
+        jumpCharges: 2,
+        jumpCooldown: 0,
+      },
+    };
+
+    const decision = strategy.decideMove(request);
+    // King evades to d8
+    expect(decision.move.to).toBe('3,7');
+    // AND Bot reacts by freezing the threatening Queen at 4,3!
+    expect(decision.secondaryAction).toBeDefined();
+    expect(decision.secondaryAction?.payload?.spellType).toBe('FREEZE');
+    expect(decision.secondaryAction?.payload?.targetCoord).toBe('4,3');
+  });
 });

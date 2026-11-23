@@ -34,7 +34,7 @@ import {
   IconBookOpen,
 } from '../../icons/AppIcons';
 
-export const getVariantIcon = (variantId: string, size = 20): React.ReactNode => {
+const getVariantIcon = (variantId: string, size = 20): React.ReactNode => {
   const norm = variantId.toLowerCase();
   if (norm.includes('duck')) return <IconDuck size={size} color="#eab308" />;
   if (norm.includes('spell_chess_official') || norm === 'spell_chess') return <IconFreeze size={size} color="#06b6d4" />;
@@ -438,7 +438,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
             <div className="hub-eyebrow-row">
               <div className="hub-eyebrow-pill">
                 <StatusIndicator status="active" pulse />
-                <span>Central de Partidas</span>
+                <span>Central de Partidas • Experiência de Xadrez Avançada</span>
               </div>
 
               {isMatchInProgress && (
@@ -460,7 +460,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
             </div>
 
             <h1 className="hub-hero-title">
-              Jogue Xadrez &amp;{' '}
+              Domínio Tático &amp;{' '}
               <span
                 style={{
                   color: 'var(--color-accent)',

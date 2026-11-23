@@ -130,21 +130,32 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
         if (move.promotion) score += 400;
 
         // Opening principles for Spell Chess (level >= 3):
-        // Prioritize developing knights and central pawns (e4/e5), and avoid weakening king diagonals (e8-h5/a4 or e1-h4/a5)
+        // Prioritize developing knights and king safety; avoid exposing king's file (e-file) or diagonals (h5/a4)
         const turnNumber = request.domain?.turnNumber ?? 1;
-        if (turnNumber <= 2 && request.domain) {
+        if (turnNumber <= 3 && request.domain) {
           const movingEntity = request.domain.boardEntities[move.pieceId as import('../../../core/coordinates/types').EntityId];
           const variant = movingEntity && movingEntity.type === 'PIECE' ? movingEntity.variantId.toUpperCase() : undefined;
           if (variant === 'KNIGHT' || variant === 'N') {
-            score += 2500; // Developing knights covers diagonals and key squares
+            score += 3000; // Developing knights covers central files, ranks, and diagonals
           } else if (variant === 'PAWN' || variant === 'P') {
             const [fx] = this.parseCoord(move.from);
             if (fx === 4) {
-              score += 2000; // e-pawn opens king/queen diagonal safely
+              // In Spell Chess, pushing the e-pawn leaves the king file guarded by only 1 piece,
+              // exposing the king to orthogonal Queen/Rook Jump assassination!
+              score -= 1000;
             } else if (fx === 3) {
               // Queen's pawn (d4/d5) without knight coverage leaves the king's diagonal ray open in Spell Chess!
               score -= 1500;
             }
+          }
+        }
+
+        // King Safety & Castling Bonus (Level >= 3): Tucking the King behind dual pawn shields
+        if (level >= 3 && (move.pieceId.toLowerCase().includes('king') || move.from === friendlyKingCoord)) {
+          const [fx] = this.parseCoord(move.from);
+          const [tx] = this.parseCoord(move.to);
+          if (Math.abs(tx - fx) >= 2) {
+            score += 15000; // Castling secures the King against orthogonal file attacks
           }
         }
 
@@ -197,11 +208,11 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
               const isCaptureThreat = currentThreats.some((t) => t.threateningCoord === move.to);
               const isKingEvasion = move.from === friendlyKingCoord;
               if (isCaptureThreat) {
-                score += 35000;
+                score += 60000; // Capturing the attacking piece directly ends the threat!
               } else if (isKingEvasion) {
-                score += 25000;
+                score += 40000; // Evading the King off the threat vector
               } else {
-                score += 20000; // Ray block
+                score += 45000; // Interposing a 2nd piece on the ray blocks Jump!
               }
             }
           }
@@ -619,18 +630,13 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
                   simOccupancy
                 )
               ) {
-                const isDefendedByFriendly = this.isSquareDefendedByPlayer(
-                  domain,
-                  cKey,
-                  kingOwner,
-                  simOccupancy
-                );
-                if (!isDefendedByFriendly) {
-                  threats.push({
-                    infiltrationCoord: cKey,
-                    threateningPieceId: slider.id,
-                  });
-                }
+                // In Spell Chess, any unblocked launchpad providing an opponent Queen/Rook/Bishop
+                // a 0- or 1-obstacle Jump ray directly into the King is lethal regardless of whether
+                // the launchpad itself is defended, because Jump King capture wins immediately!
+                threats.push({
+                  infiltrationCoord: cKey,
+                  threateningPieceId: slider.id,
+                });
               }
             }
           }
@@ -680,67 +686,5 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
     }
 
     return true;
-  }
-
-  private isSquareDefendedByPlayer(
-    domain: IDomainState,
-    targetCoord: string,
-    defenderPlayer: PlayerId,
-    simOccupancy: Record<string, string>
-  ): boolean {
-    const [tx, ty] = this.parseCoord(targetCoord);
-
-    for (const [coordKey, entityId] of Object.entries(simOccupancy)) {
-      if (!entityId) continue;
-      const entity = domain.boardEntities[entityId as import('../../../core/coordinates/types').EntityId];
-      if (
-        !entity ||
-        entity.type !== 'PIECE' ||
-        entity.ownerId !== defenderPlayer ||
-        entity.isCaptured ||
-        entity.metadata?.isFrozen
-      ) {
-        continue;
-      }
-
-      const [px, py] = this.parseCoord(coordKey);
-      const v = entity.variantId.toUpperCase();
-
-      // Knight attacks (L shape)
-      if (v === 'KNIGHT' || v === 'N') {
-        const dx = Math.abs(tx - px);
-        const dy = Math.abs(ty - py);
-        if ((dx === 1 && dy === 2) || (dx === 2 && dy === 1)) {
-          return true;
-        }
-      }
-
-      // Pawn attacks (diagonal forward 1 step)
-      if (v === 'PAWN' || v === 'P') {
-        const pawnDir = defenderPlayer === 'P1' ? 1 : -1;
-        if (ty === py + pawnDir && (tx === px + 1 || tx === px - 1)) {
-          return true;
-        }
-      }
-
-      // King defense (adjacent 1 step)
-      if (v === 'KING' || v === 'K') {
-        if (Math.max(Math.abs(tx - px), Math.abs(ty - py)) === 1) {
-          return true;
-        }
-      }
-
-      // Slider defense (Queen, Rook, Bishop)
-      const isQueen = v === 'QUEEN' || v === 'Q';
-      const isRook = v === 'ROOK' || v === 'R';
-      const isBishop = v === 'BISHOP' || v === 'B';
-      if (isQueen || isRook || isBishop) {
-        if (this.canSliderReachSquare(px, py, tx, ty, isQueen, isRook, isBishop, simOccupancy)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
   }
 }

@@ -580,7 +580,14 @@ const BoardSquare: React.FC<IBoardSquare> = ({
         >
           <PieceRenderer
             variantId={piece.name}
-            ownerId={(piece.ownerId as 'P1' | 'P2' | undefined) ?? (piece.color === 'white' ? 'P1' : 'P2')}
+            ownerId={
+              piece.ownerId === 'P1' ||
+              (typeof piece.ownerId === 'string' &&
+                ['P1', 'WHITE', 'PLAYER1', 'W'].includes(piece.ownerId.toUpperCase())) ||
+              piece.color?.toLowerCase() === 'white'
+                ? 'P1'
+                : (piece.ownerId as 'P1' | 'P2' | undefined) ?? 'P2'
+            }
             pieceSet={pieceSet}
           />
           {hasJump && (
