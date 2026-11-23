@@ -29,6 +29,11 @@ export interface IDomainState {
   readonly capturedInventory: Record<PlayerId, string[]>;
 
   /**
+   * Extensible match/variant metadata (e.g. spell charges, cooldowns, three-check counters).
+   */
+  readonly metadata?: Record<string, unknown>;
+
+  /**
    * Turn metadata.
    */
   readonly turnState: {

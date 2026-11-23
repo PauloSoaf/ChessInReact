@@ -179,6 +179,25 @@ export class GameOverDetector {
     if (legalMovesCount === 0) {
       const isCheck = CheckValidator.isRoyalInCheck(activePlayer, state, topology);
       if (isCheck) {
+        // Spell Chess Check Defense: If activePlayer has an available Freeze spell, they can freeze the checking piece!
+        const isSpellChess = Boolean(
+          state.variantId?.toUpperCase().includes('SPELL') ||
+          variantConfig?.variantId?.toUpperCase().includes('SPELL')
+        );
+        if (isSpellChess) {
+          const officialSpellMeta = (state.metadata as { officialSpellState?: { whiteCharges?: { freezeCharges: number; freezeCooldownTurns: number }; blackCharges?: { freezeCharges: number; freezeCooldownTurns: number } } })?.officialSpellState;
+          const charges = officialSpellMeta
+            ? (activePlayer === 'P1' ? officialSpellMeta.whiteCharges : officialSpellMeta.blackCharges)
+            : { freezeCharges: 2, freezeCooldownTurns: 0 };
+          if (charges && charges.freezeCharges > 0 && charges.freezeCooldownTurns === 0) {
+            return {
+              isGameOver: false,
+              status: 'IN_PROGRESS',
+              winnerId: null,
+              reason: `Spell Chess: Player ${activePlayer} has an available Freeze spell to defend against check.`,
+            };
+          }
+        }
         // Collect all distinct players with active Kings on the board
         const livingKings = new Map<PlayerId, IPieceEntity>();
         for (const e of Object.values(state.boardEntities)) {

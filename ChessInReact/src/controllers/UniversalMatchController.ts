@@ -276,6 +276,7 @@ export class UniversalMatchController {
         domain: { ...s.domain, variantId: rulesConfig.variantId },
       }));
     }
+    this.syncVariantModifiersToDomain();
     // Ensure store listener is active
     if (!this.storeUnsubscribe) {
       this.storeUnsubscribe = gameStore.subscribe(() => {
@@ -835,7 +836,64 @@ export class UniversalMatchController {
 
     try {
       // 1. Query legal moves through authoritative RulesEngine
-      const legalMoves = RulesEngine.getLegalMoves(domain, this.topology);
+      let legalMoves = RulesEngine.getLegalMoves(domain, this.topology);
+
+      if (legalMoves.length === 0) {
+        const inCheck = CheckValidator.isRoyalInCheck(domain.activePlayer, domain, this.topology);
+        const isSpellChess = Boolean(
+          this.config.variantId.toUpperCase().includes('SPELL') ||
+          domain.variantId?.toUpperCase().includes('SPELL')
+        );
+
+        // Spell Chess Bot Check Defense: If the bot has Freeze available and is in check or blocked, freeze the attacker!
+        if (isSpellChess && this.officialSpellState) {
+          const botCharges = domain.activePlayer === 'P1'
+            ? this.officialSpellState.whiteCharges
+            : this.officialSpellState.blackCharges;
+          const canFreeze = botCharges && botCharges.freezeCharges > 0 && botCharges.freezeCooldownTurns === 0;
+
+          if (canFreeze && inCheck) {
+            const king = CheckValidator.findRoyalPiece(domain.activePlayer, domain);
+            const opponentId: PlayerId = domain.activePlayer === 'P1' ? 'P2' : 'P1';
+            let attackerCoord: string | null = null;
+
+            if (king) {
+              for (const [entityId, entity] of Object.entries(domain.boardEntities)) {
+                if (
+                  entity.type === 'PIECE' &&
+                  !entity.isCaptured &&
+                  entity.ownerId === opponentId &&
+                  !entity.metadata?.isFrozen
+                ) {
+                  // Test if freezing this specific entity removes the check
+                  const testDomain: IDomainState = {
+                    ...domain,
+                    boardEntities: {
+                      ...domain.boardEntities,
+                      [entityId]: {
+                        ...entity,
+                        metadata: { ...(entity.metadata ?? {}), isFrozen: true },
+                      },
+                    },
+                  };
+                  if (!CheckValidator.isSquareAttacked(king.position, opponentId, testDomain, this.topology)) {
+                    attackerCoord = entity.position;
+                    break;
+                  }
+                }
+              }
+            }
+
+            if (attackerCoord) {
+              const castOk = this.castOfficialSpell('FREEZE', attackerCoord);
+              if (castOk) {
+                const refreshedDomain = gameStore.getState().domain;
+                legalMoves = RulesEngine.getLegalMoves(refreshedDomain, this.topology);
+              }
+            }
+          }
+        }
+      }
 
       if (legalMoves.length === 0) {
         // Stalemate or Checkmate resolution
@@ -1222,7 +1280,7 @@ export class UniversalMatchController {
       readonly payload: Readonly<Record<string, unknown>>;
     } | undefined
   ): void {
-    if (!action) return;
+    if (!action || this.hasCastSpellThisTurn) return;
 
     if (action.type === 'DROP_PIECE') {
       const pieceVariant = action.payload.pieceVariant as string;
@@ -1860,12 +1918,23 @@ export class UniversalMatchController {
       }
     }
 
+    const nextMetadata = {
+      ...(domain.metadata ?? {}),
+      officialSpellState: this.officialSpellState
+        ? JSON.parse(JSON.stringify(this.officialSpellState))
+        : null,
+      expandedSpellState: this.expandedSpellState
+        ? JSON.parse(JSON.stringify(this.expandedSpellState))
+        : null,
+    };
+
     gameStore.setState((prev) => ({
       domain: {
         ...prev.domain,
         boardEntities: nextEntities as typeof prev.domain.boardEntities,
         occupancy: nextOccupancy,
         terrain: nextTerrain,
+        metadata: nextMetadata,
       },
     }));
   }

@@ -220,6 +220,16 @@ export class SANNotationGenerator {
       if (inCheck) {
         const opponentMoves = RulesEngine.getLegalMoves(domainAfter, topology);
         if (opponentMoves.length === 0) {
+          const isSpellChess = Boolean(domainAfter.variantId?.toUpperCase().includes('SPELL'));
+          if (isSpellChess) {
+            const spellMeta = (domainAfter.metadata as { officialSpellState?: { whiteCharges?: { freezeCharges: number; freezeCooldownTurns: number }; blackCharges?: { freezeCharges: number; freezeCooldownTurns: number } } })?.officialSpellState;
+            const charges = spellMeta
+              ? (opponentId === 'P1' ? spellMeta.whiteCharges : spellMeta.blackCharges)
+              : { freezeCharges: 2, freezeCooldownTurns: 0 };
+            if (charges && charges.freezeCharges > 0 && charges.freezeCooldownTurns === 0) {
+              return `${baseNotation}+`;
+            }
+          }
           return `${baseNotation}#`;
         }
         return `${baseNotation}+`;

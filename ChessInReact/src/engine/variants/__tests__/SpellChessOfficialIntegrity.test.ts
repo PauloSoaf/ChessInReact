@@ -7,6 +7,7 @@ import { OfficialSpellEngine } from '../spells/OfficialSpellEngine';
 import { RulesEngine } from '../../rules/RulesEngine';
 import { GameOverDetector } from '../../rules/GameOverDetector';
 import { IPieceEntity } from '../../../core/entities/types';
+import { IDomainState } from '../../../core/state/gameState';
 
 describe('Spell Chess Official Mechanics & King Capture Integrity', () => {
   let topology: SquareTopology;
@@ -268,5 +269,165 @@ describe('Spell Chess Official Mechanics & King Capture Integrity', () => {
 
     expect(decisionJump.secondaryAction?.type).toBe('CAST_SPELL');
     expect(decisionJump.secondaryAction?.payload.spellType).toBe('JUMP');
+  });
+
+  it('7. GameOverDetector does not declare checkmate when active player has an available Freeze spell', () => {
+    const baseState = createDefaultDomainState('test-spell-checkmate-freeze', 'SPELL_CHESS');
+    const state: IDomainState = {
+      ...baseState,
+      activePlayer: 'P2',
+      metadata: {
+        officialSpellState: {
+          whiteCharges: { freezeCharges: 0, freezeCooldownTurns: 1, jumpCharges: 1, jumpCooldownTurns: 0 },
+          blackCharges: { freezeCharges: 1, freezeCooldownTurns: 0, jumpCharges: 2, jumpCooldownTurns: 0 },
+          activeFrozenCoordinates: { '3,3': 1 },
+          activeJumpPieceIds: {},
+        },
+      },
+    };
+
+    // Black King at d4 (3,3) - frozen
+    const bKingId = asEntityId('b_king_d4');
+    state.boardEntities[bKingId] = {
+      id: bKingId,
+      type: 'PIECE',
+      ownerId: 'P2',
+      position: asCoordinateKey('3,3'),
+      variantId: 'KING',
+      hasMoved: true,
+      isCaptured: false,
+      metadata: { isFrozen: true },
+    };
+    state.occupancy[asCoordinateKey('3,3')] = bKingId;
+
+    // White Knight at e2 (4,1) - delivering check to d4!
+    const wKnightId = asEntityId('w_knight_e2');
+    state.boardEntities[wKnightId] = {
+      id: wKnightId,
+      type: 'PIECE',
+      ownerId: 'P1',
+      position: asCoordinateKey('4,1'),
+      variantId: 'KNIGHT',
+      hasMoved: true,
+      isCaptured: false,
+    };
+    state.occupancy[asCoordinateKey('4,1')] = wKnightId;
+
+    // White King at e1 (4,0)
+    const wKingId = asEntityId('w_king_e1');
+    state.boardEntities[wKingId] = {
+      id: wKingId,
+      type: 'PIECE',
+      ownerId: 'P1',
+      position: asCoordinateKey('4,0'),
+      variantId: 'KING',
+      hasMoved: false,
+      isCaptured: false,
+    };
+    state.occupancy[asCoordinateKey('4,0')] = wKingId;
+
+    // White Queen at f3 (5,2) - ensures sufficient material
+    const wQueenId = asEntityId('w_queen_f3');
+    state.boardEntities[wQueenId] = {
+      id: wQueenId,
+      type: 'PIECE',
+      ownerId: 'P1',
+      position: asCoordinateKey('5,2'),
+      variantId: 'QUEEN',
+      hasMoved: true,
+      isCaptured: false,
+    };
+    state.occupancy[asCoordinateKey('5,2')] = wQueenId;
+
+    const result = GameOverDetector.evaluateGameResult(state, topology, 0);
+    // Because Black can freeze the checking Knight on e2, checkmate CANNOT be declared!
+    expect(result.isGameOver).toBe(false);
+    expect(result.status).toBe('IN_PROGRESS');
+  });
+
+  it('8. SANNotationGenerator appends + instead of # when opponent has available Freeze defense', async () => {
+    const { SANNotationGenerator } = await import('../../rules/notation/SANNotationGenerator');
+    const domainBefore = createDefaultDomainState('test-san-freeze', 'SPELL_CHESS');
+    const domainAfterBase = createDefaultDomainState('test-san-freeze-after', 'SPELL_CHESS');
+    const domainAfter: IDomainState = {
+      ...domainAfterBase,
+      activePlayer: 'P2',
+      metadata: {
+        officialSpellState: {
+          whiteCharges: { freezeCharges: 0, freezeCooldownTurns: 1, jumpCharges: 1, jumpCooldownTurns: 0 },
+          blackCharges: { freezeCharges: 1, freezeCooldownTurns: 0, jumpCharges: 2, jumpCooldownTurns: 0 },
+          activeFrozenCoordinates: { '3,3': 1 },
+          activeJumpPieceIds: {},
+        },
+      },
+    };
+
+    // White Knight at g1 (6,0) before moving to e2 (4,1)
+    const wKnightId = asEntityId('w_knight_g1');
+    const knightPiece: IPieceEntity = {
+      id: wKnightId,
+      type: 'PIECE',
+      ownerId: 'P1',
+      position: asCoordinateKey('6,0'),
+      variantId: 'KNIGHT',
+      hasMoved: false,
+      isCaptured: false,
+    };
+    domainBefore.boardEntities[wKnightId] = knightPiece;
+    domainBefore.occupancy[asCoordinateKey('6,0')] = wKnightId;
+
+    // After move: Knight on e2 (4,1)
+    domainAfter.boardEntities[wKnightId] = {
+      ...knightPiece,
+      position: asCoordinateKey('4,1'),
+      hasMoved: true,
+    };
+    domainAfter.occupancy[asCoordinateKey('4,1')] = wKnightId;
+
+    // White King at e1 (4,0)
+    const wKingId = asEntityId('w_king_e1');
+    const kingPiece: IPieceEntity = {
+      id: wKingId,
+      type: 'PIECE',
+      ownerId: 'P1',
+      position: asCoordinateKey('4,0'),
+      variantId: 'KING',
+      hasMoved: false,
+      isCaptured: false,
+    };
+    domainBefore.boardEntities[wKingId] = kingPiece;
+    domainBefore.occupancy[asCoordinateKey('4,0')] = wKingId;
+    domainAfter.boardEntities[wKingId] = kingPiece;
+    domainAfter.occupancy[asCoordinateKey('4,0')] = wKingId;
+
+    // Black King at d4 (3,3) - frozen
+    const bKingId = asEntityId('b_king_d4');
+    const bKingPiece: IPieceEntity = {
+      id: bKingId,
+      type: 'PIECE',
+      ownerId: 'P2',
+      position: asCoordinateKey('3,3'),
+      variantId: 'KING',
+      hasMoved: true,
+      isCaptured: false,
+      metadata: { isFrozen: true },
+    };
+    domainBefore.boardEntities[bKingId] = bKingPiece;
+    domainBefore.occupancy[asCoordinateKey('3,3')] = bKingId;
+    domainAfter.boardEntities[bKingId] = bKingPiece;
+    domainAfter.occupancy[asCoordinateKey('3,3')] = bKingId;
+
+    const san = SANNotationGenerator.generateSAN({
+      from: '6,0',
+      to: '4,1',
+      pieceId: wKnightId,
+      domainBefore,
+      domainAfter,
+      topology,
+      isCapture: false,
+    });
+
+    // Must be Ne2+ (Check) and NOT Ne2# (Checkmate)
+    expect(san).toBe('Ne2+');
   });
 });

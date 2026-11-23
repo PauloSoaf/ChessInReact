@@ -20,6 +20,7 @@ import {
 import { decideWithSearch } from './SearchBackedDecision';
 import { IDomainState } from '../../../core/state/gameState';
 import { PlayerId } from '../../../core/coordinates/types';
+import { CheckValidator } from '../../../engine/rules/CheckValidator';
 
 export interface ILethalJumpThreat {
   threateningPieceId: string;
@@ -73,6 +74,42 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
       ? this.detectLethalJumpThreats(request.domain, friendlyKingCoord, actingPlayer)
       : [];
 
+    // Also detect direct checks (e.g. Knight, Pawn, or unblocked slider) against friendly King
+    if (request.domain && request.topology) {
+      const inCheck = CheckValidator.isRoyalInCheck(actingPlayer, request.domain, request.topology);
+      if (inCheck) {
+        for (const entity of Object.values(request.domain.boardEntities)) {
+          if (
+            entity.type === 'PIECE' &&
+            !entity.isCaptured &&
+            entity.ownerId === opponentPlayer &&
+            !entity.metadata?.isFrozen
+          ) {
+            const testDomain: IDomainState = {
+              ...request.domain,
+              boardEntities: {
+                ...request.domain.boardEntities,
+                [entity.id]: {
+                  ...entity,
+                  metadata: { ...(entity.metadata ?? {}), isFrozen: true },
+                },
+              },
+            };
+            if (!CheckValidator.isRoyalInCheck(actingPlayer, testDomain, request.topology)) {
+              if (!currentThreats.some((t) => t.threateningPieceId === entity.id)) {
+                currentThreats.push({
+                  threateningPieceId: entity.id,
+                  threateningCoord: entity.position,
+                  threateningVariant: entity.variantId,
+                  intermediateCoord: entity.position,
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+
     let bestMove = moves[0];
     let bestScore = -Infinity;
     let requiredJumpAction = false;
@@ -122,11 +159,14 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
       // Evaluate each candidate move with safety simulation
       for (const move of moves) {
         let score = 0;
+        const isKingMove = move.pieceId.toLowerCase().includes('king') || move.from === friendlyKingCoord;
 
-        // Base heuristic evaluation
+        // Base heuristic evaluation (centrality for normal pieces only)
         if (move.isCapture) score += 300;
         const [toX, toY] = this.parseCoord(move.to);
-        score += (4 - Math.abs(toX - 3.5)) * 10 + (4 - Math.abs(toY - 3.5)) * 10;
+        if (!isKingMove) {
+          score += (4 - Math.abs(toX - 3.5)) * 10 + (4 - Math.abs(toY - 3.5)) * 10;
+        }
         if (move.promotion) score += 400;
 
         // Opening principles for Spell Chess (level >= 3):
@@ -151,11 +191,53 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
         }
 
         // King Safety & Castling Bonus (Level >= 3): Tucking the King behind dual pawn shields
-        if (level >= 3 && (move.pieceId.toLowerCase().includes('king') || move.from === friendlyKingCoord)) {
+        if (level >= 3 && isKingMove) {
           const [fx] = this.parseCoord(move.from);
           const [tx] = this.parseCoord(move.to);
           if (Math.abs(tx - fx) >= 2) {
             score += 15000; // Castling secures the King against orthogonal file attacks
+          }
+        }
+
+        // King exposed center penalty & Hurdle Evasion in early/mid game (Spec 12 & Spec 15)
+        if (isKingMove && request.domain) {
+          if (turnNumber <= 30) {
+            if (actingPlayer === 'P2' && toY < 6) {
+              score -= (6 - toY) * 25000;
+            } else if (actingPlayer === 'P1' && toY > 1) {
+              score -= (toY - 1) * 25000;
+            }
+          }
+
+          // Hurdle Evasion: In Spell Chess, any enemy piece (active or frozen) near King is a mortal hurdle.
+          // Heavily penalize moving adjacent to enemy pieces, and reward moving away from them!
+          const [fx, fy] = this.parseCoord(move.from);
+          let currentMinDist = 99;
+          let newMinDist = 99;
+
+          for (const entity of Object.values(request.domain.boardEntities)) {
+            if (
+              entity.type === 'PIECE' &&
+              !entity.isCaptured &&
+              entity.ownerId === opponentPlayer &&
+              entity.position !== move.to
+            ) {
+              const [ex, ey] = this.parseCoord(entity.position);
+              const distFromOrigin = Math.max(Math.abs(fx - ex), Math.abs(fy - ey));
+              const distFromDest = Math.max(Math.abs(toX - ex), Math.abs(toY - ey));
+              if (distFromOrigin < currentMinDist) currentMinDist = distFromOrigin;
+              if (distFromDest < newMinDist) newMinDist = distFromDest;
+            }
+          }
+
+          if (newMinDist <= 1) {
+            score -= 50000; // Mortal danger: moving King adjacent to an enemy hurdle!
+          } else if (newMinDist <= 2) {
+            score -= 20000;
+          }
+
+          if (currentMinDist <= 2 && newMinDist > currentMinDist) {
+            score += 35000; // Rewarding King fleeing away from nearby enemy hurdles!
           }
         }
 

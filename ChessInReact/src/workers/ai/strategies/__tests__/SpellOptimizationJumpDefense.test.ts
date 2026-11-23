@@ -677,4 +677,142 @@ describe('SpellOptimizationStrategy: Proactive Jump Threat Defense (Spec 05 & Sp
     expect(decision.secondaryAction?.payload?.spellType).toBe('FREEZE');
     expect(decision.secondaryAction?.payload?.targetCoord).toBe('4,3');
   });
+
+  it('flees King away from adjacent frozen enemy hurdle rather than stepping towards center', () => {
+    const domain = createCustomDomain('test-hurdle-evasion', 5);
+
+    // Black King at d5 (3,4)
+    const bKingId = asEntityId('b_king_d5');
+    domain.boardEntities[bKingId] = {
+      id: bKingId,
+      type: 'PIECE',
+      ownerId: 'P2',
+      position: asCoordinateKey('3,4'),
+      variantId: 'KING',
+      hasMoved: true,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('3,4')] = bKingId;
+
+    // White Bishop frozen at c5 (2,4) - distance 1 hurdle!
+    const wBishopId = asEntityId('w_bishop_c5');
+    domain.boardEntities[wBishopId] = {
+      id: bKingId,
+      type: 'PIECE',
+      ownerId: 'P1',
+      position: asCoordinateKey('2,4'),
+      variantId: 'BISHOP',
+      hasMoved: true,
+      isCaptured: false,
+      metadata: { isFrozen: true },
+    };
+    domain.occupancy[asCoordinateKey('2,4')] = wBishopId;
+
+    // Candidate moves for Black King:
+    // Move A: Stepping down towards center d4 (3,3) - closer to center, remaining distance 1 from c5
+    // Move B: Fleeing back to d7 (3,6) or e7 (4,6) - safe back ranks, increasing distance to 2+
+    const legalMoves = [
+      { from: '3,4', to: '3,3', pieceId: bKingId, isCapture: false }, // d4
+      { from: '3,4', to: '3,5', pieceId: bKingId, isCapture: false }, // d6 (retreating)
+      { from: '3,4', to: '4,5', pieceId: bKingId, isCapture: false }, // e6 (retreating)
+    ];
+
+    const request: IAIDecisionRequest = {
+      matchId: 'test-hurdle-evasion',
+      variantId: 'SPELL_CHESS_OFFICIAL',
+      actingPlayer: 'P2',
+      difficultyLevel: 5,
+      timeBudgetMs: 500,
+      legalMoves,
+      domain,
+      topology,
+      specializedContext: {
+        friendlyKingCoord: '3,4',
+        opponentKingCoord: '4,0',
+        freezeCharges: 1,
+        freezeCooldown: 0,
+        jumpCharges: 1,
+        jumpCooldown: 0,
+      },
+    };
+
+    const decision = strategy.decideMove(request);
+    // King must NOT walk towards d4 (3,3); it must retreat to rank 5/6 (y >= 5)!
+    const destY = Number(decision.move.to.split(',')[1]);
+    expect(destY).toBeGreaterThanOrEqual(5);
+  });
+
+  it('reactively freezes checking Knight when under direct check in Spell Chess', () => {
+    const domain = createCustomDomain('test-reactive-check-freeze', 8);
+
+    // Black King at d4 (3,3)
+    const bKingId = asEntityId('b_king_d4');
+    domain.boardEntities[bKingId] = {
+      id: bKingId,
+      type: 'PIECE',
+      ownerId: 'P2',
+      position: asCoordinateKey('3,3'),
+      variantId: 'KING',
+      hasMoved: true,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('3,3')] = bKingId;
+
+    // White Knight at e2 (4,1) - attacking d4 directly!
+    const wKnightId = asEntityId('w_knight_e2');
+    domain.boardEntities[wKnightId] = {
+      id: wKnightId,
+      type: 'PIECE',
+      ownerId: 'P1',
+      position: asCoordinateKey('4,1'),
+      variantId: 'KNIGHT',
+      hasMoved: true,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('4,1')] = wKnightId;
+
+    // White King at e1 (4,0)
+    const wKingId = asEntityId('w_king_e1');
+    domain.boardEntities[wKingId] = {
+      id: wKingId,
+      type: 'PIECE',
+      ownerId: 'P1',
+      position: asCoordinateKey('4,0'),
+      variantId: 'KING',
+      hasMoved: false,
+      isCaptured: false,
+    };
+    domain.occupancy[asCoordinateKey('4,0')] = wKingId;
+
+    const legalMoves = [
+      { from: '3,3', to: '3,4', pieceId: bKingId, isCapture: false }, // King steps to d5
+      { from: '3,3', to: '4,4', pieceId: bKingId, isCapture: false }, // King steps to e5
+    ];
+
+    const request: IAIDecisionRequest = {
+      matchId: 'test-reactive-check-freeze',
+      variantId: 'SPELL_CHESS_OFFICIAL',
+      actingPlayer: 'P2',
+      difficultyLevel: 5,
+      timeBudgetMs: 500,
+      legalMoves,
+      domain,
+      topology,
+      specializedContext: {
+        friendlyKingCoord: '3,3',
+        opponentKingCoord: '4,0',
+        freezeCharges: 1,
+        freezeCooldown: 0,
+        jumpCharges: 1,
+        jumpCooldown: 0,
+      },
+    };
+
+    const decision = strategy.decideMove(request);
+    // Bot must cast FREEZE on checking knight at 4,1 (e2)!
+    expect(decision.secondaryAction).toBeDefined();
+    expect(decision.secondaryAction?.type).toBe('CAST_SPELL');
+    expect(decision.secondaryAction?.payload?.spellType).toBe('FREEZE');
+    expect(decision.secondaryAction?.payload?.targetCoord).toBe('4,1');
+  });
 });
