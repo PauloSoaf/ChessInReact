@@ -250,3 +250,4 @@ export class Glicko2Engine {
     return updatedProfiles;
   }
 }
+

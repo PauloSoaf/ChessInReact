@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card } from '../primitives/Card';
 import { ActionButton } from '../primitives/ActionButton';
-import { IconShield, IconSwords, IconUsers, IconTrophy } from '../../icons/AppIcons';
+import { IconShield, IconSwords, IconUsers, IconTrophy, IconEye } from '../../icons/AppIcons';
 import { CompositeArenaLayouts } from '../../../engine/multiplayer/arenas/CompositeArenaLayouts';
 
 export interface IArenasMultiplayerSectionProps {
@@ -9,6 +9,7 @@ export interface IArenasMultiplayerSectionProps {
   readonly onOpenMatchmaking?: () => void;
   readonly onOpenLobbyBrowser?: () => void;
   readonly onOpenTournamentModal?: () => void;
+  readonly onOpenLiveSpectate?: () => void;
 }
 
 export const ArenasMultiplayerSection: React.FC<IArenasMultiplayerSectionProps> = ({
@@ -16,6 +17,7 @@ export const ArenasMultiplayerSection: React.FC<IArenasMultiplayerSectionProps> 
   onOpenMatchmaking,
   onOpenLobbyBrowser,
   onOpenTournamentModal,
+  onOpenLiveSpectate,
 }) => {
   const layouts = CompositeArenaLayouts.getAllLayouts();
 
@@ -82,6 +84,18 @@ export const ArenasMultiplayerSection: React.FC<IArenasMultiplayerSectionProps> 
             >
               <IconTrophy size={16} />
               Arena de Torneios
+            </ActionButton>
+          )}
+
+          {onOpenLiveSpectate && (
+            <ActionButton
+              id="hub-btn-live-spectate"
+              variant="secondary"
+              size="sm"
+              onClick={onOpenLiveSpectate}
+            >
+              <IconEye size={16} />
+              Assistir ao Vivo
             </ActionButton>
           )}
         </div>
@@ -183,3 +197,4 @@ export const ArenasMultiplayerSection: React.FC<IArenasMultiplayerSectionProps> 
     </div>
   );
 };
+

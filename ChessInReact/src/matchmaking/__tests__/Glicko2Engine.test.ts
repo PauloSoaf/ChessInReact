@@ -108,3 +108,4 @@ describe('Spec 08 - Glicko-2 Competitive Rating Engine (RF-13, RNF-11)', () => {
     expect(decayed.ratingDeviation).toBeLessThanOrEqual(Glicko2Engine.MAX_RD);
   });
 });
+

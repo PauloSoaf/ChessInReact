@@ -42,6 +42,20 @@ export interface ILobbySummary {
   readonly lastActivityAt: number;
 }
 
+export interface ILiveMatchSummary {
+  readonly matchId: string;
+  readonly roomId: string;
+  readonly variantId: string;
+  readonly topology: string;
+  readonly whitePlayer: { readonly userId: string; readonly displayName: string; readonly elo: number };
+  readonly blackPlayer: { readonly userId: string; readonly displayName: string; readonly elo: number };
+  readonly currentPly: number;
+  readonly fen: string;
+  readonly evalCentipawns?: number;
+  readonly spectatorCount: number;
+  readonly startedAt: number;
+}
+
 export interface IJoinQueueRequest {
   readonly userId: string;
   readonly displayName: string;

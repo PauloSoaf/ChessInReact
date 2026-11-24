@@ -189,7 +189,7 @@ export const MoveHistoryList: React.FC<IMoveHistoryListProps> = ({
                 const isSelected = activeMoveIndex === idx;
                 return (
                   <tr
-                    key={item.turnNumber}
+                    key={`${item.turnNumber}-${idx}`}
                     data-testid={`move-row-${item.turnNumber}`}
                     onClick={() => onSelectMoveIndex?.(idx)}
                     style={{

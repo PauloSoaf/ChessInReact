@@ -6,6 +6,7 @@ export * from './engine/SpectatorRelayPubSub';
 export * from './engine/PresenceTracker';
 export * from './engine/Glicko2Engine';
 export * from './engine/DistributedQueueLock';
+export * from './engine/MatchmakerRateLimiter';
 export * from './config/TimeControlManager';
 export * from './config/IMatchConfiguration';
 export * from './config/MatchConfigurationManager';

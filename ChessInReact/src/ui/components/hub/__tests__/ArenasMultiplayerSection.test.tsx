@@ -51,6 +51,16 @@ describe('Spec 08 - ArenasMultiplayerSection Component', () => {
     expect(onOpenTournament).toHaveBeenCalled();
   });
 
+  it('triggers onOpenLiveSpectate when spectate button is clicked', () => {
+    const onOpenLiveSpectate = vi.fn();
+    render(<ArenasMultiplayerSection {...defaultProps} onOpenLiveSpectate={onOpenLiveSpectate} />);
+
+    const btn = screen.getByText(/Assistir ao Vivo/i);
+    fireEvent.click(btn);
+
+    expect(onOpenLiveSpectate).toHaveBeenCalled();
+  });
+
   it('renders massive arena layout cards and triggers onOpenStagingModal on click', () => {
     const onOpenStaging = vi.fn();
     const { container } = render(
