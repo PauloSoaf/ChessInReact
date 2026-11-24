@@ -172,7 +172,9 @@ export const ProceduralPieceModel: React.FC<IProceduralPieceModelProps> = ({
         norm.includes('ELEPHANT') ||
         norm.includes('SILVER') ||
         norm.includes('GOLD') ||
-        norm.includes('ADVISOR')) && (
+        norm.includes('ADVISOR')) &&
+        !norm.includes('ARCHBISHOP') &&
+        !norm.includes('HAWK') && (
         <group>
           <mesh
             castShadow
@@ -194,11 +196,137 @@ export const ProceduralPieceModel: React.FC<IProceduralPieceModelProps> = ({
         </group>
       )}
 
-      {/* Queen / Amazon / Chancellor / Archbishop */}
-      {(norm.includes('QUEEN') ||
-        norm.includes('AMAZON') ||
-        norm.includes('CHANCELLOR') ||
-        norm.includes('ARCHBISHOP')) && (
+      {/* Archbishop / Princess / Cardinal / Hawk (Bishop + Knight compound) */}
+      {(norm.includes('ARCHBISHOP') || norm.includes('HAWK')) && (
+        <group>
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={stauntonGeometries.getBishopMitre()}
+          >
+            <meshStandardMaterial {...matProps} />
+          </mesh>
+          <group
+            position={[0, 1.05, 0]}
+            rotation={[0, isWhite ? 0 : Math.PI, 0]}
+            scale={[0.48, 0.48, 0.48]}
+          >
+            <mesh
+              castShadow
+              receiveShadow
+              geometry={stauntonGeometries.getKnightHead()}
+            >
+              <meshStandardMaterial {...matProps} />
+            </mesh>
+            <mesh
+              castShadow
+              receiveShadow
+              geometry={stauntonGeometries.getKnightMane()}
+            >
+              <meshStandardMaterial {...matProps} />
+            </mesh>
+          </group>
+          <mesh
+            position={[0, 1.34, 0]}
+            geometry={stauntonGeometries.getBishopOrb()}
+          >
+            <meshStandardMaterial
+              color={isSelected ? '#f59e0b' : '#fbbf24'}
+              metalness={0.85}
+              roughness={0.2}
+            />
+          </mesh>
+        </group>
+      )}
+
+      {/* Chancellor / Empress / Marshall (Rook + Knight compound) */}
+      {norm.includes('CHANCELLOR') && (
+        <group>
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={stauntonGeometries.getRookBody()}
+          >
+            <meshStandardMaterial {...matProps} />
+          </mesh>
+          {[0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].map((angle, idx) => (
+            <mesh
+              key={idx}
+              castShadow
+              position={[Math.cos(angle) * 0.25, 0.85, Math.sin(angle) * 0.25]}
+              rotation={[0, -angle, 0]}
+              geometry={stauntonGeometries.getRookMerlon()}
+            >
+              <meshStandardMaterial {...matProps} />
+            </mesh>
+          ))}
+          <group
+            position={[0, 0.95, 0]}
+            rotation={[0, isWhite ? 0 : Math.PI, 0]}
+            scale={[0.55, 0.55, 0.55]}
+          >
+            <mesh
+              castShadow
+              receiveShadow
+              geometry={stauntonGeometries.getKnightHead()}
+            >
+              <meshStandardMaterial {...matProps} />
+            </mesh>
+            <mesh
+              castShadow
+              receiveShadow
+              geometry={stauntonGeometries.getKnightMane()}
+            >
+              <meshStandardMaterial {...matProps} />
+            </mesh>
+          </group>
+        </group>
+      )}
+
+      {/* Amazon (Queen + Knight compound) */}
+      {norm.includes('AMAZON') && (
+        <group>
+          <mesh
+            castShadow
+            receiveShadow
+            geometry={stauntonGeometries.getQueenBody()}
+          >
+            <meshStandardMaterial {...matProps} />
+          </mesh>
+          <mesh
+            castShadow
+            position={[0, 1.05, 0]}
+            geometry={stauntonGeometries.getQueenCoronet()}
+          >
+            <meshStandardMaterial {...matProps} />
+          </mesh>
+          <group
+            position={[0, 1.15, 0]}
+            rotation={[0, isWhite ? 0 : Math.PI, 0]}
+            scale={[0.42, 0.42, 0.42]}
+          >
+            <mesh
+              castShadow
+              receiveShadow
+              geometry={stauntonGeometries.getKnightHead()}
+            >
+              <meshStandardMaterial {...matProps} />
+            </mesh>
+          </group>
+          <mesh
+            position={[0, 1.40, 0]}
+            geometry={stauntonGeometries.getQueenOrb()}
+          >
+            <meshStandardMaterial color="#fbbf24" metalness={0.9} roughness={0.15} />
+          </mesh>
+        </group>
+      )}
+
+      {/* Queen (Standard) */}
+      {norm.includes('QUEEN') &&
+        !norm.includes('AMAZON') &&
+        !norm.includes('CHANCELLOR') &&
+        !norm.includes('ARCHBISHOP') && (
         <group>
           <mesh
             castShadow
@@ -295,6 +423,10 @@ export const ProceduralPieceModel: React.FC<IProceduralPieceModelProps> = ({
         !norm.includes('GOLD') &&
         !norm.includes('ADVISOR') &&
         !norm.includes('QUEEN') &&
+        !norm.includes('ARCHBISHOP') &&
+        !norm.includes('HAWK') &&
+        !norm.includes('CHANCELLOR') &&
+        !norm.includes('AMAZON') &&
         !norm.includes('KING') &&
         !norm.includes('GENERAL') &&
         !norm.includes('GYOKU') &&
