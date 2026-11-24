@@ -4,6 +4,7 @@ import { render, screen, cleanup } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ThemeProvider } from '../../ui/theme/ThemeContext';
 import { VariantOverlays3D } from '../mesh/VariantOverlays3D';
+import { InstancedPieces } from '../mesh/InstancedPieces';
 import { ChessBoard3D } from '../ChessBoard3D';
 import { gameStore } from '../../core/state/gameStore';
 import { asCoordinateKey, asEntityId } from '../../core/coordinates';
@@ -28,6 +29,7 @@ vi.mock('@react-three/fiber', () => ({
 
 vi.mock('@react-three/drei', () => ({
   OrbitControls: () => <div data-testid="mock-orbit-controls" />,
+  useGLTF: Object.assign(vi.fn(() => ({ nodes: {}, materials: {} })), { preload: vi.fn(), clear: vi.fn() }),
 }));
 
 describe('Spec 07 / Spec 12 / Spec 04: Minigames 3D Parity & Variant Overlays Suite', () => {
@@ -198,6 +200,94 @@ describe('Spec 07 / Spec 12 / Spec 04: Minigames 3D Parity & Variant Overlays Su
       );
 
       expect(screen.getByTestId('board-action-indicator-3d').textContent).toContain('Colocar Pato (3D)');
+    });
+  });
+
+  describe('InstancedPieces 3D Check Rings & Buff Overlays (Spec 07 § 5, RF-05, RF-08, RF-10)', () => {
+    it('renders check-king-3d-ring and check-source-3d-ring when check constraint is active', () => {
+      const whiteKing: IPieceEntity = {
+        id: asEntityId('w-king'),
+        type: 'PIECE',
+        position: asCoordinateKey('4,0'),
+        ownerId: 'P1',
+        variantId: 'KING',
+        hasMoved: false,
+        isCaptured: false,
+      };
+      const blackRook: IPieceEntity = {
+        id: asEntityId('b-rook'),
+        type: 'PIECE',
+        position: asCoordinateKey('4,7'),
+        ownerId: 'P2',
+        variantId: 'ROOK',
+        hasMoved: true,
+        isCaptured: false,
+      };
+
+      const { container } = render(
+        <InstancedPieces
+          boardSize={8}
+          pieces={[whiteKing, blackRook]}
+          checkConstraintCoords={{
+            kingCoord: '4,0',
+            sourceCoord: '4,7',
+          }}
+        />
+      );
+
+      const kingCheckRing = container.querySelector('[name="check-king-3d-ring"]');
+      const sourceCheckRing = container.querySelector('[name="check-source-3d-ring"]');
+
+      expect(kingCheckRing).not.toBeNull();
+      expect(sourceCheckRing).not.toBeNull();
+    });
+
+    it('renders Jump, Shield, Invisibility, and Arcane skin rings on pieces with metadata buffs', () => {
+      const buffedPieces: IPieceEntity[] = [
+        {
+          id: asEntityId('w-knight-jump'),
+          type: 'PIECE',
+          position: asCoordinateKey('1,0'),
+          ownerId: 'P1',
+          variantId: 'KNIGHT',
+          hasMoved: true,
+          isCaptured: false,
+          metadata: { hasJump: true },
+        },
+        {
+          id: asEntityId('w-pawn-shield'),
+          type: 'PIECE',
+          position: asCoordinateKey('3,1'),
+          ownerId: 'P1',
+          variantId: 'PAWN',
+          hasMoved: true,
+          isCaptured: false,
+          metadata: { isShielded: true },
+        },
+        {
+          id: asEntityId('b-queen-inv'),
+          type: 'PIECE',
+          position: asCoordinateKey('3,7'),
+          ownerId: 'P2',
+          variantId: 'QUEEN',
+          hasMoved: true,
+          isCaptured: false,
+          metadata: { isInvisible: true },
+        },
+      ];
+
+      const { container } = render(
+        <InstancedPieces
+          boardSize={8}
+          variantId="SPELL_CHESS"
+          pieces={buffedPieces}
+        />
+      );
+
+      expect(container.querySelector('[name="jump-buff-3d-ring"]')).not.toBeNull();
+      expect(container.querySelector('[name="shield-dome-3d"]')).not.toBeNull();
+      expect(container.querySelector('[name="invisible-buff-3d-ring"]')).not.toBeNull();
+      expect(container.querySelector('[name="arcane-skin-3d-ring"]')).not.toBeNull();
     });
   });
 });
