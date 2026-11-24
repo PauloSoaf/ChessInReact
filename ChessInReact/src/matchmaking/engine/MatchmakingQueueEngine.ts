@@ -2,30 +2,13 @@ import jwt from 'jsonwebtoken';
 import { 
   IMatchTicket, 
   IMatchFoundPayload, 
-  IJoinQueueRequest 
+  IJoinQueueRequest,
+  IMatchmakingQueueClient,
+  IMatchmakingConfig,
+  DEFAULT_MATCHMAKING_CONFIG,
 } from '../interfaces/IMatchmakingContracts';
 
-export interface IMatchmakingConfig {
-  readonly initialTolerance: number;
-  readonly expansionStep: number;
-  readonly expansionIntervalMs: number;
-  readonly maxTolerance: number;
-  readonly heartbeatTimeoutMs: number;
-  readonly tokenTtlSeconds: number;
-  readonly serverUrl: string;
-}
-
-export const DEFAULT_MATCHMAKING_CONFIG: IMatchmakingConfig = {
-  initialTolerance: 50,
-  expansionStep: 50,
-  expansionIntervalMs: 15_000,
-  maxTolerance: 350,
-  heartbeatTimeoutMs: 15_000,
-  tokenTtlSeconds: 30,
-  serverUrl: 'wss://chess-game-server.onrender.com',
-};
-
-export class MatchmakingQueueEngine {
+export class MatchmakingQueueEngine implements IMatchmakingQueueClient {
   private readonly config: IMatchmakingConfig;
   private readonly tickets = new Map<string, IMatchTicket>();
   private readonly userActiveTicket = new Map<string, string>(); // userId -> ticketId

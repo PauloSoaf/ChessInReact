@@ -11,7 +11,9 @@ import { ClassicModesSection } from './ClassicModesSection';
 import { DIFFICULTY_META } from './difficultyTypes';
 import { IMatchConfiguration } from '../../../matchmaking/config/IMatchConfiguration';
 import { VariantCatalog } from '../../../engine/variants/catalog/VariantCatalog';
-import { CompositeArenaLayouts } from '../../../engine/multiplayer/arenas/CompositeArenaLayouts';
+import { ArenasMultiplayerSection } from './ArenasMultiplayerSection';
+import { MatchmakingQueueModal } from './MatchmakingQueueModal';
+import { LobbyBrowserModal } from './LobbyBrowserModal';
 import {
   IconDuck,
   IconFreeze,
@@ -311,6 +313,8 @@ export const GameHub: React.FC<IGameHubProps> = ({
   const [stagingVariantId, setStagingVariantId] = React.useState<string | null>(null);
   const [stagingParticipants, setStagingParticipants] = React.useState<number>(2);
   const [isTournamentModalOpen, setIsTournamentModalOpen] = React.useState<boolean>(false);
+  const [isMatchmakingOpen, setIsMatchmakingOpen] = React.useState<boolean>(false);
+  const [isLobbyBrowserOpen, setIsLobbyBrowserOpen] = React.useState<boolean>(false);
   const showcaseStageRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
@@ -992,101 +996,15 @@ export const GameHub: React.FC<IGameHubProps> = ({
 
       {/* Arenas Massivas (3 a 12 Jogadores) */}
       {activeHubTab === 'ARENAS' && (
-        <div
-          id="hub-arenas-container"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
-            gap: '1.25rem',
-            alignItems: 'stretch',
-            width: '100%',
-            boxSizing: 'border-box',
+        <ArenasMultiplayerSection
+          onOpenStagingModal={(variantId, participants) => {
+            setStagingVariantId(variantId);
+            setStagingParticipants(participants);
           }}
-        >
-          {CompositeArenaLayouts.getAllLayouts().map((arena) => (
-            <Card
-              key={arena.id}
-              id={`card-arena-${arena.id}`}
-              variant="interactive"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                gap: '1rem',
-                padding: '1.25rem',
-                border: '1px solid var(--border-prominent)',
-              }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <IconShield size={28} color="var(--color-accent)" />
-                  <span
-                    style={{
-                      fontSize: '0.72rem',
-                      fontFamily: 'var(--font-mono)',
-                      fontWeight: 700,
-                      color: 'var(--color-primary, #60a5fa)',
-                      padding: '0.2rem 0.5rem',
-                      borderRadius: '4px',
-                      backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                    }}
-                  >
-                    {arena.totalParticipants} Jogadores
-                  </span>
-                </div>
-
-                <div>
-                  <h3
-                    style={{
-                      margin: 0,
-                      fontSize: '1.05rem',
-                      fontFamily: 'var(--font-display)',
-                      fontWeight: 700,
-                      color: 'var(--text-primary)',
-                    }}
-                  >
-                    {arena.name}
-                  </h3>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    Topologia: {arena.boardType}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                  {arena.allowedEliminationPolicies.map((pol) => (
-                    <span
-                      key={pol}
-                      style={{
-                        fontSize: '0.65rem',
-                        fontFamily: 'var(--font-mono)',
-                        padding: '0.15rem 0.45rem',
-                        borderRadius: 'var(--radius-xs)',
-                        backgroundColor: 'var(--bg-sunken)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--text-muted)',
-                      }}
-                    >
-                      {pol}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <ActionButton
-                id={`hub-btn-arena-${arena.id}`}
-                variant="primary"
-                size="sm"
-                fullWidth
-                onClick={() => {
-                  setStagingVariantId(arena.id);
-                  setStagingParticipants(arena.totalParticipants);
-                }}
-              >
-                Configurar Arena ({arena.totalParticipants}P)
-              </ActionButton>
-            </Card>
-          ))}
-        </div>
+          onOpenMatchmaking={() => setIsMatchmakingOpen(true)}
+          onOpenLobbyBrowser={() => setIsLobbyBrowserOpen(true)}
+          onOpenTournamentModal={() => setIsTournamentModalOpen(true)}
+        />
       )}
 
       {/* Tabuleiros Geométricos & Peças Fadas */}
@@ -1281,6 +1199,38 @@ export const GameHub: React.FC<IGameHubProps> = ({
       <TournamentArenaModal
         isOpen={isTournamentModalOpen}
         onClose={() => setIsTournamentModalOpen(false)}
+      />
+
+      {/* Spec 08: Global Matchmaking & ELO Ranked Queue Modal */}
+      <MatchmakingQueueModal
+        isOpen={isMatchmakingOpen}
+        onClose={() => setIsMatchmakingOpen(false)}
+        userId="player_hub_user"
+        displayName="Jogador"
+        eloRating={1500}
+        variantId="standard"
+        playerCount={2}
+        onMatchStart={() => {
+          setIsMatchmakingOpen(false);
+          if (onStartLocalMatch) {
+            onStartLocalMatch();
+          } else if (onStartBotMatch) {
+            onStartBotMatch(botDifficulty);
+          }
+        }}
+      />
+
+      {/* Spec 08: Community Lobbies Browser Modal */}
+      <LobbyBrowserModal
+        isOpen={isLobbyBrowserOpen}
+        onClose={() => setIsLobbyBrowserOpen(false)}
+        userId="player_hub_user"
+        displayName="Jogador"
+        onJoinLobbySuccess={(lobby) => {
+          setIsLobbyBrowserOpen(false);
+          setStagingVariantId(lobby.variantId);
+          setStagingParticipants(lobby.maxPlayers);
+        }}
       />
     </div>
   );

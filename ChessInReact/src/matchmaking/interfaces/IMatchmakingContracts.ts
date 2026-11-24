@@ -64,3 +64,30 @@ export interface ICreateLobbyRequest {
   readonly timeControlSeconds?: number;
 }
 
+export interface IMatchmakingQueueClient {
+  joinQueue(request: IJoinQueueRequest, now?: number): IMatchTicket;
+  leaveQueue(ticketId: string): boolean;
+  heartbeat(ticketId: string, now?: number): boolean;
+  calculateTolerance(waitMs: number): number;
+}
+
+export interface IMatchmakingConfig {
+  readonly initialTolerance: number;
+  readonly expansionStep: number;
+  readonly expansionIntervalMs: number;
+  readonly maxTolerance: number;
+  readonly heartbeatTimeoutMs: number;
+  readonly tokenTtlSeconds: number;
+  readonly serverUrl: string;
+}
+
+export const DEFAULT_MATCHMAKING_CONFIG: IMatchmakingConfig = {
+  initialTolerance: 50,
+  expansionStep: 50,
+  expansionIntervalMs: 15_000,
+  maxTolerance: 350,
+  heartbeatTimeoutMs: 15_000,
+  tokenTtlSeconds: 30,
+  serverUrl: 'wss://chess-game-server.onrender.com',
+};
+
