@@ -6,3 +6,5 @@ export * from './pgn/PGNStorage';
 export * from './eventsourcing/MatchEventStreamEngine';
 export * from './eventsourcing/UserStatsAggregator';
 export * from './eventsourcing/SupabaseRLSPolicyCatalog';
+export * from './database/IPrismaDatabaseClient';
+export * from './database/MatchRepository';
