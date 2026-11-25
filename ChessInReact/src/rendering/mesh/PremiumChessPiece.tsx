@@ -12,6 +12,7 @@ import {
   IPolyHavenGLTF,
   PREMIUM_STAUNTON_SCALE,
   resolveStandardPieceType,
+  extractGeometryFromNode,
 } from './PremiumChessAssetRegistry';
 
 export interface IPremiumChessPieceProps {
@@ -59,23 +60,41 @@ export const PremiumChessPiece: React.FC<IPremiumChessPieceProps> = ({
 
   const pieceCategory = resolveStandardPieceType(type) ?? 'PAWN';
 
-  // Extract shared geometry singleton
+  // Extract shared geometry singleton (with multi-primitive mesh merging support)
   const geometry = useMemo(() => {
     switch (pieceCategory) {
       case 'KING':
-        return isWhite ? nodes.piece_king_white.geometry : nodes.piece_king_black.geometry;
+        return extractGeometryFromNode(
+          `king_${isWhite}`,
+          isWhite ? nodes.piece_king_white : nodes.piece_king_black
+        );
       case 'QUEEN':
-        return isWhite ? nodes.piece_queen_white.geometry : nodes.piece_queen_black.geometry;
+        return extractGeometryFromNode(
+          `queen_${isWhite}`,
+          isWhite ? nodes.piece_queen_white : nodes.piece_queen_black
+        );
       case 'BISHOP':
-        return isWhite ? nodes.piece_bishop_white_01.geometry : nodes.piece_bishop_black_01.geometry;
+        return extractGeometryFromNode(
+          `bishop_${isWhite}`,
+          isWhite ? nodes.piece_bishop_white_01 : nodes.piece_bishop_black_01
+        );
       case 'KNIGHT':
         // White knight geometry faces +Z, Black knight geometry faces -Z
-        return isWhite ? nodes.piece_knight_white_01.geometry : nodes.piece_knight_black_01.geometry;
+        return extractGeometryFromNode(
+          `knight_${isWhite}`,
+          isWhite ? nodes.piece_knight_white_01 : nodes.piece_knight_black_01
+        );
       case 'ROOK':
-        return isWhite ? nodes.piece_rook_white_01.geometry : nodes.piece_rook_black_01.geometry;
+        return extractGeometryFromNode(
+          `rook_${isWhite}`,
+          isWhite ? nodes.piece_rook_white_01 : nodes.piece_rook_black_01
+        );
       case 'PAWN':
       default:
-        return isWhite ? nodes.piece_pawn_white_01.geometry : nodes.piece_pawn_black_01.geometry;
+        return extractGeometryFromNode(
+          `pawn_${isWhite}`,
+          isWhite ? nodes.piece_pawn_white_01 : nodes.piece_pawn_black_01
+        );
     }
   }, [pieceCategory, isWhite, nodes]);
 
@@ -139,6 +158,8 @@ export const PremiumChessPiece: React.FC<IPremiumChessPieceProps> = ({
     if (rotationY !== undefined) return rotationY;
     return 0;
   }, [rotationY]);
+
+  if (!geometry) return null;
 
   return (
     <mesh

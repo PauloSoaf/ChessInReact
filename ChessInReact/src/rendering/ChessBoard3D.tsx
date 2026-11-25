@@ -71,9 +71,11 @@ function FrameInvalidator({ deps }: { deps: readonly unknown[] }) {
 function Chess3DInstrumentation({
   boardSize,
   isFlipped,
+  onSquareClick,
 }: {
   boardSize: number;
   isFlipped: boolean;
+  onSquareClick?: (coord: string) => void;
 }) {
   const { camera, gl, size } = useThree();
 
@@ -83,6 +85,9 @@ function Chess3DInstrumentation({
     const offset = (boardSize - 1) / 2;
 
     (window as unknown as { __CHESS_3D__?: unknown }).__CHESS_3D__ = {
+      simulateSquareClick: (coord: string) => {
+        onSquareClick?.(coord);
+      },
       projectCoordToScreen: (coord: string) => {
         const [colStr, rowStr] = coord.split(',');
         const col = parseInt(colStr, 10);
@@ -134,11 +139,19 @@ function Chess3DInstrumentation({
 /**
  * Smoothly interpolates the camera between player perspectives and handles orbit controls (Spec 07 § 10, RF-07).
  */
-function SmoothCameraController({ isFlipped }: { isFlipped: boolean }) {
+function SmoothCameraController({
+  isFlipped,
+  cameraHeight = 8.5,
+  cameraDist = 7.5,
+}: {
+  isFlipped: boolean;
+  cameraHeight?: number;
+  cameraDist?: number;
+}) {
   const { camera, invalidate } = useThree();
   const targetPos = useMemo(
-    () => (isFlipped ? new THREE.Vector3(0, 8.5, -7.5) : new THREE.Vector3(0, 8.5, 7.5)),
-    [isFlipped]
+    () => (isFlipped ? new THREE.Vector3(0, cameraHeight, cameraDist) : new THREE.Vector3(0, cameraHeight, -cameraDist)),
+    [isFlipped, cameraHeight, cameraDist]
   );
   const isTransitioningRef = React.useRef(false);
   const isMountedRef = React.useRef(false);
@@ -608,8 +621,8 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
   const cameraDist = effectiveBoardSize > 12 ? 14.5 : effectiveBoardSize > 9 ? 10.5 : 7.5;
   const cameraHeight = effectiveBoardSize > 12 ? 16.0 : effectiveBoardSize > 9 ? 11.5 : 8.5;
   const cameraPosition: [number, number, number] = isFlipped
-    ? [0, cameraHeight, -cameraDist]
-    : [0, cameraHeight, cameraDist];
+    ? [0, cameraHeight, cameraDist]
+    : [0, cameraHeight, -cameraDist];
 
   return (
     <div
@@ -728,7 +741,11 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
           invalidate();
         }}
       >
-        <Chess3DInstrumentation boardSize={effectiveBoardSize} isFlipped={isFlipped} />
+        <Chess3DInstrumentation
+          boardSize={effectiveBoardSize}
+          isFlipped={isFlipped}
+          onSquareClick={handleSquareClick}
+        />
         <FrameInvalidator
           deps={[
             domain.revision,
@@ -749,7 +766,11 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
         />
 
         {/* Smooth Camera Orbital Lerp & OrbitControls (Spec 07 § 10, RF-07) */}
-        <SmoothCameraController isFlipped={isFlipped} />
+        <SmoothCameraController
+          isFlipped={isFlipped}
+          cameraHeight={cameraHeight}
+          cameraDist={cameraDist}
+        />
 
         {/* Studio Lighting */}
         <ambientLight intensity={ambientIntensity} />

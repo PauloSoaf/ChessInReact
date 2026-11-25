@@ -2,12 +2,13 @@ import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react
 import { Canvas } from '@react-three/fiber';
 import { InteractiveKnightScene } from './InteractiveKnightScene';
 import { ShowcaseFallback } from './ShowcaseFallback';
-import { KnightMaterialFinish } from './ProceduralKnight';
+import { KnightMaterialFinish, ShowcaseViewMode } from './types';
 import { useTheme } from '../../theme/ThemeContext';
 import { UIThemeId } from '../../theme/types';
 
 export interface IChessPieceShowcaseProps {
   initialFinish?: KnightMaterialFinish;
+  initialViewMode?: ShowcaseViewMode;
   height?: string | number;
   theme?: UIThemeId;
   autoFocusFirstControl?: boolean;
@@ -67,8 +68,21 @@ const FINISH_META: Record<KnightMaterialFinish, { label: string; subtitle: strin
   'ivory-marble': { label: 'Marfim', subtitle: 'Alabastro Clássico', swatch: '#F4F1EB' },
 };
 
+const VIEW_MODES: { id: ShowcaseViewMode; label: string }[] = [
+  { id: 'all', label: '6 Peças' },
+  { id: 'duel', label: 'Duelo' },
+  { id: 'comparison', label: 'Comparação' },
+  { id: 'knight', label: 'Cavalo' },
+  { id: 'king', label: 'Rei' },
+  { id: 'queen', label: 'Dama' },
+  { id: 'bishop', label: 'Bispo' },
+  { id: 'rook', label: 'Torre' },
+  { id: 'pawn', label: 'Peão' },
+];
+
 export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
   initialFinish = 'antique-brass',
+  initialViewMode = 'duel',
   height = '100%',
   theme: propTheme,
   autoFocusFirstControl = false,
@@ -79,6 +93,7 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
   const effectiveTheme: UIThemeId = propTheme ?? themeCtx?.uiTheme ?? 'midnight';
 
   const [finish, setFinish] = useState<KnightMaterialFinish>(initialFinish);
+  const [viewMode, setViewMode] = useState<ShowcaseViewMode>(initialViewMode);
   const [hasWebGL, setHasWebGL] = useState<boolean>(false);
   const [contextStatus, setContextStatus] = useState<WebGLContextStatus>('available');
   const [remountKey, setRemountKey] = useState<number>(0);
@@ -241,12 +256,13 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
       <div
         style={{
           width: '100%',
-          padding: '0.75rem 0.95rem 0',
+          padding: '0.65rem 0.85rem 0',
           display: 'flex',
+          flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
+          gap: '0.4rem',
           zIndex: 10,
-          pointerEvents: 'none',
         }}
       >
         <div
@@ -274,19 +290,43 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
               backgroundColor: 'var(--color-accent)',
             }}
           />
-          <span>Staunton Atelier 3D</span>
+          <span>Staunton Atelier 3D • {activeMeta.subtitle}</span>
         </div>
 
-        <span
+        {/* View Mode Dropdown Selector */}
+        <select
+          id="showcase-select-view-mode"
+          data-testid="showcase-select-view-mode"
+          value={viewMode}
+          onChange={(e) => setViewMode(e.target.value as ShowcaseViewMode)}
+          aria-label="Seleção de exibição 3D"
           style={{
-            fontSize: '0.68rem',
+            backgroundColor: 'var(--bg-surface-glass)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-full)',
+            padding: '0.18rem 0.5rem',
+            color: 'var(--text-secondary)',
+            fontSize: '0.64rem',
             fontFamily: 'var(--font-mono)',
             fontWeight: 600,
-            color: 'var(--text-muted)',
+            cursor: 'pointer',
+            maxWidth: '135px',
           }}
         >
-          {activeMeta.subtitle}
-        </span>
+          {VIEW_MODES.map((m) => (
+            <option
+              key={m.id}
+              value={m.id}
+              style={{
+                backgroundColor: 'var(--bg-surface-elevated)',
+                color: 'var(--text-primary)',
+              }}
+            >
+              {m.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* 3D Canvas or 2D Vector Fallback */}
@@ -338,6 +378,7 @@ export const ChessPieceShowcase: React.FC<IChessPieceShowcaseProps> = ({
                   >
                     <InteractiveKnightScene
                       finish={finish}
+                      viewMode={viewMode}
                       reducedMotion={reducedMotion}
                       theme={effectiveTheme}
                     />

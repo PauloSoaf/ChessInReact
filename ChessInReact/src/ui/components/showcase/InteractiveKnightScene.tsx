@@ -7,15 +7,27 @@ import { UIThemeId } from '../../theme/types';
 import { PremiumChessPiece } from '../../../rendering/mesh/PremiumChessPiece';
 import { PremiumPieceErrorBoundary } from '../../../rendering/mesh/PieceRenderer3D';
 import { PREMIUM_STAUNTON_SCALE } from '../../../rendering/mesh/PremiumChessAssetRegistry';
+import { ShowcaseViewMode } from './types';
 
 export interface IInteractiveKnightSceneProps {
   finish?: KnightMaterialFinish;
+  viewMode?: ShowcaseViewMode;
   reducedMotion?: boolean;
   theme?: UIThemeId;
 }
 
+const ALL_PIECES_LINEUP: { type: string; x: number; rotY: number }[] = [
+  { type: 'PAWN', x: -1.35, rotY: 0 },
+  { type: 'ROOK', x: -0.81, rotY: 0 },
+  { type: 'KNIGHT', x: -0.27, rotY: 0.35 },
+  { type: 'BISHOP', x: 0.27, rotY: 0 },
+  { type: 'QUEEN', x: 0.81, rotY: 0 },
+  { type: 'KING', x: 1.35, rotY: 0 },
+];
+
 export const InteractiveKnightScene: React.FC<IInteractiveKnightSceneProps> = ({
   finish = 'antique-brass',
+  viewMode = 'duel',
   reducedMotion = false,
   theme = 'midnight',
 }) => {
@@ -23,13 +35,13 @@ export const InteractiveKnightScene: React.FC<IInteractiveKnightSceneProps> = ({
   const { pointer, invalidate, gl } = useThree();
 
   // Baseline 3/4 sculptural beauty angle (~31 deg yaw, slight 3.5 deg forward pitch)
-  const baseRotationY = 0.54;
+  const baseRotationY = viewMode === 'all' ? 0.08 : 0.48;
   const baseRotationX = 0.06;
 
-  // Invalidate immediately on finish or theme change or mount
+  // Invalidate immediately on finish, viewMode, or theme change
   React.useEffect(() => {
     invalidate();
-  }, [finish, theme, invalidate]);
+  }, [finish, viewMode, theme, invalidate]);
 
   // Connect explicit pointer activity directly to invalidate() in demand frameloop
   React.useEffect(() => {
@@ -63,8 +75,8 @@ export const InteractiveKnightScene: React.FC<IInteractiveKnightSceneProps> = ({
       return;
     }
 
-    // 1. Interactive Pointer Tilt (Smooth Lerp dampened by delta)
-    const targetY = baseRotationY + pointer.x * 0.45;
+    // Interactive Pointer Tilt (Smooth Lerp dampened by delta)
+    const targetY = baseRotationY + pointer.x * (viewMode === 'all' ? 0.22 : 0.45);
     const targetX = baseRotationX - pointer.y * 0.22;
 
     const lerpSpeed = Math.min(delta * 5.0, 1);
@@ -96,13 +108,68 @@ export const InteractiveKnightScene: React.FC<IInteractiveKnightSceneProps> = ({
       >
         <Suspense fallback={<ProceduralKnight finish={finish} scale={0.72} />}>
           <PremiumPieceErrorBoundary fallback={<ProceduralKnight finish={finish} scale={0.72} />}>
-            <PremiumChessPiece
-              type="KNIGHT"
-              isWhite={finish !== 'obsidian'}
-              customFinish={finish}
-              scale={PREMIUM_STAUNTON_SCALE * 0.72}
-              position={[0, -0.42, 0]}
-            />
+            {viewMode === 'all' ? (
+              // All six Staunton pieces side by side
+              <group position={[0, -0.36, 0]}>
+                {ALL_PIECES_LINEUP.map((p) => (
+                  <PremiumChessPiece
+                    key={p.type}
+                    type={p.type}
+                    isWhite={finish !== 'obsidian'}
+                    customFinish={finish}
+                    scale={PREMIUM_STAUNTON_SCALE * 0.44}
+                    position={[p.x, 0, 0]}
+                    rotationY={p.rotY}
+                  />
+                ))}
+              </group>
+            ) : viewMode === 'duel' ? (
+              // White and Black Knights face to face in dramatic close-up
+              <group position={[0, -0.38, 0]}>
+                <PremiumChessPiece
+                  type="KNIGHT"
+                  isWhite={true}
+                  customFinish={finish === 'obsidian' ? 'ivory-marble' : finish}
+                  scale={PREMIUM_STAUNTON_SCALE * 0.72}
+                  position={[-0.44, 0, 0]}
+                  rotationY={Math.PI * 0.45}
+                />
+                <PremiumChessPiece
+                  type="KNIGHT"
+                  isWhite={false}
+                  customFinish="obsidian"
+                  scale={PREMIUM_STAUNTON_SCALE * 0.72}
+                  position={[0.44, 0, 0]}
+                  rotationY={-Math.PI * 0.45}
+                />
+              </group>
+            ) : viewMode === 'comparison' ? (
+              // Side-by-side comparison: Procedural fallback (Left) vs Poly Haven PBR (Right)
+              <group position={[0, -0.38, 0]}>
+                <group position={[-0.56, 0, 0]}>
+                  <ProceduralKnight finish={finish} scale={0.72} />
+                </group>
+                <group position={[0.56, 0, 0]}>
+                  <PremiumChessPiece
+                    type="KNIGHT"
+                    isWhite={finish !== 'obsidian'}
+                    customFinish={finish}
+                    scale={PREMIUM_STAUNTON_SCALE * 0.72}
+                    position={[0, 0, 0]}
+                    rotationY={0.35}
+                  />
+                </group>
+              </group>
+            ) : (
+              // Single piece inspection
+              <PremiumChessPiece
+                type={viewMode.toUpperCase()}
+                isWhite={finish !== 'obsidian'}
+                customFinish={finish}
+                scale={PREMIUM_STAUNTON_SCALE * 0.72}
+                position={[0, -0.42, 0]}
+              />
+            )}
           </PremiumPieceErrorBoundary>
         </Suspense>
       </group>

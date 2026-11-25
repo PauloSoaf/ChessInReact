@@ -12,8 +12,51 @@
 import * as THREE from 'three';
 import { useGLTF } from '@react-three/drei';
 import type { GLTF } from 'three-stdlib';
+import { mergeBufferGeometries } from 'three-stdlib';
 
 export const POLYHAVEN_CHESS_SET_PATH = '/models/chess/polyhaven/chess_set_1k.gltf';
+
+const geometryCache = new Map<string, THREE.BufferGeometry>();
+
+/**
+ * Extracts or merges BufferGeometry from an Object3D, Mesh, or multi-primitive Group.
+ * Caches geometries as singletons to ensure zero redundant processing and zero GC pressure.
+ */
+export function extractGeometryFromNode(
+  cacheKey: string,
+  node: THREE.Object3D | THREE.Mesh | undefined
+): THREE.BufferGeometry | null {
+  if (!node) return null;
+  const cached = geometryCache.get(cacheKey);
+  if (cached) return cached;
+
+  if ('geometry' in node && (node as THREE.Mesh).geometry) {
+    const geo = (node as THREE.Mesh).geometry;
+    geometryCache.set(cacheKey, geo);
+    return geo;
+  }
+
+  if (node.children && node.children.length > 0) {
+    const geos: THREE.BufferGeometry[] = [];
+    node.children.forEach((c) => {
+      if ('geometry' in c && (c as THREE.Mesh).geometry) {
+        geos.push((c as THREE.Mesh).geometry);
+      }
+    });
+    if (geos.length === 1) {
+      geometryCache.set(cacheKey, geos[0]);
+      return geos[0];
+    }
+    if (geos.length > 1) {
+      const merged = mergeBufferGeometries(geos);
+      if (merged) {
+        geometryCache.set(cacheKey, merged);
+        return merged;
+      }
+    }
+  }
+  return null;
+}
 
 /**
  * Preload the local Poly Haven asset package into Drei GLTF cache

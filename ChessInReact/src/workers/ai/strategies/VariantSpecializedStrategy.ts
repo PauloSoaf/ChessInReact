@@ -105,7 +105,6 @@ export class VariantSpecializedStrategy implements IUniversalAIStrategy {
     const opponentKingCoord = (request.specializedContext?.opponentKingCoord as string) ?? null;
     const friendlyKingCoord = (request.specializedContext?.friendlyKingCoord as string) ?? null;
     const domain = request.domain;
-    const opponentPlayer = request.actingPlayer === 'P1' ? 'P2' : 'P1';
 
     for (const move of moves) {
       let score = 0;
