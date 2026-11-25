@@ -230,7 +230,7 @@ export class MCTS {
 
     while (
       iterations < maxRollouts &&
-      performance.now() - startTime < timeLimitMs &&
+      (options?.randomSeed !== undefined || performance.now() - startTime < timeLimitMs) &&
       !options?.cancellationToken?.aborted
     ) {
       iterations++;

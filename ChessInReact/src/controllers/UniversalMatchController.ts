@@ -1729,13 +1729,15 @@ export class UniversalMatchController {
       let nextState = this.expandedSpellState;
       if (spell.type === 'FREEZE') {
         const [cf, cr] = normTarget.split(',').map(Number);
+        const isCartesian = targetCoord.includes(',');
         const freezeCoords: string[] = [];
         for (let df = -1; df <= 1; df++) {
           for (let dr = -1; dr <= 1; dr++) {
             const f = cf + df;
             const r = cr + dr;
             if (f >= 0 && f < 8 && r >= 0 && r < 8) {
-              freezeCoords.push(`${f},${r}`);
+              const c = `${f},${r}`;
+              freezeCoords.push(isCartesian ? c : SANNotationGenerator.coordToAlgebraic(c));
             }
           }
         }
