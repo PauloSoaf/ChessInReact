@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
+import * as THREE from 'three';
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ThemeProvider } from '../../ui/theme/ThemeContext';
@@ -38,8 +39,43 @@ vi.mock('@react-three/fiber', () => ({
   }),
 }));
 
+const mockGeometry = new THREE.BufferGeometry();
+const mockMaterial = new THREE.MeshStandardMaterial();
+const mockNode = { geometry: mockGeometry, isMesh: true };
+
 vi.mock('@react-three/drei', () => ({
   OrbitControls: () => <div data-testid="mock-orbit-controls" />,
+  useGLTF: Object.assign(
+    () => ({
+      nodes: {
+        piece_king_white: mockNode,
+        piece_king_black: mockNode,
+        piece_queen_white: mockNode,
+        piece_queen_black: mockNode,
+        piece_bishop_white_01: mockNode,
+        piece_bishop_white_02: mockNode,
+        piece_bishop_black_01: mockNode,
+        piece_bishop_black_02: mockNode,
+        piece_knight_white_01: mockNode,
+        piece_knight_white_02: mockNode,
+        piece_knight_black_01: mockNode,
+        piece_knight_black_02: mockNode,
+        piece_rook_white_01: mockNode,
+        piece_rook_white_02: mockNode,
+        piece_rook_black_01: mockNode,
+        piece_rook_black_02: mockNode,
+        piece_pawn_white_01: mockNode,
+        piece_pawn_black_01: mockNode,
+        board: mockNode,
+      },
+      materials: {
+        chess_set_pieces_white: mockMaterial,
+        chess_set_pieces_black: mockMaterial,
+        chess_set_board: mockMaterial,
+      },
+    }),
+    { preload: vi.fn(), clear: vi.fn() }
+  ),
 }));
 
 vi.mock('../mesh/InstancedBoard', () => ({

@@ -73,6 +73,9 @@ export interface IGameHubHeroSectionProps {
   readonly uiTheme: UIThemeId;
   readonly onResumeMatch: () => void;
   readonly onStartBotMatch: (difficulty: number) => void;
+  readonly onStartLocalMatch?: () => void;
+  readonly onSelectTab?: (tab: 'CLASSIC' | 'MINIGAMES' | 'ARENAS' | 'GEOMETRIC' | 'HISTORICAL' | 'ACADEMY') => void;
+  readonly onNavigateToPuzzles?: () => void;
   readonly onOpenThemeModal: () => void;
   readonly onClockModalOpen: () => void;
   readonly onActivate3D: (origin?: 'pointer' | 'keyboard') => void;
@@ -91,6 +94,9 @@ export const GameHubHeroSection: React.FC<IGameHubHeroSectionProps> = ({
   uiTheme,
   onResumeMatch,
   onStartBotMatch,
+  onStartLocalMatch,
+  onSelectTab,
+  onNavigateToPuzzles,
   onOpenThemeModal,
   onClockModalOpen,
   onActivate3D,
@@ -107,7 +113,7 @@ export const GameHubHeroSection: React.FC<IGameHubHeroSectionProps> = ({
           <div className="hub-eyebrow-row">
             <div className="hub-eyebrow-pill">
               <StatusIndicator status="active" pulse />
-              <span>Central de Partidas • Experiência de Xadrez Avançada</span>
+              <span>Ateliê de Xadrez • Central de Partidas</span>
             </div>
 
             {isMatchInProgress && (
@@ -129,7 +135,7 @@ export const GameHubHeroSection: React.FC<IGameHubHeroSectionProps> = ({
           </div>
 
           <h1 className="hub-hero-title">
-            Domínio Tático &amp;{' '}
+            Xadrez &amp;{' '}
             <span
               style={{
                 color: 'var(--color-accent)',
@@ -141,7 +147,7 @@ export const GameHubHeroSection: React.FC<IGameHubHeroSectionProps> = ({
           </h1>
 
           <p className="hub-hero-lead">
-            Escolha seu modo de jogo: enfrente a inteligência artificial, dispute partidas locais com amigos, explore variantes táticas ou resolva desafios.
+            Escolha seu modo de jogo: dispute partidas contra o computador, jogue localmente com amigos, explore variantes táticas ou resolva desafios.
           </p>
 
           {/* Primary & Secondary Hero Actions */}
@@ -187,23 +193,55 @@ export const GameHubHeroSection: React.FC<IGameHubHeroSectionProps> = ({
                   size="lg"
                   onClick={onResumeMatch}
                 >
-                  Ver Posição Final (Fim de Jogo)
+                  Ver Posição Final
                 </ActionButton>
               </>
             ) : (
-              <ActionButton
-                id="hub-hero-btn-play-bot"
-                variant="primary"
-                size="lg"
-                onClick={() => onStartBotMatch(botDifficulty)}
-                leadingIcon={
-                  <svg viewBox="0 0 20 20" width="17" height="17" fill="currentColor">
-                    <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                  </svg>
-                }
-              >
-                Jogar contra Robô ({activeDiffName})
-              </ActionButton>
+              <>
+                <ActionButton
+                  id="hub-hero-btn-play-bot"
+                  variant="primary"
+                  size="lg"
+                  onClick={() => onStartBotMatch(botDifficulty)}
+                  leadingIcon={
+                    <svg viewBox="0 0 20 20" width="17" height="17" fill="currentColor">
+                      <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                    </svg>
+                  }
+                >
+                  Jogar contra Robô ({activeDiffName})
+                </ActionButton>
+                {onStartLocalMatch && (
+                  <ActionButton
+                    id="hub-btn-play-local"
+                    variant="secondary"
+                    size="lg"
+                    onClick={onStartLocalMatch}
+                  >
+                    Duelo Local (Pass &amp; Play)
+                  </ActionButton>
+                )}
+                {onSelectTab && (
+                  <ActionButton
+                    id="hub-btn-explore-variants"
+                    variant="outline"
+                    size="lg"
+                    onClick={() => onSelectTab('MINIGAMES')}
+                  >
+                    Explorar Variantes
+                  </ActionButton>
+                )}
+                {onNavigateToPuzzles && (
+                  <ActionButton
+                    id="hub-btn-solve-puzzles"
+                    variant="outline"
+                    size="lg"
+                    onClick={onNavigateToPuzzles}
+                  >
+                    Resolver Puzzles
+                  </ActionButton>
+                )}
+              </>
             )}
 
             <ActionButton
@@ -230,23 +268,23 @@ export const GameHubHeroSection: React.FC<IGameHubHeroSectionProps> = ({
               onClick={onClockModalOpen}
               leadingIcon={<IconClock size={16} color="currentColor" />}
             >
-              Relógio &amp; Modos (Bullet, Blitz, Rápido)
+              Relógio &amp; Modos
             </ActionButton>
           </div>
 
           {/* Player Experience Highlights Strip */}
           <div className="hub-specs-strip">
             <div className="hub-spec-item">
-              <span className="hub-spec-value">5 Níveis de Desafio</span>
-              <span className="hub-spec-label">Do treino iniciante ao rigor tático</span>
+              <span className="hub-spec-value">Inteligência Artificial</span>
+              <span className="hub-spec-label">5 Níveis de Desafio do Iniciante ao Mestre</span>
             </div>
             <div className="hub-spec-item">
-              <span className="hub-spec-value">Revisão de Lances</span>
-              <span className="hub-spec-label">Desfazer, refazer e avaliação da posição</span>
+              <span className="hub-spec-value">Duelo Local &amp; Relógios</span>
+              <span className="hub-spec-label">Pass &amp; Play com controles de tempo</span>
             </div>
             <div className="hub-spec-item">
-              <span className="hub-spec-value">3 Atmosferas Visuais</span>
-              <span className="hub-spec-label">Midnight, Ivory &amp; Synthwave</span>
+              <span className="hub-spec-value">Variantes &amp; Estudos</span>
+              <span className="hub-spec-label">Spell Chess, Puzzles e Topologias</span>
             </div>
           </div>
         </div>

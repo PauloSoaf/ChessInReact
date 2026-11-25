@@ -17,6 +17,8 @@ import { GameHubHeroSection } from './GameHubHeroSection';
 
 export type Progressive3DMode = 'idle' | 'eager' | 'off';
 
+export type HubTabId = 'CLASSIC' | 'MINIGAMES' | 'ARENAS' | 'GEOMETRIC' | 'HISTORICAL' | 'ACADEMY';
+
 export interface IGameHubProps {
   onStartBotMatch: (difficulty: number) => void;
   onStartLocalMatch: () => void;
@@ -32,6 +34,9 @@ export interface IGameHubProps {
   progressive3DMode?: Progressive3DMode;
   onLaunchMinigame?: (minigameId: string) => void;
   onLaunchMatch?: (config: IMatchConfiguration) => void;
+  activeTab?: HubTabId;
+  onTabChange?: (tab: HubTabId) => void;
+  onNavigateToPuzzles?: () => void;
 }
 
 export const GameHub: React.FC<IGameHubProps> = ({
@@ -49,6 +54,9 @@ export const GameHub: React.FC<IGameHubProps> = ({
   progressive3DMode,
   onLaunchMinigame,
   onLaunchMatch,
+  activeTab,
+  onTabChange,
+  onNavigateToPuzzles,
 }) => {
   const { uiTheme } = useTheme();
   const activeDiff = DIFFICULTY_META.find((d) => d.level === botDifficulty) ?? DIFFICULTY_META[2];
@@ -57,9 +65,20 @@ export const GameHub: React.FC<IGameHubProps> = ({
 
   const [is3DActive, setIs3DActive] = React.useState<boolean>(() => effectiveMode === 'eager');
   const [keyboardActivated, setKeyboardActivated] = React.useState<boolean>(false);
-  const [activeHubTab, setActiveHubTab] = React.useState<
-    'CLASSIC' | 'MINIGAMES' | 'ARENAS' | 'GEOMETRIC' | 'HISTORICAL' | 'ACADEMY'
-  >('CLASSIC');
+  const [internalHubTab, setInternalHubTab] = React.useState<HubTabId>(activeTab ?? 'CLASSIC');
+
+  React.useEffect(() => {
+    if (activeTab && activeTab !== internalHubTab) {
+      setInternalHubTab(activeTab);
+    }
+  }, [activeTab, internalHubTab]);
+
+  const activeHubTab = activeTab ?? internalHubTab;
+
+  const handleTabSelect = (tab: HubTabId) => {
+    setInternalHubTab(tab);
+    onTabChange?.(tab);
+  };
   const [stagingVariantId, setStagingVariantId] = React.useState<string | null>(null);
   const [stagingParticipants, setStagingParticipants] = React.useState<number>(2);
   const [isTournamentModalOpen, setIsTournamentModalOpen] = React.useState<boolean>(false);
@@ -142,6 +161,9 @@ export const GameHub: React.FC<IGameHubProps> = ({
         uiTheme={uiTheme}
         onResumeMatch={onResumeMatch}
         onStartBotMatch={onStartBotMatch}
+        onStartLocalMatch={onStartLocalMatch}
+        onSelectTab={handleTabSelect}
+        onNavigateToPuzzles={onNavigateToPuzzles}
         onOpenThemeModal={onOpenThemeModal}
         onClockModalOpen={() => {
           setStagingVariantId('STANDARD');
@@ -212,7 +234,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
               type="button"
               role="tab"
               aria-selected={activeHubTab === 'CLASSIC'}
-              onClick={() => setActiveHubTab('CLASSIC')}
+              onClick={() => handleTabSelect('CLASSIC')}
               style={{
                 padding: '0.4rem 0.8rem',
                 fontSize: '0.78rem',
@@ -236,7 +258,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
               type="button"
               role="tab"
               aria-selected={activeHubTab === 'MINIGAMES'}
-              onClick={() => setActiveHubTab('MINIGAMES')}
+              onClick={() => handleTabSelect('MINIGAMES')}
               style={{
                 padding: '0.4rem 0.8rem',
                 fontSize: '0.78rem',
@@ -259,7 +281,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
               type="button"
               role="tab"
               aria-selected={activeHubTab === 'ARENAS'}
-              onClick={() => setActiveHubTab('ARENAS')}
+              onClick={() => handleTabSelect('ARENAS')}
               style={{
                 padding: '0.4rem 0.8rem',
                 fontSize: '0.78rem',
@@ -282,7 +304,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
               type="button"
               role="tab"
               aria-selected={activeHubTab === 'GEOMETRIC'}
-              onClick={() => setActiveHubTab('GEOMETRIC')}
+              onClick={() => handleTabSelect('GEOMETRIC')}
               style={{
                 padding: '0.4rem 0.8rem',
                 fontSize: '0.78rem',
@@ -305,7 +327,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
               type="button"
               role="tab"
               aria-selected={activeHubTab === 'HISTORICAL'}
-              onClick={() => setActiveHubTab('HISTORICAL')}
+              onClick={() => handleTabSelect('HISTORICAL')}
               style={{
                 padding: '0.4rem 0.8rem',
                 fontSize: '0.78rem',
@@ -328,7 +350,7 @@ export const GameHub: React.FC<IGameHubProps> = ({
               type="button"
               role="tab"
               aria-selected={activeHubTab === 'ACADEMY'}
-              onClick={() => setActiveHubTab('ACADEMY')}
+              onClick={() => handleTabSelect('ACADEMY')}
               style={{
                 padding: '0.4rem 0.8rem',
                 fontSize: '0.78rem',

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { render, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { CubicChessBoard3D } from '../mesh/CubicChessBoard3D';
 import { ToroidalChessBoard3D } from '../mesh/ToroidalChessBoard3D';
 import { IPieceEntity } from '../../core/entities/types';
@@ -9,6 +9,25 @@ import { CubicTopology } from '../../core/topology/CubicTopology';
 import { SquareTopology } from '../../core/topology/SquareTopology';
 
 describe('CubicChessBoard3D & ToroidalChessBoard3D Hardening Suite (Spec 07 / Spec 13)', () => {
+  const originalError = console.error;
+  beforeAll(() => {
+    console.error = (...args: unknown[]) => {
+      if (
+        typeof args[0] === 'string' &&
+        (args[0].includes('is unrecognized in this browser') ||
+          args[0].includes('is using incorrect casing') ||
+          args[0].includes('does not recognize the'))
+      ) {
+        return;
+      }
+      originalError(...args);
+    };
+  });
+
+  afterAll(() => {
+    console.error = originalError;
+  });
+
   const samplePieces: IPieceEntity[] = [
     {
       id: asEntityId('w-pawn-front'),

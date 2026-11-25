@@ -47,7 +47,7 @@ export class MatchConfigurationManager {
       slots.push({
         slotIndex: i,
         role: isFirstHuman ? 'HUMAN_LOCAL' : 'AI_BOT',
-        displayName: isFirstHuman ? 'Você (Jogador 1)' : `Bot ${color.name}`,
+        displayName: isFirstHuman ? 'Você' : `Bot ${color.name}`,
         colorName: color.name,
         hexColor: color.hex,
         teamId: clampedCount === 4 ? (i % 2 === 0 ? 'TEAM_A' : 'TEAM_B') : `TEAM_${i + 1}`,

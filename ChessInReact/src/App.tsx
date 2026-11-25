@@ -10,7 +10,7 @@ import { ThemeProvider, useTheme } from './ui/theme/ThemeContext';
 import { TopNavBar, AppView } from './ui/components/navigation/TopNavBar';
 import { AppSidebar, NavDestination } from './ui/components/navigation/AppSidebar';
 import { ThemeCustomizerModal } from './ui/components/navigation/ThemeCustomizerModal';
-import { GameHub } from './ui/components/hub/GameHub';
+import { GameHub, HubTabId } from './ui/components/hub/GameHub';
 import { PuzzleRushArena } from './ui/components/hub/PuzzleRushArena';
 import { BughouseArena } from './ui/components/hub/BughouseArena';
 import { PlayerCard } from './ui/components/game/PlayerCard';
@@ -972,29 +972,68 @@ const AppContent: React.FC = () => {
     [clearFeedback, navigateTo, handleLaunchMatch]
   );
 
+  const [hubActiveTab, setHubActiveTab] = useState<HubTabId>('CLASSIC');
+
   const currentNavDestination: NavDestination = useMemo(() => {
     if (currentView === 'PUZZLE_RUSH') return 'PUZZLES';
     if (currentView === 'BUGHOUSE') return 'VARIANTS';
     if (currentView === 'GAME') return 'PLAY';
+    if (currentView === 'HUB') {
+      if (hubActiveTab === 'ACADEMY') return 'LEARN';
+      if (
+        hubActiveTab === 'MINIGAMES' ||
+        hubActiveTab === 'ARENAS' ||
+        hubActiveTab === 'GEOMETRIC' ||
+        hubActiveTab === 'HISTORICAL'
+      ) {
+        return 'VARIANTS';
+      }
+      return 'PLAY';
+    }
     return 'PLAY';
-  }, [currentView]);
+  }, [currentView, hubActiveTab]);
 
   const handleSelectNavDestination = useCallback(
     (dest: NavDestination) => {
       if (dest === 'PUZZLES') {
         navigateTo('PUZZLE_RUSH');
+      } else if (dest === 'LEARN') {
+        setHubActiveTab('ACADEMY');
+        navigateTo('HUB');
       } else if (dest === 'VARIANTS') {
+        setHubActiveTab('MINIGAMES');
         navigateTo('HUB');
       } else if (dest === 'PLAY') {
-        navigateTo('GAME');
+        if (hasActiveMatch && !isGameOver) {
+          navigateTo('GAME');
+        } else {
+          setHubActiveTab('CLASSIC');
+          navigateTo('HUB');
+        }
       } else if (dest === 'ANALYZE') {
         setIsGameReviewOpen(true);
       } else if (dest === 'SETTINGS') {
         setIsThemeModalOpen(true);
       }
     },
-    [navigateTo]
+    [navigateTo, hasActiveMatch, isGameOver]
   );
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as unknown as { __CHESS_APP__?: unknown }).__CHESS_APP__ = {
+        launchMinigame: handleLaunchMinigame,
+        launchMatch: handleLaunchMatch,
+        navigateTo,
+        selectNavDestination: handleSelectNavDestination,
+      };
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete (window as unknown as { __CHESS_APP__?: unknown }).__CHESS_APP__;
+      }
+    };
+  }, [handleLaunchMinigame, handleLaunchMatch, navigateTo, handleSelectNavDestination]);
 
   return (
     <div className="app-shell-with-sidebar">
@@ -1029,6 +1068,9 @@ const AppContent: React.FC = () => {
         <BughouseArena onBackToHub={() => navigateTo('HUB')} />
       ) : currentView === 'HUB' ? (
         <GameHub
+          activeTab={hubActiveTab}
+          onTabChange={setHubActiveTab}
+          onNavigateToPuzzles={() => navigateTo('PUZZLE_RUSH')}
           onStartBotMatch={handleStartBotMatch}
           onStartLocalMatch={handleStartLocalMatch}
           onResumeMatch={handleResumeMatch}
@@ -1199,7 +1241,7 @@ const AppContent: React.FC = () => {
                   playerId="P2"
                   displayName={
                     universalMatch.snapshot.config.slots[1]?.displayName.replace(/\s*\(N[1-5]\).*$/, '').trim() ??
-                    (isBotEnabled ? 'Oponente IA' : 'Jogador 2 (Pretas)')
+                    (isBotEnabled ? 'Oponente IA' : 'Jogador 2')
                   }
                   subtitle={
                     universalMatch.snapshot.config.slots[1]?.role === 'AI_BOT' ||
@@ -1385,7 +1427,7 @@ const AppContent: React.FC = () => {
                   playerId="P1"
                   displayName={
                     universalMatch.snapshot.config.slots[0]?.displayName.replace(/\s*\(N[1-5]\).*$/, '').trim() ??
-                    'Você (Brancas)'
+                    'Você'
                   }
                   subtitle={
                     universalMatch.snapshot.config.slots[0]?.role === 'AI_BOT' ||

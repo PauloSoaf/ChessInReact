@@ -11,6 +11,10 @@ import { ChessBoard3D } from '../ChessBoard3D';
 import { bootstrapGame } from '../../core/bootstrap/GameInitializer';
 import { gameStore } from '../../core/state/gameStore';
 
+const mockGeometry = new THREE.BufferGeometry();
+const mockMaterial = new THREE.MeshStandardMaterial();
+const mockNode = { geometry: mockGeometry, isMesh: true };
+
 // Mock WebGL and Three.js canvas in JSDOM environment
 vi.mock('@react-three/fiber', () => ({
   Canvas: () => (
@@ -28,6 +32,37 @@ vi.mock('@react-three/fiber', () => ({
 
 vi.mock('@react-three/drei', () => ({
   OrbitControls: () => <div data-testid="mock-orbit-controls" />,
+  useGLTF: Object.assign(
+    () => ({
+      nodes: {
+        piece_king_white: mockNode,
+        piece_king_black: mockNode,
+        piece_queen_white: mockNode,
+        piece_queen_black: mockNode,
+        piece_bishop_white_01: mockNode,
+        piece_bishop_white_02: mockNode,
+        piece_bishop_black_01: mockNode,
+        piece_bishop_black_02: mockNode,
+        piece_knight_white_01: mockNode,
+        piece_knight_white_02: mockNode,
+        piece_knight_black_01: mockNode,
+        piece_knight_black_02: mockNode,
+        piece_rook_white_01: mockNode,
+        piece_rook_white_02: mockNode,
+        piece_rook_black_01: mockNode,
+        piece_rook_black_02: mockNode,
+        piece_pawn_white_01: mockNode,
+        piece_pawn_black_01: mockNode,
+        board: mockNode,
+      },
+      materials: {
+        chess_set_pieces_white: mockMaterial,
+        chess_set_pieces_black: mockMaterial,
+        chess_set_board: mockMaterial,
+      },
+    }),
+    { preload: vi.fn(), clear: vi.fn() }
+  ),
 }));
 
 describe('Spec 07 3D WebGL Rendering & Board View Architecture Suite', () => {
@@ -150,7 +185,7 @@ describe('Spec 07 3D WebGL Rendering & Board View Architecture Suite', () => {
       expect(container3D).toBeDefined();
       expect(screen.getByTestId('mock-r3f-canvas')).toBeDefined();
       expect(screen.getByTestId('mock-orbit-controls')).toBeDefined();
-      expect(screen.getByText('SPEC 07 WebGL 3D')).toBeDefined();
+      expect(screen.getByTestId('badge-board-3d')).toBeDefined();
 
       // Switch back to 2D
       const btn2D = screen.getByRole('button', { name: /^2D$/ });

@@ -22,8 +22,8 @@ if (!browserPath) {
   process.exit(1);
 }
 
-const port = 5510 + Math.floor(Math.random() * 40);
-const cdpPort = 9510 + Math.floor(Math.random() * 40);
+const port = 5520 + Math.floor(Math.random() * 40);
+const cdpPort = 9520 + Math.floor(Math.random() * 40);
 
 const viteServer = await createServer({
   root: projectRoot,
@@ -94,19 +94,50 @@ try {
 
   await sendCdp('Page.enable');
   await sendCdp('Runtime.enable');
-  await sendCdp('Emulation.setDeviceMetricsOverride', {
-    width: 1440,
-    height: 900,
-    deviceScaleFactor: 1,
-    mobile: false,
+
+  // Helper to set viewport
+  const setVp = async (width, height, mobile = false) => {
+    await sendCdp('Emulation.setDeviceMetricsOverride', {
+      width,
+      height,
+      deviceScaleFactor: 2,
+      mobile,
+    });
+    await sleep(350);
+  };
+
+  const capture = async (filename) => {
+    const ss = await sendCdp('Page.captureScreenshot', { format: 'png' });
+    const buf = Buffer.from(ss.data, 'base64');
+    writeFileSync(`${artifactDir}\\${filename}`, buf);
+    console.log(`Saved: ${filename} (${buf.length} bytes)`);
+  };
+
+  // -------------------------------------------------------------
+  // 1. Hub Desktop 1440px
+  // -------------------------------------------------------------
+  console.log('Capturing: Hub Desktop 1440px...');
+  await setVp(1440, 900, false);
+  await sendCdp('Runtime.evaluate', {
+    expression: `window.__CHESS_APP__?.navigateTo('HUB') || (window.location.hash = '#hub');`,
   });
-
-  await sleep(2000);
+  await sleep(1500);
+  await capture('hub_desktop_1440.png');
 
   // -------------------------------------------------------------
-  // 1. Homologation Capture 1: The six pieces side by side
+  // 2. Hub Mobile 390px
   // -------------------------------------------------------------
-  console.log('Capturing: 1. piece_showcase_all_six.png');
+  console.log('Capturing: Hub Mobile 390px...');
+  await setVp(390, 844, true);
+  await sleep(1000);
+  await capture('hub_mobile_390.png');
+
+  // -------------------------------------------------------------
+  // 3. Piece Showcase: All 6 Pieces (Desktop)
+  // -------------------------------------------------------------
+  console.log('Capturing: Piece Showcase All Six...');
+  await setVp(1440, 900, false);
+  await sleep(500);
   await sendCdp('Runtime.evaluate', {
     expression: `(() => {
       const sel = document.getElementById('showcase-select-view-mode');
@@ -117,13 +148,12 @@ try {
     })()`,
   });
   await sleep(1500);
-  const ss1 = await sendCdp('Page.captureScreenshot', { format: 'png' });
-  writeFileSync(`${artifactDir}\\piece_showcase_all_six.png`, Buffer.from(ss1.data, 'base64'));
+  await capture('piece_showcase_all_six.png');
 
   // -------------------------------------------------------------
-  // 2. Homologation Capture 2: Close-up of White and Black knights
+  // 4. Piece Showcase: Knight Close-up & Procedural vs PBR
   // -------------------------------------------------------------
-  console.log('Capturing: 2. piece_knight_closeup.png');
+  console.log('Capturing: Knight Close-up & Comparison...');
   await sendCdp('Runtime.evaluate', {
     expression: `(() => {
       const sel = document.getElementById('showcase-select-view-mode');
@@ -133,70 +163,9 @@ try {
       }
     })()`,
   });
-  await sleep(1500);
-  const ss2 = await sendCdp('Page.captureScreenshot', { format: 'png' });
-  writeFileSync(`${artifactDir}\\piece_knight_closeup.png`, Buffer.from(ss2.data, 'base64'));
-
-  // -------------------------------------------------------------
-  // 3. Homologation Capture 3: Full 3D board with all 32 pieces
-  // -------------------------------------------------------------
-  console.log('Transitioning to 3D Match Arena...');
-  await sendCdp('Runtime.evaluate', {
-    expression: `(() => {
-      document.getElementById('hub-hero-btn-play-bot')?.click();
-    })()`,
-  });
   await sleep(1200);
+  await capture('piece_knight_closeup.png');
 
-  // Switch to 3D board view
-  await sendCdp('Runtime.evaluate', {
-    expression: `(() => {
-      const btn = document.querySelector('button[title*="Modo 3D WebGL"]') || Array.from(document.querySelectorAll('button')).find(b => b.textContent?.trim() === '3D WebGL');
-      btn?.click();
-    })()`,
-  });
-  await sleep(2500);
-
-  console.log('Capturing: 3. match_arena_3d_32_pieces.png');
-  const ss3 = await sendCdp('Page.captureScreenshot', { format: 'png' });
-  writeFileSync(`${artifactDir}\\match_arena_3d_32_pieces.png`, Buffer.from(ss3.data, 'base64'));
-
-  // -------------------------------------------------------------
-  // 4. Homologation Capture 4: In-progress game with movement
-  // -------------------------------------------------------------
-  console.log('Executing move 1. Nf3 and selecting Pawn e2...');
-  // Select Knight at 6,0 (g1)
-  await sendCdp('Runtime.evaluate', {
-    expression: `window.__CHESS_3D__?.simulateSquareClick('6,0')`,
-  });
-  await sleep(1000);
-
-  // Move Knight to 5,2 (f3)
-  await sendCdp('Runtime.evaluate', {
-    expression: `window.__CHESS_3D__?.simulateSquareClick('5,2')`,
-  });
-  await sleep(2000);
-
-  // Select Pawn at 4,1 (e2) to show legal moves and amber selection halo
-  await sendCdp('Runtime.evaluate', {
-    expression: `window.__CHESS_3D__?.simulateSquareClick('4,1')`,
-  });
-  await sleep(1500);
-
-  console.log('Capturing: 4. match_arena_3d_move_in_progress.png');
-  const ss4 = await sendCdp('Page.captureScreenshot', { format: 'png' });
-  writeFileSync(`${artifactDir}\\match_arena_3d_move_in_progress.png`, Buffer.from(ss4.data, 'base64'));
-
-  // -------------------------------------------------------------
-  // 5. Homologation Capture 5: Procedural Fallback vs PBR Premium
-  // -------------------------------------------------------------
-  console.log('Navigating back to Hub for comparison inspection...');
-  await sendCdp('Runtime.evaluate', {
-    expression: `(() => {
-      window.location.hash = '#hub';
-    })()`,
-  });
-  await sleep(1500);
   await sendCdp('Runtime.evaluate', {
     expression: `(() => {
       const sel = document.getElementById('showcase-select-view-mode');
@@ -207,45 +176,142 @@ try {
       document.getElementById('showcase-btn-finish-brass')?.click();
     })()`,
   });
-  await sleep(2000);
-
-  console.log('Capturing: 5. piece_comparison_procedural_vs_pbr.png');
-  const ss5 = await sendCdp('Page.captureScreenshot', { format: 'png' });
-  writeFileSync(`${artifactDir}\\piece_comparison_procedural_vs_pbr.png`, Buffer.from(ss5.data, 'base64'));
+  await sleep(1500);
+  await capture('piece_comparison_procedural_vs_pbr.png');
 
   // -------------------------------------------------------------
-  // 6. Homologation Capture 6: Mobile (390px) Viewport
+  // 5. Arena 2D Desktop 1440px
   // -------------------------------------------------------------
-  console.log('Testing Mobile 390px Viewport in Match Arena...');
+  console.log('Capturing: Arena 2D Desktop 1440px...');
   await sendCdp('Runtime.evaluate', {
     expression: `(() => {
-      document.getElementById('hub-hero-btn-play-bot')?.click();
+      window.__CHESS_APP__?.launchMinigame('STANDARD');
     })()`,
   });
   await sleep(1200);
-
+  // Ensure 2D mode
   await sendCdp('Runtime.evaluate', {
     expression: `(() => {
-      const btn = document.querySelector('button[title*="Modo 3D WebGL"]') || Array.from(document.querySelectorAll('button')).find(b => b.textContent?.trim() === '3D WebGL');
-      btn?.click();
+      const badge = document.querySelector('.nav-view-mode-badge');
+      if (badge && badge.textContent?.trim() === '3D') {
+        document.getElementById('nav-quick-view-mode-toggle')?.click();
+      }
     })()`,
   });
-  await sleep(1500);
+  await sleep(1000);
+  await capture('arena_2d_desktop_1440.png');
 
-  await sendCdp('Emulation.setDeviceMetricsOverride', {
-    width: 390,
-    height: 844,
-    deviceScaleFactor: 2,
-    mobile: true,
+  // -------------------------------------------------------------
+  // 6. Arena 3D Desktop 1440px (32 Pieces)
+  // -------------------------------------------------------------
+  console.log('Capturing: Arena 3D Desktop 1440px...');
+  await sendCdp('Runtime.evaluate', {
+    expression: `(() => {
+      const badge = document.querySelector('.nav-view-mode-badge');
+      if (badge && badge.textContent?.trim() === '2D') {
+        document.getElementById('nav-quick-view-mode-toggle')?.click();
+      }
+    })()`,
   });
-  await sleep(2000);
+  await sleep(2500);
+  await capture('arena_3d_desktop_1440.png');
+  await capture('match_arena_3d_32_pieces.png');
 
-  console.log('Capturing: 6. mobile_and_desktop_3d_viewports.png');
-  const ss6 = await sendCdp('Page.captureScreenshot', { format: 'png' });
-  writeFileSync(`${artifactDir}\\mobile_and_desktop_3d_viewports.png`, Buffer.from(ss6.data, 'base64'));
+  // -------------------------------------------------------------
+  // 7. Arena 3D Move in Progress
+  // -------------------------------------------------------------
+  console.log('Capturing: Arena 3D Move in Progress...');
+  // Move 1. Nf3 (6,0 -> 5,2)
+  await sendCdp('Runtime.evaluate', {
+    expression: `window.__CHESS_3D__?.simulateSquareClick('6,0')`,
+  });
+  await sleep(800);
+  await sendCdp('Runtime.evaluate', {
+    expression: `window.__CHESS_3D__?.simulateSquareClick('5,2')`,
+  });
+  await sleep(1500);
+  // Select Pawn at e2 (4,1)
+  await sendCdp('Runtime.evaluate', {
+    expression: `window.__CHESS_3D__?.simulateSquareClick('4,1')`,
+  });
+  await sleep(1000);
+  await capture('match_arena_3d_move_in_progress.png');
+
+  // -------------------------------------------------------------
+  // 8. Arena 3D Mobile 390px
+  // -------------------------------------------------------------
+  console.log('Capturing: Arena 3D Mobile 390px...');
+  await setVp(390, 844, true);
+  await sleep(1500);
+  await capture('arena_3d_mobile_390.png');
+  await capture('mobile_and_desktop_3d_viewports.png');
+
+  // Return to Desktop for variants
+  await setVp(1440, 900, false);
+  await sleep(500);
+
+  // -------------------------------------------------------------
+  // 9. Variant: Spell Chess
+  // -------------------------------------------------------------
+  console.log('Capturing: Variant Spell Chess...');
+  await sendCdp('Runtime.evaluate', {
+    expression: `window.__CHESS_APP__?.launchMinigame('SPELL_CHESS_OFFICIAL');`,
+  });
+  await sleep(1500);
+  await capture('variant_spell_chess.png');
+
+  // -------------------------------------------------------------
+  // 10. Variant: Duck Chess
+  // -------------------------------------------------------------
+  console.log('Capturing: Variant Duck Chess...');
+  await sendCdp('Runtime.evaluate', {
+    expression: `window.__CHESS_APP__?.launchMinigame('DUCK_CHESS');`,
+  });
+  await sleep(1500);
+  await capture('variant_duck_chess.png');
+
+  // -------------------------------------------------------------
+  // 11. Variant: Bughouse
+  // -------------------------------------------------------------
+  console.log('Capturing: Variant Bughouse...');
+  await sendCdp('Runtime.evaluate', {
+    expression: `window.__CHESS_APP__?.navigateTo('BUGHOUSE');`,
+  });
+  await sleep(1500);
+  await capture('variant_bughouse.png');
+
+  // -------------------------------------------------------------
+  // 12. Variant: Puzzle Rush
+  // -------------------------------------------------------------
+  console.log('Capturing: Variant Puzzle Rush...');
+  await sendCdp('Runtime.evaluate', {
+    expression: `window.__CHESS_APP__?.navigateTo('PUZZLE_RUSH');`,
+  });
+  await sleep(1500);
+  await capture('variant_puzzle_rush.png');
+
+  // -------------------------------------------------------------
+  // 13. Variant: Cubic 3D
+  // -------------------------------------------------------------
+  console.log('Capturing: Variant Cubic 3D...');
+  await sendCdp('Runtime.evaluate', {
+    expression: `window.__CHESS_APP__?.launchMinigame('CUBIC_CHESS');`,
+  });
+  await sleep(1500);
+  await capture('variant_cubic_3d.png');
+
+  // -------------------------------------------------------------
+  // 14. Variant: Toroidal 3D
+  // -------------------------------------------------------------
+  console.log('Capturing: Variant Toroidal 3D...');
+  await sendCdp('Runtime.evaluate', {
+    expression: `window.__CHESS_APP__?.launchMinigame('TOROIDAL_CHESS');`,
+  });
+  await sleep(1500);
+  await capture('variant_toroidal_3d.png');
 
   ws.close();
-  console.log('All 6 homologation captures successfully saved.');
+  console.log('ALL HOMOLOGATION EVIDENCE CAPTURES COMPLETED SUCCESSFULLY.');
 } finally {
   chromeProc.kill('SIGTERM');
   await viteServer.close();

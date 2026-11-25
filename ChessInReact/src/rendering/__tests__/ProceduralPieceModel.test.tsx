@@ -1,9 +1,28 @@
 // @vitest-environment jsdom
 import { render } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { ProceduralPieceModel } from '../mesh/ProceduralPieceModel';
 
 describe('ProceduralPieceModel Suite (Spec 07 § 4, § 5, RF-01, RF-07, Spec 13)', () => {
+  const originalError = console.error;
+  beforeAll(() => {
+    console.error = (...args: unknown[]) => {
+      if (
+        typeof args[0] === 'string' &&
+        (args[0].includes('is unrecognized in this browser') ||
+          args[0].includes('is using incorrect casing') ||
+          args[0].includes('does not recognize the'))
+      ) {
+        return;
+      }
+      originalError(...args);
+    };
+  });
+
+  afterAll(() => {
+    console.error = originalError;
+  });
+
   it('renders standard tournament pieces with universal pedestal', () => {
     const pieces = ['PAWN', 'ROOK', 'KNIGHT', 'BISHOP', 'QUEEN', 'KING'];
 

@@ -131,7 +131,7 @@ function Chess3DInstrumentation({
     return () => {
       delete (window as unknown as { __CHESS_3D__?: unknown }).__CHESS_3D__;
     };
-  }, [boardSize, isFlipped, camera, gl, size]);
+  }, [boardSize, isFlipped, camera, gl, size, onSquareClick]);
 
   return null;
 }
@@ -629,8 +629,9 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
       id="chess-board-3d-container"
       data-testid="chess-board-3d-container"
       style={{
-        width: 'min(75vw, 520px)',
-        height: 'min(75vw, 520px)',
+        width: '100%',
+        maxWidth: 'min(calc(100vh - 170px), 720px)',
+        aspectRatio: '1 / 1',
         position: 'relative',
         borderRadius: 'var(--radius-lg)',
         overflow: 'hidden',
@@ -868,6 +869,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
 
       {/* Interactive 3D HUD Badge & Safe 2D Fallback Button (Priority 3 & 8) */}
       <div
+        data-testid="badge-board-3d"
         style={{
           position: 'absolute',
           bottom: '0.65rem',
@@ -888,7 +890,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
         }}
       >
         <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-        <span>SPEC 07 WebGL 3D</span>
+        <span>3D WebGL</span>
         {onFallbackTo2D && (
           <button
             type="button"

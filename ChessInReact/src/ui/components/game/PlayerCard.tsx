@@ -222,6 +222,7 @@ export const PlayerCard: React.FC<IPlayerCardProps> = ({
         {/* Match Mode & Time Control Badges (Spec 06 RF-09 & Spec 16 § 4) */}
         {(timeControlLabel || isRanked !== undefined) && (
           <div
+            className="player-card-badges-column"
             data-testid={`match-mode-badges-${playerId}`}
             style={{
               display: 'flex',

@@ -23,6 +23,7 @@ export const EvaluationBar: React.FC<IEvaluationBarProps> = ({
 
   return (
     <div
+      className="evaluation-bar-root"
       data-testid="evaluation-bar"
       style={{
         display: 'flex',
@@ -36,6 +37,7 @@ export const EvaluationBar: React.FC<IEvaluationBarProps> = ({
     >
       {/* Vertical Gauge Track */}
       <div
+        className="evaluation-bar-track"
         style={{
           width: '18px',
           flex: 1,
@@ -81,6 +83,7 @@ export const EvaluationBar: React.FC<IEvaluationBarProps> = ({
       {/* Numeric Readout Badge */}
       <span
         id="bot-eval-badge"
+        className="evaluation-bar-badge"
         style={{
           fontSize: '0.62rem',
           fontFamily: 'var(--font-mono)',
