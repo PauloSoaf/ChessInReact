@@ -6,6 +6,9 @@ export interface IHoverPreviewInfo {
     | 'DROP'
     | 'PORTAL'
     | 'TRAP'
+    | 'INVISIBILITY'
+    | 'SHIELD'
+    | 'RESURRECTION'
     | 'ATOMIC_EPICENTER'
     | 'ATOMIC_BLAST'
     | 'ATOMIC_IMMUNE';

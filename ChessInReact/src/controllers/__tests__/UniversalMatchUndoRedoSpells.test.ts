@@ -121,4 +121,66 @@ describe('Spec 12 & Spec 01 - Spell Chess and Minigame Lossless Undo/Redo & Stat
     expect(controller.canUndo()).toBe(true);
     expect(controller.canRedo()).toBe(false);
   });
+
+  it('executes expanded Spell Chess 3x3 Freeze, enforces single spell limit, and undoes cleanly', () => {
+    const config = MatchConfigurationManager.createDefaultMatch('SPELL_CHESS_EXPANDED', 2);
+    const controller = new UniversalMatchController(config);
+    controller.startMatch(config);
+
+    const initialSnap = controller.getSnapshot();
+    expect(initialSnap.expandedSpellState?.whiteMana).toBe(2);
+    expect(initialSnap.frozenCoordinates.length).toBe(0);
+    expect(initialSnap.hasCastSpellThisTurn).toBe(false);
+
+    const freezeCard = {
+      id: 'spell_freeze',
+      type: 'FREEZE' as const,
+      displayName: 'Congelamento',
+      manaCost: 2,
+      iconSvg: 'snowflake',
+      description: 'Congela 3x3',
+      durationTurns: 1,
+    };
+
+    // Cast FREEZE centered at d4 (3,3) -> freezes 3x3 area (9 squares: 2,2 to 4,4)
+    const castOk = controller.castExpandedSpell(freezeCard, '3,3');
+    expect(castOk).toBe(true);
+
+    const afterCastSnap = controller.getSnapshot();
+    expect(afterCastSnap.expandedSpellState?.whiteMana).toBe(0);
+    // 3x3 area centered on 3,3 contains 9 squares
+    expect(afterCastSnap.frozenCoordinates.length).toBe(9);
+    expect(afterCastSnap.hasCastSpellThisTurn).toBe(true);
+
+    // Attempting a second spell in the same turn must be rejected!
+    const jumpCard = {
+      id: 'spell_jump',
+      type: 'JUMP' as const,
+      displayName: 'Salto',
+      manaCost: 1,
+      iconSvg: 'wind',
+      description: 'Salto',
+      durationTurns: 1,
+    };
+    const secondCast = controller.castExpandedSpell(jumpCard, '4,1');
+    expect(secondCast).toBe(false);
+
+    // Undo spell
+    const undone = controller.undo();
+    expect(undone).toBe(true);
+
+    const afterUndoSnap = controller.getSnapshot();
+    expect(afterUndoSnap.expandedSpellState?.whiteMana).toBe(2);
+    expect(afterUndoSnap.frozenCoordinates.length).toBe(0);
+    expect(afterUndoSnap.hasCastSpellThisTurn).toBe(false);
+
+    // Redo spell
+    const redone = controller.redo();
+    expect(redone).toBe(true);
+
+    const afterRedoSnap = controller.getSnapshot();
+    expect(afterRedoSnap.expandedSpellState?.whiteMana).toBe(0);
+    expect(afterRedoSnap.frozenCoordinates.length).toBe(9);
+    expect(afterRedoSnap.hasCastSpellThisTurn).toBe(true);
+  });
 });

@@ -168,6 +168,7 @@ describe('Spec 12 - SpellCardHand Component (UI/UX)', () => {
 
     expect(screen.getByRole('region', { name: /Mão de Feitiços/i })).toBeDefined();
     expect(screen.getByText('2 / 6')).toBeDefined();
+    expect(screen.getByText(/Oponente \(Pretas\): 2\/6 Mana/i)).toBeDefined();
 
     // FREEZE is affordable (cost 2)
     const freezeButton = screen.getByLabelText(/Congelamento.*Custo: 2 Mana/i);
@@ -183,5 +184,54 @@ describe('Spec 12 - SpellCardHand Component (UI/UX)', () => {
     const portalButton = screen.getByLabelText(/Portal Dimensional.*Custo: 4 Mana/i);
     expect(portalButton).toBeDefined();
     expect((portalButton as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('supports keyboard shortcuts 1 to 7 for casting and Escape for canceling', () => {
+    const state = SpellChessEngine.createInitialState();
+    const handleSelect = vi.fn();
+    const handleCancel = vi.fn();
+
+    render(
+      <SpellCardHand
+        state={state}
+        activePlayer="WHITE"
+        onSelectSpell={handleSelect}
+        onCancelSpell={handleCancel}
+        selectedSpellType="FREEZE"
+      />
+    );
+
+    // Press '2' (JUMP, cost 1 -> affordable)
+    fireEvent.keyDown(window, { key: '2' });
+    expect(handleSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'JUMP' })
+    );
+
+    // Press Escape to cancel
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(handleCancel).toHaveBeenCalled();
+  });
+
+  it('disables all cards and displays warning badge when hasCastSpellThisTurn is true', () => {
+    const state = SpellChessEngine.createInitialState();
+    const handleSelect = vi.fn();
+
+    render(
+      <SpellCardHand
+        state={state}
+        activePlayer="WHITE"
+        onSelectSpell={handleSelect}
+        hasCastSpellThisTurn={true}
+      />
+    );
+
+    expect(screen.getByTestId('spell-already-cast-badge')).toBeDefined();
+    expect(screen.getByText(/Feitiço lançado nesta rodada/i)).toBeDefined();
+
+    const freezeButton = screen.getByTestId('spell-card-freeze') as HTMLButtonElement;
+    expect(freezeButton.disabled).toBe(true);
+
+    fireEvent.click(freezeButton);
+    expect(handleSelect).not.toHaveBeenCalled();
   });
 });

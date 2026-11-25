@@ -773,7 +773,7 @@ const BoardSquare: React.FC<IBoardSquareProps> = ({
           )}
           {hoverPreview.type === 'DROP' && hoverPreview.isValid && (
             <span style={{ fontSize: '1.4rem', opacity: 0.85, filter: 'drop-shadow(0 0 6px #4ade80)' }}>
-              {hoverPreview.symbol ?? '♟'}
+              {hoverPreview.symbol ?? 'P'}
             </span>
           )}
           {hoverPreview.type === 'PORTAL' && hoverPreview.isValid && (
@@ -781,6 +781,15 @@ const BoardSquare: React.FC<IBoardSquareProps> = ({
           )}
           {hoverPreview.type === 'TRAP' && hoverPreview.isValid && (
             <IconTrap size={20} color="#fbbf24" style={{ filter: 'drop-shadow(0 0 6px #fbbf24)' }} />
+          )}
+          {hoverPreview.type === 'SHIELD' && hoverPreview.isValid && (
+            <IconShield size={22} color="#38bdf8" style={{ filter: 'drop-shadow(0 0 6px #38bdf8)' }} />
+          )}
+          {hoverPreview.type === 'INVISIBILITY' && hoverPreview.isValid && (
+            <IconShield size={22} color="#8b5cf6" style={{ filter: 'drop-shadow(0 0 6px #8b5cf6)', opacity: 0.7 }} />
+          )}
+          {hoverPreview.type === 'RESURRECTION' && hoverPreview.isValid && (
+            <IconCrown size={22} color="#f59e0b" style={{ filter: 'drop-shadow(0 0 6px #f59e0b)' }} />
           )}
         </div>
       )}

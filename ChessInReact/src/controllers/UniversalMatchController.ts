@@ -430,6 +430,7 @@ export class UniversalMatchController {
         turnCycleState: this.turnCycleState ? JSON.parse(JSON.stringify(this.turnCycleState)) : null,
         lastMoveSummaryStr: this.lastMoveSummaryStr,
         actionType: prev.actionType,
+        hasCastSpellThisTurn: this.hasCastSpellThisTurn,
         clocksSnapshot: this.clockManager.captureSnapshot(),
         moveHistoryCount: this.moveHistory.length,
       };
@@ -486,6 +487,7 @@ export class UniversalMatchController {
         turnCycleState: this.turnCycleState ? JSON.parse(JSON.stringify(this.turnCycleState)) : null,
         lastMoveSummaryStr: this.lastMoveSummaryStr,
         actionType: next.actionType,
+        hasCastSpellThisTurn: this.hasCastSpellThisTurn,
         clocksSnapshot: this.clockManager.captureSnapshot(),
         moveHistoryCount: this.moveHistory.length,
       };
@@ -1716,6 +1718,7 @@ export class UniversalMatchController {
     sourceCoord?: string
   ): boolean {
     if (!this.expandedSpellState) return false;
+    if (this.hasCastSpellThisTurn) return false;
 
     const domain = gameStore.getState().domain;
     const player = domain.activePlayer === 'P1' ? 'WHITE' : 'BLACK';
@@ -1725,7 +1728,18 @@ export class UniversalMatchController {
     try {
       let nextState = this.expandedSpellState;
       if (spell.type === 'FREEZE') {
-        nextState = SpellChessEngine.castFreeze(nextState, player, targetCoord);
+        const [cf, cr] = normTarget.split(',').map(Number);
+        const freezeCoords: string[] = [];
+        for (let df = -1; df <= 1; df++) {
+          for (let dr = -1; dr <= 1; dr++) {
+            const f = cf + df;
+            const r = cr + dr;
+            if (f >= 0 && f < 8 && r >= 0 && r < 8) {
+              freezeCoords.push(`${f},${r}`);
+            }
+          }
+        }
+        nextState = SpellChessEngine.castFreeze(nextState, player, freezeCoords);
       } else if (spell.type === 'JUMP') {
         const entityId =
           domain.occupancy[asCoordinateKey(normTarget)] ??
@@ -1734,13 +1748,16 @@ export class UniversalMatchController {
         if (!entityId) return false;
         nextState = SpellChessEngine.castJump(nextState, player, entityId);
       } else if (spell.type === 'STEALTH_TRAP') {
-        nextState = SpellChessEngine.castStealthTrap(nextState, player, targetCoord);
+        if (domain.occupancy[asCoordinateKey(normTarget)]) return false;
+        nextState = SpellChessEngine.castStealthTrap(nextState, player, normTarget);
       } else if (spell.type === 'INVISIBILITY') {
         const entityId =
           domain.occupancy[asCoordinateKey(normTarget)] ??
           domain.occupancy[asCoordinateKey(targetCoord)] ??
           '';
         if (!entityId) return false;
+        const piece = domain.boardEntities[entityId] as IPieceEntity | undefined;
+        if (!piece || piece.ownerId !== domain.activePlayer) return false;
         nextState = SpellChessEngine.castInvisibility(nextState, player, entityId);
       } else if (spell.type === 'MIRROR_SHIELD') {
         const entityId =
@@ -1748,26 +1765,41 @@ export class UniversalMatchController {
           domain.occupancy[asCoordinateKey(targetCoord)] ??
           '';
         if (!entityId) return false;
+        const piece = domain.boardEntities[entityId] as IPieceEntity | undefined;
+        if (!piece || piece.ownerId !== domain.activePlayer) return false;
         nextState = SpellChessEngine.castMirrorShield(nextState, player, entityId);
       } else if (spell.type === 'PORTAL') {
-        const firstCoord = sourceCoord ?? '';
-        const destinationCoord = targetCoord;
+        const firstCoord = normSource ?? '';
+        const destinationCoord = normTarget;
         if (!firstCoord || !destinationCoord || firstCoord === destinationCoord) {
           return false;
         }
         if (
-          domain.occupancy[asCoordinateKey(normSource ?? firstCoord)] ||
-          domain.occupancy[asCoordinateKey(normTarget)]
+          domain.occupancy[asCoordinateKey(firstCoord)] ||
+          domain.occupancy[asCoordinateKey(destinationCoord)]
         ) {
           return false;
         }
         nextState = SpellChessEngine.castPortal(nextState, player, firstCoord, destinationCoord);
       } else if (spell.type === 'RESURRECTION') {
+        const capturedFriendly = Object.values(domain.boardEntities).find(
+          (e): e is IPieceEntity =>
+            e.type === 'PIECE' &&
+            e.isCaptured &&
+            e.ownerId === domain.activePlayer &&
+            e.variantId.toUpperCase() !== 'KING'
+        );
+        if (!capturedFriendly) return false;
         nextState = SpellChessEngine.castResurrection(nextState, player);
         const backRank = player === 'WHITE' ? 0 : 7;
-        let spawnCoord = normTarget;
-        if (domain.occupancy[asCoordinateKey(spawnCoord)]) {
-          spawnCoord = '';
+        let spawnCoord = '';
+        if (normTarget) {
+          const [, tr] = normTarget.split(',').map(Number);
+          if (tr === backRank && !domain.occupancy[asCoordinateKey(normTarget)]) {
+            spawnCoord = normTarget;
+          }
+        }
+        if (!spawnCoord) {
           for (let fx = 0; fx < 8; fx++) {
             const candidate = `${fx},${backRank}`;
             if (!domain.occupancy[asCoordinateKey(candidate)]) {
@@ -1776,50 +1808,35 @@ export class UniversalMatchController {
             }
           }
         }
-        if (spawnCoord) {
-          const capturedFriendly = Object.values(domain.boardEntities).find(
-            (e): e is IPieceEntity =>
-              e.type === 'PIECE' &&
-              e.isCaptured &&
-              e.ownerId === domain.activePlayer &&
-              e.variantId.toUpperCase() !== 'KING'
-          );
-          const revivedId = capturedFriendly?.id ?? asEntityId(`resurrected_${domain.activePlayer}_${Date.now()}`);
-          const revivedPiece: IPieceEntity = capturedFriendly
-            ? {
-                ...capturedFriendly,
-                position: asCoordinateKey(spawnCoord),
-                isCaptured: false,
-                hasMoved: true,
-              }
-            : {
-                id: revivedId,
-                type: 'PIECE',
-                ownerId: domain.activePlayer,
-                position: asCoordinateKey(spawnCoord),
-                variantId: 'KNIGHT',
-                isCaptured: false,
-                hasMoved: true,
-              };
-          gameStore.setState((s) => ({
-            domain: {
-              ...s.domain,
-              boardEntities: {
-                ...s.domain.boardEntities,
-                [revivedId]: revivedPiece,
-              },
-              occupancy: {
-                ...s.domain.occupancy,
-                [asCoordinateKey(spawnCoord)]: revivedId,
-              },
+        if (!spawnCoord) return false;
+
+        const revivedId = capturedFriendly.id;
+        const revivedPiece: IPieceEntity = {
+          ...capturedFriendly,
+          position: asCoordinateKey(spawnCoord),
+          isCaptured: false,
+          hasMoved: true,
+        };
+        gameStore.setState((s) => ({
+          domain: {
+            ...s.domain,
+            boardEntities: {
+              ...s.domain.boardEntities,
+              [revivedId]: revivedPiece,
             },
-          }));
-        }
+            occupancy: {
+              ...s.domain.occupancy,
+              [asCoordinateKey(spawnCoord)]: revivedId,
+            },
+          },
+        }));
       }
+
       this.recordHistorySnapshot('SPELL');
+      this.hasCastSpellThisTurn = true;
       this.expandedSpellState = nextState;
       this.syncVariantModifiersToDomain();
-    this.notify();
+      this.notify();
       GlobalEventBus.emit('SPELL_CAST', {
         spellType: spell.type,
         coordinate: asCoordinateKey(normTarget),

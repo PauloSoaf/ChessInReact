@@ -761,6 +761,16 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               ? '1.5px solid #06b6d4'
               : selectedSpellType === 'JUMP'
               ? '1.5px solid #a855f7'
+              : selectedSpellType === 'INVISIBILITY'
+              ? '1.5px solid #8b5cf6'
+              : selectedSpellType === 'MIRROR_SHIELD'
+              ? '1.5px solid #38bdf8'
+              : selectedSpellType === 'RESURRECTION'
+              ? '1.5px solid #f59e0b'
+              : selectedSpellType === 'PORTAL'
+              ? '1.5px solid #14b8a6'
+              : selectedSpellType === 'STEALTH_TRAP'
+              ? '1.5px solid #f43f5e'
               : duckPlacementActive
               ? '1.5px solid #eab308'
               : atomicBlastArea
@@ -782,6 +792,9 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
             {selectedDropPiece && `Drop de ${selectedDropPiece}: Clique em uma casa vazia para introduzir a peça.`}
             {selectedSpellType === 'PORTAL' && 'Portal: Clique em duas casas vazias para criar o atalho.'}
             {selectedSpellType === 'STEALTH_TRAP' && 'Mina Oculta: Clique em uma casa vazia para plantar.'}
+            {selectedSpellType === 'INVISIBILITY' && 'Invisibilidade: Clique em uma peça aliada para ocultá-la por 2 turnos.'}
+            {selectedSpellType === 'MIRROR_SHIELD' && 'Escudo Espelhado: Clique em uma peça aliada para protegê-la por 3 turnos.'}
+            {selectedSpellType === 'RESURRECTION' && 'Ressurreição: Clique em uma casa livre da sua primeira fileira para reviver uma peça.'}
             {atomicBlastArea && !selectedSpellType && !selectedDropPiece && !duckPlacementActive && 'Detonação Atômica Iminente: Capturar detonará atacante, vítima e peças vizinhas!'}
             {hasForcedCaptures && !selectedSpellType && !selectedDropPiece && !duckPlacementActive && !atomicBlastArea && 'Antichess: Captura obrigatória disponível. Mova uma das peças de combate destacadas.'}
           </span>
@@ -804,7 +817,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
                 pointerEvents: 'auto',
               }}
             >
-              ✕ Cancelar (Esc)
+              Cancelar (Esc)
             </button>
           )}
         </div>
@@ -936,6 +949,25 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               hoverPreview = {
                 type: 'TRAP',
                 isValid: isEmpty,
+              };
+            } else if (selectedSpellType === 'INVISIBILITY') {
+              const isFriendly = Boolean(pieceEntity && pieceEntity.ownerId === domain.activePlayer);
+              hoverPreview = {
+                type: 'INVISIBILITY',
+                isValid: isFriendly,
+              };
+            } else if (selectedSpellType === 'MIRROR_SHIELD') {
+              const isFriendly = Boolean(pieceEntity && pieceEntity.ownerId === domain.activePlayer);
+              hoverPreview = {
+                type: 'SHIELD',
+                isValid: isFriendly,
+              };
+            } else if (selectedSpellType === 'RESURRECTION') {
+              const backRank = domain.activePlayer === 'P1' ? 0 : 7;
+              const isBackRankEmpty = gameY === backRank && !entityId && !isVoid;
+              hoverPreview = {
+                type: 'RESURRECTION',
+                isValid: isBackRankEmpty,
               };
             }
           }

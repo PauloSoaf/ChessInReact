@@ -516,6 +516,57 @@ const AppContent: React.FC = () => {
           });
           return true;
         }
+        if (selectedExpandedSpell.type === 'PORTAL' && portalFirstSquare) {
+          if (coord === portalFirstSquare) {
+            triggerFeedback('ILLEGAL_MOVE', {
+              message: 'A segunda casa do Portal deve ser diferente da primeira!',
+            });
+            return true;
+          }
+          if (domain.occupancy[asCoordinateKey(coord)]) {
+            triggerFeedback('ILLEGAL_MOVE', {
+              message: 'O Portal só pode ser criado em uma casa desocupada!',
+            });
+            return true;
+          }
+        }
+        if (selectedExpandedSpell.type === 'STEALTH_TRAP') {
+          if (domain.occupancy[asCoordinateKey(coord)]) {
+            triggerFeedback('ILLEGAL_MOVE', {
+              message: 'A Armadilha Oculta deve ser plantada em uma casa desocupada!',
+            });
+            return true;
+          }
+        }
+        if (selectedExpandedSpell.type === 'JUMP') {
+          const occId = domain.occupancy[asCoordinateKey(coord)];
+          if (!occId) {
+            triggerFeedback('ILLEGAL_MOVE', {
+              message: 'Selecione uma peça (aliada ou adversária) para conceder o salto!',
+            });
+            return true;
+          }
+        }
+        if (selectedExpandedSpell.type === 'INVISIBILITY' || selectedExpandedSpell.type === 'MIRROR_SHIELD') {
+          const occId = domain.occupancy[asCoordinateKey(coord)];
+          const piece = occId ? (domain.boardEntities[occId] as IPieceEntity | undefined) : undefined;
+          if (!piece || piece.ownerId !== domain.activePlayer) {
+            triggerFeedback('ILLEGAL_MOVE', {
+              message: `Selecione uma peça aliada para conjurar ${selectedExpandedSpell.displayName}!`,
+            });
+            return true;
+          }
+        }
+        if (selectedExpandedSpell.type === 'RESURRECTION') {
+          const backRank = domain.activePlayer === 'P1' ? 0 : 7;
+          const [, r] = coord.split(',').map(Number);
+          if (r !== backRank || domain.occupancy[asCoordinateKey(coord)]) {
+            triggerFeedback('ILLEGAL_MOVE', {
+              message: `A Ressurreição deve ser realizada em uma casa livre da primeira fileira (${domain.activePlayer === 'P1' ? 'fileira 1' : 'fileira 8'})!`,
+            });
+            return true;
+          }
+        }
         const ok = universalMatch.castExpandedSpell(
           selectedExpandedSpell,
           coord,
@@ -538,7 +589,7 @@ const AppContent: React.FC = () => {
           return true;
         } else {
           triggerFeedback('ILLEGAL_MOVE', {
-            message: `Não foi possível conjurar ${selectedExpandedSpell.displayName} (mana insuficiente ou casa inválida).`,
+            message: `Não foi possível conjurar ${selectedExpandedSpell.displayName} (mana insuficiente ou requisito inválido).`,
           });
           return true;
         }
@@ -548,6 +599,7 @@ const AppContent: React.FC = () => {
     },
     [
       domain.occupancy,
+      domain.boardEntities,
       domain.activePlayer,
       universalMatch,
       selectedOfficialSpell,
@@ -1047,6 +1099,7 @@ const AppContent: React.FC = () => {
                       state={universalMatch.snapshot.expandedSpellState}
                       activePlayer={activePlayer === 'P1' ? 'WHITE' : 'BLACK'}
                       selectedSpellType={selectedExpandedSpell?.type ?? null}
+                      hasCastSpellThisTurn={universalMatch.snapshot.hasCastSpellThisTurn}
                       onCancelSpell={() => {
                         setSelectedExpandedSpell(null);
                         setPortalFirstSquare(null);
@@ -1064,20 +1117,54 @@ const AppContent: React.FC = () => {
                           return;
                         }
                         if (spell.type === 'RESURRECTION') {
-                          const ok = universalMatch.castExpandedSpell(spell, '4,0');
-                          setSelectedExpandedSpell(null);
-                          setPortalFirstSquare(null);
-                          if (ok) {
-                            triggerFeedback('GAME_EVENT', {
-                              message: `Feitiço ${spell.displayName} conjurado por ${spell.manaCost} mana!`,
+                          const hasCaptured = Object.values(domain.boardEntities).some(
+                            (e): e is IPieceEntity =>
+                              e.type === 'PIECE' &&
+                              e.isCaptured &&
+                              e.ownerId === domain.activePlayer &&
+                              e.variantId.toUpperCase() !== 'KING'
+                          );
+                          if (!hasCaptured) {
+                            triggerFeedback('ILLEGAL_MOVE', {
+                              message: 'Nenhuma peça amiga capturada disponível para reviver!',
                             });
+                            return;
                           }
+                          setSelectedExpandedSpell(spell);
+                          setPortalFirstSquare(null);
+                          triggerFeedback('GAME_EVENT', {
+                            message: 'Feitiço Ressurreição preparado! Clique em uma casa vazia na sua primeira fileira (ou clique em Cancelar).',
+                          });
                           return;
+                        }
+                        if (spell.type === 'JUMP') {
+                          const selectedPieceId = gameStore.getState().ui.selectedPieceId;
+                          if (selectedPieceId) {
+                            const ok = universalMatch.castExpandedSpell(spell, selectedPieceId);
+                            if (ok) {
+                              setSelectedExpandedSpell(null);
+                              triggerFeedback('GAME_EVENT', {
+                                message: 'Feitiço Salto conjurado na peça selecionada!',
+                              });
+                              return;
+                            }
+                          }
                         }
                         setSelectedExpandedSpell(spell);
                         setPortalFirstSquare(null);
                         triggerFeedback('GAME_EVENT', {
-                          message: `Feitiço ${spell.displayName} preparado! Clique na casa-alvo no tabuleiro (ou clique em Cancelar).`,
+                          message:
+                            spell.type === 'FREEZE'
+                              ? 'Feitiço Congelamento preparado! Passe o mouse no tabuleiro para ver a área 3×3 e clique na casa central (ou clique em Cancelar).'
+                              : spell.type === 'PORTAL'
+                              ? 'Feitiço Portal preparado! Clique na primeira casa vazia para o vórtice de entrada.'
+                              : spell.type === 'STEALTH_TRAP'
+                              ? 'Armadilha Oculta preparada! Clique em uma casa desocupada para plantar a mina.'
+                              : spell.type === 'INVISIBILITY'
+                              ? 'Invisibilidade preparada! Clique em uma peça aliada para ocultá-la.'
+                              : spell.type === 'MIRROR_SHIELD'
+                              ? 'Escudo Espelhado preparado! Clique em uma peça aliada para protegê-la.'
+                              : `Feitiço ${spell.displayName} preparado! Clique na casa-alvo no tabuleiro.`,
                         });
                       }}
                     />

@@ -688,6 +688,9 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
             {selectedDropPiece && `Drop de ${selectedDropPiece} (3D): Clique em uma casa vazia para inserir a peça na reserva.`}
             {selectedSpellType === 'PORTAL' && 'Portal (3D): Clique em duas casas vazias para criar o atalho.'}
             {selectedSpellType === 'STEALTH_TRAP' && 'Mina Oculta (3D): Clique em uma casa vazia para plantar.'}
+            {selectedSpellType === 'INVISIBILITY' && 'Invisibilidade (3D): Clique em uma peça aliada para ocultá-la por 2 turnos.'}
+            {selectedSpellType === 'MIRROR_SHIELD' && 'Escudo Espelhado (3D): Clique em uma peça aliada para protegê-la por 3 turnos.'}
+            {selectedSpellType === 'RESURRECTION' && 'Ressurreição (3D): Clique em uma casa livre da sua primeira fileira para reviver uma peça.'}
             {activeExplosion && !selectedSpellType && !selectedDropPiece && !duckPlacementActive && !forcedCapturePieceIds.length && !hillVictoryMoveCoords.length && 'Detonação Atômica! Área de impacto 3×3 detonada.'}
           </span>
           {onCancelAction && !duckPlacementActive && (
