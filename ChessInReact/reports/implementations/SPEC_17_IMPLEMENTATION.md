@@ -80,3 +80,4 @@ Spec 17 implements a 100% client-side, zero-cloud-cost opening exploration and r
 - Total: 20 tests passed (0 failures, 0 skipped).
 - In-memory opening database consumes $< 3.5\text{MB}$ of RAM (`RNF-17-01`).
 - Query latency $p99 < 0.6\text{ms}$ (`RNF-17-02`).
+

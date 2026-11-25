@@ -108,6 +108,15 @@ export class DuckChessPlannerStrategy implements IUniversalAIStrategy {
           if (move.pieceId.toLowerCase().includes('k') && !move.pieceId.toLowerCase().includes('kn')) {
             score += 10;
           }
+
+          // Threaten opponent king in Duck Chess (king capture is instant win!)
+          if (opponentKingCoord) {
+            const [okX, okY] = this.parseCoord(opponentKingCoord);
+            const distToEnemyKing = Math.max(Math.abs(toX - okX), Math.abs(toY - okY));
+            if (distToEnemyKing <= 2) {
+              score += (3 - distToEnemyKing) * 200;
+            }
+          }
         }
 
         if (score > bestScore) {
@@ -129,27 +138,39 @@ export class DuckChessPlannerStrategy implements IUniversalAIStrategy {
       chosenDuckSquare = centerDucks[0] ?? validDuckSquares[0] ?? 'e4';
     } else {
       // Master (Level 3-5):
-      // A) Duck Shield: If friendly king is near, place duck on adjacent square toward center
-      if (friendlyKingCoord) {
-        const [fkX, fkY] = this.parseCoord(friendlyKingCoord);
-        const shieldCandidate = validDuckSquares.find((sq) => {
-          const [dx, dy] = this.parseCoord(sq);
-          return Math.abs(dx - fkX) <= 1 && Math.abs(dy - fkY) <= 1;
-        });
-        if (shieldCandidate) {
-          chosenDuckSquare = shieldCandidate;
+      // A) Proactive Ray Shielding: Scan for opponent sliders attacking friendly King and intercept the ray!
+      const rayShieldSquare = this.findRayShieldSquare(
+        request,
+        friendlyKingCoord,
+        selectedMove,
+        validDuckSquares
+      );
+      if (rayShieldSquare) {
+        chosenDuckSquare = rayShieldSquare;
+      }
+
+      // B) Offensive Duck Trapping: If opponent king is threatened or nearby, seal off escape square!
+      if (!rayShieldSquare && opponentKingCoord) {
+        const trapSquare = this.findKingTrapSquare(
+          opponentKingCoord,
+          validDuckSquares
+        );
+        if (trapSquare) {
+          chosenDuckSquare = trapSquare;
         }
       }
 
-      // B) Duck Trap: If opponent king exists, place duck adjacent to it to cut off escape
-      if (opponentKingCoord && chosenDuckSquare === 'e4') {
-        const [okX, okY] = this.parseCoord(opponentKingCoord);
-        const trapCandidate = validDuckSquares.find((sq) => {
-          const [dx, dy] = this.parseCoord(sq);
-          return Math.abs(dx - okX) <= 1 && Math.abs(dy - okY) <= 1;
-        });
-        if (trapCandidate) {
-          chosenDuckSquare = trapCandidate;
+      // C) Fallback: King proximity shield
+      if (!chosenDuckSquare || chosenDuckSquare === currentDuckCoord) {
+        if (friendlyKingCoord) {
+          const [fkX, fkY] = this.parseCoord(friendlyKingCoord);
+          const shieldCandidate = validDuckSquares.find((sq) => {
+            const [dx, dy] = this.parseCoord(sq);
+            return Math.abs(dx - fkX) <= 1 && Math.abs(dy - fkY) <= 1;
+          });
+          if (shieldCandidate) {
+            chosenDuckSquare = shieldCandidate;
+          }
         }
       }
 
@@ -189,5 +210,119 @@ export class DuckChessPlannerStrategy implements IUniversalAIStrategy {
     const file = coord.charCodeAt(0) - 97;
     const rank = parseInt(coord.slice(1), 10) - 1;
     return [isNaN(file) ? 3 : file, isNaN(rank) ? 3 : rank];
+  }
+
+  /**
+   * Scans for opponent sliding pieces attacking the friendly King and finds
+   * an intermediate square on the attack ray where the Duck can be placed to block.
+   */
+  public findRayShieldSquare(
+    request: IAIDecisionRequest,
+    friendlyKingCoord: string | null,
+    selectedMove: IAIDecisionRequest['legalMoves'][0],
+    validDuckSquares: string[]
+  ): string | null {
+    if (!friendlyKingCoord && !request.domain) return null;
+
+    const domain = request.domain;
+    const kingTarget =
+      selectedMove.pieceId.toLowerCase().includes('king') || selectedMove.from === friendlyKingCoord
+        ? selectedMove.to
+        : (friendlyKingCoord ?? '4,0');
+
+    const [kx, ky] = this.parseCoord(kingTarget);
+    const opponentPlayer = request.actingPlayer === 'P1' ? 'P2' : 'P1';
+
+    if (!domain) {
+      // Heuristic fallback: if friendly king is known, pick square directly in front
+      return validDuckSquares.find((sq) => {
+        const [dx, dy] = this.parseCoord(sq);
+        return dx === kx && Math.abs(dy - ky) === 1;
+      }) ?? null;
+    }
+
+    const simOccupancy: Record<string, string> = { ...domain.occupancy };
+    delete simOccupancy[selectedMove.from];
+    simOccupancy[selectedMove.to] = selectedMove.pieceId;
+
+    for (const entity of Object.values(domain.boardEntities)) {
+      if (
+        entity.type !== 'PIECE' ||
+        entity.isCaptured ||
+        entity.ownerId !== opponentPlayer
+      ) {
+        continue;
+      }
+
+      const [px, py] = this.parseCoord(entity.position);
+      const v = entity.variantId.toUpperCase();
+      const isQueen = v === 'QUEEN' || v === 'Q';
+      const isRook = v === 'ROOK' || v === 'R';
+      const isBishop = v === 'BISHOP' || v === 'B';
+
+      if (!isQueen && !isRook && !isBishop) continue;
+
+      const dx = kx - px;
+      const dy = ky - py;
+
+      const isOrthogonal = (dx === 0 && dy !== 0) || (dy === 0 && dx !== 0);
+      const isDiagonal = Math.abs(dx) === Math.abs(dy) && dx !== 0;
+
+      if ((isRook && !isOrthogonal) || (isBishop && !isDiagonal) || (!isOrthogonal && !isDiagonal)) {
+        continue;
+      }
+
+      const stepX = Math.sign(dx);
+      const stepY = Math.sign(dy);
+      let cx = px + stepX;
+      let cy = py + stepY;
+
+      const raySquares: [number, number][] = [];
+      let blockedBeforeDuck = false;
+
+      while (cx !== kx || cy !== ky) {
+        const sqKey = `${cx},${cy}`;
+        if (simOccupancy[sqKey]) {
+          blockedBeforeDuck = true;
+          break;
+        }
+        raySquares.push([cx, cy]);
+        cx += stepX;
+        cy += stepY;
+      }
+
+      if (!blockedBeforeDuck && raySquares.length > 0) {
+        // Attack ray is open to King! Intercept by placing Duck on this ray
+        for (const [rx, ry] of raySquares) {
+          const matchedDuckSquare = validDuckSquares.find((sq) => {
+            const [sx, sy] = this.parseCoord(sq);
+            return sx === rx && sy === ry;
+          });
+          if (matchedDuckSquare) {
+            return matchedDuckSquare;
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Finds an adjacent escape square for the opponent King where the Duck can be placed to trap it.
+   */
+  public findKingTrapSquare(
+    opponentKingCoord: string,
+    validDuckSquares: string[]
+  ): string | null {
+    const [okX, okY] = this.parseCoord(opponentKingCoord);
+
+    // Look for valid duck squares directly adjacent to opponent King (Chebyshev distance 1)
+    const trapCandidates = validDuckSquares.filter((sq) => {
+      const [dx, dy] = this.parseCoord(sq);
+      return Math.max(Math.abs(dx - okX), Math.abs(dy - okY)) === 1;
+    });
+
+    return trapCandidates[0] ?? null;
   }
 }

@@ -71,3 +71,4 @@ Spec 07 establishes the WebGL 3D rendering pipeline for `ChessInReact` using Thr
 - `PieceMeshManager.test.ts`: 7 tests passed.
 - Production bundle build successful with Three.js tree-shaking.
 - Native Chromium headless smoke tests pass with 3D canvas initialized.
+

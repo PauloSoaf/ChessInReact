@@ -93,3 +93,4 @@ Spec 18 establishes the formal competitive tournament subsystem for `ChessInReac
 - Total: 12 tests passed (0 failures, 0 skipped).
 - Pairing computation completes in $< 3.0\text{ms}$ for up to 128 players (`RNF-18-01`).
 - WCAG 2.2 AA compliant contrast and accessibility verified (`RNF-18-02`).
+

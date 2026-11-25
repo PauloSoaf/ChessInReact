@@ -112,3 +112,4 @@ These two modes are executed via separate contracts, preventing rule contaminati
 - Zero DOM/React dependencies across engine modules (`RNF-13-01`).
 - Validation latency well below $1.5\text{ms}$ (`RNF-13-02`).
 - State progression fully deterministic across all branches (`RNF-13-03`).
+

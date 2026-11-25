@@ -103,3 +103,4 @@ Spec 14 governs the architectural scaling of `ChessInReact` from traditional 2-p
 - `Spec14Arenas.test.ts`: 12 tests passed (0 failures, 0 skipped).
 - Memory footprint for 12-player arena matches remains $< 4.0\text{MB}$ (`RNF-14-01`).
 - Simultaneous turn arbitration completes in $< 2.0\text{ms}$ for up to 12 simultaneous orders (`RNF-14-02`).
+

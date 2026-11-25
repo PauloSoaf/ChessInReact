@@ -69,9 +69,16 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
     const canJump = jumpCharges > 0 && jumpCooldown === 0;
     const canFreeze = freezeCharges > 0 && freezeCooldown === 0;
 
-    // Detect current lethal Jump threats against Bot's King
+    const activeFrozenCoords = (request.specializedContext?.activeFrozenCoordinates as string[]) ?? [];
+    const isFriendlyKingFrozen = activeFrozenCoords.includes(friendlyKingCoord);
+    const isOpponentKingFrozen = activeFrozenCoords.includes(opponentKingCoord);
+    const opponentFreezeCharges = (request.specializedContext?.opponentFreezeCharges as number) ?? 0;
+    const opponentFreezeCooldown = (request.specializedContext?.opponentFreezeCooldown as number) ?? 0;
+    const opponentCanFreeze = opponentFreezeCharges > 0 && opponentFreezeCooldown === 0;
+
+    // Detect all current lethal direct and Jump threats against Bot's King
     const currentThreats = request.domain
-      ? this.detectLethalJumpThreats(request.domain, friendlyKingCoord, actingPlayer)
+      ? this.detectAllDirectKingThreats(request.domain, friendlyKingCoord, actingPlayer, activeFrozenCoords)
       : [];
 
     // Also detect direct checks (e.g. Knight, Pawn, or unblocked slider) against friendly King
@@ -83,7 +90,8 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
             entity.type === 'PIECE' &&
             !entity.isCaptured &&
             entity.ownerId === opponentPlayer &&
-            !entity.metadata?.isFrozen
+            !entity.metadata?.isFrozen &&
+            !activeFrozenCoords.includes(entity.position)
           ) {
             const testDomain: IDomainState = {
               ...request.domain,
@@ -113,6 +121,7 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
     let bestMove = moves[0];
     let bestScore = -Infinity;
     let requiredJumpAction = false;
+    let offensiveFreezeMateTarget: string | null = null;
 
     // 0. Priority 0A: Instant Victory by direct King Capture in Spell Chess
     for (const move of moves) {
@@ -160,6 +169,12 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
       for (const move of moves) {
         let score = 0;
         const isKingMove = move.pieceId.toLowerCase().includes('king') || move.from === friendlyKingCoord;
+
+        // Frozen King invariant: A frozen King cannot move!
+        if (isFriendlyKingFrozen && isKingMove) {
+          score -= 500000;
+          continue;
+        }
 
         // Material capture evaluation (prioritizing high-value target elimination)
         if (move.isCapture && request.domain) {
@@ -295,31 +310,37 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
           score += searched.evaluationCentipawns;
         }
 
-        // SIMULATE POSITION AFTER MOVE (Proactive Jump Defense & Infiltration Horizon)
+        let candidateOffensiveFreezeCoord: string | null = null;
+
+        // SIMULATE POSITION AFTER MOVE (Proactive King Defense & Offensive Freeze-Mate)
         if (request.domain && level >= 2) {
           const newKingCoord =
             move.pieceId.toLowerCase().includes('king') || move.from === friendlyKingCoord
               ? move.to
               : friendlyKingCoord;
 
-          // Check if any opponent piece can capture the king with Jump in the simulated state
           const simOccupancy: Record<string, string> = { ...request.domain.occupancy };
           delete simOccupancy[move.from];
           simOccupancy[move.to] = move.pieceId;
 
-          const threatsAfter = this.detectLethalJumpThreats(
+          // Check if any opponent piece can capture or attack friendly king in the simulated state
+          const threatsAfter = this.detectAllDirectKingThreats(
             request.domain,
             newKingCoord,
             actingPlayer,
+            activeFrozenCoords,
             simOccupancy
           );
 
           if (threatsAfter.length > 0) {
-            // CATASTROPHIC PENALTY: Move leaves King directly vulnerable to an immediate Royal Jump capture!
-            score -= 200000;
+            // CATASTROPHIC PENALTY: Move leaves King vulnerable to immediate capture or freeze-mate!
+            if (isFriendlyKingFrozen || opponentCanFreeze) {
+              score -= 250000;
+            } else {
+              score -= 200000;
+            }
           } else {
             // 1-PLY JUMP INFILTRATION DEFENSE (Level >= 3)
-            // Checks if opponent Queen/Bishop/Rook can step into an unblocked launchpad that threatens King in 1 move
             if (level >= 3) {
               const infiltrationThreats = this.detectOnePlyJumpInfiltrationThreats(
                 request.domain,
@@ -329,22 +350,63 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
               );
 
               if (infiltrationThreats.length > 0) {
-                // FATAL PENALTY: Move leaves King wide open to an opponent Queen/Bishop setup for instant Jump capture!
                 score -= 150000;
               }
             }
 
             if (currentThreats.length > 0) {
-              // HIGH DEFENSIVE BONUS: Move successfully eliminates or blocks the Jump assassination!
+              // HIGH DEFENSIVE BONUS: Move successfully eliminates or blocks the attack!
               const isCaptureThreat = currentThreats.some((t) => t.threateningCoord === move.to);
               const isKingEvasion = move.from === friendlyKingCoord;
               if (isCaptureThreat) {
-                score += 60000; // Capturing the attacking piece directly ends the threat!
+                score += 75000; // Capturing the attacking piece directly ends the threat!
               } else if (isKingEvasion) {
-                score += 40000; // Evading the King off the threat vector
+                score += 65000; // Evading the King off the threat vector
               } else {
-                score += 45000; // Interposing a 2nd piece on the ray blocks Jump!
+                score += 55000; // Interposing a piece on the ray blocks the threat!
               }
+            }
+          }
+
+          // OFFENSIVE KING FREEZE-MATE TACTIC:
+          // If the bot can freeze (or opponent King is already frozen), check if this move attacks opponent King!
+          const movingEntity = request.domain.boardEntities[move.pieceId as import('../../../core/coordinates/types').EntityId];
+          const movingVariant = movingEntity && movingEntity.type === 'PIECE' ? movingEntity.variantId : 'PAWN';
+
+          let isAttackingOpponentKing = this.doesPieceAttackSquare(
+            movingVariant,
+            move.to,
+            opponentKingCoord,
+            simOccupancy
+          );
+
+          // Also check if any existing friendly piece attacks opponentKingCoord in simulated position
+          if (!isAttackingOpponentKing) {
+            for (const entity of Object.values(request.domain.boardEntities)) {
+              if (
+                entity.type === 'PIECE' &&
+                !entity.isCaptured &&
+                entity.ownerId === actingPlayer &&
+                !entity.metadata?.isFrozen &&
+                !activeFrozenCoords.includes(entity.position)
+              ) {
+                const pos = entity.id === move.pieceId ? move.to : entity.position;
+                if (simOccupancy[pos] === entity.id && this.doesPieceAttackSquare(entity.variantId, pos, opponentKingCoord, simOccupancy)) {
+                  isAttackingOpponentKing = true;
+                  break;
+                }
+              }
+            }
+          }
+
+          if (isAttackingOpponentKing) {
+            if (canFreeze) {
+              // Bot attacks King + casts Freeze on opponent King = Guaranteed paralyzing checkmate trap!
+              score += 95000;
+              candidateOffensiveFreezeCoord = opponentKingCoord;
+            } else if (isOpponentKingFrozen) {
+              // Opponent King is already frozen and cannot evade = Lethal capture setup!
+              score += 90000;
             }
           }
         }
@@ -352,6 +414,7 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
         if (score > bestScore) {
           bestScore = score;
           bestMove = move;
+          offensiveFreezeMateTarget = candidateOffensiveFreezeCoord;
         }
       }
     }
@@ -400,8 +463,18 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
         }
       } else {
         // Official Chess.com Model (Freeze 3x3, Jump charge)
-        // DEFENSIVE FREEZE PRIORITY: If there's an active threat on Bot King, freeze the threatening piece!
-        if (canFreeze && currentThreats.length > 0) {
+        // Priority 1: Offensive King Freeze-Mate (locking opponent King under direct attack for guaranteed capture)
+        if (offensiveFreezeMateTarget && canFreeze) {
+          secondaryAction = {
+            type: 'CAST_SPELL',
+            payload: {
+              spellType: 'FREEZE',
+              targetCoord: offensiveFreezeMateTarget,
+            },
+          };
+          bestScore += 1000;
+        } else if (canFreeze && currentThreats.length > 0) {
+          // Priority 2: Defensive Emergency Freeze against King threat
           secondaryAction = {
             type: 'CAST_SPELL',
             payload: {
@@ -484,7 +557,8 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
         entity.type !== 'PIECE' ||
         entity.isCaptured ||
         entity.ownerId === kingOwner ||
-        entity.ownerId === 'NONE'
+        entity.ownerId === 'NONE' ||
+        entity.metadata?.isFrozen
       ) {
         continue;
       }
@@ -645,6 +719,10 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
     let bestCenter: string | null = null;
     let maxClusterValue = 0;
 
+    const opponentFreezeCharges = (request.specializedContext?.opponentFreezeCharges as number) ?? 0;
+    const opponentFreezeCooldown = (request.specializedContext?.opponentFreezeCooldown as number) ?? 0;
+    const opponentCanFreeze = opponentFreezeCharges > 0 && opponentFreezeCooldown === 0;
+
     for (const target of candidateTargets) {
       let clusterValue = 0;
       let hasSignificantTarget = false;
@@ -656,14 +734,148 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
           }
         }
       }
-      // Require at least 320 points (e.g. active knight/bishop/rook/queen) to justify freeze
-      if (hasSignificantTarget && clusterValue > maxClusterValue && clusterValue >= 320) {
+      // Freeze Economy & Parity: If opponent still has Freeze ready, do NOT waste Freeze on single minor pieces!
+      const minThreshold = opponentCanFreeze ? 1200 : 320;
+      if (hasSignificantTarget && clusterValue > maxClusterValue && clusterValue >= minThreshold) {
         maxClusterValue = clusterValue;
         bestCenter = `${target.x},${target.y}`;
       }
     }
 
+    if (opponentCanFreeze) {
+      // Do not waste Freeze on low-value targets when opponent has Freeze ready
+      return bestCenter;
+    }
+
     return bestCenter ?? (level < 4 ? defaultTarget : null);
+  }
+
+  /**
+   * Evaluates if a given piece on `fromCoord` attacks `targetCoord` according to standard/fairy mechanics.
+   */
+  public doesPieceAttackSquare(
+    variantId: string,
+    fromCoord: string,
+    targetCoord: string,
+    occupancy: Record<string, string>,
+    actingPlayer: PlayerId = 'P1'
+  ): boolean {
+    const [fx, fy] = this.parseCoord(fromCoord);
+    const [tx, ty] = this.parseCoord(targetCoord);
+    const dx = tx - fx;
+    const dy = ty - fy;
+
+    if (dx === 0 && dy === 0) return false;
+
+    const v = variantId.toUpperCase();
+    const isKing = v === 'KING' || v === 'K';
+    const isQueen = v === 'QUEEN' || v === 'Q';
+    const isRook = v === 'ROOK' || v === 'R';
+    const isBishop = v === 'BISHOP' || v === 'B';
+    const isKnight = v === 'KNIGHT' || v === 'N';
+    const isPawn = v === 'PAWN' || v === 'P';
+
+    if (isKing) {
+      return Math.max(Math.abs(dx), Math.abs(dy)) <= 1;
+    }
+
+    if (isKnight) {
+      return (Math.abs(dx) === 1 && Math.abs(dy) === 2) || (Math.abs(dx) === 2 && Math.abs(dy) === 1);
+    }
+
+    if (isPawn) {
+      const stepY = actingPlayer === 'P1' ? 1 : -1;
+      return (dx === 1 || dx === -1) && dy === stepY;
+    }
+
+    const isOrthogonal = (dx === 0 && dy !== 0) || (dy === 0 && dx !== 0);
+    const isDiagonal = Math.abs(dx) === Math.abs(dy) && dx !== 0;
+
+    if ((isRook && !isOrthogonal) || (isBishop && !isDiagonal) || (!isQueen && !isRook && !isBishop)) {
+      return false;
+    }
+
+    const stepX = Math.sign(dx);
+    const stepY = Math.sign(dy);
+    let cx = fx + stepX;
+    let cy = fy + stepY;
+
+    while (cx !== tx || cy !== ty) {
+      if (occupancy[`${cx},${cy}`]) {
+        return false;
+      }
+      cx += stepX;
+      cy += stepY;
+    }
+
+    return true;
+  }
+
+  /**
+   * Scans all opponent pieces to detect direct threats and Jump threats against target King.
+   * Covers Sliders (0 and 1 obstacle), Knights, and Pawns.
+   */
+  public detectAllDirectKingThreats(
+    domain: IDomainState,
+    kingCoord: string,
+    kingOwner: PlayerId,
+    activeFrozenCoords: string[] = [],
+    customOccupancy?: Record<string, string>
+  ): ILethalJumpThreat[] {
+    const threats = this.detectLethalJumpThreats(domain, kingCoord, kingOwner, customOccupancy);
+    const [kx, ky] = this.parseCoord(kingCoord);
+    const opponentOwner = kingOwner === 'P1' ? 'P2' : 'P1';
+
+    for (const entity of Object.values(domain.boardEntities)) {
+      if (
+        entity.type !== 'PIECE' ||
+        entity.isCaptured ||
+        entity.ownerId !== opponentOwner ||
+        entity.metadata?.isFrozen ||
+        activeFrozenCoords.includes(entity.position)
+      ) {
+        continue;
+      }
+
+      const [px, py] = this.parseCoord(entity.position);
+      const squareKey = `${px},${py}`;
+      if (customOccupancy && customOccupancy[squareKey] !== entity.id) {
+        continue;
+      }
+
+      const v = entity.variantId.toUpperCase();
+      const isKnight = v === 'KNIGHT' || v === 'N';
+      const isPawn = v === 'PAWN' || v === 'P';
+
+      if (isKnight) {
+        const dx = Math.abs(px - kx);
+        const dy = Math.abs(py - ky);
+        if ((dx === 1 && dy === 2) || (dx === 2 && dy === 1)) {
+          if (!threats.some((t) => t.threateningPieceId === entity.id)) {
+            threats.push({
+              threateningPieceId: entity.id,
+              threateningCoord: squareKey,
+              threateningVariant: v,
+              intermediateCoord: squareKey,
+            });
+          }
+        }
+      } else if (isPawn) {
+        const stepY = opponentOwner === 'P1' ? 1 : -1;
+        if ((kx === px - 1 || kx === px + 1) && ky === py + stepY) {
+          if (!threats.some((t) => t.threateningPieceId === entity.id)) {
+            threats.push({
+              threateningPieceId: entity.id,
+              threateningCoord: squareKey,
+              threateningVariant: v,
+              intermediateCoord: squareKey,
+            });
+          }
+        }
+      }
+    }
+
+    return threats;
   }
 
   /**

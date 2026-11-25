@@ -104,6 +104,8 @@ export class VariantSpecializedStrategy implements IUniversalAIStrategy {
     // Approximate opponent king coordinate if present in specialized context
     const opponentKingCoord = (request.specializedContext?.opponentKingCoord as string) ?? null;
     const friendlyKingCoord = (request.specializedContext?.friendlyKingCoord as string) ?? null;
+    const domain = request.domain;
+    const opponentPlayer = request.actingPlayer === 'P1' ? 'P2' : 'P1';
 
     for (const move of moves) {
       let score = 0;
@@ -120,24 +122,67 @@ export class VariantSpecializedStrategy implements IUniversalAIStrategy {
 
       const [toX, toY] = this.parseCoord(move.to);
 
-      // Level 2 & 3: Atomic King Detonation Detection
+      // Level 2 & 3: Atomic King Detonation Detection (INSTANT WIN)
       if (opponentKingCoord) {
         const [opKx, opKy] = this.parseCoord(opponentKingCoord);
         const distToEnemyKing = Math.max(Math.abs(toX - opKx), Math.abs(toY - opKy));
 
-        // If capture occurs adjacent to enemy king (Chebyshev distance <= 1), it's INSTANT WIN!
+        // In Atomic Chess, capturing ANY piece adjacent to enemy king (Chebyshev distance <= 1) detonates the king!
         if (move.isCapture && distToEnemyKing <= 1) {
           return { bestMove: move, bestScore: 100000 };
         }
       }
 
-      // Anti-suicide check: never blow up our own king!
+      // Anti-suicide check: never detonate our own king!
       if (friendlyKingCoord && move.isCapture) {
         const [myKx, myKy] = this.parseCoord(friendlyKingCoord);
         const distToFriendlyKing = Math.max(Math.abs(toX - myKx), Math.abs(toY - myKy));
         if (distToFriendlyKing <= 1) {
-          // Self-detonation suicide: huge penalty!
-          score -= 50000;
+          // Self-detonation suicide: fatal penalty!
+          score -= 100000;
+        }
+      }
+
+      // Defensive Ticking Bomb Hazard (Level >= 2):
+      // Leaving a friendly piece adjacent to our King that can be captured by opponent detonates our King!
+      if (friendlyKingCoord && domain) {
+        const isKingMove = move.pieceId.toLowerCase().includes('k') && !move.pieceId.toLowerCase().includes('kn');
+        const newKingCoord = isKingMove ? move.to : friendlyKingCoord;
+        const [nkX, nkY] = this.parseCoord(newKingCoord);
+
+        // Count friendly pieces adjacent to new king position
+        let adjacentFriendlyPieces = 0;
+        for (const entity of Object.values(domain.boardEntities)) {
+          if (
+            entity.type === 'PIECE' &&
+            !entity.isCaptured &&
+            entity.ownerId === request.actingPlayer &&
+            entity.id !== move.pieceId &&
+            entity.position !== move.to
+          ) {
+            const [ex, ey] = this.parseCoord(entity.position);
+            if (Math.max(Math.abs(ex - nkX), Math.abs(ey - nkY)) <= 1) {
+              adjacentFriendlyPieces++;
+            }
+          }
+        }
+
+        // Reward clearing space around friendly King so enemy cannot detonate adjacent pieces
+        if (adjacentFriendlyPieces === 0) {
+          score += 25000; // Completely safe isolated King
+        } else if (adjacentFriendlyPieces >= 4) {
+          score -= 10000; // Overcrowded King is vulnerable to collateral blast
+        }
+
+        // If move eliminates an enemy piece that was adjacent to friendly King:
+        if (move.isCapture) {
+          const [myKx, myKy] = this.parseCoord(friendlyKingCoord);
+          const [fromX, fromY] = this.parseCoord(move.from);
+          const distCaptorToKing = Math.max(Math.abs(fromX - myKx), Math.abs(fromY - myKy));
+          if (distCaptorToKing > 1) {
+            // Capturing from a safe distance outside the blast radius
+            score += 30000;
+          }
         }
       }
 
@@ -384,6 +429,7 @@ export class VariantSpecializedStrategy implements IUniversalAIStrategy {
   ): { bestMove: (typeof moves)[0]; bestScore: number } {
     let best = moves[0];
     let bestScore = -Infinity;
+    const botChecks = Number(request.specializedContext?.botChecks ?? 0);
 
     for (const m of moves) {
       let score = m.isCapture ? 250 : 20;
@@ -392,6 +438,14 @@ export class VariantSpecializedStrategy implements IUniversalAIStrategy {
         const [tx, ty] = this.parseCoord(m.to);
         const dist = Math.abs(kx - tx) + Math.abs(ky - ty);
         score += Math.max(0, 14 - dist) * 15;
+
+        if (dist <= 2) {
+          if (botChecks >= 2) {
+            // 3rd check wins the game instantly!
+            return { bestMove: m, bestScore: 100000 };
+          }
+          score += 2500;
+        }
       }
       if (level >= 3) {
         score += Math.random() * 5;

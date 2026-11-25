@@ -77,3 +77,4 @@ Spec 05 establishes the foundational AI search, evaluation, and background threa
 - `AIEngine.test.ts`: 15 tests passed (0 failures, 0 skipped).
 - Zero main thread UI blocking during deep search calculations (`RNF-05-01`).
 - Clean memory cleanup and worker termination on match reset (`RNF-05-02`).
+
