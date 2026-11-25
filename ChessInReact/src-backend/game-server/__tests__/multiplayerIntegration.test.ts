@@ -350,7 +350,11 @@ describe('Spec 03 - End-to-End Authoritative Multiplayer Integration', () => {
       asCoordinateKey('e5')
     );
 
-    await new Promise((r) => setTimeout(r, 150));
+    // Wait for server tick and delta sync
+    for (let i = 0; i < 40; i++) {
+      if (roomW.state.turnNumber === 3 && storeW.getState().domain.turnNumber === 3) break;
+      await new Promise((r) => setTimeout(r, 25));
+    }
 
     // Verify both stores updated with black move
     const stateW2 = storeW.getState().domain;

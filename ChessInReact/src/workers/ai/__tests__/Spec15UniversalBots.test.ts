@@ -150,7 +150,7 @@ describe('Spec 15: Universal Bot Intelligence & Pluggable Engines', () => {
 
   describe('RF-15-07: Puzzle Battle Bot Strategy (Calibrated Human Latency)', () => {
     it('simulates solving probability and latency scaled by bot ELO', () => {
-      const masterAttempt = PuzzleBattleBotStrategy.simulatePuzzleAttempt(2600, 1500, 'Qxf7#');
+      const masterAttempt = PuzzleBattleBotStrategy.simulatePuzzleAttempt(2600, 1500, 'Qxf7#', undefined, 0.1);
       expect(masterAttempt.isSolved).toBe(true);
       expect(masterAttempt.solutionMoveSan).toBe('Qxf7#');
       expect(masterAttempt.thinkTimeMs).toBeLessThanOrEqual(3000);
