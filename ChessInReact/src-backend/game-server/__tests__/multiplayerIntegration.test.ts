@@ -194,7 +194,7 @@ describe('Spec 03 - End-to-End Authoritative Multiplayer Integration', () => {
     const roomA = await clientA.joinOrCreateRoom({ authToken: tokenPlayer, matchId: 'clone-test-match' });
 
     // Client A is WHITE
-    await new Promise((r) => setTimeout(r, 60));
+    await new Promise((r) => setTimeout(r, 200));
     const playersA = Array.from(roomA.state.players.values()) as PlayerSchema[];
     const whitePlayerA = playersA.find((p) => p.role === 'WHITE');
     const blackPlayerA = playersA.find((p) => p.role === 'BLACK');

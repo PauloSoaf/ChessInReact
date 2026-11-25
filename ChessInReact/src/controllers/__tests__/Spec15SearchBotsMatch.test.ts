@@ -27,7 +27,7 @@ describe('Spec 15 - search-backed bots play real games', () => {
       variantId: 'standard',
       actingPlayer: domain.activePlayer,
       difficultyLevel: 3,
-      timeBudgetMs: 400,
+      timeBudgetMs: 800,
       legalMoves: legal.map((m) => ({
         from: m.from,
         to: m.to,

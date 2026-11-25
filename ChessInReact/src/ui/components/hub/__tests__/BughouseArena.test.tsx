@@ -188,3 +188,4 @@ describe('Spec 12 § 5.3, RF-10, RF-11 - BughouseArena Component', () => {
     expect(onBackToHub).toHaveBeenCalled();
   });
 });
+
