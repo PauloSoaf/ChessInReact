@@ -828,6 +828,27 @@ select:focus-visible,
    Responsive Breakpoints (1920 / 1440 / 1024 / 768 / 390 / 360)
    ========================================================================== */
 @media (max-width: 1080px) {
+  .top-nav-bar {
+    padding: 0.5rem 1rem !important;
+  }
+
+  .top-nav-inner {
+    gap: 0.5rem !important;
+  }
+
+  #nav-open-theme-customizer .nav-btn-text {
+    display: none !important;
+  }
+
+  #nav-quick-view-mode-toggle .nav-btn-text {
+    display: none !important;
+  }
+
+  #nav-quick-theme-toggle .nav-brand-subtitle,
+  .nav-brand-subtitle {
+    display: none !important;
+  }
+
   .match-arena-grid {
     grid-template-columns: 1fr;
     max-width: 640px;
@@ -870,6 +891,18 @@ select:focus-visible,
 
   .nav-brand-subtitle {
     display: none !important;
+  }
+
+  .nav-status-pill {
+    display: none !important;
+  }
+
+  .nav-view-btn .nav-btn-text {
+    display: none !important;
+  }
+
+  .top-nav-inner nav {
+    gap: 0.35rem !important;
   }
 
   #nav-quick-view-mode-toggle .nav-btn-text {

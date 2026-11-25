@@ -30,8 +30,8 @@ export const DIFFICULTY_META: readonly IDifficultyMeta[] = [
   },
   {
     level: 4,
-    name: 'Avançado',
-    desc: 'Cálculo profundo com controle posicional refinado e punição de imprecisões.',
+    name: 'Forte',
+    desc: 'Cálculo Profundo com controle posicional refinado e punição de imprecisões.',
     profile: 'Alta Pressão',
     cadence: 'Ritmo Ágil',
   },
