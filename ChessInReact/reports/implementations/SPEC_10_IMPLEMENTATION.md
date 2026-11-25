@@ -138,3 +138,4 @@ Spec 10 governs the community ecosystem, user-generated content (UGC) safety, Li
    - 3D models exceeding 2.0 MB or corrupt binary headers are rejected upfront; client runtime failure falls back to standard Staunton geometry.
 3. **Competitive Integrity Invariant:**
    - Zero Glicko-2 rating points are awarded in modded matches (`isRanked = false`).
+

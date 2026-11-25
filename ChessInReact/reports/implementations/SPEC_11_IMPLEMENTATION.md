@@ -115,3 +115,4 @@ Spec 11 establishes a zero-cloud-cost ($0/month) single-player PVE ecosystem ins
    - 100% of AI search, blunder injection, habit profiling, and learning occurs client-side in WebWorkers and IndexedDB.
 2. **Deterministic Calibrated Strength Invariant:**
    - Static ladder bots retain strictly calibrated ratings, providing dependable benchmarks for player improvement.
+
