@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: chessinreact-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ./api-gateway/Dockerfile
+    container_name: chessinreact-api-gateway
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=local_dev_secret_key_spec08
+    ports:
+      - "3000:3000"
+    depends_on:
+      - redis
+    restart: on-failure
+
+  matchmaker-worker:
+    build:
+      context: .
+      dockerfile: ./matchmaker-worker/Dockerfile
+    container_name: chessinreact-matchmaker-worker
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=local_dev_secret_key_spec08
+    depends_on:
+      - redis
+    restart: on-failure
+
+  game-server:
+    build:
+      context: .
+      dockerfile: ./game-stateful/Dockerfile
+    container_name: chessinreact-game-server
+    environment:
+      - NODE_ENV=production
+      - PORT=2567
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=local_dev_secret_key_spec08
+    ports:
+      - "2567:2567"
+    depends_on:
+      - redis
+    deploy:
+      replicas: 2
+    restart: on-failure
+
+  edge-relay:
+    build:
+      context: .
+      dockerfile: ./edge-relay/Dockerfile
+    container_name: chessinreact-edge-relay
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "4000:4000"
+    depends_on:
+      - redis
+    restart: on-failure
+

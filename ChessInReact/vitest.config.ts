@@ -19,6 +19,7 @@ export default defineConfig({
       'src/modding/**/__tests__/**/*.test.{ts,tsx}',
       'src/ai/**/__tests__/**/*.test.{ts,tsx}',
       'src-backend/**/__tests__/**/*.test.{ts,tsx}',
+      'microservices/**/__tests__/**/*.test.{ts,tsx}',
     ],
     coverage: {
       provider: 'v8',
