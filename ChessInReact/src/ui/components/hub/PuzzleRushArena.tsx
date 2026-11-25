@@ -84,6 +84,117 @@ function parseFenBoard(
   return map;
 }
 
+function computePseudoLegalMoves(
+  fromSquare: string,
+  piece: IParsedFenPiece,
+  piecesMap: ReadonlyMap<string, IParsedFenPiece>
+): Map<string, boolean> {
+  const result = new Map<string, boolean>();
+  const file = fromSquare.charCodeAt(0) - 97;
+  const rank = parseInt(fromSquare[1], 10) - 1;
+  if (file < 0 || file > 7 || rank < 0 || rank > 7) return result;
+
+  const isWhite = piece.ownerId === 'P1';
+  const variant = piece.variantId.toUpperCase();
+
+  const addIfValid = (f: number, r: number) => {
+    if (f < 0 || f > 7 || r < 0 || r > 7) return false;
+    const targetSq = `${String.fromCharCode(97 + f)}${r + 1}`;
+    const targetPiece = piecesMap.get(targetSq);
+    if (!targetPiece) {
+      result.set(targetSq, false);
+      return true; // continue ray
+    }
+    if (targetPiece.ownerId !== piece.ownerId) {
+      result.set(targetSq, true); // capture
+    }
+    return false; // hit piece, stop ray
+  };
+
+  if (variant === 'KNIGHT') {
+    const deltas = [
+      [1, 2], [2, 1], [-1, 2], [-2, 1],
+      [1, -2], [2, -1], [-1, -2], [-2, -1],
+    ];
+    for (const [df, dr] of deltas) {
+      const f = file + df;
+      const r = rank + dr;
+      if (f >= 0 && f <= 7 && r >= 0 && r <= 7) {
+        const targetSq = `${String.fromCharCode(97 + f)}${r + 1}`;
+        const targetPiece = piecesMap.get(targetSq);
+        if (!targetPiece) {
+          result.set(targetSq, false);
+        } else if (targetPiece.ownerId !== piece.ownerId) {
+          result.set(targetSq, true);
+        }
+      }
+    }
+  } else if (variant === 'BISHOP' || variant === 'ROOK' || variant === 'QUEEN') {
+    const dirs: Array<[number, number]> = [];
+    if (variant === 'BISHOP' || variant === 'QUEEN') {
+      dirs.push([1, 1], [1, -1], [-1, 1], [-1, -1]);
+    }
+    if (variant === 'ROOK' || variant === 'QUEEN') {
+      dirs.push([1, 0], [-1, 0], [0, 1], [0, -1]);
+    }
+    for (const [df, dr] of dirs) {
+      let f = file + df;
+      let r = rank + dr;
+      while (addIfValid(f, r)) {
+        f += df;
+        r += dr;
+      }
+    }
+  } else if (variant === 'KING') {
+    for (let df = -1; df <= 1; df++) {
+      for (let dr = -1; dr <= 1; dr++) {
+        if (df === 0 && dr === 0) continue;
+        const f = file + df;
+        const r = rank + dr;
+        if (f >= 0 && f <= 7 && r >= 0 && r <= 7) {
+          const targetSq = `${String.fromCharCode(97 + f)}${r + 1}`;
+          const targetPiece = piecesMap.get(targetSq);
+          if (!targetPiece) {
+            result.set(targetSq, false);
+          } else if (targetPiece.ownerId !== piece.ownerId) {
+            result.set(targetSq, true);
+          }
+        }
+      }
+    }
+  } else if (variant === 'PAWN') {
+    const dir = isWhite ? 1 : -1;
+    const startRank = isWhite ? 1 : 6;
+    const fwdR = rank + dir;
+    if (fwdR >= 0 && fwdR <= 7) {
+      const fwdSq = `${String.fromCharCode(97 + file)}${fwdR + 1}`;
+      if (!piecesMap.has(fwdSq)) {
+        result.set(fwdSq, false);
+        if (rank === startRank) {
+          const doubleR = rank + 2 * dir;
+          const doubleSq = `${String.fromCharCode(97 + file)}${doubleR + 1}`;
+          if (!piecesMap.has(doubleSq)) {
+            result.set(doubleSq, false);
+          }
+        }
+      }
+    }
+    for (const df of [-1, 1]) {
+      const f = file + df;
+      const r = rank + dir;
+      if (f >= 0 && f <= 7 && r >= 0 && r <= 7) {
+        const targetSq = `${String.fromCharCode(97 + f)}${r + 1}`;
+        const targetPiece = piecesMap.get(targetSq);
+        if (targetPiece && targetPiece.ownerId !== piece.ownerId) {
+          result.set(targetSq, true);
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
 export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
   onBackToHub,
   initialMode = 'TIMED_3MIN',
@@ -171,6 +282,23 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
     [currentPuzzle, session.currentMoveIndex]
   );
 
+  const legalDestinations = useMemo(() => {
+    if (!selectedSquare) return new Map<string, boolean>();
+    const piece = boardPiecesMap.get(selectedSquare);
+    if (!piece) return new Map<string, boolean>();
+    return computePseudoLegalMoves(selectedSquare, piece, boardPiecesMap);
+  }, [selectedSquare, boardPiecesMap]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedSquare) {
+        setSelectedSquare(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedSquare]);
+
   const handleSubmit = useCallback(
     (move: string) => {
       if (session.isGameOver || !move.trim()) return;
@@ -218,6 +346,12 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
 
       if (selectedSquare === algebraicSq) {
         setSelectedSquare(null);
+        return;
+      }
+
+      const selectedPiece = boardPiecesMap.get(selectedSquare);
+      if (pieceAtSq && selectedPiece && pieceAtSq.ownerId === selectedPiece.ownerId) {
+        setSelectedSquare(algebraicSq);
         return;
       }
 
@@ -502,6 +636,7 @@ export const PuzzleRushArena: React.FC<IPuzzleRushArenaProps> = ({
           <GameBoardView
             pieces={boardPiecesMap}
             selectedSquare={selectedSquare}
+            legalDestinations={legalDestinations}
             onSquareClick={handleBoardSquareClick}
             viewMode={viewMode}
             lastMove={lastMoveObj}

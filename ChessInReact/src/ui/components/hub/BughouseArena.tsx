@@ -1,6 +1,9 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { ActionButton } from '../primitives/ActionButton';
 import { Card } from '../primitives/Card';
+import { IconPlay, IconPause } from '../../icons/AppIcons';
+import { GlobalEventBus } from '../../../core/events/EventBus';
+import { asCoordinateKey, asEntityId } from '../../../core/coordinates';
 import {
   BughouseBoardId,
   BughouseEngine,
@@ -116,19 +119,6 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
     BOARD_B: null,
   });
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (reserveType || partnerRequest || selected) {
-          setReserveType(null);
-          setPartnerRequest(null);
-          setSelected(null);
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [reserveType, partnerRequest, selected]);
   const [seatConfigs, setSeatConfigs] = useState<Record<SeatId, ISeatConfig>>({
     alice: { role: 'HUMAN_LOCAL', difficulty: 3 },
     bob: { role: 'HUMAN_LOCAL', difficulty: 3 },
@@ -137,7 +127,7 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
   });
 
   const player = match.players[activePlayer];
-  const reserve = player?.reservePieces ?? [];
+  const reserve = useMemo(() => player?.reservePieces ?? [], [player?.reservePieces]);
   const activeBoard =
     player?.boardId === 'BOARD_A'
       ? match.boardA
@@ -145,10 +135,55 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
       ? match.boardB
       : null;
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        if (reserveType || partnerRequest || selected) {
+          setReserveType(null);
+          setPartnerRequest(null);
+          setSelected(null);
+        }
+        return;
+      }
+
+      const numKey = parseInt(e.key, 10);
+      if (numKey >= 1 && numKey <= reserve.length) {
+        const type = reserve[numKey - 1];
+        if (type) {
+          setReserveType((curr) => (curr === type ? null : type));
+          setSelected(null);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [reserveType, partnerRequest, selected, reserve]);
+
   // Compute legal destinations for currently selected piece on either board
   const computeLegalMap = useCallback(
     (board: IBughouseMatchState['boardA'], boardId: BughouseBoardId): Map<string, boolean> => {
       const map = new Map<string, boolean>();
+      if (reserveType && player && player.boardId === boardId && board.activeColor === player.color) {
+        const isPawn = reserveType.toLowerCase() === 'p';
+        for (let x = 0; x < 8; x++) {
+          for (let y = 0; y < 8; y++) {
+            if (isPawn && (y === 0 || y === 7)) continue;
+            const c = `${x},${y}`;
+            if (!board.domainState?.occupancy[c as keyof typeof board.domainState.occupancy]) {
+              map.set(c, false);
+            }
+          }
+        }
+        return map;
+      }
       if (!selected || selected.boardId !== boardId || !board.domainState) return map;
       const pieces = boardPieces(board);
       const selPiece = pieces.get(selected.coord);
@@ -159,7 +194,7 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
       }
       return map;
     },
-    [selected]
+    [selected, reserveType, player]
   );
 
   const legalMapA = useMemo(() => computeLegalMap(match.boardA, 'BOARD_A'), [computeLegalMap, match.boardA]);
@@ -239,6 +274,11 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
                 ...lm,
                 [boardId]: { from: targetCoord, to: targetCoord },
               }));
+              GlobalEventBus.emit('PIECE_DROPPED', {
+                pieceVariant: dropType.toUpperCase(),
+                coordinate: asCoordinateKey(targetCoord),
+                playerId: currBoard.activeColor === 'WHITE' ? 'P1' : 'P2',
+              });
               return BughouseEngine.executeDrop(prev, boardId, seatId, dropType, targetCoord);
             }
           }
@@ -246,6 +286,12 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
             ...lm,
             [boardId]: { from: decision.move.from, to: decision.move.to },
           }));
+          GlobalEventBus.emit('PIECE_MOVED', {
+            from: asCoordinateKey(decision.move.from),
+            to: asCoordinateKey(decision.move.to),
+            pieceId: asEntityId(decision.move.pieceId),
+            actingPlayer: currBoard.activeColor === 'WHITE' ? 'P1' : 'P2',
+          });
           return BughouseEngine.executeMove(prev, boardId, seatId, {
             from: decision.move.from,
             to: decision.move.to,
@@ -311,6 +357,11 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
           ...lm,
           [boardId]: { from: coord, to: coord },
         }));
+        GlobalEventBus.emit('PIECE_DROPPED', {
+          pieceVariant: reserveType.toUpperCase(),
+          coordinate: asCoordinateKey(coord),
+          playerId: playerColor,
+        });
         setReserveType(null);
         setSelected(null);
         setFeedback(null);
@@ -344,6 +395,12 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
         ...lm,
         [boardId]: { from: selected.coord, to: coord },
       }));
+      GlobalEventBus.emit('PIECE_MOVED', {
+        from: asCoordinateKey(selected.coord),
+        to: asCoordinateKey(coord),
+        pieceId: asEntityId(piece?.id ?? 'piece'),
+        actingPlayer: playerColor,
+      });
       setSelected(null);
       setFeedback(null);
     } catch (error) {
@@ -362,6 +419,10 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
   const handleResign = () => {
     if (!player || match.isGameOver) return;
     setMatch(BughouseEngine.resign(match, activePlayer));
+    GlobalEventBus.emit('GAME_ENDED', {
+      winnerId: player.team === 'TEAM_1' ? 'P2' : 'P1',
+      reason: 'Resignation',
+    });
     setSelected(null);
     setReserveType(null);
     setFeedback(null);
@@ -394,8 +455,21 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
           >
             Visão: {viewMode === '3D' ? '3D (Perspectiva Isométrica)' : '2D Plana'}
           </ActionButton>
-          <ActionButton variant="secondary" onClick={() => setIsPaused((p) => !p)}>
-            {isPaused ? '▶ Retomar Bots' : '⏸ Pausar Bots'}
+          <ActionButton
+            variant="secondary"
+            onClick={() => setIsPaused((p) => !p)}
+            data-testid="bughouse-pause-toggle"
+            title={isPaused ? 'Retomar execução dos bots' : 'Pausar execução dos bots'}
+          >
+            {isPaused ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                <IconPlay size={14} color="currentColor" /> Retomar Bots
+              </span>
+            ) : (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                <IconPause size={14} color="currentColor" /> Pausar Bots
+              </span>
+            )}
           </ActionButton>
           <ActionButton variant="secondary" onClick={handleRestart}>
             Reiniciar
@@ -491,8 +565,9 @@ export const BughouseArena: React.FC<{ onBackToHub: () => void }> = ({ onBackToH
             type="button"
             aria-pressed={reserveType === type}
             onClick={() => setReserveType(reserveType === type ? null : type)}
+            data-testid={`btn-drop-${type}-${index}`}
           >
-            Drop {type.toUpperCase()}
+            Drop {type.toUpperCase()} [{index + 1}]
           </button>
         ))}
         {reserveType && (

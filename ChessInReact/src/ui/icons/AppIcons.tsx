@@ -40,6 +40,15 @@ const baseSvg = (
 export const IconPlay: React.FC<IIconProps> = (p) =>
   baseSvg(p, <polygon points="5 3 19 12 5 21 5 3" fill={p.color ?? 'currentColor'} />);
 
+export const IconPause: React.FC<IIconProps> = (p) =>
+  baseSvg(
+    p,
+    <>
+      <rect x="6" y="4" width="4" height="16" fill={p.color ?? 'currentColor'} />
+      <rect x="14" y="4" width="4" height="16" fill={p.color ?? 'currentColor'} />
+    </>
+  );
+
 export const IconBot: React.FC<IIconProps> = (p) =>
   baseSvg(
     p,
