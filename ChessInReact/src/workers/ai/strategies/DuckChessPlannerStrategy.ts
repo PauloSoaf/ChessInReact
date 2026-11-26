@@ -114,7 +114,48 @@ export class DuckChessPlannerStrategy implements IUniversalAIStrategy {
             const [okX, okY] = this.parseCoord(opponentKingCoord);
             const distToEnemyKing = Math.max(Math.abs(toX - okX), Math.abs(toY - okY));
             if (distToEnemyKing <= 2) {
-              score += (3 - distToEnemyKing) * 200;
+              score += (3 - distToEnemyKing) * 500;
+            }
+          }
+
+          // King Safety Invariant for Duck Chess:
+          // In Duck Chess, check does not exist: the King can be captured!
+          // Leaping pieces (Knights) and adjacent pawns cannot be blocked by duck placement.
+          if (friendlyKingCoord && request.domain && level >= 2) {
+            const isKingMove = move.pieceId.toLowerCase().includes('k') && !move.pieceId.toLowerCase().includes('kn');
+            const targetKingPos = isKingMove ? move.to : friendlyKingCoord;
+            const simOccupancy: Record<string, string> = { ...request.domain.occupancy };
+            delete simOccupancy[move.from];
+            simOccupancy[move.to] = move.pieceId;
+
+            const opponentPlayer = request.actingPlayer === 'P1' ? 'P2' : 'P1';
+            let unshieldableThreats = 0;
+            const [tkX, tkY] = this.parseCoord(targetKingPos);
+
+            for (const entity of Object.values(request.domain.boardEntities)) {
+              if (entity.type !== 'PIECE' || entity.isCaptured || entity.ownerId !== opponentPlayer) continue;
+              const [ex, ey] = this.parseCoord(entity.position);
+              if (simOccupancy[`${ex},${ey}`] !== entity.id) continue;
+
+              const v = entity.variantId.toUpperCase();
+              if (v === 'KNIGHT' || v === 'N') {
+                const dx = Math.abs(ex - tkX);
+                const dy = Math.abs(ey - tkY);
+                if ((dx === 1 && dy === 2) || (dx === 2 && dy === 1)) {
+                  // Knights leap over obstacles - a duck CANNOT shield against a Knight!
+                  unshieldableThreats++;
+                }
+              } else if (v === 'PAWN' || v === 'P') {
+                const stepY = opponentPlayer === 'P1' ? 1 : -1;
+                if ((tkX === ex - 1 || tkX === ex + 1) && tkY === ey + stepY) {
+                  // Pawns attack adjacent squares - a duck cannot interpose!
+                  unshieldableThreats++;
+                }
+              }
+            }
+
+            if (unshieldableThreats > 0) {
+              score -= 90000; // Fatal: enemy Knight or Pawn will capture friendly King!
             }
           }
         }

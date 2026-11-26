@@ -60,10 +60,10 @@ const MINIGAMES_CATALOG = [
   {
     id: 'spell_chess_official',
     title: 'Spell Chess Oficial (Chess.com)',
-    badge: 'Freeze & Jump (2 Cargas)',
+    badge: 'Freeze (5) & Jump (2)',
     accentColor: '#06b6d4',
-    desc: 'Regras Oficiais do Chess.com: 2 cargas de Freeze (congelamento 3×3) e 2 cargas de Jump (salto de peça) por jogador, com recarga de 3 turnos.',
-    features: ['Freeze 3×3 (2 Cargas)', 'Jump sobre Peças (2 Cargas)', 'Recarga de 3 Turnos'],
+    desc: 'Regras Oficiais do Chess.com: 5 cargas de Freeze (congelamento 3×3) e 2 cargas de Jump (salto de peça) por jogador, com recarga com 2 turnos de intervalo.',
+    features: ['Freeze 3×3 (5 Cargas)', 'Jump sobre Peças (2 Cargas)', 'Recarga de 2 Turnos'],
     status: 'READY' as const,
     buttonText: 'Configurar / Jogar Spell Chess Oficial',
     disabled: false,

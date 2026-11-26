@@ -20,7 +20,7 @@ The primary objectives of Spec 12 are **fully accepted**:
   - Interactive SVG AdvantageGraph component with responsive coordinate scrubbing.
   - FIDE NAG annotation glyphs ($!, !!, ?, ??$) and PGN export.
 - **Spell Chess Canonical Rules & Ergonomics:**
-  - Official Spell Chess (Freeze 3x3, Jump, 2 charges/cooldown, crystal orbs, hotkeys `1` and `2`, `Escape` cancellation).
+  - Official Spell Chess (Freeze 3x3 [5 charges], Jump [2 charges], 2-turn cooldown, crystal orbs, hotkeys `1` and `2`, `Escape` cancellation).
   - Expanded Spell Chess (7 mana spells: Freeze 3x3, Jump, Invisibility, Portal, Stealth Trap, Resurrection, Mirror Shield, hotkeys `1`–`7`, dual coordinate indexing).
   - Single spell per turn invariant (`hasCastSpellThisTurn`) with full lossless Undo/Redo parity.
 - **Duck Chess (Paulden Rules):** Two-phase turns (`PIECE_MOVE` then mandatory `PLACE_DUCK`), path and square obstruction, king capture victory.

@@ -551,17 +551,25 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
           };
           bestScore += 400;
         } else if (canFreeze) {
-          // Tactical Freeze cluster scan: Never freeze on turn 1 or on undeveloped pieces
-          const targetCoord = this.findBestFreezeTarget(request, opponentKingCoord);
-          if (targetCoord) {
-            secondaryAction = {
-              type: 'CAST_SPELL',
-              payload: {
-                spellType: 'FREEZE',
-                targetCoord,
-              },
-            };
-            bestScore += 280;
+          // Tactical Freeze cluster scan (Conservation Principle):
+          // NEVER burn Freeze when opponent has Freeze ready, as opponent will counter-freeze Bot's King!
+          // Only cast non-lethal cluster freeze if opponent has NO Freeze or opponent Freeze is on cooldown,
+          // or in late endgame with high material advantage.
+          const isOpponentDisarmed = opponentFreezeCharges === 0 || opponentFreezeCooldown >= 2;
+          const isLateGameSafe = (request.domain?.turnNumber ?? 1) > 20 && currentThreats.length === 0;
+
+          if (isOpponentDisarmed || isLateGameSafe) {
+            const targetCoord = this.findBestFreezeTarget(request, opponentKingCoord);
+            if (targetCoord) {
+              secondaryAction = {
+                type: 'CAST_SPELL',
+                payload: {
+                  spellType: 'FREEZE',
+                  targetCoord,
+                },
+              };
+              bestScore += 280;
+            }
           }
         } else if (!request.domain && canJump) {
           // Synthetic fallback for mock tests without domain state

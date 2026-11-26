@@ -32,7 +32,7 @@ export const VariantMatchBanner: React.FC<IVariantMatchBannerProps> = ({
 
   if (normId.includes('SPELL') || normId === 'SPELL_CHESS_OFFICIAL') {
     title = 'Spell Chess (Regras Oficiais Chess.com)';
-    badge = 'Freeze & Jump (2 Cargas)';
+    badge = 'Freeze (5) & Jump (2)';
     subtitle = 'Opcionalmente lance 1 feitiço por rodada antes da sua jogada no tabuleiro.';
     accentColor = '#06b6d4';
   } else if (normId === 'SPELL_CHESS_EXPANDED') {

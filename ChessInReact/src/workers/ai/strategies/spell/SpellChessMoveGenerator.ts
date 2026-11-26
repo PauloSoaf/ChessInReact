@@ -154,9 +154,19 @@ export class SpellChessMoveGenerator {
         }
       }
 
-      // 2. Opponent King (Offensive Freeze)
+      // 2. Opponent King (Offensive Freeze & Offset Freeze-Mate Windows)
       if (opponentKingCoord) {
         candidateFreezeCenters.add(opponentKingCoord);
+        const [okx, oky] = SpellChessThreatAnalyzer.parseCoord(opponentKingCoord);
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            const cx = okx + dx;
+            const cy = oky + dy;
+            if (cx >= 0 && cx <= 7 && cy >= 0 && cy <= 7) {
+              candidateFreezeCenters.add(SpellChessThreatAnalyzer.toCoord(cx, cy));
+            }
+          }
+        }
       }
 
       // 3. High-value clusters (opponent Queen/Rooks)

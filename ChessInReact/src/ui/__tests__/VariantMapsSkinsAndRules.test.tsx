@@ -417,7 +417,7 @@ describe('Variable Variant Maps, Spell Chess Skins & Gameplay Mechanics, and Rul
     );
     expect(screen.getByTestId('variant-match-banner')).toBeDefined();
     expect(bannerContainer.textContent).toContain('Spell Chess (Regras Oficiais Chess.com)');
-    expect(bannerContainer.textContent).toContain('Freeze & Jump (2 Cargas)');
+    expect(bannerContainer.textContent).toContain('Freeze (5) & Jump (2)');
     unmountBanner();
 
     // 3b. Cultural Variant Banners for Shogi and Xiangqi

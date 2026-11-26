@@ -213,14 +213,44 @@ export class SpellChessPositionEvaluator {
 
     // 4. Freeze Tactical State
     let freezeScore = 0;
-    const isFriendlyKingFrozen = friendlyKingCoord ? activeFrozenCoords.includes(friendlyKingCoord) : false;
-    const isOpponentKingFrozen = opponentKingCoord ? activeFrozenCoords.includes(opponentKingCoord) : false;
+    const friendlyKingOccId = friendlyKingCoord ? (domain.occupancy[friendlyKingCoord as import('../../../../core/coordinates/types').CoordinateKey] as import('../../../../core/coordinates/types').EntityId | undefined) : undefined;
+    const friendlyKingEnt = friendlyKingOccId ? (domain.boardEntities[friendlyKingOccId] as import('../../../../core/entities/types').IPieceEntity | undefined) : undefined;
+    const isFriendlyKingFrozen = friendlyKingCoord ? (activeFrozenCoords.includes(friendlyKingCoord) || Boolean(friendlyKingEnt?.metadata?.isFrozen)) : false;
+
+    const opponentKingOccId = opponentKingCoord ? (domain.occupancy[opponentKingCoord as import('../../../../core/coordinates/types').CoordinateKey] as import('../../../../core/coordinates/types').EntityId | undefined) : undefined;
+    const opponentKingEnt = opponentKingOccId ? (domain.boardEntities[opponentKingOccId] as import('../../../../core/entities/types').IPieceEntity | undefined) : undefined;
+    const isOpponentKingFrozen = opponentKingCoord ? (activeFrozenCoords.includes(opponentKingCoord) || Boolean(opponentKingEnt?.metadata?.isFrozen)) : false;
 
     if (isOpponentKingFrozen) {
       freezeScore += 3500;
+      // Decisive Freeze-Mate Detection: Opponent King is frozen AND under direct attack!
+      if (opponentKingCoord && CheckValidator.isSquareAttacked(opponentKingCoord as import('../../../../core/coordinates/types').CoordinateKey, actingPlayer, domain, topology)) {
+        freezeScore += 80_000 - ply * 10;
+      }
     }
     if (isFriendlyKingFrozen) {
       freezeScore -= 3500;
+      // Catastrophic Freeze-Mate Danger: Friendly King is frozen AND under direct attack!
+      if (friendlyKingCoord && CheckValidator.isSquareAttacked(friendlyKingCoord as import('../../../../core/coordinates/types').CoordinateKey, opponentPlayer, domain, topology)) {
+        freezeScore -= 80_000 + ply * 10;
+      }
+    }
+
+    // Freeze-readiness tactical anticipation:
+    const opponentCanFreeze = opponentResources.freezeRemaining > 0 && opponentResources.freezeCooldown === 0;
+    const friendlyCanFreeze = playerResources.freezeRemaining > 0 && playerResources.freezeCooldown === 0;
+
+    if (friendlyKingCoord && opponentCanFreeze) {
+      if (CheckValidator.isSquareAttacked(friendlyKingCoord as import('../../../../core/coordinates/types').CoordinateKey, opponentPlayer, domain, topology)) {
+        // Mortal Threat: Opponent has Freeze ready and can paralyze-mate our King next turn!
+        freezeScore -= 45_000;
+      }
+    }
+    if (opponentKingCoord && friendlyCanFreeze) {
+      if (CheckValidator.isSquareAttacked(opponentKingCoord as import('../../../../core/coordinates/types').CoordinateKey, actingPlayer, domain, topology)) {
+        // High Lethal Potential: We have Freeze ready and can paralyze-mate their King!
+        freezeScore += 45_000;
+      }
     }
 
     // Reward freezing opponent threatening major pieces (Queen/Rooks)

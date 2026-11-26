@@ -468,23 +468,18 @@ export class RulesEngine {
       }
     }
 
-    // 6. King safety check on in-place simulated move (RF-04, RNF-02 < 0.05ms)
+    // 6. King safety check on isolated cloned occupancy (RF-04, RNF-01 zero-leakage guarantee)
     const enforceCheck = variantConfig?.enforceCheck ?? (variantConfig?.variantId !== 'ANTICHESS');
     if (enforceCheck) {
-      const isFrozen = Object.isFrozen(state.occupancy);
-      const occ: Record<string, EntityId | undefined> = isFrozen
-        ? { ...state.occupancy }
-        : (state.occupancy as Record<string, EntityId | undefined>);
-      const evalState = (isFrozen ? { ...state, occupancy: occ } : state) as unknown as IDomainState;
+      const occ: Record<string, EntityId | undefined> = { ...state.occupancy };
+      const evalState = { ...state, occupancy: occ } as unknown as IDomainState;
 
       const prevFrom = piece.position;
       const prevDestOccupant = occ[intent.to];
       let epVictimCoord: CoordinateKey | null = null;
-      let epVictimId: EntityId | undefined;
 
       if (isEnPassant && parsedTo && parsedFrom) {
         epVictimCoord = toCoordKey(parsedTo.x, parsedFrom.y);
-        epVictimId = occ[epVictimCoord];
         delete occ[epVictimCoord];
       }
 
@@ -526,19 +521,6 @@ export class RulesEngine {
         !leavesInCheck &&
         variantConfig?.variantId === 'RACING_KINGS' &&
         enemyOwners.some((eid) => CheckValidator.isRoyalInCheck(eid, evalState, topology));
-
-      // Restore occupancy if not frozen
-      if (!isFrozen) {
-        occ[prevFrom] = piece.id;
-        if (prevDestOccupant !== undefined) {
-          occ[intent.to] = prevDestOccupant;
-        } else {
-          delete occ[intent.to];
-        }
-        if (epVictimCoord && epVictimId) {
-          occ[epVictimCoord] = epVictimId;
-        }
-      }
 
       const isCapturingEnemyKing = Boolean(
         prevDestOccupant &&
@@ -1030,22 +1012,17 @@ export class RulesEngine {
       const isPromotion =
         (vUpper === 'PAWN' || vUpper === 'P') && destParsed?.y === promotionRank;
 
-      // King safety validation via zero-allocation in-place occupancy delta (RNF-01, RNF-07)
+      // King safety validation via isolated cloned occupancy delta (RNF-01 zero-leakage guarantee)
       if (enforceCheck) {
-        const isFrozen = Object.isFrozen(state.occupancy);
-        const occ: Record<string, EntityId | undefined> = isFrozen
-          ? { ...state.occupancy }
-          : (state.occupancy as Record<string, EntityId | undefined>);
-        const evalState = (isFrozen ? { ...state, occupancy: occ } : state) as unknown as IDomainState;
+        const occ: Record<string, EntityId | undefined> = { ...state.occupancy };
+        const evalState = { ...state, occupancy: occ } as unknown as IDomainState;
 
         const prevFrom = piece.position;
         const prevDestOccupant = occ[dest];
         let epVictimCoord: CoordinateKey | null = null;
-        let epVictimId: EntityId | undefined;
 
         if (isEnPassant && destParsed && parsedFrom) {
           epVictimCoord = toCoordKey(destParsed.x, parsedFrom.y);
-          epVictimId = occ[epVictimCoord];
           delete occ[epVictimCoord];
         }
 
@@ -1091,19 +1068,6 @@ export class RulesEngine {
           !leavesInCheck &&
           variantConfig?.variantId === 'RACING_KINGS' &&
           enemyOwners.some((eid) => CheckValidator.isRoyalInCheck(eid, evalState, topology));
-
-        // Restore occupancy if not frozen
-        if (!isFrozen) {
-          occ[prevFrom] = piece.id;
-          if (prevDestOccupant !== undefined) {
-            occ[dest] = prevDestOccupant;
-          } else {
-            delete occ[dest];
-          }
-          if (epVictimCoord && epVictimId) {
-            occ[epVictimCoord] = epVictimId;
-          }
-        }
 
         const isCapturingEnemyKing = Boolean(
           prevDestOccupant &&

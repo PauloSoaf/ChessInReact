@@ -35,9 +35,21 @@ export class VariantSpecializedStrategy implements IUniversalAIStrategy {
 
     if (variant.includes('ATOMIC')) {
       ({ bestMove, bestScore } = this.evaluateAtomic(moves, level, request));
-      if (bestScore < 50000 && level >= 2) {
+      // In Atomic Chess, preserve atomic detonation and anti-suicide invariants over classical search:
+      if (bestScore < 10000 && level >= 2) {
         const searched = decideWithSearch(request, this.strategyId);
-        if (searched) return searched;
+        if (searched) {
+          const matched = moves.find(
+            (m) => m.from === searched.move.from && m.to === searched.move.to && m.pieceId === searched.move.pieceId
+          );
+          if (matched) {
+            const evaluated = this.evaluateAtomic([matched], level, request);
+            if (evaluated.bestScore > bestScore) {
+              bestMove = matched;
+              bestScore = evaluated.bestScore;
+            }
+          }
+        }
       }
     } else if (variant.includes('RACING')) {
       ({ bestMove, bestScore } = this.evaluateRacingKings(moves, level));

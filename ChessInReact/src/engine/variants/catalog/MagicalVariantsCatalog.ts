@@ -5,7 +5,7 @@ export const MAGICAL_VARIANTS: readonly IVariantDefinition[] = [
     id: 'SPELL_CHESS_OFFICIAL',
     name: 'Spell Chess (Regras Oficiais)',
     family: 'MAGICAL_HYBRIDS',
-    description: 'Padrão Chess.com com exatamente 2 feitiços (Freeze 3x3 e Jump), 2 cargas cada e recarga de 3 turnos. Sem acúmulo de mana.',
+    description: 'Padrão Chess.com com 5 cargas de Freeze (3x3), 2 cargas de Jump e recarga com 2 turnos de intervalo. Sem acúmulo de mana.',
     badge: 'Spells Official',
     boardDimensions: { width: 8, height: 8 },
     topologyType: 'SQUARE',
@@ -18,8 +18,10 @@ export const MAGICAL_VARIANTS: readonly IVariantDefinition[] = [
     specialRules: {
       spellModel: 'OFFICIAL_CHARGES',
       spells: ['FREEZE', 'JUMP'],
-      initialChargesPerSpell: 2,
-      cooldownTurns: 3,
+      initialFreezeCharges: 5,
+      initialJumpCharges: 2,
+      initialChargesPerSpell: 2, // Backward-compatibility alias
+      cooldownTurns: 2,
       hasManaEconomy: false,
     },
   },
