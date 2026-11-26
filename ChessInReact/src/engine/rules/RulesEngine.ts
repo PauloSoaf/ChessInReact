@@ -494,13 +494,34 @@ export class RulesEngine {
       const isMovingKing = vUpper === 'KING' || vUpper === 'K';
       const royalPiece = isMovingKing ? piece : CheckValidator.findRoyalPiece(piece.ownerId, evalState);
       const kingCoord = isMovingKing ? intent.to : royalPiece?.position;
+
       const enemyOwners = (Object.values(evalState.boardEntities) as IPieceEntity[])
         .filter((e) => e.type === 'PIECE' && !e.isCaptured && e.ownerId !== piece.ownerId && e.ownerId !== 'NONE')
         .map((e) => e.ownerId);
 
-      const leavesInCheck = kingCoord
+      let leavesInCheck = kingCoord
         ? enemyOwners.some((eid) => CheckValidator.isSquareAttacked(kingCoord, eid, evalState, topology))
         : false;
+
+      if (!leavesInCheck && isMovingKing && parsedTo) {
+        for (const ent of Object.values(evalState.boardEntities)) {
+          if (
+            ent &&
+            ent.type === 'PIECE' &&
+            !ent.isCaptured &&
+            ent.ownerId !== piece.ownerId &&
+            ent.ownerId !== 'NONE' &&
+            (ent.variantId.toUpperCase() === 'KING' || ent.variantId.toUpperCase() === 'K')
+          ) {
+            const ekP = parseCoord(ent.position);
+            if (ekP && Math.max(Math.abs(ekP.x - parsedTo.x), Math.abs(ekP.y - parsedTo.y)) <= 1) {
+              leavesInCheck = true;
+              break;
+            }
+          }
+        }
+      }
+
       const givesCheckInRacingKings =
         !leavesInCheck &&
         variantConfig?.variantId === 'RACING_KINGS' &&
@@ -519,7 +540,18 @@ export class RulesEngine {
         }
       }
 
-      if (leavesInCheck || givesCheckInRacingKings) {
+      const isCapturingEnemyKing = Boolean(
+        prevDestOccupant &&
+        evalState.boardEntities[prevDestOccupant]?.type === 'PIECE' &&
+        (evalState.boardEntities[prevDestOccupant] as IPieceEntity).variantId.toUpperCase().includes('KING') &&
+        (evalState.boardEntities[prevDestOccupant] as IPieceEntity).ownerId !== piece.ownerId
+      );
+      const isSpellChess = Boolean(
+        variantConfig?.variantId.toUpperCase().includes('SPELL') ||
+        evalState.variantId?.toUpperCase().includes('SPELL')
+      );
+
+      if ((leavesInCheck && !(isSpellChess && isCapturingEnemyKing)) || givesCheckInRacingKings) {
         return {
           valid: false,
           code: 'LEAVES_KING_IN_CHECK',
@@ -1023,6 +1055,7 @@ export class RulesEngine {
         const isMovingKing = vUpper === 'KING' || vUpper === 'K';
         const royalPiece = isMovingKing ? piece : (precomputedKing ?? CheckValidator.findRoyalPiece(piece.ownerId, evalState));
         const kingCoord = isMovingKing ? dest : royalPiece?.position;
+
         const enemyOwners: readonly PlayerId[] = Array.isArray(precomputedOpponentIds)
           ? precomputedOpponentIds
           : precomputedOpponentIds
@@ -1031,9 +1064,29 @@ export class RulesEngine {
                 .filter((e) => e.type === 'PIECE' && !e.isCaptured && e.ownerId !== piece.ownerId && e.ownerId !== 'NONE')
                 .map((e) => e.ownerId);
 
-        const leavesInCheck = kingCoord
+        let leavesInCheck = kingCoord
           ? enemyOwners.some((eid) => CheckValidator.isSquareAttacked(kingCoord, eid, evalState, topology))
           : false;
+
+        if (!leavesInCheck && isMovingKing && destParsed) {
+          for (const ent of Object.values(evalState.boardEntities)) {
+            if (
+              ent &&
+              ent.type === 'PIECE' &&
+              !ent.isCaptured &&
+              ent.ownerId !== piece.ownerId &&
+              ent.ownerId !== 'NONE' &&
+              (ent.variantId.toUpperCase() === 'KING' || ent.variantId.toUpperCase() === 'K')
+            ) {
+              const ekP = parseCoord(ent.position);
+              if (ekP && Math.max(Math.abs(ekP.x - destParsed.x), Math.abs(ekP.y - destParsed.y)) <= 1) {
+                leavesInCheck = true;
+                break;
+              }
+            }
+          }
+        }
+
         const givesCheckInRacingKings =
           !leavesInCheck &&
           variantConfig?.variantId === 'RACING_KINGS' &&
@@ -1052,7 +1105,18 @@ export class RulesEngine {
           }
         }
 
-        if (leavesInCheck || givesCheckInRacingKings) {
+        const isCapturingEnemyKing = Boolean(
+          prevDestOccupant &&
+          evalState.boardEntities[prevDestOccupant]?.type === 'PIECE' &&
+          (evalState.boardEntities[prevDestOccupant] as IPieceEntity).variantId.toUpperCase().includes('KING') &&
+          (evalState.boardEntities[prevDestOccupant] as IPieceEntity).ownerId !== piece.ownerId
+        );
+        const isSpellChess = Boolean(
+          variantConfig?.variantId.toUpperCase().includes('SPELL') ||
+          evalState.variantId?.toUpperCase().includes('SPELL')
+        );
+
+        if ((leavesInCheck && !(isSpellChess && isCapturingEnemyKing)) || givesCheckInRacingKings) {
           continue; // Leaves king in check (or gives check in Racing Kings): ILLEGAL
         }
       }

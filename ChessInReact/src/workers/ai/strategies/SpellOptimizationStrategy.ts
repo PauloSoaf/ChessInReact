@@ -21,6 +21,8 @@ import { decideWithSearch } from './SearchBackedDecision';
 import { IDomainState } from '../../../core/state/gameState';
 import { PlayerId } from '../../../core/coordinates/types';
 import { CheckValidator } from '../../../engine/rules/CheckValidator';
+import { RulesEngine } from '../../../engine/rules/RulesEngine';
+import { ILegalMove } from '../../../engine/rules/interfaces/IRulesContracts';
 
 export interface ILethalJumpThreat {
   threateningPieceId: string;
@@ -76,6 +78,9 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
     const opponentFreezeCooldown = (request.specializedContext?.opponentFreezeCooldown as number) ?? 0;
     const opponentCanFreeze = opponentFreezeCharges > 0 && opponentFreezeCooldown === 0;
 
+    // Tactical Decision Engine
+    // (Spell & Mana Optimizer with Jump Defense, Offensive Freeze-Mate & Royal Priority)
+
     // Detect all current lethal direct and Jump threats against Bot's King
     const currentThreats = request.domain
       ? this.detectAllDirectKingThreats(request.domain, friendlyKingCoord, actingPlayer, activeFrozenCoords)
@@ -121,6 +126,7 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
     let bestMove = moves[0];
     let bestScore = -Infinity;
     let requiredJumpAction = false;
+    let selectedJumpTargetCoord: string | null = null;
     let offensiveFreezeMateTarget: string | null = null;
 
     // 0. Priority 0A: Instant Victory by direct King Capture in Spell Chess
@@ -142,14 +148,46 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
     if (bestScore < 100000 && canJump && request.domain && level >= 2) {
       const offensiveThreats = this.detectLethalJumpThreats(request.domain, opponentKingCoord, opponentPlayer);
       for (const threat of offensiveThreats) {
-        // Can this threat piece reach opponent King if granted Jump?
-        const candidateMove = moves.find(
+        // Can this threat piece reach opponent King if granted Jump over intermediate obstacle?
+        let candidateMove = moves.find(
           (m) => (m.pieceId === threat.threateningPieceId || m.from === threat.threateningCoord) && m.to === opponentKingCoord
         );
+        if (!candidateMove && request.topology) {
+          const testDomain: IDomainState = {
+            ...request.domain,
+            boardEntities: {
+              ...request.domain.boardEntities,
+              [threat.threateningPieceId as import('../../../core/coordinates/types').EntityId]: {
+                ...request.domain.boardEntities[threat.threateningPieceId as import('../../../core/coordinates/types').EntityId],
+                metadata: {
+                  ...(request.domain.boardEntities[threat.threateningPieceId as import('../../../core/coordinates/types').EntityId]?.metadata ?? {}),
+                  hasJump: true,
+                },
+              },
+            },
+          };
+          const obsId = request.domain.occupancy[threat.intermediateCoord as import('../../../core/coordinates/types').CoordinateKey];
+          if (obsId && testDomain.boardEntities[obsId]) {
+            testDomain.boardEntities[obsId] = {
+              ...testDomain.boardEntities[obsId],
+              metadata: {
+                ...(testDomain.boardEntities[obsId]?.metadata ?? {}),
+                hasJump: true,
+                canBeJumpedOver: true,
+              },
+            };
+          }
+          const jumpMoves = RulesEngine.getLegalMoves(testDomain, request.topology);
+          candidateMove = jumpMoves.find(
+            (m: ILegalMove) => (m.pieceId === threat.threateningPieceId || m.from === threat.threateningCoord) && m.to === opponentKingCoord
+          );
+        }
+
         if (candidateMove) {
           bestMove = candidateMove;
           bestScore = 100000;
           requiredJumpAction = true;
+          selectedJumpTargetCoord = threat.intermediateCoord;
           break;
         }
       }
@@ -380,6 +418,8 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
             simOccupancy
           );
 
+          let attackerCoord = move.to;
+
           // Also check if any existing friendly piece attacks opponentKingCoord in simulated position
           if (!isAttackingOpponentKing) {
             for (const entity of Object.values(request.domain.boardEntities)) {
@@ -393,6 +433,7 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
                 const pos = entity.id === move.pieceId ? move.to : entity.position;
                 if (simOccupancy[pos] === entity.id && this.doesPieceAttackSquare(entity.variantId, pos, opponentKingCoord, simOccupancy)) {
                   isAttackingOpponentKing = true;
+                  attackerCoord = pos;
                   break;
                 }
               }
@@ -401,12 +442,33 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
 
           if (isAttackingOpponentKing) {
             if (canFreeze) {
+              // Find an optimal freeze center that freezes the King WITHOUT freezing the attacking piece!
+              const [kx, ky] = this.parseCoord(opponentKingCoord);
+              const [ax, ay] = this.parseCoord(attackerCoord);
+              let optimalFreezeCenter: string | null = null;
+
+              for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                  const cx = kx + dx;
+                  const cy = ky + dy;
+                  if (cx < 0 || cx > 7 || cy < 0 || cy > 7) continue;
+                  const coversKing = Math.abs(kx - cx) <= 1 && Math.abs(ky - cy) <= 1;
+                  const coversAttacker = Math.abs(ax - cx) <= 1 && Math.abs(ay - cy) <= 1;
+                  if (coversKing && !coversAttacker) {
+                    optimalFreezeCenter = `${cx},${cy}`;
+                    break;
+                  }
+                }
+                if (optimalFreezeCenter) break;
+              }
+
+              // Fallback to King coordinate if attacker is directly adjacent
+              candidateOffensiveFreezeCoord = optimalFreezeCenter ?? opponentKingCoord;
               // Bot attacks King + casts Freeze on opponent King = Guaranteed paralyzing checkmate trap!
-              score += 95000;
-              candidateOffensiveFreezeCoord = opponentKingCoord;
+              score += 98000;
             } else if (isOpponentKingFrozen) {
               // Opponent King is already frozen and cannot evade = Lethal capture setup!
-              score += 90000;
+              score += 95000;
             }
           }
         }
@@ -423,11 +485,16 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
     let secondaryAction: IAIDecisionResponse['secondaryAction'] = undefined;
 
     if (requiredJumpAction) {
+      const targetCoord = selectedJumpTargetCoord ?? bestMove.from;
+      const targetPieceId =
+        request.domain?.occupancy[targetCoord as import('../../../core/coordinates/types').CoordinateKey] ??
+        bestMove.pieceId;
       secondaryAction = {
         type: 'CAST_SPELL',
         payload: {
           spellType: 'JUMP',
-          targetPieceId: bestMove.pieceId,
+          targetCoord,
+          targetPieceId,
         },
       };
     } else if (level >= 2) {
@@ -483,15 +550,6 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
             },
           };
           bestScore += 400;
-        } else if (canJump && bestMove.isCapture) {
-          secondaryAction = {
-            type: 'CAST_SPELL',
-            payload: {
-              spellType: 'JUMP',
-              targetPieceId: bestMove.pieceId,
-            },
-          };
-          bestScore += 200;
         } else if (canFreeze) {
           // Tactical Freeze cluster scan: Never freeze on turn 1 or on undeveloped pieces
           const targetCoord = this.findBestFreezeTarget(request, opponentKingCoord);
@@ -599,7 +657,7 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
       let cx = px + stepX;
       let cy = py + stepY;
 
-      while (cx !== kx || cy !== ky) {
+      while (cx >= 0 && cx < 8 && cy >= 0 && cy < 8 && (cx !== kx || cy !== ky)) {
         const cKey = `${cx},${cy}`;
         const occId = occupancy[cKey];
         if (occId) {
@@ -800,12 +858,16 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
     let cx = fx + stepX;
     let cy = fy + stepY;
 
-    while (cx !== tx || cy !== ty) {
+    while (cx >= 0 && cx < 8 && cy >= 0 && cy < 8 && (cx !== tx || cy !== ty)) {
       if (occupancy[`${cx},${cy}`]) {
         return false;
       }
       cx += stepX;
       cy += stepY;
+    }
+
+    if (cx !== tx || cy !== ty) {
+      return false;
     }
 
     return true;
@@ -1021,12 +1083,16 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
     let cx = fromX + stepX;
     let cy = fromY + stepY;
 
-    while (cx !== toX || cy !== toY) {
+    while (cx >= 0 && cx < 8 && cy >= 0 && cy < 8 && (cx !== toX || cy !== toY)) {
       if (simOccupancy[`${cx},${cy}`]) {
         return false;
       }
       cx += stepX;
       cy += stepY;
+    }
+
+    if (cx !== toX || cy !== toY) {
+      return false;
     }
 
     return true;

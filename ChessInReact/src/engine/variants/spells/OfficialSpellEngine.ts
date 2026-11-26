@@ -66,6 +66,13 @@ export class OfficialSpellEngine {
         reason: `Freeze em tempo de recarga (${charges.freezeCooldownTurns} turno(s) restante(s)).`,
       };
     }
+    if (state.activeFrozenCoordinates[`${centerCoord.file},${centerCoord.rank}`] === 2) {
+      return {
+        success: false,
+        state,
+        reason: 'Esta casa já é o centro de uma zona congelada ativa.',
+      };
+    }
 
     const updatedFrozen: Record<string, number> = { ...state.activeFrozenCoordinates };
     for (let df = -1; df <= 1; df++) {

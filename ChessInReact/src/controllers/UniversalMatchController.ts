@@ -51,6 +51,7 @@ import { ParticipantClockManager } from '../matchmaking/config/ParticipantClockM
 import { SANNotationGenerator } from '../engine/rules/notation/SANNotationGenerator';
 import { IDomainState } from '../core/state/gameState';
 import { BoardEvaluator } from '../workers/ai/heuristics/BoardEvaluator';
+import { SpellChessMoveGenerator } from '../workers/ai/strategies/spell/SpellChessMoveGenerator';
 
 export interface IMoveItem {
   turnNumber: number;
@@ -869,51 +870,42 @@ export class UniversalMatchController {
           domain.variantId?.toUpperCase().includes('SPELL')
         );
 
-        // Spell Chess Bot Check Defense: If the bot has Freeze available and is in check or blocked, freeze the attacker!
+        // Spell Chess Check Defense & Zero-Moves Resolution:
+        // If the bot has Freeze or Jump available, check if casting can unlock legal moves!
         if (isSpellChess && this.officialSpellState) {
           const botCharges = domain.activePlayer === 'P1'
             ? this.officialSpellState.whiteCharges
             : this.officialSpellState.blackCharges;
-          const canFreeze = botCharges && botCharges.freezeCharges > 0 && botCharges.freezeCooldownTurns === 0;
+          const hasSpells = Boolean(
+            (botCharges.freezeCharges > 0 && botCharges.freezeCooldownTurns === 0) ||
+            (botCharges.jumpCharges > 0 && botCharges.jumpCooldownTurns === 0)
+          );
 
-          if (canFreeze && inCheck) {
-            const king = CheckValidator.findRoyalPiece(domain.activePlayer, domain);
-            const opponentId: PlayerId = domain.activePlayer === 'P1' ? 'P2' : 'P1';
-            let attackerCoord: string | null = null;
+          if (hasSpells && (inCheck || legalMoves.length === 0)) {
+            const activeFrozen = Object.keys(this.officialSpellState.activeFrozenCoordinates);
+            const activeJumps = Object.keys(this.officialSpellState.activeJumpPieceIds);
+            const unlockedActions = SpellChessMoveGenerator.generateTurnActions(
+              domain,
+              domain.activePlayer,
+              this.topology,
+              {
+                freezeRemaining: botCharges.freezeCharges,
+                jumpRemaining: botCharges.jumpCharges,
+                freezeCooldown: botCharges.freezeCooldownTurns,
+                jumpCooldown: botCharges.jumpCooldownTurns,
+              },
+              activeFrozen,
+              activeJumps
+            );
 
-            if (king) {
-              for (const [entityId, entity] of Object.entries(domain.boardEntities)) {
-                if (
-                  entity.type === 'PIECE' &&
-                  !entity.isCaptured &&
-                  entity.ownerId === opponentId &&
-                  !entity.metadata?.isFrozen
-                ) {
-                  // Test if freezing this specific entity removes the check
-                  const testDomain: IDomainState = {
-                    ...domain,
-                    boardEntities: {
-                      ...domain.boardEntities,
-                      [entityId]: {
-                        ...entity,
-                        metadata: { ...(entity.metadata ?? {}), isFrozen: true },
-                      },
-                    },
-                  };
-                  if (!CheckValidator.isSquareAttacked(king.position, opponentId, testDomain, this.topology)) {
-                    attackerCoord = entity.position;
-                    break;
-                  }
-                }
-              }
-            }
-
-            if (attackerCoord) {
-              const castOk = this.castOfficialSpell('FREEZE', attackerCoord);
-              if (castOk) {
-                const refreshedDomain = gameStore.getState().domain;
-                legalMoves = RulesEngine.getLegalMoves(refreshedDomain, this.topology);
-              }
+            if (unlockedActions.length > 0) {
+              legalMoves = unlockedActions.map((a) => ({
+                pieceId: asEntityId(a.move.pieceId),
+                from: asCoordinateKey(a.move.from),
+                to: asCoordinateKey(a.move.to),
+                isCapture: Boolean(a.move.isCapture),
+                isPromotion: Boolean(a.move.promotion),
+              }));
             }
           }
         }
@@ -1020,12 +1012,17 @@ export class UniversalMatchController {
           : [],
       };
 
+      const botDiff = activeSlot.botConfig?.difficultyLevel ?? 3;
+      const standardBudget =
+        botDiff === 5 ? 2500 : botDiff === 4 ? 1500 : botDiff === 3 ? 800 : botDiff === 2 ? 350 : 150;
+      const timeBudgetMs = Math.max(activeSlot.botConfig?.thinkTimeMs ?? standardBudget, standardBudget);
+
       const decision = await AIWorkerPool.dispatchDecision({
         matchId: domain.matchId,
         variantId: this.config.variantId,
         actingPlayer: domain.activePlayer,
-        difficultyLevel: activeSlot.botConfig?.difficultyLevel ?? 3,
-        timeBudgetMs: activeSlot.botConfig?.thinkTimeMs ?? 500,
+        difficultyLevel: botDiff,
+        timeBudgetMs,
         legalMoves: candidateMoves,
         specializedContext,
         domain,
@@ -1322,7 +1319,7 @@ export class UniversalMatchController {
       const target =
         spellType === 'FREEZE'
           ? (action.payload.targetCoord as string)
-          : (action.payload.targetPieceId as string);
+          : ((action.payload.targetCoord as string) ?? (action.payload.targetPieceId as string));
       this.castOfficialSpell(spellType, target);
       return;
     }

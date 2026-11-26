@@ -126,6 +126,9 @@ export class MatchConfigurationManager {
         thinkTimeMs: 1000,
       };
 
+      const standardBudget =
+        difficultyLevel === 5 ? 2500 : difficultyLevel === 4 ? 1500 : difficultyLevel === 3 ? 800 : difficultyLevel === 2 ? 350 : 150;
+
       return {
         ...slot,
         role:
@@ -134,6 +137,7 @@ export class MatchConfigurationManager {
         botConfig: {
           ...currentBotConfig,
           difficultyLevel,
+          thinkTimeMs: standardBudget,
         },
       };
     });
