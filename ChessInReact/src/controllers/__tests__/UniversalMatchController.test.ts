@@ -4,6 +4,7 @@ import { MatchConfigurationManager } from '../../matchmaking/config/MatchConfigu
 import { gameStore } from '../../core/state/gameStore';
 import { asCoordinateKey } from '../../core/coordinates';
 import { IPieceEntity } from '../../core/entities/types';
+import { queenTrap } from '../../workers/ai/strategies/spell/testing/KingSafetyFixtures';
 import { SPELL_CATALOG } from '../../analysis/minigames/SpellChessEngine';
 import { AIWorkerPool } from '../../workers/ai/AIWorkerPool';
 
@@ -157,19 +158,21 @@ describe('UniversalMatchController (Universal Gameplay Lifecycle & 0-Human Spect
     expect(controller.getSnapshot().duckCoordinate).not.toBeNull();
   });
 
-  it('executes the bot spell action instead of only returning it', async () => {
-    let config = MatchConfigurationManager.createDefaultMatch('SPELL_CHESS_OFFICIAL', 2);
+  it('executes the required Jump and the winning move on the real N5 route', async () => {
+    let config = MatchConfigurationManager.createDefaultMatch('SPELL_CHESS_KING_CAPTURE_ONLY', 2);
     config = MatchConfigurationManager.updateSlotRole(config, 0, 'AI_BOT');
-
+    config = MatchConfigurationManager.updateBotDifficulty(config, 0, 5);
     controller = new UniversalMatchController(config);
     controller.startMatch();
     controller.togglePause();
-
+    const fixture = { ...queenTrap(), matchId: config.matchId };
+    gameStore.getState().resetDomainState(fixture);
     const stepped = await controller.stepBotTurn();
-
     expect(stepped).toBe(true);
-    const whiteCharges = controller.getSnapshot().officialSpellState?.whiteCharges;
-    expect(whiteCharges?.jumpCharges === 1 || whiteCharges?.freezeCharges === 4).toBe(true);
+    expect(controller.getSnapshot().officialSpellState?.whiteCharges.jumpCharges).toBe(0);
+    expect(gameStore.getState().domain.winnerId).toBe('P1');
+    expect(controller.getMoveHistory()[0].aiDecision?.spellTrace?.engine).toBe('SPELL_COMPOSITE');
+    expect(controller.getSpellAudit().events[0].spell).toEqual({ type: 'JUMP', targetSquare: '4,5' });
   });
 
   it('orchestrates Duck Chess two-phase atomic turns', async () => {
@@ -220,13 +223,13 @@ describe('UniversalMatchController (Universal Gameplay Lifecycle & 0-Human Spect
     const secondFreeze = controller.castOfficialSpell('FREEZE', 'd4');
     expect(secondFreeze).toBe(false);
 
-    // Cast Jump
+    // One spell per turn: switching spell type cannot bypass the turn limit.
     const p1PawnId = gameStore.getState().domain.occupancy[asCoordinateKey('4,1')];
     const jumpSuccess = controller.castOfficialSpell('JUMP', p1PawnId);
-    expect(jumpSuccess).toBe(true);
+    expect(jumpSuccess).toBe(false);
 
     snap = controller.getSnapshot();
-    expect(snap.officialSpellState?.whiteCharges.jumpCharges).toBe(1);
+    expect(snap.officialSpellState?.whiteCharges.jumpCharges).toBe(2);
   });
 
   it('manages Expanded Spell Chess mana and casting', () => {

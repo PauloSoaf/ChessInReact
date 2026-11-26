@@ -1026,6 +1026,9 @@ const AppContent: React.FC = () => {
         launchMatch: handleLaunchMatch,
         navigateTo,
         selectNavDestination: handleSelectNavDestination,
+        getSpellAudit: () => universalMatch.controller?.getSpellAudit(),
+        exportSpellPGN: () => universalMatch.controller?.exportSpellPGN(),
+        ...(import.meta.env.DEV ? { getMatchController: () => universalMatch.controller } : {}),
       };
     }
     return () => {
@@ -1033,7 +1036,7 @@ const AppContent: React.FC = () => {
         delete (window as unknown as { __CHESS_APP__?: unknown }).__CHESS_APP__;
       }
     };
-  }, [handleLaunchMinigame, handleLaunchMatch, navigateTo, handleSelectNavDestination]);
+  }, [handleLaunchMinigame, handleLaunchMatch, navigateTo, handleSelectNavDestination, universalMatch.controller]);
 
   return (
     <div className="app-shell-with-sidebar">
@@ -1652,6 +1655,7 @@ const AppContent: React.FC = () => {
               </div>
 
               <GameControlsBar
+                onExportPGN={universalMatch.snapshot.officialSpellState ? () => universalMatch.controller?.exportSpellPGN() ?? '' : undefined}
                 isBotEnabled={isBotEnabled}
                 difficulty={difficulty}
                 isThinking={isThinking || universalMatch.snapshot.isThinking}

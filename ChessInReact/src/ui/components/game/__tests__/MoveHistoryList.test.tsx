@@ -66,6 +66,15 @@ describe('MoveHistoryList UI Component (Spec 06 Section 18.1 & Spec 09 RF-05)', 
     expect(screen.getByText('Copiado!')).toBeDefined();
   });
 
+  it('copies the authoritative spell PGN rather than the human-readable spell label', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    const pgn = '[Variant "SPELL_CHESS_KING_CAPTURE_ONLY"]\n\n1. {[%spell JUMP e6]} Bxf7 1-0';
+    render(<MoveHistoryList moves={[{ turnNumber: 1, white: 'Jump(e6) + Bxf7' }]} onExportPGN={() => pgn} />);
+    await act(async () => { fireEvent.click(screen.getByTestId('btn-copy-pgn')); });
+    expect(writeText).toHaveBeenCalledWith(pgn);
+  });
+
   it('renders and exports canonical Crazyhouse drop notation and Atomic explosion annotations', async () => {
     const writeTextMock = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, {

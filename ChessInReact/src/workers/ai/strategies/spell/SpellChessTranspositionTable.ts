@@ -21,6 +21,7 @@ export interface ITTEntry {
   readonly flag: TTFlag;
   readonly score: number;
   readonly bestAction?: SpellChessTurnAction;
+  readonly principalVariation?: SpellChessTurnAction[];
 }
 
 export class SpellChessTranspositionTable {
@@ -55,7 +56,7 @@ export class SpellChessTranspositionTable {
         const piece = ent && ent.type === 'PIECE' ? (ent as IPieceEntity) : undefined;
         const isFrozen = ent?.metadata?.isFrozen ? 'F' : '';
         const hasJump = ent?.metadata?.hasJump ? 'J' : '';
-        return `${coord}:${piece?.ownerId ?? ''}:${piece?.variantId ?? ''}${isFrozen}${hasJump}`;
+        return `${coord}:${piece?.ownerId ?? ''}:${piece?.variantId ?? ''}:${piece?.hasMoved}${isFrozen}${hasJump}:${Boolean(ent?.metadata?.canBeJumpedOver)}`;
       })
       .join('|');
 
@@ -64,7 +65,7 @@ export class SpellChessTranspositionTable {
     const p1Str = `${p1Resources.freezeRemaining},${p1Resources.jumpRemaining},${p1Resources.freezeCooldown},${p1Resources.jumpCooldown}`;
     const p2Str = `${p2Resources.freezeRemaining},${p2Resources.jumpRemaining},${p2Resources.freezeCooldown},${p2Resources.jumpCooldown}`;
 
-    return `${domain.variantId}|${actingPlayer}|${occEntries}|${p1Str}|${p2Str}|${frozenStr}|${jumpStr}`;
+    return `${JSON.stringify({ ...domain.turnState, lastActionTimestamp: 0 })}|${JSON.stringify(domain.metadata?.officialSpellState)}|${Boolean(domain.metadata?.hasCastSpellThisTurn)}|${domain.variantId}|${actingPlayer}|${occEntries}|${p1Str}|${p2Str}|${frozenStr}|${jumpStr}`;
   }
 
   public get(key: string): ITTEntry | undefined {
@@ -72,6 +73,7 @@ export class SpellChessTranspositionTable {
   }
 
   public set(key: string, entry: ITTEntry): void {
+    if (this.maxEntries === 0) return;
     if (this.table.size >= this.maxEntries) {
       // Evict first entry
       const firstKey = this.table.keys().next().value;

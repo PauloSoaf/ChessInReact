@@ -3,7 +3,7 @@
  *
  * Implements strictly authentic Chess.com Spell Chess rules:
  * - Exactly 2 Spells: FREEZE and JUMP.
- * - Charges per player: 2 Freezes, 2 Jumps per game.
+ * - Charges per player: 5 Freezes, 2 Jumps per game.
  * - Cooldown: 3 turns per spell before reuse.
  * - NO Mana economy: mana points do NOT exist in this mode.
  */
@@ -18,6 +18,7 @@ export interface IPlayerSpellCharges {
 }
 
 export interface IOfficialSpellState {
+  readonly activeFrozenPieceIds?: Readonly<Record<string, number>>;
   readonly whiteCharges: IPlayerSpellCharges;
   readonly blackCharges: IPlayerSpellCharges;
   readonly activeFrozenCoordinates: Readonly<Record<string, number>>; // coordKey -> remaining turns
@@ -169,6 +170,9 @@ export class OfficialSpellEngine {
     }
 
     return {
+      ...(state.activeFrozenPieceIds ? { activeFrozenPieceIds: Object.fromEntries(
+        Object.entries(state.activeFrozenPieceIds).filter(([, turns]) => turns > 1).map(([id, turns]) => [id, turns - 1])
+      ) } : {}),
       whiteCharges: completedPlayer === 'WHITE' ? decrementCooldowns(state.whiteCharges) : state.whiteCharges,
       blackCharges: completedPlayer === 'BLACK' ? decrementCooldowns(state.blackCharges) : state.blackCharges,
       activeFrozenCoordinates: nextFrozen,

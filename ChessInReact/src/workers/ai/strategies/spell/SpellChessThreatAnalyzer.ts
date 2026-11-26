@@ -108,14 +108,14 @@ export class SpellChessThreatAnalyzer {
       while (cx !== tx || cy !== ty) {
         const curCoord = this.toCoord(cx, cy);
         const occId = occ[curCoord];
-        if (occId) {
+        if (occId && !domain.boardEntities[occId as EntityId]?.metadata?.canBeJumpedOver) {
           obstacles.push({ coord: curCoord, pieceId: occId });
         }
         cx += stepX;
         cy += stepY;
       }
 
-      if (obstacles.length === 1) {
+      if (obstacles.length === 1 && domain.boardEntities[obstacles[0].pieceId as EntityId]?.type === 'PIECE') {
         threats.push({
           attackingPieceId: entity.id,
           attackingCoord: piecePos,

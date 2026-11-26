@@ -212,6 +212,10 @@ export class RulesEngine {
         const f2 = isCubic
           ? (f1 ? topology.getNeighbor(f1, forwardDir) : null)
           : toCoordKey(parsedFrom.x + 2 * pdx, parsedFrom.y + 2 * pdy);
+        const forwardOccupantId = f1 ? state.occupancy[f1] : undefined;
+        const forwardOccupant = forwardOccupantId ? state.boardEntities[forwardOccupantId] : undefined;
+        const leapsBlocker = Boolean(forwardOccupant &&
+          (hasJumpBuff || forwardOccupant.metadata?.canBeJumpedOver || forwardOccupant.metadata?.hasJump));
 
         // 1-step forward
         if (intent.to === f1 && !destOccupantId) {
@@ -220,7 +224,7 @@ export class RulesEngine {
         // 2-step forward (or Jump leap over 1 square)
         else if (
           intent.to === f2 &&
-          ((((pdx === 0 && parsedFrom.y === startRank) || (!piece.hasMoved && pdx !== 0)) && !piece.hasMoved) || hasJumpBuff) &&
+          ((((pdx === 0 && parsedFrom.y === startRank) || (!piece.hasMoved && pdx !== 0)) && !piece.hasMoved) || leapsBlocker) &&
           !destOccupantId
         ) {
           if (!isCubic) {
@@ -306,7 +310,7 @@ export class RulesEngine {
             }
           }
           const rook = rookId ? (state.boardEntities[rookId] as IPieceEntity | undefined) : undefined;
-          if (rook && !rook.hasMoved) {
+          if (rook && !rook.hasMoved && !rook.metadata?.isFrozen) {
             const rookX = parseCoord(rookCoord)?.x ?? 7;
             const minX = Math.min(parsedFrom.x, 6, rookX, 5);
             const maxX = Math.max(parsedFrom.x, 6, rookX, 5);
@@ -352,7 +356,7 @@ export class RulesEngine {
             }
           }
           const rook = rookId ? (state.boardEntities[rookId] as IPieceEntity | undefined) : undefined;
-          if (rook && !rook.hasMoved) {
+          if (rook && !rook.hasMoved && !rook.metadata?.isFrozen) {
             const rookX = parseCoord(rookCoord)?.x ?? 0;
             const minX = Math.min(parsedFrom.x, 2, rookX, 3);
             const maxX = Math.max(parsedFrom.x, 2, rookX, 3);
@@ -854,7 +858,7 @@ export class RulesEngine {
         }
         if (kingsideRookId) {
           const rook = state.boardEntities[kingsideRookId] as IPieceEntity | undefined;
-          if (rook && !rook.hasMoved && (rook.variantId.toUpperCase() === 'ROOK' || rook.variantId.toUpperCase() === 'R')) {
+          if (rook && !rook.hasMoved && !rook.metadata?.isFrozen && (rook.variantId.toUpperCase() === 'ROOK' || rook.variantId.toUpperCase() === 'R')) {
             const rookX = parseCoord(kingsideRookCoord)?.x ?? 7;
             const minX = Math.min(parsedFrom.x, 6, rookX, 5);
             const maxX = Math.max(parsedFrom.x, 6, rookX, 5);
@@ -901,7 +905,7 @@ export class RulesEngine {
         }
         if (queensideRookId) {
           const rook = state.boardEntities[queensideRookId] as IPieceEntity | undefined;
-          if (rook && !rook.hasMoved && (rook.variantId.toUpperCase() === 'ROOK' || rook.variantId.toUpperCase() === 'R')) {
+          if (rook && !rook.hasMoved && !rook.metadata?.isFrozen && (rook.variantId.toUpperCase() === 'ROOK' || rook.variantId.toUpperCase() === 'R')) {
             const rookX = parseCoord(queensideRookCoord)?.x ?? 0;
             const minX = Math.min(parsedFrom.x, 2, rookX, 3);
             const maxX = Math.max(parsedFrom.x, 2, rookX, 3);

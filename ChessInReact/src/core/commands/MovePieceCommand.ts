@@ -287,6 +287,7 @@ export class MovePieceCommand implements ICommand {
     }
 
     // Rules Engine Validation gate if enforceRules is active (Spec 04 RF-14)
+    let validatedCastling = false;
     if (this.enforceRules) {
       const validation = RulesEngine.validateMove(
         draft,
@@ -303,6 +304,7 @@ export class MovePieceCommand implements ICommand {
       if (!validation.valid) {
         throw new Error(`Invalid move (${validation.code}): ${validation.reason}`);
       }
+      validatedCastling = Boolean(validation.isCastling);
     }
 
     // Handle destination terrain: check if background terrain is impassable
@@ -404,7 +406,7 @@ export class MovePieceCommand implements ICommand {
     }
 
     // Castling execution: Move corresponding Rook (only when enforceRules is active)
-    if (this.enforceRules && isKing && parsedFrom && parsedTo && (Math.abs(parsedTo.x - parsedFrom.x) === 2 || parsedTo.x === 6 || parsedTo.x === 2)) {
+    if (validatedCastling && isKing && parsedFrom && parsedTo) {
       const rank = parsedFrom.y;
       if (parsedTo.x === 6) {
         // Kingside castling
@@ -598,7 +600,9 @@ export class MovePieceCommand implements ICommand {
     }
 
     // Game over evaluation
-    if ((this.enforceRules || activeConfig) && !draft.isGameOver) {
+    // Official spell effects must expire before adjudicating mate/stalemate.
+    // Physical king capture is still recorded immediately above.
+    if ((this.enforceRules || activeConfig) && !draft.isGameOver && !draft.metadata?.officialSpellState) {
       const result = RulesEngine.getGameResult(
         draft,
         this.defaultTopology,

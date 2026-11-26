@@ -52,6 +52,9 @@ export interface IAIDecisionResponse {
   readonly nodesEvaluated: number;
   readonly elapsedMs: number;
   readonly strategyUsed: AIEngineStrategyId;
+  readonly spellTrace?: import('../strategies/spell/SpellChessTurnAction').SpellChessDecisionTrace;
+  readonly fallbackUsed?: boolean;
+  readonly failureReason?: string;
 }
 
 export interface IUniversalAIStrategy {

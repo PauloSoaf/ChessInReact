@@ -1,3 +1,4 @@
+import { OfficialSpellRules } from '../../../engine/variants/spells/OfficialSpellRules';
 import { asCoordinateKey, asEntityId } from '../../coordinates';
 import { IDomainState } from '../../state/gameState';
 import { createDefaultDomainState } from '../../state/initialState';
@@ -70,6 +71,9 @@ export class ReplayEngine {
    */
   private compile(customDomain?: IDomainState): void {
     let currentState = this.createInitialState(customDomain);
+    if (!customDomain && this.pgnMatch.headers.Variant?.toUpperCase().includes('SPELL')) {
+      currentState = OfficialSpellRules.sync({ ...currentState, variantId: this.pgnMatch.headers.Variant }, OfficialSpellRules.getState(currentState));
+    }
     this.statesList.push(currentState);
 
     for (let i = 0; i < this.pgnMatch.moves.length; i++) {
@@ -81,6 +85,7 @@ export class ReplayEngine {
         (currentState as { activePlayer: string }).activePlayer = actingPlayer;
       }
 
+      for (const spell of move.spells ?? []) currentState = OfficialSpellRules.cast(currentState, spell, actingPlayer);
       const resolved = this.resolveMove(currentState, move, i + 1);
       if (!resolved) {
         if (this.strict) {
@@ -106,8 +111,9 @@ export class ReplayEngine {
         this.defaultTopology
       );
 
-      const nextState: IDomainState = JSON.parse(JSON.stringify(currentState));
+      let nextState: IDomainState = JSON.parse(JSON.stringify(currentState));
       command.execute(nextState);
+      if (nextState.metadata?.officialSpellState) nextState = OfficialSpellRules.finishTurn(nextState, pieceId, actingPlayer, this.defaultTopology);
 
       // If not in strict mode, MovePieceCommand did not auto-move the rook, so move it explicitly
       if (castledRook && !this.strict) {

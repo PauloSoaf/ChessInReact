@@ -264,7 +264,7 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       });
 
       expect(screen.getByText('Partida contra Robô (IA)')).toBeDefined();
-      expect(screen.getByText(/Pass & Play/i)).toBeDefined();
+      expect(screen.getByRole('heading', { name: /Duelo Local \(Pass & Play\)/i })).toBeDefined();
       expect(screen.getByText(/Retomar Partida/i)).toBeDefined();
 
       // Start Bot Match
@@ -299,7 +299,7 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       // Must NOT present "Retomar Partida" when match is over
       expect(screen.queryByText(/Retomar Partida/i)).toBeNull();
       // Should present final position option
-      expect(screen.getByText(/Fim de Jogo/i)).toBeDefined();
+      expect(screen.getByRole('button', { name: /Ver Posição Final/i })).toBeDefined();
     });
 
     it('renders Suspense fallback during initial lazy chunk load and transitions from off to eager', async () => {
@@ -879,7 +879,7 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
         render(<App />);
       });
       expect(screen.getByText('Partida contra Robô (IA)')).toBeDefined();
-      expect(screen.getByText(/Experiência de Xadrez Avançada/i)).toBeDefined();
+      expect(screen.getByRole('heading', { level: 1, name: /Xadrez & Variantes/i })).toBeDefined();
     });
 
     it('renders Game directly when #game hash is present', async () => {
@@ -1650,10 +1650,10 @@ describe('Spec 06 UI/UX & Design System Suite (Sprint 01)', () => {
       const text = container.textContent || '';
 
       // Player-centered highlights are present
-      expect(text).toContain('Domínio Tático');
+      expect(text).toContain('Xadrez & Variantes');
       expect(text).toContain('5 Níveis de Desafio');
-      expect(text).toContain('Revisão de Lances');
-      expect(text).toContain('3 Atmosferas Visuais');
+      expect(text).toContain('Duelo Local & Relógios');
+      expect(text).toContain('Variantes & Estudos');
       expect(text).toContain('Desfazer & Refazer');
       expect(text).toContain('Inversão de Tabuleiro');
 

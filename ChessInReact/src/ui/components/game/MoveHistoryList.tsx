@@ -12,6 +12,7 @@ export interface IMoveHistoryListProps {
   onSelectMoveIndex?: (moveIndex: number) => void;
   activeMoveIndex?: number;
   maxHeight?: string;
+  onExportPGN?: () => string;
 }
 
 export const MoveHistoryList: React.FC<IMoveHistoryListProps> = ({
@@ -19,6 +20,7 @@ export const MoveHistoryList: React.FC<IMoveHistoryListProps> = ({
   onSelectMoveIndex,
   activeMoveIndex,
   maxHeight = '180px',
+  onExportPGN,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
@@ -32,6 +34,7 @@ export const MoveHistoryList: React.FC<IMoveHistoryListProps> = ({
 
   // Format PGN string for clipboard export
   const exportPgnString = (): string => {
+    if (onExportPGN) return onExportPGN();
     if (moves.length === 0) return '';
     return moves
       .map((m) => {

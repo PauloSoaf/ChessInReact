@@ -1,32 +1,12 @@
-/**
- * ChessInReact - Spell Chess Adversarial Tactical Search Engine (Spec 15 § 4 Estratégia 7, RF-15-06)
- *
- * Implements an adversarial Alpha-Beta / Negamax search over composite Spell Chess turn actions:
- * - Unit of search: SpellChessTurnAction = Optional Spell + Mandatory Piece Move.
- * - Iterative deepening with strict time budget enforcement (RNF-15-01).
- * - Full Transposition Table with augmented state indexing.
- * - Quiescence search for captures and king assault sequences.
- * - High-precision telemetry trace generation for auditing and tuning.
- */
-
 import { IDomainState } from '../../../../core/state/gameState';
-import { PlayerId, CoordinateKey, EntityId } from '../../../../core/coordinates/types';
-import { IPieceEntity } from '../../../../core/entities/types';
+import { PlayerId, asCoordinateKey } from '../../../../core/coordinates';
 import { ITopology } from '../../../../core/topology/types';
-import { MovePieceCommand } from '../../../../core/commands/MovePieceCommand';
-import {
-  SpellAction,
-  SpellChessTurnAction,
-  SpellResources,
-  SpellChessDecisionTrace,
-} from './SpellChessTurnAction';
+import { OfficialSpellEngine, IPlayerSpellCharges } from '../../../../engine/variants/spells/OfficialSpellEngine';
+import { OfficialSpellRules } from '../../../../engine/variants/spells/OfficialSpellRules';
+import { SpellChessTurnAction, SpellResources, SpellChessDecisionTrace, CandidateDiagnostic } from './SpellChessTurnAction';
 import { SpellChessMoveGenerator } from './SpellChessMoveGenerator';
-import {
-  SpellChessPositionEvaluator,
-  SPELL_CHESS_MATE_SCORE,
-} from './SpellChessPositionEvaluator';
+import { SpellChessPositionEvaluator, SPELL_CHESS_MATE_SCORE as MATE } from './SpellChessPositionEvaluator';
 import { SpellChessTranspositionTable } from './SpellChessTranspositionTable';
-import { SpellChessThreatAnalyzer } from './SpellChessThreatAnalyzer';
 
 export interface ISpellChessSearchResult {
   readonly bestAction: SpellChessTurnAction;
@@ -36,492 +16,182 @@ export interface ISpellChessSearchResult {
   readonly elapsedMs: number;
   readonly trace: SpellChessDecisionTrace;
 }
+const opposite = (p: PlayerId): PlayerId => p === 'P1' ? 'P2' : 'P1';
+interface NodeResult { score: number; pv: SpellChessTurnAction[] }
+class SearchTimeout extends Error {}
 
 export class SpellChessSearch {
   private readonly tt: SpellChessTranspositionTable;
-  private nodesCount = 0;
-  private startTime = 0;
-  private timeBudgetMs = 2500;
-  private isTimeExhausted = false;
+  private nodes = 0;
+  private qnodes = 0;
+  private deadline = 0;
+  private timedOut = false;
+  constructor(ttSize = 32768) { this.tt = new SpellChessTranspositionTable(ttSize); }
 
-  constructor(ttSize: number = 32_768) {
-    this.tt = new SpellChessTranspositionTable(ttSize);
+  public static resources(domain: IDomainState, player: PlayerId): SpellResources {
+    const spells = OfficialSpellRules.getState(domain);
+    const c = player === 'P1' ? spells.whiteCharges : spells.blackCharges;
+    return { freezeRemaining: c.freezeCharges, jumpRemaining: c.jumpCharges,
+      freezeCooldown: c.freezeCooldownTurns, jumpCooldown: c.jumpCooldownTurns };
   }
 
-  /**
-   * Main search entry point with iterative deepening.
-   */
-  public searchBestTurnAction(
-    domain: IDomainState,
-    actingPlayer: PlayerId,
-    topology: ITopology,
-    playerResources: SpellResources,
-    opponentResources: SpellResources,
-    timeBudgetMs: number = 2500,
-    maxDepth: number = 5,
-    activeFrozenCoords: readonly string[] = [],
-    activeJumpCoords: readonly string[] = [],
-    fallbackLegalMoves?: readonly {
-      readonly from: string;
-      readonly to: string;
-      readonly pieceId: string;
-      readonly isCapture?: boolean;
-      readonly promotion?: string;
-    }[]
+  public searchBestTurnAction(domain: IDomainState, player: PlayerId, topology: ITopology,
+    resources: SpellResources, opponentResources: SpellResources, timeBudgetMs = 2500, maxDepth = 5,
+    _activeFrozenCoords: readonly string[] = [], _activeJumpCoords: readonly string[] = [],
+    _fallbackLegalMoves?: readonly { from: string; to: string; pieceId: string; isCapture?: boolean; promotion?: string }[]
   ): ISpellChessSearchResult {
-    this.startTime = performance.now();
-    this.timeBudgetMs = timeBudgetMs;
-    this.nodesCount = 0;
-    this.isTimeExhausted = false;
-
-    // Generate root turn actions
-    const rootActions = SpellChessMoveGenerator.generateTurnActions(
-      domain,
-      actingPlayer,
-      topology,
-      playerResources,
-      activeFrozenCoords,
-      activeJumpCoords,
-      fallbackLegalMoves
-    );
-
-    if (rootActions.length === 0) {
-      throw new Error('Nenhum movimento legal disponível em Spell Chess.');
+    void _activeFrozenCoords; void _activeJumpCoords; void _fallbackLegalMoves;
+    const start = performance.now();
+    this.deadline = start + Math.max(1, timeBudgetMs);
+    this.nodes = 0; this.qnodes = 0; this.timedOut = false; this.tt.clear();
+    const charges = (r: SpellResources): IPlayerSpellCharges => ({ freezeCharges: r.freezeRemaining,
+      jumpCharges: r.jumpRemaining, freezeCooldownTurns: r.freezeCooldown, jumpCooldownTurns: r.jumpCooldown });
+    let root: IDomainState = { ...domain, activePlayer: player };
+    if (!domain.metadata?.officialSpellState) {
+      const initial = OfficialSpellEngine.createInitialState();
+      root = { ...root, metadata: { ...root.metadata, officialSpellState: { ...initial,
+        whiteCharges: charges(player === 'P1' ? resources : opponentResources),
+        blackCharges: charges(player === 'P2' ? resources : opponentResources),
+        activeFrozenPieceIds: Object.fromEntries(OfficialSpellRules.pieces(domain)
+          .filter((p) => p.metadata?.isFrozen).map((p) => [p.id, 1])),
+        activeJumpPieceIds: Object.fromEntries(OfficialSpellRules.pieces(domain)
+          .filter((p) => p.metadata?.canBeJumpedOver).map((p) => [p.id, 1])),
+      } } };
     }
-
-    // 0. Immediate Check: If any root action captures opponent King, execute immediately!
-    const opponentPlayer: PlayerId = actingPlayer === 'P1' ? 'P2' : 'P1';
-    const opponentKingCoord = SpellChessThreatAnalyzer.findKingCoord(domain, opponentPlayer);
-    for (const action of rootActions) {
-      if (action.move.to === opponentKingCoord) {
-        const elapsed = performance.now() - this.startTime;
-        return {
-          bestAction: action,
-          evaluationCentipawns: SPELL_CHESS_MATE_SCORE,
-          depthReached: 1,
-          nodesEvaluated: 1,
-          elapsedMs: elapsed,
-          trace: {
-            depthReached: 1,
-            nodesSearched: 1,
-            elapsedMs: elapsed,
-            legalTurnActionsConsidered: rootActions.length,
-            topCandidates: [{ spell: action.spell, move: `${action.move.from}->${action.move.to}`, score: SPELL_CHESS_MATE_SCORE }],
-            chosenAction: action,
-            principalVariation: [action],
-          },
-        };
-      }
-    }
-
-    let globalBestAction = rootActions[0];
-    let globalBestScore = -Infinity;
-    let completedDepth = 1;
-    const topCandidatesRecord: Array<{ spell: SpellAction; move: string; score: number }> = [];
-
-    // Iterative deepening from depth 1 to maxDepth
-    for (let depth = 1; depth <= maxDepth; depth++) {
-      let currentBestAction = rootActions[0];
-      let currentBestScore = -Infinity;
-      let alpha = -Infinity;
-      const beta = Infinity;
-
-      for (const action of rootActions) {
-        if (this.checkTimeCutoff()) break;
-
-        const nextDomain = this.simulateTurnAction(domain, action, actingPlayer, topology);
-        const nextPlayerResources = this.updateResourcesAfterTurn(playerResources, action.spell);
-        const nextOpponentResources = { ...opponentResources };
-
-        // Negamax recursive call
-        const score = -this.negamax(
-          nextDomain,
-          depth - 1,
-          -beta,
-          -alpha,
-          opponentPlayer,
-          actingPlayer,
-          topology,
-          nextOpponentResources,
-          nextPlayerResources,
-          activeFrozenCoords,
-          activeJumpCoords,
-          1
-        );
-
-        if (this.isTimeExhausted) break;
-
-        if (score > currentBestScore) {
-          currentBestScore = score;
-          currentBestAction = action;
-        }
-        if (score > alpha) {
-          alpha = score;
-        }
-
-        if (depth === maxDepth) {
-          topCandidatesRecord.push({
-            spell: action.spell,
-            move: `${action.move.from}->${action.move.to}`,
-            score,
-          });
-        }
-      }
-
-      if (!this.isTimeExhausted) {
-        globalBestAction = currentBestAction;
-        globalBestScore = currentBestScore;
-        completedDepth = depth;
-
-        // If a forced win is found, no need to search deeper
-        if (globalBestScore >= SPELL_CHESS_MATE_SCORE - 10) {
-          break;
-        }
-      } else {
-        break;
-      }
-    }
-
-    const elapsedMs = performance.now() - this.startTime;
-    topCandidatesRecord.sort((a, b) => b.score - a.score);
-
-    return {
-      bestAction: globalBestAction,
-      evaluationCentipawns: Math.round(globalBestScore === -Infinity ? 0 : globalBestScore),
-      depthReached: completedDepth,
-      nodesEvaluated: this.nodesCount,
-      elapsedMs,
-      trace: {
-        depthReached: completedDepth,
-        nodesSearched: this.nodesCount,
-        elapsedMs,
-        legalTurnActionsConsidered: rootActions.length,
-        topCandidates: topCandidatesRecord.slice(0, 5),
-        chosenAction: globalBestAction,
-        principalVariation: [globalBestAction],
-      },
-    };
-  }
-
-  /**
-   * Recursive Negamax with Alpha-Beta Pruning.
-   */
-  private negamax(
-    domain: IDomainState,
-    depth: number,
-    alpha: number,
-    beta: number,
-    activePlayer: PlayerId,
-    rootPlayer: PlayerId,
-    topology: ITopology,
-    playerResources: SpellResources,
-    opponentResources: SpellResources,
-    activeFrozenCoords: readonly string[],
-    activeJumpCoords: readonly string[],
-    ply: number
-  ): number {
-    this.nodesCount++;
-
-    if (this.checkTimeCutoff()) {
-      return 0;
-    }
-
-    const opponentPlayer: PlayerId = activePlayer === 'P1' ? 'P2' : 'P1';
-
-    // 1. Terminal Royal Capture Evaluation
-    let friendlyKingCaptured = false;
-    let opponentKingCaptured = false;
-    for (const entity of Object.values(domain.boardEntities)) {
-      if (
-        entity &&
-        entity.type === 'PIECE' &&
-        (entity.variantId.toUpperCase() === 'KING' || entity.variantId.toUpperCase() === 'K')
-      ) {
-        if (entity.ownerId === activePlayer && entity.isCaptured) {
-          friendlyKingCaptured = true;
-        } else if (entity.ownerId === opponentPlayer && entity.isCaptured) {
-          opponentKingCaptured = true;
-        }
-      }
-    }
-
-    if (friendlyKingCaptured) {
-      return -SPELL_CHESS_MATE_SCORE + ply;
-    }
-    if (opponentKingCaptured) {
-      return SPELL_CHESS_MATE_SCORE - ply;
-    }
-
-    // 2. Leaf Node Evaluation or Quiescence
-    if (depth <= 0) {
-      return this.quiescence(
-        domain,
-        alpha,
-        beta,
-        activePlayer,
-        topology,
-        playerResources,
-        opponentResources,
-        activeFrozenCoords,
-        activeJumpCoords,
-        ply
-      );
-    }
-
-    // 3. Transposition Table Lookup
-    const ttKey = this.tt.computeKey(
-      domain,
-      activePlayer,
-      activePlayer === 'P1' ? playerResources : opponentResources,
-      activePlayer === 'P1' ? opponentResources : playerResources,
-      activeFrozenCoords,
-      activeJumpCoords
-    );
-    const ttEntry = this.tt.get(ttKey);
-    if (ttEntry && ttEntry.depth >= depth) {
-      if (ttEntry.flag === 'EXACT') return ttEntry.score;
-      if (ttEntry.flag === 'LOWERBOUND' && ttEntry.score >= beta) return ttEntry.score;
-      if (ttEntry.flag === 'UPPERBOUND' && ttEntry.score <= alpha) return ttEntry.score;
-    }
-
-    // 4. Generate Legal Turn Actions
-    const actions = SpellChessMoveGenerator.generateTurnActions(
-      domain,
-      activePlayer,
-      topology,
-      playerResources,
-      activeFrozenCoords,
-      activeJumpCoords
-    );
-
-    if (actions.length === 0) {
-      // No legal moves
-      return 0; // Draw / Stalemate
-    }
-
-    let maxScore = -Infinity;
-    let bestAction = actions[0];
-    const opponentKingCoord = SpellChessThreatAnalyzer.findKingCoord(domain, opponentPlayer);
-
+    const immediate = SpellChessMoveGenerator.findKingCapture(root, player, topology);
+    const actions = immediate ? [immediate] : SpellChessMoveGenerator.generateTurnActions(root, player, topology, SpellChessSearch.resources(root, player));
+    if (!actions.length) throw new Error('No executable Spell Chess action.');
+    const diagnostics: CandidateDiagnostic[] = [];
+    const children: Array<{ action: SpellChessTurnAction; state: IDomainState; diagnostic: CandidateDiagnostic }> = [];
     for (const action of actions) {
-      // Immediate King Capture cutoff
-      if (opponentKingCoord && action.move.to === opponentKingCoord) {
-        return SPELL_CHESS_MATE_SCORE - ply;
-      }
-
-      const nextDomain = this.simulateTurnAction(domain, action, activePlayer, topology);
-      const nextPlayerResources = this.updateResourcesAfterTurn(playerResources, action.spell);
-      const nextOpponentResources = { ...opponentResources };
-
-      const score = -this.negamax(
-        nextDomain,
-        depth - 1,
-        -beta,
-        -alpha,
-        opponentPlayer,
-        rootPlayer,
-        topology,
-        nextOpponentResources,
-        nextPlayerResources,
-        activeFrozenCoords,
-        activeJumpCoords,
-        ply + 1
-      );
-
-      if (this.isTimeExhausted) return 0;
-
-      if (score > maxScore) {
-        maxScore = score;
-        bestAction = action;
-      }
-      if (score > alpha) {
-        alpha = score;
-      }
-      if (alpha >= beta) {
-        // Beta cutoff
-        break;
+      const targetId = root.occupancy[asCoordinateKey(action.move.to)];
+      const target = targetId ? root.boardEntities[targetId] : undefined;
+      const values: Record<string, number> = { QUEEN: 900, ROOK: 500, BISHOP: 330, KNIGHT: 320, PAWN: 100 };
+      const d: CandidateDiagnostic = { action, legal: true, score: 0, completedDepth: 0,
+        allowsImmediateKingCapture: false, safetyChecked: false, usedFallback: false,
+        capturedMaterialCp: target?.type === 'PIECE' ? values[target.variantId] ?? 0 : 0 };
+      diagnostics.push(d);
+      if (performance.now() >= this.deadline && children.some((c) => !c.diagnostic.allowsImmediateKingCapture)) { this.timedOut = true; d.rejectionReason = 'Budget expired before safety inspection'; continue; }
+      try {
+        const next = OfficialSpellRules.simulate(root, action, topology);
+        this.nodes++;
+        const reply = SpellChessMoveGenerator.findKingCapture(next, opposite(player), topology);
+        d.safetyChecked = true;
+        d.allowsImmediateKingCapture = Boolean(reply);
+        d.opponentBestReply = reply;
+        d.score = next.isGameOver ? this.terminal(next, player, 1)! : reply ? -MATE + 2 :
+          -this.evaluate(next, topology, 1);
+        children.push({ action, state: next, diagnostic: d });
+      } catch (error) {
+        d.legal = false; d.rejectionReason = String(error);
+        // A generated action rejected by the shared rules is a structural error, never a manual move.
+        throw new Error(`Spell simulation rejected ${JSON.stringify(action)}: ${String(error)}`);
       }
     }
-
-    // Store in Transposition Table
-    const flag = maxScore <= alpha ? 'UPPERBOUND' : maxScore >= beta ? 'LOWERBOUND' : 'EXACT';
-    this.tt.set(ttKey, {
-      key: ttKey,
-      depth,
-      flag,
-      score: maxScore,
-      bestAction,
-    });
-
-    return maxScore;
-  }
-
-  /**
-   * Quiescence search to avoid the horizon effect on tactical captures.
-   */
-  private quiescence(
-    domain: IDomainState,
-    alpha: number,
-    beta: number,
-    activePlayer: PlayerId,
-    topology: ITopology,
-    playerResources: SpellResources,
-    opponentResources: SpellResources,
-    activeFrozenCoords: readonly string[],
-    activeJumpCoords: readonly string[],
-    ply: number
-  ): number {
-    this.nodesCount++;
-
-    const standPat = SpellChessPositionEvaluator.evaluate(
-      domain,
-      activePlayer,
-      topology,
-      playerResources,
-      opponentResources,
-      activeFrozenCoords,
-      activeJumpCoords,
-      ply
-    );
-
-    if (standPat >= beta) return beta;
-    if (standPat > alpha) alpha = standPat;
-
-    // In quiescence, only examine non-spell tactical captures
-    const captureMoves = SpellChessMoveGenerator.generateTurnActions(
-      domain,
-      activePlayer,
-      topology,
-      { ...playerResources, freezeRemaining: 0, jumpRemaining: 0 }, // non-spell only in quiescence
-      activeFrozenCoords,
-      activeJumpCoords
-    ).filter((a) => a.move.isCapture);
-
-    const opponentPlayer: PlayerId = activePlayer === 'P1' ? 'P2' : 'P1';
-
-    for (const action of captureMoves) {
-      const nextDomain = this.simulateTurnAction(domain, action, activePlayer, topology);
-      const score = -this.quiescence(
-        nextDomain,
-        -beta,
-        -alpha,
-        opponentPlayer,
-        topology,
-        opponentResources,
-        playerResources,
-        activeFrozenCoords,
-        activeJumpCoords,
-        ply + 1
-      );
-
-      if (score >= beta) return beta;
-      if (score > alpha) alpha = score;
-    }
-
-    return alpha;
-  }
-
-  /**
-   * Simulates a full turn action on an isolated clone of domain state.
-   */
-  private simulateTurnAction(
-    domain: IDomainState,
-    action: SpellChessTurnAction,
-    actingPlayer: PlayerId,
-    topology: ITopology
-  ): IDomainState {
-    // 1. Apply Spell
-    const stateWithSpell = SpellChessMoveGenerator.cloneAndApplySpell(domain, action.spell, actingPlayer);
-
-    // 2. Execute Move
-    const cmd = new MovePieceCommand(
-      action.move.pieceId as EntityId,
-      action.move.from as CoordinateKey,
-      action.move.to as CoordinateKey,
-      actingPlayer,
-      undefined,
-      true, // advance turn
-      false, // bypass standard check restriction (royal capture valid)
-      action.move.promotion,
-      topology
-    );
-
-    const clonedEntities: Record<string, IPieceEntity> = {};
-    for (const [k, v] of Object.entries(stateWithSpell.boardEntities)) {
-      if (v) {
-        clonedEntities[k] = { ...v, metadata: { ...(v.metadata ?? {}) } } as IPieceEntity;
-      }
-    }
-    const draft = {
-      ...stateWithSpell,
-      activePlayer: actingPlayer,
-      boardEntities: clonedEntities,
-      occupancy: { ...stateWithSpell.occupancy },
-    };
-
-    try {
-      cmd.execute(draft);
-    } catch {
-      // Fallback manual displacement if command rejected in simulated sandbox
-      const occupantId = draft.occupancy[action.move.to as CoordinateKey];
-      if (occupantId) {
-        const victim = draft.boardEntities[occupantId];
-        if (victim && victim.type === 'PIECE') {
-          draft.boardEntities[occupantId] = { ...(victim as IPieceEntity), isCaptured: true };
+    if (!children.length) throw new Error('No validated Spell Chess candidate.');
+    const safe = children.filter((c) => !c.diagnostic.allowsImmediateKingCapture);
+    const candidates = (safe.length ? safe : children).sort((a, b) => b.diagnostic.score - a.diagnostic.score);
+    let best = candidates[0];
+    let score = best.diagnostic.score;
+    let pv = [best.action, ...(best.diagnostic.opponentBestReply ? [best.diagnostic.opponentBestReply] : [])];
+    let completedDepth = immediate || children.length === actions.length ? 1 : 0;
+    if (completedDepth === 1) for (const child of children) child.diagnostic.completedDepth = 1;
+    if (!immediate && !this.timedOut) for (let depth = 2; depth <= maxDepth; depth++) {
+      let iterationBest = best;
+      let iterationScore = -Infinity;
+      let rootAlpha = -Infinity;
+      let iterationPV: SpellChessTurnAction[] = [];
+      const iterationDiagnostics: Array<{ d: CandidateDiagnostic; value: NodeResult }> = [];
+      try {
+        for (const child of candidates) {
+          this.checkTime();
+          const value = child.diagnostic.allowsImmediateKingCapture
+            ? { score: MATE - 2, pv: [child.diagnostic.opponentBestReply!] }
+            : this.negamax(child.state, topology, depth - 1, -Infinity, -rootAlpha, 1);
+          iterationDiagnostics.push({ d: child.diagnostic, value });
+          if (-value.score > iterationScore) { iterationScore = -value.score; iterationBest = child; iterationPV = [child.action, ...value.pv]; }
+          rootAlpha = Math.max(rootAlpha, -value.score);
         }
-      }
-      delete draft.occupancy[action.move.from as CoordinateKey];
-      draft.occupancy[action.move.to as CoordinateKey] = action.move.pieceId as EntityId;
-      const movedEntity = draft.boardEntities[action.move.pieceId as EntityId];
-      if (movedEntity && movedEntity.type === 'PIECE') {
-        draft.boardEntities[action.move.pieceId as EntityId] = {
-          ...movedEntity,
-          position: action.move.to as CoordinateKey,
-          hasMoved: true,
-        };
-      }
+        best = iterationBest; score = iterationScore; pv = iterationPV; completedDepth = depth;
+        for (const { d, value } of iterationDiagnostics) { d.score = -value.score; d.completedDepth = depth; d.opponentBestReply = value.pv[0]; }
+        candidates.sort((a, b) => b.diagnostic.score - a.diagnostic.score);
+        if (Math.abs(score) >= MATE - 20) break;
+      } catch (error) { if (!(error instanceof SearchTimeout)) throw error; this.timedOut = true; break; }
     }
-
-    draft.activePlayer = actingPlayer === 'P1' ? 'P2' : 'P1';
-    return draft;
+    const elapsedMs = performance.now() - start;
+    return { bestAction: best.action, evaluationCentipawns: score, depthReached: completedDepth,
+      nodesEvaluated: this.nodes, elapsedMs, trace: { engine: 'SPELL_COMPOSITE', depthReached: completedDepth,
+        nodesSearched: this.nodes, elapsedMs, legalTurnActionsConsidered: actions.length,
+        chosenAction: best.action, principalVariation: pv, candidates: diagnostics, timedOut: this.timedOut,
+        fallbackUsed: false, quiescenceNodes: this.qnodes,
+        topCandidates: [...diagnostics].filter((d) => d.safetyChecked).sort((a, b) => b.score - a.score).slice(0, 5)
+          .map((d) => ({ spell: d.action.spell, move: `${d.action.move.from}->${d.action.move.to}`, score: d.score })) } };
   }
 
-  /**
-   * Updates spell resources after a turn.
-   */
-  private updateResourcesAfterTurn(
-    res: SpellResources,
-    spell: SpellAction
-  ): SpellResources {
-    let freezeRemaining = res.freezeRemaining;
-    let jumpRemaining = res.jumpRemaining;
-    let freezeCooldown = Math.max(0, res.freezeCooldown - 1);
-    let jumpCooldown = Math.max(0, res.jumpCooldown - 1);
-
-    if (spell.type === 'FREEZE') {
-      freezeRemaining = Math.max(0, freezeRemaining - 1);
-      freezeCooldown = 3;
-    } else if (spell.type === 'JUMP') {
-      jumpRemaining = Math.max(0, jumpRemaining - 1);
-      jumpCooldown = 3;
-    }
-
-    return {
-      freezeRemaining,
-      jumpRemaining,
-      freezeCooldown,
-      jumpCooldown,
-    };
+  private terminal(domain: IDomainState, player: PlayerId, ply: number): number | undefined {
+    if (!domain.isGameOver) return undefined;
+    return domain.winnerId === null ? 0 : domain.winnerId === player ? MATE - ply : -MATE + ply;
   }
-
-  private checkTimeCutoff(): boolean {
-    if (this.isTimeExhausted) return true;
-    if (this.nodesCount % 64 === 0) {
-      if (performance.now() - this.startTime >= this.timeBudgetMs) {
-        this.isTimeExhausted = true;
-        return true;
-      }
-    }
-    return false;
+  private evaluate(domain: IDomainState, topology: ITopology, ply: number): number {
+    return SpellChessPositionEvaluator.evaluate(domain, domain.activePlayer, topology,
+      SpellChessSearch.resources(domain, domain.activePlayer), SpellChessSearch.resources(domain, opposite(domain.activePlayer)), [], [], ply);
   }
+  private negamax(domain: IDomainState, topology: ITopology, depth: number, alpha: number, beta: number, ply: number): NodeResult {
+    this.checkTime(); this.nodes++;
+    const terminal = this.terminal(domain, domain.activePlayer, ply);
+    if (terminal !== undefined) return { score: terminal, pv: [] };
+    const immediate = SpellChessMoveGenerator.findKingCapture(domain, domain.activePlayer, topology);
+    if (immediate) return { score: MATE - ply - 1, pv: [immediate] };
+    if (depth <= 0) return this.quiescence(domain, topology, alpha, beta, ply, 2);
+    const originalAlpha = alpha, originalBeta = beta;
+    const key = this.tt.computeKey(domain, domain.activePlayer, SpellChessSearch.resources(domain, 'P1'), SpellChessSearch.resources(domain, 'P2'), [], []);
+    const cached = this.tt.get(key);
+    if (cached && cached.depth >= depth && (cached.flag === 'EXACT' ||
+      (cached.flag === 'LOWERBOUND' && cached.score >= beta) || (cached.flag === 'UPPERBOUND' && cached.score <= alpha))) {
+      return { score: cached.score, pv: cached.principalVariation ?? [] };
+    }
+    const actions = SpellChessMoveGenerator.generateTurnActions(domain, domain.activePlayer, topology, SpellChessSearch.resources(domain, domain.activePlayer));
+    if (!actions.length) return { score: this.evaluate(domain, topology, ply), pv: [] };
+    let best: NodeResult = { score: -Infinity, pv: [] };
+    for (const action of actions) {
+      this.checkTime();
+      const next = OfficialSpellRules.simulate(domain, action, topology);
+      const value = this.negamax(next, topology, depth - 1, -beta, -alpha, ply + 1);
+      if (-value.score > best.score) best = { score: -value.score, pv: [action, ...value.pv] };
+      alpha = Math.max(alpha, best.score);
+      if (alpha >= beta) break;
+    }
+    this.tt.set(key, { key, depth, score: best.score, bestAction: best.pv[0], principalVariation: best.pv,
+      flag: best.score <= originalAlpha ? 'UPPERBOUND' : best.score >= originalBeta ? 'LOWERBOUND' : 'EXACT' });
+    return best;
+  }
+  private quiescence(domain: IDomainState, topology: ITopology, alpha: number, beta: number, ply: number, remaining: number): NodeResult {
+    this.checkTime(); this.qnodes++;
+    const terminal = this.terminal(domain, domain.activePlayer, ply);
+    if (terminal !== undefined) return { score: terminal, pv: [] };
+    const win = SpellChessMoveGenerator.findKingCapture(domain, domain.activePlayer, topology);
+    if (win) return { score: MATE - ply - 1, pv: [win] };
+    const threatened = Boolean(SpellChessMoveGenerator.findKingCapture({ ...domain, activePlayer: opposite(domain.activePlayer),
+      metadata: { ...domain.metadata, hasCastSpellThisTurn: false } }, opposite(domain.activePlayer), topology));
+    const standPat = this.evaluate(domain, topology, ply);
+    if (remaining === 0) return { score: standPat, pv: [] };
+    let best: NodeResult = { score: threatened ? -Infinity : standPat, pv: [] };
+    if (!threatened) { if (standPat >= beta) return best; alpha = Math.max(alpha, standPat); }
+    // In capture-only play Freeze cannot open a material capture geometrically.
+    // Keep all defensive spells under threat; otherwise search captures and Jump captures.
+    const resources = SpellChessSearch.resources(domain, domain.activePlayer);
+    const actions = SpellChessMoveGenerator.generateTurnActions(domain, domain.activePlayer, topology,
+      threatened ? resources : { ...resources, freezeRemaining: 0 })
+      .filter((a) => threatened || a.move.isCapture || a.move.promotion);
+    for (const action of actions) {
+      this.checkTime(); this.nodes++;
+      const next = OfficialSpellRules.simulate(domain, action, topology);
+      const reply = this.quiescence(next, topology, -beta, -alpha, ply + 1, remaining - 1);
+      if (-reply.score > best.score) best = { score: -reply.score, pv: [action, ...reply.pv] };
+      alpha = Math.max(alpha, best.score);
+      if (alpha >= beta) break;
+    }
+    return best.score === -Infinity ? { score: 0, pv: [] } : best;
+  }
+  private checkTime(): void { if (performance.now() >= this.deadline) throw new SearchTimeout(); }
 }

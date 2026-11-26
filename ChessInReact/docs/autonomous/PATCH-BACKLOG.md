@@ -34,6 +34,15 @@
 
 ## 2. Patches em Fila de Execução
 
+### `PATCH-12` — N5 com busca composta e defesa contra captura por Jump (26/11/2026)
+
+- [Implementação, diagnóstico e evidências](patches/PATCH-12-SPELL-CHESS-N5.md).
+- N5 oficial/personalizado usa a busca composta em Worker; simulador e controlador compartilham regras de feitiços, expiração e resultado executado. Fallbacks são identificáveis e validados.
+- Regressões incluem a captura envenenada `Kxf7`, ambas as cores, Freeze defensivo, execução real, roque, en passant, promoção, repetição e PGN com feitiços.
+- Defesa validada em navegador 2D/3D. A causa histórica exata continua indeterminada pela ausência dos eventos originais; a cronologia usada na reprodução completa é identificada como sintética.
+- Força global do N5 ainda não homologada; ver resultados e limites do benchmark no relatório. Commit e push autorizados pelo usuário em 26/11/2026; sem deploy nesta etapa.
+- Evidência adicional: [126 posições equivalentes e linha calculada antes de Kxf7](patches/patch12-evidence/TACTICAL-EQUIVALENCE.md), com geometrias e bloqueadores variados, recursos, expiração e ambas as cores; 14 casos exigem Freeze. Execução pela estratégia real do N5 e conferência por enumeração das respostas compostas.
+
 ### `PATCH-10` — Separação entre busca tática e resultado executado (26/11/2026)
 
 Implementação local concluída para este escopo; validação manual 2D/3D pendente. [Regras, alterações e evidências de validação](patches/PATCH-10-KING-CAPTURE-ONLY.md).

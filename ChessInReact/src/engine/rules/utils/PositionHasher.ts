@@ -1,6 +1,7 @@
 import { IDomainState } from '../../../core/state/gameState';
 import { IPieceEntity } from '../../../core/entities/types';
 import { parseCoord, toCoordKey } from './CoordinateHelper';
+import type { IOfficialSpellState } from '../../variants/spells/OfficialSpellEngine';
 
 /**
  * Computes a deterministic canonical string key representing the position state
@@ -129,5 +130,15 @@ export function computePositionKey(state: IDomainState): string {
     }
   }
 
-  return `${player}|${castling}|${ep}|${pieces.join(';')}`;
+  const boardKey = `${player}|${castling}|${ep}|${pieces.join(';')}`;
+  const spells = state.metadata?.officialSpellState as IOfficialSpellState | undefined;
+  if (!spells) return boardKey;
+  // Equal boards with different legal spell actions are not repeated positions.
+  const effects = Object.values(state.boardEntities).filter((e): e is IPieceEntity => e.type === 'PIECE' && !e.isCaptured)
+    .map((piece) => [piece.position,
+      spells.activeFrozenPieceIds ? spells.activeFrozenPieceIds[piece.id] ?? 0 : spells.activeFrozenCoordinates[piece.position] ?? 0,
+      spells.activeJumpPieceIds[piece.id] ?? 0])
+    .filter(([, frozen, jump]) => frozen || jump)
+    .sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+  return `${boardKey}|${state.variantId}|${JSON.stringify([spells.whiteCharges, spells.blackCharges, effects, Boolean(state.metadata?.hasCastSpellThisTurn)])}`;
 }

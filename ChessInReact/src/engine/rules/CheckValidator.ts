@@ -37,6 +37,7 @@ export class CheckValidator {
       // Topological raycasting for non-flat manifolds (Cube, Torus)
       const orthDirs = [0, 2, 4, 6];
       for (const dir of orthDirs) {
+        let jumpedBlockers = 0;
         const ray = topology.getRay(targetCoord, dir);
         for (let i = 0; i < ray.length; i++) {
           const coord = ray[i];
@@ -51,13 +52,14 @@ export class CheckValidator {
               if (v === 'ROOK' || v === 'QUEEN' || v === 'R' || v === 'Q' || v === 'CHANCELLOR' || v === 'AMAZON') return true;
               if (i === 0 && (v === 'KING' || v === 'K' || v === 'WAZIR' || v === 'W')) return true;
             }
-            if (!piece.metadata?.canBeJumpedOver) break;
+            if (!piece.metadata?.canBeJumpedOver || jumpedBlockers++ >= 1) break;
           }
         }
       }
 
       const diagDirs = [1, 3, 5, 7];
       for (const dir of diagDirs) {
+        let jumpedBlockers = 0;
         const ray = topology.getRay(targetCoord, dir);
         for (let i = 0; i < ray.length; i++) {
           const coord = ray[i];
@@ -72,7 +74,7 @@ export class CheckValidator {
               if (v === 'BISHOP' || v === 'QUEEN' || v === 'B' || v === 'Q' || v === 'ARCHBISHOP' || v === 'AMAZON') return true;
               if (i === 0 && (v === 'KING' || v === 'K' || v === 'FERZ' || v === 'F')) return true;
             }
-            if (!piece.metadata?.canBeJumpedOver) break;
+            if (!piece.metadata?.canBeJumpedOver || jumpedBlockers++ >= 1) break;
           }
         }
       }
@@ -128,6 +130,7 @@ export class CheckValidator {
       const maxX = (topology as { width?: number }).width ?? 8;
       const maxY = (topology as { height?: number }).height ?? 8;
 
+      let jumpedBlockers = 0;
       // North
       for (let y = ty + 1; y < maxY; y++) {
         const occId = state.occupancy[toCoordKey(tx, y)];
@@ -141,10 +144,11 @@ export class CheckValidator {
               if (v === 'ROOK' || v === 'QUEEN' || v === 'R' || v === 'Q' || v === 'CHANCELLOR' || v === 'AMAZON') return true;
               if (y === ty + 1 && (v === 'KING' || v === 'K' || v === 'WAZIR' || v === 'W')) return true;
             }
-            if (!piece.metadata?.canBeJumpedOver) break;
+            if (!piece.metadata?.canBeJumpedOver || jumpedBlockers++ >= 1) break;
           }
         }
       }
+      jumpedBlockers = 0;
       // South
       for (let y = ty - 1; y >= 0; y--) {
         const occId = state.occupancy[toCoordKey(tx, y)];
@@ -158,10 +162,11 @@ export class CheckValidator {
               if (v === 'ROOK' || v === 'QUEEN' || v === 'R' || v === 'Q' || v === 'CHANCELLOR' || v === 'AMAZON') return true;
               if (y === ty - 1 && (v === 'KING' || v === 'K' || v === 'WAZIR' || v === 'W')) return true;
             }
-            if (!piece.metadata?.canBeJumpedOver) break;
+            if (!piece.metadata?.canBeJumpedOver || jumpedBlockers++ >= 1) break;
           }
         }
       }
+      jumpedBlockers = 0;
       // East
       for (let x = tx + 1; x < maxX; x++) {
         const occId = state.occupancy[toCoordKey(x, ty)];
@@ -175,10 +180,11 @@ export class CheckValidator {
               if (v === 'ROOK' || v === 'QUEEN' || v === 'R' || v === 'Q' || v === 'CHANCELLOR' || v === 'AMAZON') return true;
               if (x === tx + 1 && (v === 'KING' || v === 'K' || v === 'WAZIR' || v === 'W')) return true;
             }
-            if (!piece.metadata?.canBeJumpedOver) break;
+            if (!piece.metadata?.canBeJumpedOver || jumpedBlockers++ >= 1) break;
           }
         }
       }
+      jumpedBlockers = 0;
       // West
       for (let x = tx - 1; x >= 0; x--) {
         const occId = state.occupancy[toCoordKey(x, ty)];
@@ -192,10 +198,11 @@ export class CheckValidator {
               if (v === 'ROOK' || v === 'QUEEN' || v === 'R' || v === 'Q' || v === 'CHANCELLOR' || v === 'AMAZON') return true;
               if (x === tx - 1 && (v === 'KING' || v === 'K' || v === 'WAZIR' || v === 'W')) return true;
             }
-            if (!piece.metadata?.canBeJumpedOver) break;
+            if (!piece.metadata?.canBeJumpedOver || jumpedBlockers++ >= 1) break;
           }
         }
       }
+      jumpedBlockers = 0;
       // Northeast
       for (let x = tx + 1, y = ty + 1; x < maxX && y < maxY; x++, y++) {
         const occId = state.occupancy[toCoordKey(x, y)];
@@ -209,10 +216,11 @@ export class CheckValidator {
               if (v === 'BISHOP' || v === 'QUEEN' || v === 'B' || v === 'Q' || v === 'ARCHBISHOP' || v === 'AMAZON') return true;
               if (x === tx + 1 && (v === 'KING' || v === 'K' || v === 'FERZ' || v === 'F')) return true;
             }
-            if (!piece.metadata?.canBeJumpedOver) break;
+            if (!piece.metadata?.canBeJumpedOver || jumpedBlockers++ >= 1) break;
           }
         }
       }
+      jumpedBlockers = 0;
       // Northwest
       for (let x = tx - 1, y = ty + 1; x >= 0 && y < maxY; x--, y++) {
         const occId = state.occupancy[toCoordKey(x, y)];
@@ -226,10 +234,11 @@ export class CheckValidator {
               if (v === 'BISHOP' || v === 'QUEEN' || v === 'B' || v === 'Q' || v === 'ARCHBISHOP' || v === 'AMAZON') return true;
               if (x === tx - 1 && (v === 'KING' || v === 'K' || v === 'FERZ' || v === 'F')) return true;
             }
-            if (!piece.metadata?.canBeJumpedOver) break;
+            if (!piece.metadata?.canBeJumpedOver || jumpedBlockers++ >= 1) break;
           }
         }
       }
+      jumpedBlockers = 0;
       // Southeast
       for (let x = tx + 1, y = ty - 1; x < maxX && y >= 0; x++, y--) {
         const occId = state.occupancy[toCoordKey(x, y)];
@@ -243,10 +252,11 @@ export class CheckValidator {
               if (v === 'BISHOP' || v === 'QUEEN' || v === 'B' || v === 'Q' || v === 'ARCHBISHOP' || v === 'AMAZON') return true;
               if (x === tx + 1 && (v === 'KING' || v === 'K' || v === 'FERZ' || v === 'F')) return true;
             }
-            if (!piece.metadata?.canBeJumpedOver) break;
+            if (!piece.metadata?.canBeJumpedOver || jumpedBlockers++ >= 1) break;
           }
         }
       }
+      jumpedBlockers = 0;
       // Southwest
       for (let x = tx - 1, y = ty - 1; x >= 0 && y >= 0; x--, y--) {
         const occId = state.occupancy[toCoordKey(x, y)];
@@ -260,7 +270,7 @@ export class CheckValidator {
               if (v === 'BISHOP' || v === 'QUEEN' || v === 'B' || v === 'Q' || v === 'ARCHBISHOP' || v === 'AMAZON') return true;
               if (x === tx - 1 && (v === 'KING' || v === 'K' || v === 'FERZ' || v === 'F')) return true;
             }
-            if (!piece.metadata?.canBeJumpedOver) break;
+            if (!piece.metadata?.canBeJumpedOver || jumpedBlockers++ >= 1) break;
           }
         }
       }
@@ -268,6 +278,7 @@ export class CheckValidator {
       // Non-square generic raycasting (supports HexTopology edge dirs 0-5 and vertex dirs 6-11)
       const edgeDirs = [0, 1, 2, 3, 4, 5];
       for (const dir of edgeDirs) {
+        let jumpedBlockers = 0;
         let current = targetCoord;
         let dist = 0;
         while (dist < 8) {
@@ -282,7 +293,7 @@ export class CheckValidator {
                 if (v === 'ROOK' || v === 'QUEEN' || v === 'R' || v === 'Q' || v === 'CHANCELLOR' || v === 'AMAZON') return true;
                 if (dist === 0 && (v === 'KING' || v === 'K' || v === 'WAZIR' || v === 'W')) return true;
               }
-              if (!piece.metadata?.canBeJumpedOver) break;
+              if (!piece.metadata?.canBeJumpedOver || jumpedBlockers++ >= 1) break;
             }
           }
           current = next;
@@ -291,6 +302,7 @@ export class CheckValidator {
       }
       const diagDirs = [6, 7, 8, 9, 10, 11];
       for (const dir of diagDirs) {
+        let jumpedBlockers = 0;
         let current = targetCoord;
         let dist = 0;
         while (dist < 8) {
@@ -305,7 +317,7 @@ export class CheckValidator {
                 if (v === 'BISHOP' || v === 'QUEEN' || v === 'B' || v === 'Q' || v === 'ARCHBISHOP' || v === 'AMAZON') return true;
                 if (dist === 0 && (v === 'KING' || v === 'K' || v === 'FERZ' || v === 'F')) return true;
               }
-              if (!piece.metadata?.canBeJumpedOver) break;
+              if (!piece.metadata?.canBeJumpedOver || jumpedBlockers++ >= 1) break;
             }
           }
           current = next;

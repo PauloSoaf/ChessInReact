@@ -1,3 +1,4 @@
+import { OfficialSpellAction } from '../../../engine/variants/spells/OfficialSpellRules';
 import { CoordinateKey } from '../../coordinates';
 
 export interface IPGNHeaders {
@@ -22,6 +23,7 @@ export interface IPGNMoveEntry {
   readonly fromCoord: CoordinateKey | string;
   readonly toCoord: CoordinateKey | string;
   readonly san?: string;
+  readonly spells?: readonly { readonly spell: OfficialSpellAction }[];
   readonly capturedPieceId?: string | null;
   readonly isCheck?: boolean;
   readonly isCheckmate?: boolean;
@@ -93,6 +95,11 @@ export class PGNExporter {
           notation = `${this.coordToAlgebraic(move.fromCoord)}-${this.coordToAlgebraic(move.toCoord)}`;
         }
       }
+      const spellComments = move.spells?.filter((e) => e.spell.type !== 'NONE').map((e) => {
+        const spell = e.spell as Exclude<OfficialSpellAction, { type: 'NONE' }>;
+        return `{[%spell ${spell.type} ${this.coordToAlgebraic(spell.targetSquare)}]}`;
+      }).join(' ');
+      if (spellComments) notation = `${spellComments} ${notation}`;
       const suffix = (notation.endsWith('+') || notation.endsWith('#')) ? '' : (move.isCheckmate ? '#' : move.isCheck ? '+' : '');
 
       if (move.player === 'P1') {

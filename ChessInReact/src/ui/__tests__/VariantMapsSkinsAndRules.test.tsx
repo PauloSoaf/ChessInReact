@@ -161,6 +161,8 @@ describe('Variable Variant Maps, Spell Chess Skins & Gameplay Mechanics, and Rul
       expect(rookMovesWithJump.some((m) => m.to === '0,2')).toBe(true);
     }
 
+    // Independent Freeze scenario: each turn permits only one spell.
+    controller.startMatch(officialSpellCfg);
     // Cast Freeze centered at (4,1) - freezes White's e2 pawn (4,1) and surrounding 3x3 squares
     expect(controller.castOfficialSpell('FREEZE', '4,1')).toBe(true);
     const e2PawnId = gameStore.getState().domain.occupancy[asCoordinateKey('4,1')]!;

@@ -31,6 +31,7 @@ export interface IGameControlsBarProps {
   pendingDrawOffer?: PlayerId | null;
   activePlayer?: string;
   moves?: IMoveItem[];
+  onExportPGN?: () => string;
   onSelectMoveIndex?: (moveIndex: number) => void;
   activeMoveIndex?: number;
   onOpenGameReview?: () => void;
@@ -41,6 +42,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
   isBotEnabled,
   difficulty,
   isThinking,
+  onExportPGN,
   lastEval,
   boardSize,
   onToggleBot,
@@ -149,6 +151,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
         {/* Scrollable Algebraic Notation Table (Spec 06 Section 18.1 & Spec 09) */}
         <MoveHistoryList
           moves={moves}
+          onExportPGN={onExportPGN}
           onSelectMoveIndex={onSelectMoveIndex}
           activeMoveIndex={activeMoveIndex}
           maxHeight="160px"

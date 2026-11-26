@@ -17,6 +17,8 @@ import {
   IAIDecisionRequest,
   IAIDecisionResponse,
 } from '../interfaces/IUniversalAIEngine';
+import { SpellChessSearch } from './spell/SpellChessSearch';
+import { OfficialSpellRules } from '../../../engine/variants/spells/OfficialSpellRules';
 import { decideWithSearch } from './SearchBackedDecision';
 import { IDomainState } from '../../../core/state/gameState';
 import { PlayerId } from '../../../core/coordinates/types';
@@ -35,6 +37,35 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
   public readonly strategyId = 'SPELL_OPTIMIZER';
 
   public decideMove(request: IAIDecisionRequest): IAIDecisionResponse {
+    if (request.difficultyLevel === 5 && request.variantId.toUpperCase() !== 'SPELL_CHESS_EXPANDED') {
+      if (!request.domain || !request.topology) throw new Error('N5 Spell Chess requires authoritative domain and topology.');
+      const domain = request.domain;
+      const player = request.actingPlayer as PlayerId;
+      const readResources = (opponent: boolean) => {
+        if (domain.metadata?.officialSpellState) return SpellChessSearch.resources(domain, opponent ? (player === 'P1' ? 'P2' : 'P1') : player);
+        const context = request.specializedContext;
+        return { freezeRemaining: Number(context?.[opponent ? 'opponentFreezeCharges' : 'freezeCharges'] ?? 0),
+          jumpRemaining: Number(context?.[opponent ? 'opponentJumpCharges' : 'jumpCharges'] ?? 0),
+          freezeCooldown: Number(context?.[opponent ? 'opponentFreezeCooldown' : 'freezeCooldown'] ?? 0),
+          jumpCooldown: Number(context?.[opponent ? 'opponentJumpCooldown' : 'jumpCooldown'] ?? 0) };
+      };
+      const result = new SpellChessSearch().searchBestTurnAction(domain, player, request.topology,
+        readResources(false), readResources(true), request.timeBudgetMs, 5);
+      const action = result.bestAction;
+      // Revalidate the selected full turn against shared production rules before handing it to the controller.
+      const withSpells = domain.metadata?.officialSpellState ? domain : { ...domain, metadata: { ...domain.metadata,
+        officialSpellState: { ...OfficialSpellRules.getState(domain),
+          [player === 'P1' ? 'whiteCharges' : 'blackCharges']: {
+            freezeCharges: readResources(false).freezeRemaining, jumpCharges: readResources(false).jumpRemaining,
+            freezeCooldownTurns: readResources(false).freezeCooldown, jumpCooldownTurns: readResources(false).jumpCooldown,
+          } } } };
+      OfficialSpellRules.simulate({ ...withSpells, activePlayer: player }, action, request.topology);
+      return { move: action.move, secondaryAction: action.spell.type === 'NONE' ? undefined : {
+        type: 'CAST_SPELL', payload: { spellType: action.spell.type, targetCoord: action.spell.targetSquare },
+      }, evaluationCentipawns: result.evaluationCentipawns, depthReached: result.depthReached,
+        nodesEvaluated: result.nodesEvaluated, elapsedMs: result.elapsedMs, strategyUsed: this.strategyId,
+        spellTrace: result.trace, fallbackUsed: false };
+    }
     const t0 = performance.now();
     const moves = request.legalMoves;
 
@@ -596,8 +627,8 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
       },
       secondaryAction,
       evaluationCentipawns: Math.round(bestScore),
-      depthReached: Math.min(5, level),
-      nodesEvaluated: moves.length * level * 4,
+      depthReached: 0,
+      nodesEvaluated: moves.length,
       elapsedMs,
       strategyUsed: this.strategyId,
     };

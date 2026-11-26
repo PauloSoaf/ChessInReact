@@ -3,8 +3,8 @@
  *
  * Routes bot move requests to the specialized AI strategy:
  * - 9 pluggable search families.
- * - Non-blocking asynchronous dispatch.
- * - O(1) Linear Emergency Fallback (< 2.0ms safeguard).
+ * - Dedicated Worker for official/custom Spell Chess N5 in browsers.
+ * - Identified fallback with composite king-safety inspection for Spell Chess.
  */
 
 import {
@@ -13,6 +13,9 @@ import {
   IAIDecisionResponse,
   IUniversalAIStrategy,
 } from './interfaces/IUniversalAIEngine';
+import { SpellChessSearch } from './strategies/spell/SpellChessSearch';
+import { PlayerId } from '../../core/coordinates';
+import { OfficialSpellRules } from '../../engine/variants/spells/OfficialSpellRules';
 import { MaxNMultiplayerStrategy } from './strategies/MaxNMultiplayerStrategy';
 import { ISMCTSFogOfWarStrategy } from './strategies/ISMCTSFogOfWarStrategy';
 import { DuckChessPlannerStrategy } from './strategies/DuckChessPlannerStrategy';
@@ -87,7 +90,7 @@ export class AIWorkerPool {
    */
   public static async dispatchDecision(request: IAIDecisionRequest): Promise<IAIDecisionResponse> {
     this.ensureInitialized();
-    // Yield to microtask queue so UI / HUD updates and rendering frames are not blocked
+    // Async boundary; heavy N5 Spell Chess work is dispatched to a Worker below.
     await Promise.resolve();
     const participants = Number(request.specializedContext?.participantCount ?? 2);
     const strategyId = this.selectStrategyForVariant(request.variantId, participants);
@@ -95,19 +98,54 @@ export class AIWorkerPool {
 
     if (strategy) {
       try {
-        return await strategy.decideMove(request);
-      } catch {
-        return this.executeEmergencyFallback(request);
+        if (strategyId === 'SPELL_OPTIMIZER' && request.difficultyLevel === 5 &&
+          !request.variantId.toUpperCase().includes('EXPANDED') && request.domain && request.topology && typeof Worker !== 'undefined') {
+          return await this.dispatchSpellWorker(request);
+        }
+        const calculationRequest = request.domain
+          ? { ...request, domain: JSON.parse(JSON.stringify(request.domain)) }
+          : request;
+        const result = await strategy.decideMove(calculationRequest);
+        if (strategyId === 'SPELL_OPTIMIZER' && !request.variantId.toUpperCase().includes('EXPANDED') && request.domain && request.topology) {
+          const spell = result.secondaryAction?.type === 'CAST_SPELL'
+            ? { type: result.secondaryAction.payload.spellType as 'FREEZE' | 'JUMP', targetSquare: String(result.secondaryAction.payload.targetCoord) }
+            : { type: 'NONE' as const };
+          OfficialSpellRules.simulate(request.domain, { spell, move: result.move }, request.topology);
+        }
+        return result;
+      } catch (error) {
+        const reason = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+        console.error('[AIWorkerPool] Search failed', { matchId: request.matchId, strategyId, reason });
+        return this.executeEmergencyFallback(request, reason);
       }
     }
 
     return this.executeEmergencyFallback(request);
   }
 
+  private static dispatchSpellWorker(request: IAIDecisionRequest): Promise<IAIDecisionResponse> {
+    return new Promise((resolve, reject) => {
+      const worker = new Worker(new URL('./SpellDecisionWorker.ts', import.meta.url), { type: 'module' });
+      const timer = setTimeout(() => {
+        worker.terminate(); reject(new Error('Spell worker stalled beyond search deadline'));
+      }, request.timeBudgetMs + 5000);
+      const stop = () => { clearTimeout(timer); worker.terminate(); };
+      worker.onmessage = (event: MessageEvent<{ result?: IAIDecisionResponse; error?: string }>) => {
+        stop();
+        if (event.data.error || !event.data.result) reject(new Error(event.data.error ?? 'Missing worker decision'));
+        else resolve(event.data.result);
+      };
+      worker.onerror = (event) => { stop(); reject(new Error(event.message)); };
+      const topology = request.topology as { width?: number; height?: number };
+      try { worker.postMessage({ request: { ...request, topology: undefined }, width: topology.width ?? 8, height: topology.height ?? 8 }); }
+      catch (error) { stop(); reject(error); }
+    });
+  }
+
   /**
-   * RNF-15-02: O(1) Linear Emergency Fallback (< 2.0ms safeguard).
+   * Emergency selection. Spell Chess prioritizes an inspected legal turn over a latency claim.
    */
-  public static executeEmergencyFallback(request: IAIDecisionRequest): IAIDecisionResponse {
+  public static executeEmergencyFallback(request: IAIDecisionRequest, failureReason = 'Strategy unavailable'): IAIDecisionResponse {
     const t0 = performance.now();
     const moves = request.legalMoves;
 
@@ -115,7 +153,20 @@ export class AIWorkerPool {
       throw new Error('Nenhum movimento legal disponível para o fallback de emergência.');
     }
 
-    // O(1) instantaneous pick: prefer first capture or first legal move
+    if (request.variantId.toUpperCase().includes('SPELL') && !request.variantId.toUpperCase().includes('EXPANDED') && request.domain && request.topology) {
+      const player = request.actingPlayer as PlayerId;
+      const result = new SpellChessSearch().searchBestTurnAction(request.domain, player, request.topology,
+        SpellChessSearch.resources(request.domain, player), SpellChessSearch.resources(request.domain, player === 'P1' ? 'P2' : 'P1'),
+        Math.max(100, Math.min(request.timeBudgetMs, 300)), 0);
+      const action = result.bestAction;
+      return { move: action.move, secondaryAction: action.spell.type === 'NONE' ? undefined : {
+        type: 'CAST_SPELL', payload: { spellType: action.spell.type, targetCoord: action.spell.targetSquare },
+      }, evaluationCentipawns: result.evaluationCentipawns, depthReached: 0, nodesEvaluated: result.nodesEvaluated,
+        elapsedMs: performance.now() - t0, strategyUsed: 'SPELL_OPTIMIZER', fallbackUsed: true, failureReason,
+        spellTrace: { ...result.trace, fallbackUsed: true,
+          candidates: result.trace.candidates?.map((d) => ({ ...d, usedFallback: true })) } };
+    }
+    // Conventional fallback only; Spell Chess above inspects real opponent replies.
     const chosen = moves.find((m) => m.isCapture) ?? moves[0];
     const elapsedMs = performance.now() - t0;
 
@@ -127,8 +178,10 @@ export class AIWorkerPool {
         promotion: chosen.promotion,
       },
       evaluationCentipawns: 0,
-      depthReached: 1,
-      nodesEvaluated: 1,
+      depthReached: 0,
+      nodesEvaluated: 0,
+      fallbackUsed: true,
+      failureReason,
       elapsedMs,
       strategyUsed: 'MINIMAX_ALPHA_BETA',
     };

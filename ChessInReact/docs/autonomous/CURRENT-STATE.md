@@ -1,5 +1,7 @@
 # ChessInReact | Current State Assessment (Autonomous Audit)
 
+> **Atualização de 26/11/2026:** PATCH-12 implementado sobre `474377d`, com documentação e evidências incluídas no commit do patch. Commit e push autorizados pelo usuário em 26/11/2026. O N5 oficial/personalizado usa busca composta em Worker, com regras compartilhadas com a execução real. Ver [diagnóstico, testes e benchmark](patches/PATCH-12-SPELL-CHESS-N5.md). A força global do N5 ainda não está homologada. As informações anteriores de HEAD e árvore limpa abaixo são históricas.
+
 > **Documento Central de Diagnóstico Inicial do Motor Autônomo**  
 > **Data:** 11/11/2026 10:12 (UTC-4)  
 > **HEAD:** `02e6f2dca592bb95079a46497f5fbbda5b7501b4`  

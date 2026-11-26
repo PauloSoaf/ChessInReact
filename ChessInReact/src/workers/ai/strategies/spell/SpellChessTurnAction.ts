@@ -40,4 +40,22 @@ export interface SpellChessDecisionTrace {
   }>;
   chosenAction: SpellChessTurnAction;
   principalVariation: SpellChessTurnAction[];
+  candidates?: CandidateDiagnostic[];
+  engine?: 'SPELL_COMPOSITE';
+  timedOut?: boolean;
+  fallbackUsed?: boolean;
+  quiescenceNodes?: number;
+}
+
+export interface CandidateDiagnostic {
+  action: SpellChessTurnAction;
+  legal: boolean;
+  score: number;
+  completedDepth: number;
+  opponentBestReply?: SpellChessTurnAction;
+  allowsImmediateKingCapture: boolean;
+  safetyChecked: boolean;
+  usedFallback: boolean;
+  rejectionReason?: string;
+  capturedMaterialCp: number;
 }

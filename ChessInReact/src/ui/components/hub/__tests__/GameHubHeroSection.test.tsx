@@ -34,10 +34,10 @@ describe('Spec 06 § 5, RF-01, RF-06 - GameHubHeroSection Component', () => {
     render(<GameHubHeroSection {...defaultProps} />);
 
     expect(screen.getByText(/Central de Partidas/)).toBeDefined();
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('Domínio Tático');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('Xadrez & Variantes');
     expect(screen.getByText(/5 Níveis de Desafio/)).toBeDefined();
-    expect(screen.getByText(/Revisão de Lances/)).toBeDefined();
-    expect(screen.getByText(/3 Atmosferas Visuais/)).toBeDefined();
+    expect(screen.getByText(/Duelo Local & Relógios/)).toBeDefined();
+    expect(screen.getByText(/Variantes & Estudos/)).toBeDefined();
 
     const botBtn = screen.getByRole('button', { name: /Jogar contra Robô \(Praticante \(1200\)\)/i });
     expect(botBtn).toBeDefined();
@@ -81,7 +81,7 @@ describe('Spec 06 § 5, RF-01, RF-06 - GameHubHeroSection Component', () => {
     );
 
     const newGameBtn = screen.getByRole('button', { name: /Iniciar Nova Partida vs IA/i });
-    const viewFinalBtn = screen.getByRole('button', { name: /Ver Posição Final \(Fim de Jogo\)/i });
+    const viewFinalBtn = screen.getByRole('button', { name: /Ver Posição Final/i });
 
     expect(newGameBtn).toBeDefined();
     expect(viewFinalBtn).toBeDefined();

@@ -51,6 +51,9 @@ import { ParticipantClockManager } from '../matchmaking/config/ParticipantClockM
 import { SANNotationGenerator } from '../engine/rules/notation/SANNotationGenerator';
 import { IDomainState } from '../core/state/gameState';
 import { BoardEvaluator } from '../workers/ai/heuristics/BoardEvaluator';
+import { PGNExporter } from '../core/persistence/pgn/PGNExporter';
+import { OfficialSpellRules } from '../engine/variants/spells/OfficialSpellRules';
+import { IAIDecisionResponse } from '../workers/ai/interfaces/IUniversalAIEngine';
 import { SpellChessMoveGenerator } from '../workers/ai/strategies/spell/SpellChessMoveGenerator';
 
 export interface IMoveItem {
@@ -58,6 +61,16 @@ export interface IMoveItem {
   white?: string;
   black?: string;
   timestamp?: number;
+}
+
+export interface ISpellCastEvent {
+  readonly id: string;
+  readonly playerId: PlayerId;
+  readonly turnNumber: number;
+  readonly spell: { type: 'FREEZE' | 'JUMP'; targetSquare: string };
+  readonly before: IDomainState;
+  readonly after: IDomainState;
+  readonly movePly?: number;
 }
 
 export interface IMoveRecord {
@@ -81,6 +94,8 @@ export interface IMoveRecord {
   readonly evalCp?: number;
   readonly actionType: 'PIECE_MOVE' | 'DUCK' | 'DROP' | 'SPELL' | 'BOT_MOVE';
   readonly spellType?: string;
+  readonly spells?: readonly ISpellCastEvent[];
+  readonly aiDecision?: IAIDecisionResponse;
 }
 
 export interface IUniversalMatchSnapshot {
@@ -119,6 +134,8 @@ export interface IUniversalMatchHistorySnapshot {
   readonly hasCastSpellThisTurn?: boolean;
   readonly clocksSnapshot?: Readonly<Record<string, number>>;
   readonly moveHistoryCount?: number;
+  readonly moveHistory?: IMoveRecord[];
+  readonly spellEvents?: ISpellCastEvent[];
 }
 
 export class UniversalMatchController {
@@ -148,6 +165,8 @@ export class UniversalMatchController {
   private clockManager = new ParticipantClockManager();
   private clockInterval: number | null = null;
   private moveHistory: IMoveRecord[] = [];
+  private spellEvents: ISpellCastEvent[] = [];
+  private initialSpellDomain?: IDomainState;
   private lastDomain: IDomainState | null = null;
 
   // Minigame & variant lossless history stacks (Spec 01 & Spec 12)
@@ -258,6 +277,8 @@ export class UniversalMatchController {
     this.initializeVariantStates();
     this.clockManager.initializeFromConfig(this.config);
     this.moveHistory = [];
+    this.spellEvents = [];
+    this.hasCastSpellThisTurn = false;
 
     // Spawn pieces appropriate for this variant and player count
     const initialPieces = VariantPieceInitializer.createPiecesForVariant(
@@ -280,6 +301,7 @@ export class UniversalMatchController {
       }));
     }
     this.syncVariantModifiersToDomain();
+    this.initialSpellDomain = this.officialSpellState ? JSON.parse(JSON.stringify(gameStore.getState().domain)) : undefined;
     // Ensure store listener is active
     if (!this.storeUnsubscribe) {
       this.storeUnsubscribe = gameStore.subscribe(() => {
@@ -403,6 +425,8 @@ export class UniversalMatchController {
       hasCastSpellThisTurn: this.hasCastSpellThisTurn,
       clocksSnapshot: this.clockManager.captureSnapshot(),
       moveHistoryCount: this.moveHistory.length,
+      moveHistory: [...this.moveHistory],
+      spellEvents: [...this.spellEvents],
     };
     this.minigameUndoStack.push(snapshot);
     if (this.minigameUndoStack.length > 100) {
@@ -434,6 +458,8 @@ export class UniversalMatchController {
         hasCastSpellThisTurn: this.hasCastSpellThisTurn,
         clocksSnapshot: this.clockManager.captureSnapshot(),
         moveHistoryCount: this.moveHistory.length,
+        moveHistory: [...this.moveHistory],
+        spellEvents: [...this.spellEvents],
       };
       this.minigameRedoStack.push(currentSnapshot);
 
@@ -451,7 +477,8 @@ export class UniversalMatchController {
         this.clockManager.restoreSnapshot(prev.clocksSnapshot);
       }
       if (prev.moveHistoryCount !== undefined) {
-        this.moveHistory = this.moveHistory.slice(0, prev.moveHistoryCount);
+        this.moveHistory = prev.moveHistory ?? this.moveHistory.slice(0, prev.moveHistoryCount);
+        this.spellEvents = prev.spellEvents ?? [];
       }
     }
 
@@ -465,6 +492,7 @@ export class UniversalMatchController {
     this.clockManager.setActivePlayer(currentDomain.activePlayer);
 
     this.syncVariantModifiersToDomain();
+    this.persistSpellAudit();
     this.notify();
     return wasSpellOnly || coreUndone;
   }
@@ -491,9 +519,13 @@ export class UniversalMatchController {
         hasCastSpellThisTurn: this.hasCastSpellThisTurn,
         clocksSnapshot: this.clockManager.captureSnapshot(),
         moveHistoryCount: this.moveHistory.length,
+        moveHistory: [...this.moveHistory],
+        spellEvents: [...this.spellEvents],
       };
       this.minigameUndoStack.push(currentSnapshot);
 
+      this.moveHistory = next.moveHistory ?? this.moveHistory;
+      this.spellEvents = next.spellEvents ?? this.spellEvents;
       this.officialSpellState = next.officialSpellState;
       this.expandedSpellState = next.expandedSpellState;
       this.duckState = next.duckState;
@@ -519,6 +551,7 @@ export class UniversalMatchController {
     this.clockManager.setActivePlayer(currentDomain.activePlayer);
 
     this.syncVariantModifiersToDomain();
+    this.persistSpellAudit();
     this.notify();
     return wasSpellOnly || coreRedone;
   }
@@ -727,7 +760,11 @@ export class UniversalMatchController {
         // Fallback gracefully if evaluator cannot compute
       }
     }
+    const spells = this.spellEvents.filter((e) => e.playerId === record.playerId && e.movePly === undefined);
+    record = { ...record, spells };
+    this.spellEvents = this.spellEvents.map((e) => spells.includes(e) ? { ...e, movePly: record.ply } : e);
     this.moveHistory.push(record);
+    this.persistSpellAudit();
     this.lastMoveSummaryStr = record.san;
   }
 
@@ -739,6 +776,11 @@ export class UniversalMatchController {
       }
     }
     return stream;
+  }
+
+  private formatSpellMove(move: IMoveRecord): string {
+    const spells = move.spells?.map((e) => `${e.spell.type === 'JUMP' ? 'Jump' : 'Freeze'}(${SANNotationGenerator.coordToAlgebraic(e.spell.targetSquare)})`) ?? [];
+    return [...spells, move.san].join(' + ');
   }
 
   public getFormattedMoveItems(): IMoveItem[] {
@@ -756,19 +798,19 @@ export class UniversalMatchController {
         }
         currentItem = {
           turnNumber: move.turnNumber,
-          white: move.san,
+          white: this.formatSpellMove(move),
           timestamp: move.clockTimeLeftMs,
         };
       } else {
         if (currentItem && currentItem.turnNumber === move.turnNumber) {
-          currentItem.black = move.san;
+          currentItem.black = this.formatSpellMove(move);
           items.push(currentItem);
           currentItem = null;
         } else {
           if (currentItem) items.push(currentItem);
           items.push({
             turnNumber: move.turnNumber,
-            black: move.san,
+            black: this.formatSpellMove(move),
             timestamp: move.clockTimeLeftMs,
           });
           currentItem = null;
@@ -1049,7 +1091,14 @@ export class UniversalMatchController {
 
       // 3. Apply the secondary action before the move when it grants a
       // modifier to the move itself (for example Official Jump).
+      if (this.officialSpellState) {
+        const spell = decision.secondaryAction?.type === 'CAST_SPELL'
+          ? { type: decision.secondaryAction.payload.spellType as 'FREEZE' | 'JUMP', targetSquare: String(decision.secondaryAction.payload.targetCoord) }
+          : { type: 'NONE' as const };
+        OfficialSpellRules.simulate(gameStore.getState().domain, { spell, move: decision.move }, this.topology);
+      }
       this.applyBotSecondaryAction(decision.secondaryAction);
+      const domainBeforeMove = gameStore.getState().domain;
 
       // 4. Execute MovePieceCommand on core domain
       const best = decision.move;
@@ -1078,6 +1127,7 @@ export class UniversalMatchController {
       );
 
       gameStore.getState().executeCommand(cmd);
+      if (this.officialSpellState) this.applySpellEffectsAfterMove(best.pieceId, best.to, movingPlayerSide);
       const postMoveDomain = gameStore.getState().domain;
       this.lastDomain = postMoveDomain;
 
@@ -1085,7 +1135,7 @@ export class UniversalMatchController {
         from: best.from,
         to: best.to,
         pieceId: best.pieceId,
-        domainBefore: domain,
+        domainBefore: domainBeforeMove,
         domainAfter: postMoveDomain,
         topology: this.topology,
         isCapture: Boolean(targetEntityId),
@@ -1115,6 +1165,7 @@ export class UniversalMatchController {
         uci: uciResult,
         clockTimeLeftMs: this.clockManager.getTimeLeftMs(movingPlayerId),
         actionType: 'BOT_MOVE',
+        aiDecision: decision,
       };
       this.recordMoveEntry(moveEntry);
 
@@ -1143,7 +1194,7 @@ export class UniversalMatchController {
       }
 
       // 4b. Apply post-move Spell Chess triggers (traps, portals, mana/cooldown advance)
-      this.applySpellEffectsAfterMove(best.pieceId, best.to, movingPlayerSide);
+      if (!this.officialSpellState) this.applySpellEffectsAfterMove(best.pieceId, best.to, movingPlayerSide);
 
       // Three-Check / Five-Check evaluation
       if (this.threeCheckState) {
@@ -1455,9 +1506,13 @@ export class UniversalMatchController {
    */
   public onHumanPieceMoved(from: string, to: string, pieceId: string, promotionVariant?: string): void {
     this.recordHistorySnapshot('PIECE_MOVE');
-    const postMoveDomain = gameStore.getState().domain;
+    let postMoveDomain = gameStore.getState().domain;
     const movedPlayerSide: 'WHITE' | 'BLACK' = postMoveDomain.activePlayer === 'P2' ? 'WHITE' : 'BLACK';
     const movingPlayerId: PlayerId = postMoveDomain.activePlayer === 'P2' ? 'P1' : 'P2';
+    if (this.officialSpellState) {
+      this.applySpellEffectsAfterMove(pieceId, to, movedPlayerSide);
+      postMoveDomain = gameStore.getState().domain;
+    }
     const ply = this.moveHistory.length + 1;
     const fullmoveNumber = Math.ceil(ply / 2);
 
@@ -1511,7 +1566,7 @@ export class UniversalMatchController {
       this.clockManager.setActivePlayer(postMoveDomain.activePlayer);
     }
 
-    this.applySpellEffectsAfterMove(pieceId, to, movedPlayerSide);
+    if (!this.officialSpellState) this.applySpellEffectsAfterMove(pieceId, to, movedPlayerSide);
 
     // Three-Check / Five-Check evaluation
     if (this.threeCheckState) {
@@ -1631,78 +1686,65 @@ export class UniversalMatchController {
    * Casts a spell in Official Spell Chess (Freeze or Jump).
    */
   public castOfficialSpell(
-    spellType: 'FREEZE' | 'JUMP',
-    target: { file: number; rank: number } | string
+    spellType: 'FREEZE' | 'JUMP', target: { file: number; rank: number } | string
   ): boolean {
-    if (!this.officialSpellState) return false;
-
+    if (!this.officialSpellState || this.hasCastSpellThisTurn) return false;
     const domain = gameStore.getState().domain;
-    const player = domain.activePlayer === 'P1' ? 'WHITE' : 'BLACK';
-
-    if (spellType === 'FREEZE') {
-      let center: { file: number; rank: number };
-      if (typeof target === 'string') {
-        const trimmed = target.trim();
-        if (trimmed.includes(',')) {
-          const [f, r] = trimmed.split(',').map(Number);
-          center = { file: Number.isNaN(f) ? 3 : f, rank: Number.isNaN(r) ? 3 : r };
-        } else if (/^[a-j][1-9]\d?$/i.test(trimmed)) {
-          center = {
-            file: trimmed.toLowerCase().charCodeAt(0) - 97,
-            rank: parseInt(trimmed.slice(1), 10) - 1,
-          };
-        } else {
-          center = { file: 3, rank: 3 };
-        }
-      } else {
-        center = target;
-      }
-
-      const res = OfficialSpellEngine.castFreeze(this.officialSpellState, player, center);
-      if (res.success) {
-        this.recordHistorySnapshot('SPELL');
-        this.hasCastSpellThisTurn = true;
-        this.officialSpellState = res.state;
-        this.syncVariantModifiersToDomain();
-    this.notify();
-        GlobalEventBus.emit('SPELL_CAST', {
-          spellType: 'FREEZE',
-          coordinate: asCoordinateKey(`${center.file},${center.rank}`),
-          playerId: domain.activePlayer,
-        });
-        this.notify();
-        return true;
-      }
-    } else {
-      let pieceId = typeof target === 'string' ? target.trim() : '';
-      if (pieceId.includes(',')) {
-        pieceId = domain.occupancy[asCoordinateKey(pieceId)] ?? pieceId;
-      } else if (/^[a-j][1-9]\d?$/i.test(pieceId)) {
-        const file = pieceId.toLowerCase().charCodeAt(0) - 97;
-        const rank = parseInt(pieceId.slice(1), 10) - 1;
-        pieceId = domain.occupancy[asCoordinateKey(`${file},${rank}`)] ?? pieceId;
-      }
-      if (!pieceId) {
-        return false;
-      }
-      const res = OfficialSpellEngine.castJump(this.officialSpellState, player, pieceId);
-      if (res.success) {
-        this.recordHistorySnapshot('SPELL');
-        this.hasCastSpellThisTurn = true;
-        this.officialSpellState = res.state;
-        this.syncVariantModifiersToDomain();
-    this.notify();
-        GlobalEventBus.emit('SPELL_CAST', {
-          spellType: 'JUMP',
-          coordinate: asCoordinateKey(typeof target === 'string' ? target : '0,0'),
-          playerId: domain.activePlayer,
-        });
-        this.notify();
-        return true;
-      }
+    let targetSquare: string;
+    if (typeof target === 'object') targetSquare = `${target.file},${target.rank}`;
+    else if (/^[a-h][1-8]$/i.test(target)) targetSquare = SANNotationGenerator.algebraicToCoord(target);
+    else targetSquare = domain.boardEntities[asEntityId(target)]?.position ?? target;
+    try {
+      const next = OfficialSpellRules.cast(domain, { type: spellType, targetSquare }, domain.activePlayer);
+      this.recordHistorySnapshot('SPELL');
+      this.hasCastSpellThisTurn = true;
+      this.officialSpellState = OfficialSpellRules.getState(next);
+      gameStore.setState({ domain: next });
+      this.lastDomain = next;
+      this.spellEvents.push({ id: `${domain.matchId}:${domain.turnNumber}:${this.spellEvents.length}`,
+        playerId: domain.activePlayer, turnNumber: domain.turnNumber,
+        spell: { type: spellType, targetSquare },
+        before: JSON.parse(JSON.stringify(domain)), after: JSON.parse(JSON.stringify(next)) });
+      this.persistSpellAudit();
+      GlobalEventBus.emit('SPELL_CAST', { spellType, coordinate: asCoordinateKey(targetSquare), playerId: domain.activePlayer });
+      this.notify();
+      return true;
+    } catch (error) {
+      console.warn('[Spell Chess] Spell rejected:', String(error));
+      return false;
     }
+  }
 
-    return false;
+  public getSpellAudit() {
+    return { matchId: this.config.matchId, variantId: this.config.variantId,
+      initialState: this.initialSpellDomain, finalState: gameStore.getState().domain,
+      events: [...this.spellEvents], moves: [...this.moveHistory] };
+  }
+
+  public exportSpellPGN(): string {
+    const state = gameStore.getState().domain;
+    return PGNExporter.exportToPGN(this.moveHistory.map((m) => ({
+      moveNumber: m.turnNumber, player: m.playerId === 'P1' ? 'P1' : 'P2',
+      fromCoord: m.from, toCoord: m.to, san: m.san, spells: m.spells,
+    })), { Variant: this.config.variantId,
+      Result: !state.isGameOver ? '*' : state.winnerId === 'P1' ? '1-0' : state.winnerId === 'P2' ? '0-1' : '1/2-1/2' });
+  }
+
+  private persistSpellAudit(): void {
+    if (!this.officialSpellState || typeof window === 'undefined') return;
+    try {
+      const audit = this.getSpellAudit();
+      // Keep every executed move and spell. Bound persisted candidate diagnostics;
+      // the full current-session trace remains available through getSpellAudit().
+      const moves = audit.moves.map((move) => !move.aiDecision?.spellTrace ? move : {
+        ...move, aiDecision: { ...move.aiDecision, spellTrace: { ...move.aiDecision.spellTrace,
+          candidates: move.aiDecision.spellTrace.candidates?.filter((d) => d.safetyChecked &&
+            (d.allowsImmediateKingCapture || (d.action.move.pieceId === move.pieceId && d.action.move.to === move.to))).slice(0, 128),
+        } },
+      });
+      window.localStorage.setItem('chessinreact:last-spell-audit', JSON.stringify({ ...audit, moves }));
+    }
+    catch (error) { console.warn('[Spell Chess] Audit persistence failed:', String(error)); }
   }
 
   /**
@@ -1937,7 +1979,9 @@ export class UniversalMatchController {
     for (const [id, entity] of Object.entries(nextEntities)) {
       if (entity && entity.type === 'PIECE') {
         const piece = entity as IPieceEntity;
-        const isFrozen = frozenSet.has(piece.position);
+        const isFrozen = this.officialSpellState?.activeFrozenPieceIds
+          ? (this.officialSpellState.activeFrozenPieceIds[piece.id] ?? 0) > 0
+          : frozenSet.has(piece.position);
         const hasJump = jumpSet.has(piece.id);
         const isShielded = shieldSet.has(piece.id);
         const isInvisible = invisibleSet.has(piece.id);
@@ -1957,6 +2001,7 @@ export class UniversalMatchController {
 
     const nextMetadata = {
       ...(domain.metadata ?? {}),
+      hasCastSpellThisTurn: this.hasCastSpellThisTurn,
       officialSpellState: this.officialSpellState
         ? JSON.parse(JSON.stringify(this.officialSpellState))
         : null,
@@ -1994,15 +2039,11 @@ export class UniversalMatchController {
     this.hasCastSpellThisTurn = false;
 
     if (this.officialSpellState) {
-      const nextJumps = { ...this.officialSpellState.activeJumpPieceIds };
-      delete nextJumps[movedPieceId];
-      this.officialSpellState = OfficialSpellEngine.advanceTurn(
-        {
-          ...this.officialSpellState,
-          activeJumpPieceIds: nextJumps,
-        },
-        movingPlayer
-      );
+      const completed = OfficialSpellRules.finishTurn(gameStore.getState().domain, movedPieceId,
+        movingPlayer === 'WHITE' ? 'P1' : 'P2', this.topology);
+      this.officialSpellState = OfficialSpellRules.getState(completed);
+      gameStore.setState({ domain: completed });
+
     }
 
     if (this.expandedSpellState) {
@@ -2068,6 +2109,7 @@ export class UniversalMatchController {
     }
 
     this.syncVariantModifiersToDomain();
+    this.persistSpellAudit();
     this.notify();
   }
 

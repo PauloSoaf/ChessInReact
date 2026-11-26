@@ -1,0 +1,216 @@
+{
+  "validatedAtUtc": "2026-11-26T18:14:39.873599+00:00",
+  "baseCommit": "474377d79d40a796e89549c960453ce51727f837",
+  "branch": "feat/spec07-3d-rendering-webgl",
+  "nodeVersion": "v22.20.0",
+  "platform": "nt",
+  "build": {
+    "command": "npm run build",
+    "exitCode": 0,
+    "note": "Vite reports the existing bundle-size advisory."
+  },
+  "lint": {
+    "command": "npm run lint",
+    "exitCode": 0
+  },
+  "tests": {
+    "command": "npx vitest run --pool=forks --maxWorkers=4 --minWorkers=1",
+    "exitCode": 0,
+    "passed": 1329,
+    "failed": 0,
+    "files": 169,
+    "success": true,
+    "postSuiteControllerAndSANRegression": {
+      "passed": 24,
+      "failed": 0
+    }
+  },
+  "generalAcceptance": {
+    "command": "npm run acceptance",
+    "exitCode": 0,
+    "flowsPassed": 11
+  },
+  "spellAcceptance": {
+    "command": "npm run acceptance:spell",
+    "exitCode": 0,
+    "modes": [
+      {
+        "mode": "2D",
+        "engine": "SPELL_COMPOSITE",
+        "depth": 4,
+        "nodes": 1909,
+        "elapsedMs": 487.5,
+        "responsiveTicks": 47,
+        "defendingKingSquare": "3,7",
+        "fallbackUsed": false,
+        "syntheticSequenceWinner": "P1"
+      },
+      {
+        "mode": "3D",
+        "engine": "SPELL_COMPOSITE",
+        "depth": 4,
+        "nodes": 1909,
+        "elapsedMs": 459.2000000476837,
+        "responsiveTicks": 45,
+        "defendingKingSquare": "3,7",
+        "fallbackUsed": false,
+        "syntheticSequenceWinner": "P1"
+      }
+    ]
+  },
+  "benchmark": {
+    "command": "npm run bench:spell",
+    "budgetMs": 250,
+    "maxPlies": 200,
+    "resumed": false,
+    "tactical": {
+      "previous": {
+        "positions": 24,
+        "illegal": 2,
+        "immediateErrors": 2,
+        "wins": 2,
+        "averageMs": 86.16404583333326
+      },
+      "current": {
+        "positions": 24,
+        "illegal": 0,
+        "immediateErrors": 0,
+        "wins": 2,
+        "averageMs": 215.01879166666666
+      }
+    },
+    "gamesByOpponent": [
+      {
+        "opponent": "previous",
+        "wins": 1,
+        "losses": 0,
+        "draws": 3,
+        "unfinished": 0
+      },
+      {
+        "opponent": "N4",
+        "wins": 1,
+        "losses": 1,
+        "draws": 2,
+        "unfinished": 0
+      },
+      {
+        "opponent": "N3",
+        "wins": 2,
+        "losses": 0,
+        "draws": 2,
+        "unfinished": 0
+      }
+    ],
+    "currentTurns": 481,
+    "currentMeanCompletedDepth": 0.7941787941787942,
+    "currentMeanElapsedMs": 247.82462972972934,
+    "currentNodes": 224096,
+    "currentFallbacks": 0,
+    "currentSpells": 43,
+    "illegalExecutedActions": 0,
+    "opponentRejectedProposals": 5,
+    "currentImmediateLosingActions": 1,
+    "currentLosingActionsDespiteInspectedDefense": 0
+  },
+  "benchmarkReplay": {
+    "games": 12,
+    "replayedPlies": 963,
+    "legal": true,
+    "resultsMatch": true
+  },
+  "limits": [
+    "Original spell chronology was not available; the full reported move sequence uses an explicitly synthetic spell timeline.",
+    "Twelve paired games at a reduced 250ms budget do not establish Elo or consistent N5 superiority.",
+    "Remote CI has not been rerun: no commit, push or deploy was performed."
+  ],
+  "sourceSha256": {
+    "package.json": "0cef58069ccd7c7e8f056a5bb5f2451043816f50f242ad8be5e7b35ea0337d1c",
+    "scripts/runSpellChessBenchmark.mjs": "7a4979218aa7a41b6e71898ba13696578f88601f07a05d220bd3dd04ae88ce63",
+    "scripts/runSpellChessBrowserRegression.mjs": "46d4cdae8bfbf32ac27aa224fc05a4a8dc387995ab9c2d5af8f3ed15f7c45df8",
+    "src/App.tsx": "f426045aef80b410a8749b3fb23e4528db45f3860cf11c9a1ad5ce53d5cbe012",
+    "src/controllers/UniversalMatchController.ts": "8eff834d9e24aa4ca277c01113c2acb5a0d23b2ce8510fafb5afde4b5339bd8d",
+    "src/controllers/__tests__/SpellChessTurnParity.test.ts": "3e75b2dd0f0b03d78a5acc771da6c1b3715125e53a77eecb746918eec631d97a",
+    "src/controllers/__tests__/UniversalMatchController.test.ts": "811a206a936486c04e376b7e49298fac6bed627e9817c8ab87384a9755bf44c2",
+    "src/core/commands/MovePieceCommand.ts": "b5130d56cba305b644a82bc7665b6618290a1caa199f89a2e24e6d5d8ca7aa0e",
+    "src/core/persistence/pgn/PGNExporter.ts": "fe86dae4162c7ab14dd50f81c3aab80ee9fa19d8f2c06e74a472469756c00fe4",
+    "src/core/persistence/pgn/PGNParser.ts": "e2f78bfe4e3e73da80e2a44b4d1eea66996f2c3bcac0cebaa33c77e6bebada36",
+    "src/core/persistence/pgn/ReplayEngine.ts": "997af75d9d88aa08d328e1b658e9868cde82a87f83125098cb5019096dd99312",
+    "src/engine/rules/CheckValidator.ts": "0a67e5225ef302e10f0d94d7fe8118ccd18c07d30916025dddf41d97fa8b43fe",
+    "src/engine/rules/RulesEngine.ts": "ea0bb45f86059529434c123ff1c4311fb72cd5dd8a4199dd4a130ce2448173d9",
+    "src/engine/rules/utils/PositionHasher.ts": "7d7944a4344ccdf94d8a0c9dba0250bea3570fa0e09a60ab67ceda2bac22d544",
+    "src/engine/variants/__tests__/SpellChessSpecialMoveParity.test.ts": "95c963990e35682cd326befcd17fa419f8aed93b04cb5fac80e10a43ef307b7b",
+    "src/engine/variants/spells/OfficialSpellEngine.ts": "dec5954ab14e18ad178726fc668ee8ff9145c067bae479f9e6c8f96e413e42c9",
+    "src/engine/variants/spells/OfficialSpellRules.ts": "d2760612e6f892b94b59a455e900f3cc6b5cd7b5bd7d8ff46741a6ff49523d5f",
+    "src/ui/__tests__/Spec06ThemeAndHUD.test.tsx": "1ca987e10cf15db2d1e65ee30c8766bfb4948b9bcf3afa5b58b61916e46a7a09",
+    "src/ui/__tests__/VariantMapsSkinsAndRules.test.tsx": "e2ca1f5a9a80eb96e6af367aaf371f9a59696dff359ce1698aa0498fe1187314",
+    "src/ui/components/game/GameControlsBar.tsx": "269af360fbcda9c98218961f9287c6403e90118e85d266c21bcae98b6c7c7b98",
+    "src/ui/components/game/MoveHistoryList.tsx": "e5f34953cd772fed562de93c9f55df9c2dc58212d3e8a129fcaf589d527c2d37",
+    "src/ui/components/game/__tests__/MoveHistoryList.test.tsx": "5da277094b57a95bf824486c846fa8bddccfc2d83f333ed4a0bac491a4e99d73",
+    "src/ui/components/hub/__tests__/GameHubHeroSection.test.tsx": "61b1d91129ebb84b6d7856011d54ff2bec665c390c05f6ac9568e0479f27ae0e",
+    "src/workers/ai/AIWorkerPool.ts": "010394ddee2880038209c2dd23b4a6dec07094ef02e0073dcbb2a585b439f050",
+    "src/workers/ai/SpellDecisionWorker.ts": "abff3e7b001477e73ea7b338e8a5978080052ca334d83cf01c95ef54b798fa49",
+    "src/workers/ai/interfaces/IUniversalAIEngine.ts": "465cc33bd792a0790c9b77d103452113ac7b8915704bee9e7483115fdf2853d8",
+    "src/workers/ai/strategies/SpellOptimizationStrategy.ts": "db52e1436cb1b810bafb23d1b7e21e5ce07bf3dd7d21f19b7ff7016f54464490",
+    "src/workers/ai/strategies/__tests__/SpellChessN5KingSafetyRegression.test.ts": "e1b6c314743bd6ce39889dc873e9964296e13f23187528811c9727919accb5aa",
+    "src/workers/ai/strategies/__tests__/SpellOptimizationJumpDefense.test.ts": "b10fecd8686af28be5f26639c3c3ce6b510675db0521fa188ba352d3cbfb7149",
+    "src/workers/ai/strategies/spell/SpellChessMoveGenerator.ts": "4285d45b5a17d99404c0444658d7b8175f88e82001ba98d34eeb1c2f31d0991b",
+    "src/workers/ai/strategies/spell/SpellChessPositionEvaluator.ts": "3ea5c31bad249a6ba0fd8d1f2496fa3222e8bc3088d08a22382dbf912095e797",
+    "src/workers/ai/strategies/spell/SpellChessSearch.ts": "8486654c53752fe20f4c7a98b80bec98334854716a6ed699c6910643be77d28b",
+    "src/workers/ai/strategies/spell/SpellChessThreatAnalyzer.ts": "be55314d777b0f2d1afd37ae0a7849dba4c4219f7c6673068df79dd0e42d8bd6",
+    "src/workers/ai/strategies/spell/SpellChessTranspositionTable.ts": "9e7154fe8b6c1eafbef7e36d65bc1e5e3d9c7bb7bfb62e34c854d67843a2da8c",
+    "src/workers/ai/strategies/spell/SpellChessTurnAction.ts": "fc02397810eb91e02c5f38c8784b308f7597b8ae548a93ac2fc2410f3720be06",
+    "src/workers/ai/strategies/spell/testing/KingSafetyFixtures.ts": "fce1626baf2e63bff15c1d0ddb82fd53e7766deea48b54527db82cafd23342f1"
+  },
+  "tacticalGeneralizationExtension": {
+    "validatedAtUtc": "2026-11-26T18:33:35.458420+00:00",
+    "productionSearchOrHeuristicsChanged": false,
+    "testCommand": "npx vitest run src/workers/ai/strategies/__tests__/SpellChessN5TacticalEquivalence.test.ts src/workers/ai/strategies/__tests__/SpellChessN5KingSafetyRegression.test.ts",
+    "newCasesPassed": 126,
+    "existingRegressionsPassed": 16,
+    "focusedTestsPassed": 142,
+    "failed": 0,
+    "typecheck": {
+      "command": "npx tsc --noEmit",
+      "exitCode": 0
+    },
+    "lint": {
+      "command": "npm run lint",
+      "exitCode": 0
+    },
+    "evidenceCommand": "npm run evidence:spell",
+    "evidenceExitCode": 0,
+    "summary": {
+      "geometries": 7,
+      "conditions": 8,
+      "colors": 2,
+      "cases": 112,
+      "losingCaptures": 42,
+      "nonLosingImmediateCaptures": 70,
+      "exhaustiveReplyEnumeration": true,
+      "mandatoryFreezeCases": 14,
+      "totalCases": 126,
+      "freezeDraws": 0,
+      "mismatches": 0,
+      "unsafeSelections": 0,
+      "fallbacks": 0,
+      "budgetMs": 120
+    },
+    "calculatedLine": {
+      "candidate": "Kxf7",
+      "candidateScoreCp": -99998,
+      "materialGainCp": 900,
+      "bestReply": "Jump(e6) + Bxf7",
+      "replyActuallyCapturedKing": true,
+      "chosenAlternative": "Kd8",
+      "chosenAllowsImmediateKingCapture": false
+    },
+    "sourceSha256": {
+      "src/workers/ai/strategies/spell/testing/TacticalEquivalenceFixtures.ts": "7d6d0eff076af4a2acb6c607f3eb4bb559f0c9e164791d1c39a0f31be9a39d3c",
+      "src/workers/ai/strategies/__tests__/SpellChessN5TacticalEquivalence.test.ts": "6f37952eced2f166a0729c5d1363c7a746d2efa12507cbc3c22e1a21bd7008be",
+      "scripts/runSpellChessTacticalEvidence.mjs": "edb0b1701a05b73ca076d1d7ee9e3ae265ceaaf02b59d79107fe613220a11672",
+      "package.json": "4166725d716d515345e7d8bec64a4bfb2240ee4f4f5a55af494887efe55d2014"
+    },
+    "note": "Full-suite result above is the prior 1329-test checkpoint; this extension was verified with 142 focused tests, including all 126 new cases."
+  }
+}

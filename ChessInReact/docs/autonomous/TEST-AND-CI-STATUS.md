@@ -1,5 +1,13 @@
 # ChessInReact | Test and CI Status
 
+## Atualização local — PATCH-12 (26/11/2026)
+
+O [relatório do PATCH-12](patches/PATCH-12-SPELL-CHESS-N5.md) registra a validação atual, o benchmark e as limitações. Os sete erros da execução remota de `474377d` foram reproduzidos e corrigidos localmente. Build, ESLint, testes, aceitação geral e regressão Spell Chess em navegador real têm evidências em [validation.json](patches/patch12-evidence/validation.json).
+
+Ampliação posterior: **126 casos novos de equivalência tática**, incluindo 14 defesas obrigatórias com Freeze; **142 testes direcionados aprovados** junto das 16 regressões anteriores. TypeScript e ESLint aprovados. [Linha calculada e matriz de casos](patches/patch12-evidence/TACTICAL-EQUIVALENCE.md). A última execução completa anterior à ampliação foi de 1329 testes aprovados; esses resultados são registrados separadamente.
+
+O CI remoto da base continua sendo um resultado histórico. Commit e push do PATCH-12 foram autorizados pelo usuário em 26/11/2026; o resultado do CI desse novo commit deve ser consultado no GitHub Actions. Os números abaixo desta seção pertencem ao relatório anterior de 11/11/2026.
+
 > **Status de Testes e Pipelines de Integração Contínua**  
 > **Data:** 11/11/2026 10:12 (UTC-4)
 

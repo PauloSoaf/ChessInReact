@@ -1,9 +1,11 @@
+import { OfficialSpellAction } from '../../../engine/variants/spells/OfficialSpellRules';
 import { PGNExporter } from './PGNExporter';
 
 export interface IParsedPGNMove {
   readonly moveNumber: number;
   readonly isWhite: boolean;
   readonly token: string;
+  readonly spells?: readonly OfficialSpellAction[];
   readonly fromCoord?: string;
   readonly toCoord?: string;
   readonly pieceType?: string;
@@ -51,7 +53,10 @@ export class PGNParser {
     // 2. Extract and sanitize move stream
     const rawMoveLines = lines.slice(moveTextStartIndex).join(' ');
     // Remove inline curly comments { ... }
-    const noComments = rawMoveLines.replace(/\{[^}]*\}/g, ' ');
+    const noComments = rawMoveLines.replace(/\{[^}]*\}/g, (comment) => {
+      const spell = comment.match(/\[%spell (FREEZE|JUMP) ([a-h][1-8])\]/);
+      return spell ? ` @SPELL_${spell[1]}_${spell[2]} ` : ' ';
+    });
     // Remove recursive variations ( ... )
     const noVariations = noComments.replace(/\([^)]*\)/g, ' ');
     // Remove numeric annotation glyphs $12
@@ -60,10 +65,16 @@ export class PGNParser {
     const tokens = cleanTokens.split(/\s+/).filter((t) => t.length > 0);
     const moves: IParsedPGNMove[] = [];
     let currentMoveNumber = 1;
+    let pendingSpells: OfficialSpellAction[] = [];
     let result = headers.Result ?? '*';
 
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i];
+      const spellToken = token.match(/^@SPELL_(FREEZE|JUMP)_([a-h][1-8])$/);
+      if (spellToken) {
+        pendingSpells.push({ type: spellToken[1] as 'FREEZE' | 'JUMP', targetSquare: PGNExporter.algebraicToCoord(spellToken[2]) });
+        continue;
+      }
 
       // Match result tokens
       if (token === '1-0' || token === '0-1' || token === '1/2-1/2' || token === '*') {
@@ -122,6 +133,7 @@ export class PGNParser {
       const isWhite = moves.length % 2 === 0;
 
       moves.push({
+        ...(pendingSpells.length ? { spells: pendingSpells } : {}),
         moveNumber: currentMoveNumber,
         isWhite,
         token: moveToken,
@@ -132,6 +144,7 @@ export class PGNParser {
         isDrop,
         dropPieceVariant,
       });
+      pendingSpells = [];
     }
 
     return {
