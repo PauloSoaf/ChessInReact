@@ -45,13 +45,13 @@ export class CheckValidator {
           const raw = state.boardEntities[occId];
           if (raw?.type === 'OBSTACLE') break;
           const piece = raw as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
-            if (piece.ownerId === attackerPlayerId) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+            if (!piece.metadata?.isFrozen && piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'ROOK' || v === 'QUEEN' || v === 'R' || v === 'Q' || v === 'CHANCELLOR' || v === 'AMAZON') return true;
               if (i === 0 && (v === 'KING' || v === 'K' || v === 'WAZIR' || v === 'W')) return true;
             }
-            break;
+            if (!piece.metadata?.canBeJumpedOver) break;
           }
         }
       }
@@ -66,13 +66,13 @@ export class CheckValidator {
           const raw = state.boardEntities[occId];
           if (raw?.type === 'OBSTACLE') break;
           const piece = raw as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
-            if (piece.ownerId === attackerPlayerId) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+            if (!piece.metadata?.isFrozen && piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'BISHOP' || v === 'QUEEN' || v === 'B' || v === 'Q' || v === 'ARCHBISHOP' || v === 'AMAZON') return true;
               if (i === 0 && (v === 'KING' || v === 'K' || v === 'FERZ' || v === 'F')) return true;
             }
-            break;
+            if (!piece.metadata?.canBeJumpedOver) break;
           }
         }
       }
@@ -135,13 +135,13 @@ export class CheckValidator {
           const rawEntity = state.boardEntities[occId];
           if (rawEntity?.type === 'OBSTACLE') break;
           const piece = rawEntity as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
-            if (piece.ownerId === attackerPlayerId) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+            if (!piece.metadata?.isFrozen && piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'ROOK' || v === 'QUEEN' || v === 'R' || v === 'Q' || v === 'CHANCELLOR' || v === 'AMAZON') return true;
               if (y === ty + 1 && (v === 'KING' || v === 'K' || v === 'WAZIR' || v === 'W')) return true;
             }
-            break;
+            if (!piece.metadata?.canBeJumpedOver) break;
           }
         }
       }
@@ -152,13 +152,13 @@ export class CheckValidator {
           const rawEntity = state.boardEntities[occId];
           if (rawEntity?.type === 'OBSTACLE') break;
           const piece = rawEntity as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
-            if (piece.ownerId === attackerPlayerId) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+            if (!piece.metadata?.isFrozen && piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'ROOK' || v === 'QUEEN' || v === 'R' || v === 'Q' || v === 'CHANCELLOR' || v === 'AMAZON') return true;
               if (y === ty - 1 && (v === 'KING' || v === 'K' || v === 'WAZIR' || v === 'W')) return true;
             }
-            break;
+            if (!piece.metadata?.canBeJumpedOver) break;
           }
         }
       }
@@ -169,13 +169,13 @@ export class CheckValidator {
           const rawEntity = state.boardEntities[occId];
           if (rawEntity?.type === 'OBSTACLE') break;
           const piece = rawEntity as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
-            if (piece.ownerId === attackerPlayerId) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+            if (!piece.metadata?.isFrozen && piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'ROOK' || v === 'QUEEN' || v === 'R' || v === 'Q' || v === 'CHANCELLOR' || v === 'AMAZON') return true;
               if (x === tx + 1 && (v === 'KING' || v === 'K' || v === 'WAZIR' || v === 'W')) return true;
             }
-            break;
+            if (!piece.metadata?.canBeJumpedOver) break;
           }
         }
       }
@@ -186,13 +186,13 @@ export class CheckValidator {
           const rawEntity = state.boardEntities[occId];
           if (rawEntity?.type === 'OBSTACLE') break;
           const piece = rawEntity as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
-            if (piece.ownerId === attackerPlayerId) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+            if (!piece.metadata?.isFrozen && piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'ROOK' || v === 'QUEEN' || v === 'R' || v === 'Q' || v === 'CHANCELLOR' || v === 'AMAZON') return true;
               if (x === tx - 1 && (v === 'KING' || v === 'K' || v === 'WAZIR' || v === 'W')) return true;
             }
-            break;
+            if (!piece.metadata?.canBeJumpedOver) break;
           }
         }
       }
@@ -203,13 +203,13 @@ export class CheckValidator {
           const rawEntity = state.boardEntities[occId];
           if (rawEntity?.type === 'OBSTACLE') break;
           const piece = rawEntity as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
-            if (piece.ownerId === attackerPlayerId) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+            if (!piece.metadata?.isFrozen && piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'BISHOP' || v === 'QUEEN' || v === 'B' || v === 'Q' || v === 'ARCHBISHOP' || v === 'AMAZON') return true;
               if (x === tx + 1 && (v === 'KING' || v === 'K' || v === 'FERZ' || v === 'F')) return true;
             }
-            break;
+            if (!piece.metadata?.canBeJumpedOver) break;
           }
         }
       }
@@ -220,13 +220,13 @@ export class CheckValidator {
           const rawEntity = state.boardEntities[occId];
           if (rawEntity?.type === 'OBSTACLE') break;
           const piece = rawEntity as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
-            if (piece.ownerId === attackerPlayerId) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+            if (!piece.metadata?.isFrozen && piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'BISHOP' || v === 'QUEEN' || v === 'B' || v === 'Q' || v === 'ARCHBISHOP' || v === 'AMAZON') return true;
               if (x === tx - 1 && (v === 'KING' || v === 'K' || v === 'FERZ' || v === 'F')) return true;
             }
-            break;
+            if (!piece.metadata?.canBeJumpedOver) break;
           }
         }
       }
@@ -237,13 +237,13 @@ export class CheckValidator {
           const rawEntity = state.boardEntities[occId];
           if (rawEntity?.type === 'OBSTACLE') break;
           const piece = rawEntity as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
-            if (piece.ownerId === attackerPlayerId) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+            if (!piece.metadata?.isFrozen && piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'BISHOP' || v === 'QUEEN' || v === 'B' || v === 'Q' || v === 'ARCHBISHOP' || v === 'AMAZON') return true;
               if (x === tx + 1 && (v === 'KING' || v === 'K' || v === 'FERZ' || v === 'F')) return true;
             }
-            break;
+            if (!piece.metadata?.canBeJumpedOver) break;
           }
         }
       }
@@ -254,13 +254,13 @@ export class CheckValidator {
           const rawEntity = state.boardEntities[occId];
           if (rawEntity?.type === 'OBSTACLE') break;
           const piece = rawEntity as IPieceEntity | undefined;
-          if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
-            if (piece.ownerId === attackerPlayerId) {
+          if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+            if (!piece.metadata?.isFrozen && piece.ownerId === attackerPlayerId) {
               const v = piece.variantId.toUpperCase();
               if (v === 'BISHOP' || v === 'QUEEN' || v === 'B' || v === 'Q' || v === 'ARCHBISHOP' || v === 'AMAZON') return true;
               if (x === tx - 1 && (v === 'KING' || v === 'K' || v === 'FERZ' || v === 'F')) return true;
             }
-            break;
+            if (!piece.metadata?.canBeJumpedOver) break;
           }
         }
       }
@@ -276,13 +276,13 @@ export class CheckValidator {
           const occId = state.occupancy[next];
           if (occId) {
             const piece = state.boardEntities[occId] as IPieceEntity | undefined;
-            if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
-              if (piece.ownerId === attackerPlayerId) {
+            if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+              if (!piece.metadata?.isFrozen && piece.ownerId === attackerPlayerId) {
                 const v = piece.variantId.toUpperCase();
                 if (v === 'ROOK' || v === 'QUEEN' || v === 'R' || v === 'Q' || v === 'CHANCELLOR' || v === 'AMAZON') return true;
                 if (dist === 0 && (v === 'KING' || v === 'K' || v === 'WAZIR' || v === 'W')) return true;
               }
-              break;
+              if (!piece.metadata?.canBeJumpedOver) break;
             }
           }
           current = next;
@@ -299,13 +299,13 @@ export class CheckValidator {
           const occId = state.occupancy[next];
           if (occId) {
             const piece = state.boardEntities[occId] as IPieceEntity | undefined;
-            if (piece && piece.type === 'PIECE' && !piece.isCaptured && !piece.metadata?.isFrozen) {
-              if (piece.ownerId === attackerPlayerId) {
+            if (piece && piece.type === 'PIECE' && !piece.isCaptured) {
+              if (!piece.metadata?.isFrozen && piece.ownerId === attackerPlayerId) {
                 const v = piece.variantId.toUpperCase();
                 if (v === 'BISHOP' || v === 'QUEEN' || v === 'B' || v === 'Q' || v === 'ARCHBISHOP' || v === 'AMAZON') return true;
                 if (dist === 0 && (v === 'KING' || v === 'K' || v === 'FERZ' || v === 'F')) return true;
               }
-              break;
+              if (!piece.metadata?.canBeJumpedOver) break;
             }
           }
           current = next;

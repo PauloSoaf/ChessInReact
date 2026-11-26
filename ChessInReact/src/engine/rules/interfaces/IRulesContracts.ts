@@ -95,6 +95,7 @@ export interface ILegalMove {
 export type GameTerminationStatus =
   | 'IN_PROGRESS'
   | 'CHECKMATE'
+  | 'KING_CAPTURE'
   | 'STALEMATE'
   | 'RESIGNATION'
   | 'TIMEOUT'
@@ -147,7 +148,10 @@ export type BetzaDirectionPrefix =
 /**
  * Configuration options for variants.
  */
+export type SpellChessWinCondition = 'CHECKMATE_OR_KING_CAPTURE' | 'KING_CAPTURE_ONLY';
+
 export interface IVariantConfiguration {
+  readonly winCondition?: SpellChessWinCondition;
   readonly variantId: string;
   readonly enforceCheck?: boolean; // false for Antichess
   readonly allowDrops?: boolean; // true for Crazyhouse

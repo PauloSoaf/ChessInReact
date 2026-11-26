@@ -34,6 +34,17 @@
 
 ## 2. Patches em Fila de Execução
 
+### `PATCH-10` — Separação entre busca tática e resultado executado (26/11/2026)
+
+Implementação local concluída para este escopo; validação manual 2D/3D pendente. [Regras, alterações e evidências de validação](patches/PATCH-10-KING-CAPTURE-ONLY.md).
+
+- `SPELL_CHESS_KING_CAPTURE_ONLY` identifica o modo personalizado “Captura obrigatória”, com `winCondition: 'KING_CAPTURE_ONLY'`. O modo oficial mantém sua configuração independente.
+- Xeque é uma ameaça. Mate convencional e vitória futura calculada não atribuem vencedor. A busca retorna uma ação; o jogador precisa executar seus feitiços e movimentos, podendo perder a oportunidade.
+- A vitória por captura exige o rei marcado como capturado. O resultado usa `KING_CAPTURE`, separado de `CHECKMATE`. Não há empate por material insuficiente para mate nesse modo; ausência de ações executáveis resulta em empate, considerando Jump disponível antes da decisão. Tempo, desistência e demais políticas de empate permanecem independentes.
+- Regressões cobrem a sequência até `5.Bxc6`, com e sem Freeze em d7, os dois reis vivos, turno das pretas, SAN sem xeque falso e a defesa `bxc6`. Também cobrem busca sem mutação da partida, Jump + captura executada, Undo/Redo e oportunidade vencedora desperdiçada.
+- Escopo desta alteração: regra de encerramento e regressões relacionadas. A auditoria ampla e os benchmarks de força do N5 dos anexos não estão homologados por esta entrega.
+- Validação: build aprovado e regressões direcionadas aprovadas. A suíte completa registrou 1287 testes aprovados e 8 falhas: sete reproduzidas no HEAD original `df109d6` (interface e uma expectativa de consumo de feitiço pelo bot) e uma de latência do Perft que passou na execução isolada. Não houve homologação manual do fluxo em 2D/3D nesta alteração.
+
 ### `AUTONOMOUS-CONSOLIDATION-AND-FINAL-AUDIT-01` (Prioridade Máxima Atual)
 - **Objetivo:** Consolidação final de conformidade de todas as especificações (Specs 01 a 12), auditoria rigorosa de integridade e fechamento de ciclo autônomo.
 

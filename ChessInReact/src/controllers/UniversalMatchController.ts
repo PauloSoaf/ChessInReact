@@ -199,7 +199,7 @@ export class UniversalMatchController {
     }
 
     // Official Spell Chess
-    if (v === 'SPELL_CHESS_OFFICIAL' || v === 'SPELL_CHESS') {
+    if (v === 'SPELL_CHESS_OFFICIAL' || v === 'SPELL_CHESS' || v === 'SPELL_CHESS_KING_CAPTURE_ONLY') {
       this.officialSpellState = OfficialSpellEngine.createInitialState();
     } else {
       this.officialSpellState = null;
@@ -864,7 +864,6 @@ export class UniversalMatchController {
       let legalMoves = RulesEngine.getLegalMoves(domain, this.topology);
 
       if (legalMoves.length === 0) {
-        const inCheck = CheckValidator.isRoyalInCheck(domain.activePlayer, domain, this.topology);
         const isSpellChess = Boolean(
           this.config.variantId.toUpperCase().includes('SPELL') ||
           domain.variantId?.toUpperCase().includes('SPELL')
@@ -873,6 +872,7 @@ export class UniversalMatchController {
         // Spell Chess Check Defense & Zero-Moves Resolution:
         // If the bot has Freeze or Jump available, check if casting can unlock legal moves!
         if (isSpellChess && this.officialSpellState) {
+          const inCheck = CheckValidator.isRoyalInCheck(domain.activePlayer, domain, this.topology);
           const botCharges = domain.activePlayer === 'P1'
             ? this.officialSpellState.whiteCharges
             : this.officialSpellState.blackCharges;
@@ -913,7 +913,6 @@ export class UniversalMatchController {
 
       if (legalMoves.length === 0) {
         // Stalemate or Checkmate resolution
-        const inCheck = CheckValidator.isRoyalInCheck(domain.activePlayer, domain, this.topology);
 
         if (this.config.totalParticipants > 2 && this.turnCycleState) {
           const currentFaction = `FACTION_${domain.activePlayer.replace('P', '')}`;
@@ -949,13 +948,13 @@ export class UniversalMatchController {
           return true;
         }
 
-        const opponent: PlayerId = domain.activePlayer === 'P1' ? 'P2' : 'P1';
+        const result = RulesEngine.getGameResult(domain, this.topology);
 
         gameStore.setState((s) => ({
           domain: {
             ...s.domain,
-            isGameOver: true,
-            winnerId: inCheck ? opponent : null,
+            isGameOver: result.isGameOver,
+            winnerId: result.winnerId,
           },
         }));
 

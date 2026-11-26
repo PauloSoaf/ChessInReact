@@ -218,21 +218,8 @@ export class SANNotationGenerator {
     try {
       const inCheck = CheckValidator.isRoyalInCheck(opponentId, domainAfter, topology);
       if (inCheck) {
-        const opponentMoves = RulesEngine.getLegalMoves(domainAfter, topology);
-        if (opponentMoves.length === 0) {
-          const isSpellChess = Boolean(
-            domainAfter.variantId?.toUpperCase().includes('SPELL') ||
-            Boolean((domainAfter.metadata as { officialSpellState?: unknown })?.officialSpellState)
-          );
-          if (isSpellChess) {
-            const spellMeta = (domainAfter.metadata as { officialSpellState?: { whiteCharges?: { freezeCharges: number; freezeCooldownTurns: number }; blackCharges?: { freezeCharges: number; freezeCooldownTurns: number } } })?.officialSpellState;
-            const charges = spellMeta
-              ? (opponentId === 'P1' ? spellMeta.whiteCharges : spellMeta.blackCharges)
-              : { freezeCharges: 2, freezeCooldownTurns: 0 };
-            if (charges && charges.freezeCharges > 0 && charges.freezeCooldownTurns === 0) {
-              return `${baseNotation}+`;
-            }
-          }
+        const result = RulesEngine.getGameResult(domainAfter, topology);
+        if (result.isGameOver && result.status === 'CHECKMATE') {
           return `${baseNotation}#`;
         }
         return `${baseNotation}+`;

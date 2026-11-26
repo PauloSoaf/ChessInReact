@@ -42,5 +42,12 @@ describe('Spec 12/Spec 13 - MinigamesCatalogSection Component', () => {
 
     expect(onOpenStaging).toHaveBeenCalledWith('DUCK_CHESS', 2);
   });
+
+  it('opens the capture-only variant independently of official Spell Chess', () => {
+    const onOpenStaging = vi.fn();
+    render(<MinigamesCatalogSection {...defaultProps} onOpenStagingModal={onOpenStaging} />);
+    fireEvent.click(screen.getByText('Configurar / Jogar Captura obrigatória'));
+    expect(onOpenStaging).toHaveBeenCalledWith('SPELL_CHESS_KING_CAPTURE_ONLY', 2);
+  });
 });
 

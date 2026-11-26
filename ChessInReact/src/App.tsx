@@ -1272,6 +1272,7 @@ const AppContent: React.FC = () => {
                   isRanked={isMatchRanked}
                   actionSlot={
                     (universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_OFFICIAL' ||
+                      universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_KING_CAPTURE_ONLY' ||
                       universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS') &&
                     universalMatch.snapshot.officialSpellState ? (
                       <OpponentSpellDeck
@@ -1455,6 +1456,7 @@ const AppContent: React.FC = () => {
                   isRanked={isMatchRanked}
                   actionSlot={
                     (universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_OFFICIAL' ||
+                      universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_KING_CAPTURE_ONLY' ||
                       universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS') &&
                     universalMatch.snapshot.officialSpellState ? (
                       <OfficialSpellBar

@@ -3,7 +3,10 @@ import { ITopology } from '../../core/topology/types';
 import { IDomainState } from '../../core/state/gameState';
 import { IPieceEntity } from '../../core/entities/types';
 import { IGameResult, IVariantConfiguration } from './interfaces/IRulesContracts';
+import { VariantRegistry } from './VariantRegistry';
 import { CheckValidator } from './CheckValidator';
+import { RulesEngine } from './RulesEngine';
+import { IOfficialSpellState } from '../variants/spells/OfficialSpellEngine';
 
 export class GameOverDetector {
   /**
@@ -16,6 +19,8 @@ export class GameOverDetector {
     variantConfig?: IVariantConfiguration,
     positionHistory?: readonly string[]
   ): IGameResult {
+    variantConfig = variantConfig ?? VariantRegistry.resolveRulesConfig(state.variantId);
+    const captureOnly = variantConfig?.winCondition === 'KING_CAPTURE_ONLY';
     const activePlayer = state.activePlayer;
     const opponentPlayer = activePlayer === 'P1' ? 'P2' : 'P1';
 
@@ -51,10 +56,17 @@ export class GameOverDetector {
       const p1King = CheckValidator.findRoyalPiece('P1', state);
       const p2King = CheckValidator.findRoyalPiece('P2', state);
       if (!p1King || !p2King) {
+        if (captureOnly && !Object.values(state.boardEntities).some((entity) =>
+          entity.type === 'PIECE' && entity.isCaptured &&
+          (entity.variantId.toUpperCase() === 'KING' || entity.variantId.toUpperCase() === 'K') &&
+          ((!p1King && entity.ownerId === 'P1') || (!p2King && entity.ownerId === 'P2'))
+        )) {
+          return { isGameOver: false, status: 'IN_PROGRESS', winnerId: null };
+        }
         const winner = p1King ? 'P1' : p2King ? 'P2' : null;
         return {
           isGameOver: true,
-          status: 'CHECKMATE',
+          status: captureOnly ? 'KING_CAPTURE' : 'CHECKMATE',
           winnerId: winner,
           reason: `Captura Real: ${winner === 'P1' ? 'Brancas' : 'Pretas'} venceu por captura do Rei adversário.`,
         };
@@ -176,6 +188,15 @@ export class GameOverDetector {
     }
 
     // 3. Checkmate or Stalemate when no legal moves exist (RF-05, RF-14-03)
+    if (legalMovesCount === 0 && captureOnly) {
+      if (this.hasSpellMove(state, topology, variantConfig)) {
+        return { isGameOver: false, status: 'IN_PROGRESS', winnerId: null };
+      }
+      return {
+        isGameOver: true, status: 'STALEMATE', winnerId: null,
+        reason: 'Empate: nenhuma ação legal disponível no modo de captura obrigatória.',
+      };
+    }
     if (legalMovesCount === 0) {
       const isCheck = CheckValidator.isRoyalInCheck(activePlayer, state, topology);
       if (isCheck) {
@@ -359,7 +380,7 @@ export class GameOverDetector {
       (e) => e.type === 'PIECE' && !e.isCaptured
     ) as IPieceEntity[];
 
-    if (this.isInsufficientMaterial(activePieces, topology)) {
+    if (!captureOnly && this.isInsufficientMaterial(activePieces, topology)) {
       return {
         isGameOver: true,
         status: 'INSUFFICIENT_MATERIAL',
@@ -375,9 +396,34 @@ export class GameOverDetector {
     };
   }
 
-  /**
-   * Checks if pieces on the board constitute an impossible checkmate condition (FIDE Article 9.6).
-   */
+  /** Checks concrete Jump actions before declaring the capture-only no-action draw. */
+  private static hasSpellMove(
+    state: IDomainState,
+    topology: ITopology,
+    config?: IVariantConfiguration
+  ): boolean {
+    const spells = state.metadata?.officialSpellState as IOfficialSpellState | undefined;
+    if (!spells) return false;
+    const charges = state.activePlayer === 'P1' ? spells.whiteCharges : spells.blackCharges;
+    // Freeze cannot unlock movement when check is advisory. Jump can open blocked rays.
+    if (charges.jumpCharges <= 0 || charges.jumpCooldownTurns !== 0) return false;
+    return Object.values(state.boardEntities).some((entity) => {
+      if (entity.type !== 'PIECE' || entity.isCaptured) return false;
+      const next = {
+        ...state,
+        boardEntities: {
+          ...state.boardEntities,
+          [entity.id]: {
+            ...entity,
+            metadata: { ...entity.metadata, canBeJumpedOver: true },
+          },
+        },
+      };
+      return RulesEngine.getLegalMoves(next, topology, config).length > 0;
+    });
+  }
+
+  /** Checks impossible checkmate material under conventional rules. */
   public static isInsufficientMaterial(
     pieces: readonly IPieceEntity[],
     topology: ITopology

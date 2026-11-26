@@ -121,7 +121,15 @@ export class VariantRegistry {
       name: 'Spell Chess (Official)',
       description: 'Official Chess.com Spell Chess rules with Freeze 3x3 and Jump spells',
       topologyType: 'SQUARE',
-      config: { variantId: 'SPELL_CHESS_OFFICIAL', enforceCheck: true },
+      config: { variantId: 'SPELL_CHESS_OFFICIAL', enforceCheck: true, winCondition: 'CHECKMATE_OR_KING_CAPTURE' },
+    });
+
+    this.registerVariant({
+      id: 'SPELL_CHESS_KING_CAPTURE_ONLY',
+      name: 'Spell Chess (Captura obrigatória)',
+      description: 'Vitória por captura física do rei; xeque é apenas uma ameaça.',
+      topologyType: 'SQUARE',
+      config: { variantId: 'SPELL_CHESS_KING_CAPTURE_ONLY', enforceCheck: false, winCondition: 'KING_CAPTURE_ONLY' },
     });
 
     this.registerVariant({

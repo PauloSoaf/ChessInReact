@@ -18,6 +18,7 @@ export type TopologyKind =
   | 'COMPOSITE_MULTIDIRECTIONAL';
 
 export type VictoryConditionType =
+  | 'KING_CAPTURE'
   | 'CHECKMATE'
   | 'BARE_KING'
   | 'THREE_CHECKS'

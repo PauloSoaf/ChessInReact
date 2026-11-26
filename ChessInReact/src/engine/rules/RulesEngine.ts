@@ -469,7 +469,8 @@ export class RulesEngine {
     }
 
     // 6. King safety check on isolated cloned occupancy (RF-04, RNF-01 zero-leakage guarantee)
-    const enforceCheck = variantConfig?.enforceCheck ?? (variantConfig?.variantId !== 'ANTICHESS');
+    const enforceCheck = variantConfig?.winCondition !== 'KING_CAPTURE_ONLY' &&
+      (variantConfig?.enforceCheck ?? (variantConfig?.variantId !== 'ANTICHESS'));
     if (enforceCheck) {
       const occ: Record<string, EntityId | undefined> = { ...state.occupancy };
       const evalState = { ...state, occupancy: occ } as unknown as IDomainState;
@@ -932,7 +933,8 @@ export class RulesEngine {
     }
 
     // 4. Construct legal moves and filter out moves that expose king to check (RF-04)
-    const enforceCheck = variantConfig?.enforceCheck ?? (variantConfig?.variantId !== 'ANTICHESS');
+    const enforceCheck = variantConfig?.winCondition !== 'KING_CAPTURE_ONLY' &&
+      (variantConfig?.enforceCheck ?? (variantConfig?.variantId !== 'ANTICHESS'));
     const legalMoves: ILegalMove[] = [];
 
     for (const dest of candidateDestinations) {

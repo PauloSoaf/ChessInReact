@@ -29,7 +29,7 @@ export interface IMinigamesCatalogSectionProps {
 const getMinigameVariantIcon = (id: string, size = 20): React.ReactElement => {
   const norm = id.toLowerCase();
   if (norm.includes('duck')) return <IconDuck size={size} color="#eab308" />;
-  if (norm.includes('spell_chess_official') || norm === 'spell_chess') return <IconFreeze size={size} color="#06b6d4" />;
+  if (norm.includes('spell_chess_official') || norm.includes('spell_chess_king_capture_only') || norm === 'spell_chess') return <IconFreeze size={size} color="#06b6d4" />;
   if (norm.includes('spell_chess_expanded') || norm.includes('expanded')) return <IconSparkles size={size} color="#9333ea" />;
   if (norm.includes('puzzle')) return <IconPuzzle size={size} color="#ef4444" />;
   if (norm.includes('bughouse')) return <IconUsers size={size} color="#06b6d4" />;
@@ -66,6 +66,17 @@ const MINIGAMES_CATALOG = [
     features: ['Freeze 3×3 (5 Cargas)', 'Jump sobre Peças (2 Cargas)', 'Recarga de 2 Turnos'],
     status: 'READY' as const,
     buttonText: 'Configurar / Jogar Spell Chess Oficial',
+    disabled: false,
+  },
+  {
+    id: 'spell_chess_king_capture_only',
+    title: 'Spell Chess (Captura obrigatória)',
+    badge: 'Modo personalizado',
+    accentColor: '#06b6d4',
+    desc: 'A vitória por captura exige capturar o rei no tabuleiro. Encontre e execute as combinações de Freeze e Jump; xeque e mate previsto são apenas ameaças.',
+    features: ['Freeze 3×3 (5 Cargas)', 'Jump sobre Peças (2 Cargas)', 'Captura física do rei'],
+    status: 'READY' as const,
+    buttonText: 'Configurar / Jogar Captura obrigatória',
     disabled: false,
   },
   {

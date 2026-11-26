@@ -30,7 +30,12 @@ export const VariantMatchBanner: React.FC<IVariantMatchBannerProps> = ({
   let badge = variantDef?.badge ?? 'Variante Ativa';
   let accentColor = '#3b82f6';
 
-  if (normId.includes('SPELL') || normId === 'SPELL_CHESS_OFFICIAL') {
+  if (normId === 'SPELL_CHESS_KING_CAPTURE_ONLY') {
+    title = 'Spell Chess (Captura obrigatória)';
+    badge = 'Captura do rei';
+    subtitle = 'Execute os feitiços e movimentos para capturar o rei. Xeque e vitória prevista não encerram a partida.';
+    accentColor = '#06b6d4';
+  } else if (normId === 'SPELL_CHESS' || normId === 'SPELL_CHESS_OFFICIAL') {
     title = 'Spell Chess (Regras Oficiais Chess.com)';
     badge = 'Freeze (5) & Jump (2)';
     subtitle = 'Opcionalmente lance 1 feitiço por rodada antes da sua jogada no tabuleiro.';

@@ -50,7 +50,8 @@ Qualquer assento ($0 \dots N-1$, para 2 a 12 participantes) admite:
 ### Família B: Modos Mágicos, Especiais & Híbridos
 | ID da Variante | Nome | Jogadores | Mecânica Central | Estratégia de IA |
 | :--- | :--- | :---: | :--- | :--- |
-| `SPELL_CHESS_OFFICIAL` | Spell Chess (Chess.com Oficial) | 2 | 2 feitiços (Freeze 3×3 e Jump), 2 cargas cada, cooldown 3 turnos, sem mana | Avaliador de momentos críticos de congelamento |
+| `SPELL_CHESS_OFFICIAL` | Spell Chess (Chess.com Oficial) | 2 | Freeze 3×3 (5 cargas) e Jump (2 cargas), 2 turnos de intervalo, sem mana; configuração `CHECKMATE_OR_KING_CAPTURE` | Avaliador de momentos críticos de congelamento |
+| `SPELL_CHESS_KING_CAPTURE_ONLY` | Spell Chess (Captura obrigatória, personalizado) | 2 | Freeze e Jump com as mesmas cargas; vitória por captura física do rei, xeque apenas como ameaça; sem ações executáveis, empate | Busca de ações compostas; previsão de vitória não encerra a partida. [Detalhes e validação](../autonomous/patches/PATCH-10-KING-CAPTURE-ONLY.md) |
 | `SPELL_CHESS_EXPANDED` | Spell Chess (Expanded RPG) | 2 | 7 feitiços táticos, economia dinâmica de 2 a 6 de mana, deck e cartas | Otimizador de curva de mana e combos de feitiços |
 | `DUCK_CHESS` | Duck Chess (Xadrez do Pato) | 2 | Turnos em 2 fases: lance legal + posicionamento do pato neutro | `JointMoveDuckPlanner` (bloqueio de contra-ataques) |
 | `BUGHOUSE` | Bughouse Twin-Arena (2v2) | 4 (2×2) | Dois tabuleiros paralelos; capturas transferem-se para o parceiro | `BughousePartnerAgent` com mensageria cruzada |

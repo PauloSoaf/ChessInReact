@@ -64,7 +64,7 @@ export class SpellChessTranspositionTable {
     const p1Str = `${p1Resources.freezeRemaining},${p1Resources.jumpRemaining},${p1Resources.freezeCooldown},${p1Resources.jumpCooldown}`;
     const p2Str = `${p2Resources.freezeRemaining},${p2Resources.jumpRemaining},${p2Resources.freezeCooldown},${p2Resources.jumpCooldown}`;
 
-    return `${actingPlayer}|${occEntries}|${p1Str}|${p2Str}|${frozenStr}|${jumpStr}`;
+    return `${domain.variantId}|${actingPlayer}|${occEntries}|${p1Str}|${p2Str}|${frozenStr}|${jumpStr}`;
   }
 
   public get(key: string): ITTEntry | undefined {

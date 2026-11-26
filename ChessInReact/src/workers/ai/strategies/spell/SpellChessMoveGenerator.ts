@@ -235,21 +235,6 @@ export class SpellChessMoveGenerator {
             isCapture: m.isCapture,
             promotion: m.promotion,
           })) as unknown as typeof legalMoves;
-        } else if (spell.type === 'FREEZE') {
-          const [cx, cy] = SpellChessThreatAnalyzer.parseCoord(spell.targetSquare);
-          const isFrozen = (coord: string) => {
-            const [x, y] = SpellChessThreatAnalyzer.parseCoord(coord);
-            return Math.abs(x - cx) <= 1 && Math.abs(y - cy) <= 1;
-          };
-          legalMoves = fallbackLegalMoves
-            .filter((m) => !isFrozen(m.from) && !isFrozen(m.to))
-            .map((m) => ({
-              from: m.from as CoordinateKey,
-              to: m.to as CoordinateKey,
-              pieceId: m.pieceId as ReturnType<typeof asEntityId>,
-              isCapture: m.isCapture,
-              promotion: m.promotion,
-            })) as unknown as typeof legalMoves;
         } else if (spell.type === 'JUMP') {
           const fallbackSet = new Set(fallbackLegalMoves.map((m) => `${m.from}->${m.to}`));
           const target = spell.targetSquare;
