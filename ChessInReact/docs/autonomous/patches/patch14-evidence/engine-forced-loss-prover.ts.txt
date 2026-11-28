@@ -1,0 +1,97 @@
+import { openingTrap, materialTopology as t } from 'c:/Projetos/ChessInReact/ChessInReact/src/workers/ai/strategies/spell/testing/MaterialSafetyFixtures';
+import { freezeEconomyImage, imageAction } from 'c:/Projetos/ChessInReact/ChessInReact/src/workers/ai/strategies/spell/testing/FreezeEconomyFixtures';
+import { SpellChessMaterialSafety as S } from 'c:/Projetos/ChessInReact/ChessInReact/src/workers/ai/strategies/spell/SpellChessMaterialSafety';
+import { SpellChessSearch } from 'c:/Projetos/ChessInReact/ChessInReact/src/workers/ai/strategies/spell/SpellChessSearch';
+import { searchSpellChess } from 'c:/Projetos/ChessInReact/ChessInReact/src/workers/ai/fast/spellEngine';
+import { OfficialSpellRules as R } from 'c:/Projetos/ChessInReact/ChessInReact/src/engine/variants/spells/OfficialSpellRules';
+const alg = (c: string) => { const [x,y] = c.split(',').map(Number); return 'abcdefgh'[x] + (y+1); };
+const show = (a: any) => a ? (a.spell.type==='NONE'?'':a.spell.type+'('+alg(a.spell.targetSquare)+')+')+alg(a.move.from)+alg(a.move.to) : '-';
+function run(label: string, d: any, budget: number) {
+  const r = searchSpellChess(d, d.activePlayer, t, SpellChessSearch.resources(d,d.activePlayer), SpellChessSearch.resources(d,d.activePlayer==='P1'?'P2':'P1'), budget);
+  const a = r.trace.strategicAudit!;
+  console.log('==', label, budget+'ms');
+  console.log('  escolheu', show(r.bestAction), 'score', r.evaluationCentipawns, 'prof', r.depthReached, 'nos', r.nodesEvaluated, Math.round(r.elapsedMs)+'ms', a.selectionReason, 'raiz', a.rootCandidatesGenerated);
+  console.log('  PV', r.trace.principalVariation.map(show).join('  '));
+  console.log('  sem feitico:', show(a.bestWithoutSpell?.action), a.bestWithoutSpell?.scoreCp, '| freeze:', show(a.bestWithFreeze?.action), a.bestWithFreeze?.scoreCp, a.bestWithFreeze?.replyCoverage, '| jump:', show(a.bestWithJump?.action), a.bestWithJump?.scoreCp);
+  const after = R.simulate(d, r.bestAction, t);
+  const proof = S.inspect(after, d.activePlayer, t);
+  console.log('  inspetor PATCH-13: delta material', proof.score - S.balance(d, d.activePlayer), 'linha', proof.line.map(show).join('  '));
+}
+run('abertura d3', openingTrap('d3'), 250);
+run('abertura d3', openingTrap('d3'), 2500);
+run('abertura e3', openingTrap('e3'), 2500);
+// posicao da captura de tela: antes do lance preto que gastou o Freeze
+let img = freezeEconomyImage();
+run('captura de tela (pretas jogam)', img, 2500);
+import { FastPosition, SPELL_NONE, SPELL_FREEZE, SPELL_JUMP, encodeSpell } from 'c:/Projetos/ChessInReact/ChessInReact/src/workers/ai/fast/FastPosition';
+import { fromDomain } from 'c:/Projetos/ChessInReact/ChessInReact/src/workers/ai/fast/domainBridge';
+import { FastSearch } from 'c:/Projetos/ChessInReact/ChessInReact/src/workers/ai/fast/FastSearch';
+import { rootSpellTurns } from 'c:/Projetos/ChessInReact/ChessInReact/src/workers/ai/fast/spellTurns';
+const sq = (a: string) => ('abcdefgh'.indexOf(a[0])) + ',' + (Number(a[1])-1);
+const turn = (d: any, mv: string, sp?: ['FREEZE'|'JUMP', string]) => ({ spell: sp ? { type: sp[0], targetSquare: sq(sp[1]) } : { type: 'NONE' as const }, move: { pieceId: d.occupancy[sq(mv.slice(0,2))], from: sq(mv.slice(0,2)), to: sq(mv.slice(2,4)) } });
+const play = (d: any, ...ts: any[]) => ts.reduce((s, [m, sp]) => R.simulate(s, turn(s, m, sp), t), d);
+
+function apply(p: FastPosition, s: number, m: number): boolean { if (s) p.cast(s); if (p.make(m)) return true; if (s) p.uncast(); return false; }
+function undo(p: FastPosition, s: number) { p.unmake(); if (s) p.uncast(); }
+/** EVERY legal turn of the side to move: no pruning at all. */
+function everyTurn(p: FastPosition): [number, number][] {
+  const out: [number, number][] = p.legalMoves().map(m => [SPELL_NONE, m] as [number, number]);
+  const spells: number[] = [];
+  if (p.canCast(SPELL_FREEZE)) for (let c = 0; c < 64; c++) spells.push(encodeSpell(SPELL_FREEZE, c));
+  if (p.canCast(SPELL_JUMP)) for (let c = 0; c < 64; c++) if (p.board[c]) spells.push(encodeSpell(SPELL_JUMP, c));
+  for (const s of spells) { p.cast(s); const ms = p.legalMoves(); p.uncast(); for (const m of ms) out.push([s, m]); }
+  return out;
+}
+const search = new FastSearch();
+const alg2 = (n: number) => 'abcdefgh'[n & 7] + ((n >> 3) + 1);
+const name = (s: number, m: number) => (s ? (s >> 8 === 1 ? 'FREEZE' : 'JUMP') + '(' + alg2(s & 63) + ')+' : '') + alg2(m & 63) + alg2((m >> 6) & 63);
+let nodes = 0; let failure: string[] = [];
+const deadline = Date.now() + 500000;
+const proven = new Map<string, boolean>();
+/** White to move: some attacker turn wins within n attacker moves, against EVERY defence. */
+function wins(p: FastPosition, n: number, path: string[]): boolean {
+  if (p.findKingCapture()) return true;
+  if (n <= 1) return false;
+  if (Date.now() > deadline) throw new Error('tempo esgotado em ' + path.join(' '));
+  const key = p.keyLo + ':' + p.keyHi + ':' + n;
+  const memo = proven.get(key); if (memo !== undefined) return memo;
+  const hint = search.search(p, { timeMs: 1e9, maxDepth: n === 2 ? 3 : 5 });
+  const ordered = [...hint.rootTurns].sort((a, b) => Number(b === hint.best) - Number(a === hint.best) || b.score - a.score);
+  let ok = false; let tried = 0;
+  for (const turn of ordered) {
+    if (++tried > (n === 2 ? 400 : 12)) break;
+    if (!apply(p, turn.spell, turn.move)) continue;
+    ok = allRepliesLose(p, n - 1, [...path, name(turn.spell, turn.move)]);
+    undo(p, turn.spell);
+    if (ok) break;
+  }
+  if (!ok && path.length > failure.length) failure = [...path, '(brancas nao tem mate em ' + (n - 1) + ')'];
+  proven.set(key, ok); return ok;
+}
+function allRepliesLose(p: FastPosition, n: number, path: string[]): boolean {
+  if (p.findKingCapture()) return false;
+  const replies = everyTurn(p);
+  if (!replies.length) return false;
+  for (const [s, m] of replies) {
+    if (!apply(p, s, m)) continue;
+    nodes++;
+    const ok = wins(p, n, [...path, name(s, m)]);
+    undo(p, s);
+    if (!ok) return false;
+  }
+  return true;
+}
+const after = play(freezeEconomyImage(), ['g8f6', ['FREEZE','a4']]);
+const { position } = fromDomain(after, { spellMode: true, enforceCheck: false });
+const started = Date.now();
+const h5 = search.search(position, { timeMs: 1e9, maxDepth: 5 }).best;
+console.log('>> candidato das brancas:', name(h5.spell, h5.move));
+apply(position, h5.spell, h5.move);
+try {
+  for (const n of [2, 3]) {
+    failure = []; proven.clear();
+    const ok = allRepliesLose(position, n, [name(h5.spell, h5.move)]);
+    console.log('>> brancas com mais', n - 0, 'lances:', ok ? 'PROVADO contra qualquer defesa' : 'nao provado', '| respostas pretas', nodes, '|', ((Date.now()-started)/1000).toFixed(1)+'s', ok ? '' : '| trava em: ' + failure.join(' '));
+    if (ok) break;
+  }
+} catch (e) { console.log('>>', String(e), '| respostas pretas', nodes); }

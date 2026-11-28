@@ -1,5 +1,9 @@
 # ChessInReact | Current State Assessment (Autonomous Audit)
 
+> **Atualização de 27/11/2026 (PATCH-14):** o nível 5 do xadrez normal e do Spell Chess usa um motor compacto em Worker, e dois bugs de regra foram corrigidos. Commit e push autorizados pelo usuário, incluindo o PATCH-13 descrito abaixo; sem merge ou deploy. Força em Elo não medida. [Relatório, evidências e limites](patches/PATCH-14-N5-MOTOR-COMPACTO.md).
+
+> **Atualização local de 27/11/2026:** PATCH-13 acrescenta inspeção material obrigatória e trocas legais ao N5, geração progressiva, quiescência defensiva e cancelamento de Worker. [Implementação, evidências e limites](patches/PATCH-13-SPELL-CHESS-MATERIAL-SAFETY.md). Sem commit/push/deploy; força global não homologada.
+
 > **Atualização de 26/11/2026:** PATCH-12 implementado sobre `474377d`, com documentação e evidências incluídas no commit do patch. Commit e push autorizados pelo usuário em 26/11/2026. O N5 oficial/personalizado usa busca composta em Worker, com regras compartilhadas com a execução real. Ver [diagnóstico, testes e benchmark](patches/PATCH-12-SPELL-CHESS-N5.md). A força global do N5 ainda não está homologada. As informações anteriores de HEAD e árvore limpa abaixo são históricas.
 
 > **Documento Central de Diagnóstico Inicial do Motor Autônomo**  

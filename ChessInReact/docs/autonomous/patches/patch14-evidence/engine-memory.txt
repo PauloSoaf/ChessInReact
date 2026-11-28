@@ -1,0 +1,67 @@
+Partida instrumentada (interrompida a pedido do usuario). Limite por lance: 2500 ms.
+Motor NOVO:   maior aumento de heap num lance 13 MB;   maior tempo 2504 ms
+Motor ANTIGO: maior aumento de heap num lance 1540 MB; maior tempo 207973 ms
+Obs.: o heap total medido apos um lance inclui lixo ainda nao coletado do lance anterior; por isso a atribuicao usa o aumento por lance.
+
+Motor NOVO sozinho, 200 buscas de 1500 ms: pico de heap 47 MB, pico RSS 121 MB, sem tendencia de crescimento.
+
+Log por lance:
+MOV g1 p0 NOVO fim heap=9MB rss=61MB 1615ms nos=149794 prof=7
+MOV g1 p1 ANTIGO fim heap=39MB rss=122MB 2548ms nos=216 prof=0
+MOV g1 p2 NOVO fim heap=52MB rss=126MB 1951ms nos=314918 prof=7
+MOV g1 p3 ANTIGO fim heap=85MB rss=169MB 2529ms nos=1720 prof=0
+MOV g1 p4 NOVO fim heap=91MB rss=163MB 2504ms nos=423680 prof=7
+MOV g1 p5 ANTIGO fim heap=144MB rss=227MB 4553ms nos=3240 prof=0
+MOV g1 p6 NOVO fim heap=140MB rss=228MB 2503ms nos=438016 prof=7
+MOV g1 p7 ANTIGO fim heap=50MB rss=225MB 2502ms nos=2323 prof=0
+MOV g1 p8 NOVO fim heap=53MB rss=225MB 1634ms nos=277784 prof=6
+MOV g1 p9 ANTIGO fim heap=296MB rss=380MB 22371ms nos=23728 prof=0
+MOV g1 p10 NOVO fim heap=293MB rss=377MB 1738ms nos=256723 prof=6
+MOV g1 p11 ANTIGO fim heap=176MB rss=511MB 14843ms nos=16471 prof=0
+MOV g1 p12 NOVO fim heap=188MB rss=511MB 2030ms nos=341822 prof=6
+MOV g1 p13 ANTIGO fim heap=245MB rss=512MB 3328ms nos=5447 prof=0
+MOV g1 p14 NOVO fim heap=245MB rss=512MB 2503ms nos=350976 prof=6
+MOV g1 p15 ANTIGO fim heap=209MB rss=505MB 16069ms nos=18529 prof=0
+MOV g1 p16 NOVO fim heap=213MB rss=509MB 2118ms nos=370524 prof=7
+MOV g1 p17 ANTIGO fim heap=247MB rss=509MB 2501ms nos=3761 prof=0
+MOV g1 p18 NOVO fim heap=252MB rss=509MB 1870ms nos=348790 prof=6
+MOV g1 p19 ANTIGO fim heap=297MB rss=510MB 2503ms nos=1331 prof=0
+MOV g1 p20 NOVO fim heap=304MB rss=510MB 2503ms nos=393472 prof=7
+MOV g1 p21 ANTIGO fim heap=1844MB rss=1962MB 141871ms nos=159349 prof=0
+MOV g1 p22 NOVO fim heap=1841MB rss=1964MB 1461ms nos=224884 prof=4
+MOV g1 p23 ANTIGO fim heap=2828MB rss=2967MB 207973ms nos=278298 prof=0
+MOV g1 p24 NOVO fim heap=2827MB rss=2972MB 1533ms nos=471846 prof=5
+MOV g1 p25 ANTIGO fim heap=2861MB rss=3008MB 2507ms nos=3708 prof=0
+MOV g1 p26 NOVO fim heap=2871MB rss=3010MB 101ms nos=19291 prof=5
+MOV g1 p27 ANTIGO fim heap=2868MB rss=3012MB 31ms nos=41 prof=2
+MOV g1 p28 NOVO fim heap=2868MB rss=3012MB 1ms nos=1 prof=1
+MOV g2 p0 ANTIGO fim heap=2898MB rss=3044MB 2500ms nos=1845 prof=2
+MOV g2 p1 NOVO fim heap=2897MB rss=3039MB 1753ms nos=399938 prof=8
+MOV g2 p2 ANTIGO fim heap=2930MB rss=3086MB 2503ms nos=1477 prof=0
+MOV g2 p3 NOVO fim heap=2941MB rss=3086MB 1725ms nos=452028 prof=8
+MOV g2 p4 ANTIGO fim heap=3016MB rss=3168MB 2531ms nos=5649 prof=0
+MOV g2 p5 NOVO fim heap=3024MB rss=3169MB 1440ms nos=380313 prof=7
+MOV g2 p6 ANTIGO fim heap=3121MB rss=3268MB 4193ms nos=8621 prof=0
+MOV g2 p7 NOVO fim heap=3119MB rss=3269MB 1562ms nos=337141 prof=7
+MOV g2 p8 ANTIGO fim heap=111MB rss=3304MB 2519ms nos=6598 prof=0
+MOV g2 p9 NOVO fim heap=119MB rss=3303MB 1769ms nos=483357 prof=9
+MOV g2 p10 ANTIGO fim heap=193MB rss=3304MB 2501ms nos=3893 prof=0
+MOV g2 p11 NOVO fim heap=196MB rss=3304MB 2437ms nos=629860 prof=9
+MOV g2 p12 ANTIGO fim heap=100MB rss=3298MB 2516ms nos=7906 prof=0
+MOV g2 p13 NOVO fim heap=104MB rss=3300MB 1448ms nos=448643 prof=9
+MOV g2 p14 ANTIGO fim heap=65MB rss=3297MB 2501ms nos=5433 prof=1
+MOV g2 p15 NOVO fim heap=68MB rss=3298MB 2376ms nos=750746 prof=9
+MOV g2 p16 ANTIGO fim heap=146MB rss=3298MB 2502ms nos=5849 prof=0
+MOV g2 p17 NOVO fim heap=147MB rss=3298MB 2274ms nos=601353 prof=8
+MOV g2 p18 ANTIGO fim heap=194MB rss=3298MB 2500ms nos=2859 prof=0
+MOV g2 p19 NOVO fim heap=193MB rss=3298MB 1995ms nos=629603 prof=8
+MOV g2 p20 ANTIGO fim heap=134MB rss=3294MB 5306ms nos=8595 prof=0
+MOV g2 p21 NOVO fim heap=128MB rss=3296MB 1902ms nos=637259 prof=7
+MOV g2 p22 ANTIGO fim heap=103MB rss=3296MB 2501ms nos=8803 prof=0
+MOV g2 p23 NOVO fim heap=99MB rss=3298MB 1683ms nos=662982 prof=7
+MOV g2 p24 ANTIGO fim heap=247MB rss=3298MB 2501ms nos=11914 prof=0
+MOV g2 p25 NOVO fim heap=245MB rss=3298MB 1417ms nos=558455 prof=6
+MOV g2 p26 ANTIGO fim heap=138MB rss=3294MB 2501ms nos=12789 prof=0
+MOV g2 p27 NOVO fim heap=140MB rss=3292MB 1910ms nos=768088 prof=7
+MOV g2 p28 ANTIGO fim heap=450MB rss=3297MB 20614ms nos=41352 prof=0
+MOV g2 p29 NOVO fim heap=459MB rss=3298MB 2006ms nos=882426 prof=7

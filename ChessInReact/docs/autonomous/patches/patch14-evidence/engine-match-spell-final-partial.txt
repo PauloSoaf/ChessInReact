@@ -1,0 +1,3 @@
+partida 1 captura-do-rei | novo de brancas | lances 21 | rei/mate: venceu o NOVO
+partida 2 captura-do-rei | novo de pretas | lances 17 | rei/mate: venceu o NOVO
+INTERROMPIDA na partida 3: JavaScript heap out of memory (ver engine-memory.txt)

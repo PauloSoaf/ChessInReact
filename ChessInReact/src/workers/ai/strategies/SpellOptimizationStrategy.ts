@@ -18,6 +18,8 @@ import {
   IAIDecisionResponse,
 } from '../interfaces/IUniversalAIEngine';
 import { SpellChessSearch } from './spell/SpellChessSearch';
+import { searchSpellChess } from '../fast/spellEngine';
+import { supportsSpellEngine } from '../fast/domainBridge';
 import { OfficialSpellRules } from '../../../engine/variants/spells/OfficialSpellRules';
 import { decideWithSearch } from './SearchBackedDecision';
 import { IDomainState } from '../../../core/state/gameState';
@@ -49,8 +51,11 @@ export class SpellOptimizationStrategy implements IUniversalAIStrategy {
           freezeCooldown: Number(context?.[opponent ? 'opponentFreezeCooldown' : 'freezeCooldown'] ?? 0),
           jumpCooldown: Number(context?.[opponent ? 'opponentJumpCooldown' : 'jumpCooldown'] ?? 0) };
       };
-      const result = new SpellChessSearch().searchBestTurnAction(domain, player, request.topology,
-        readResources(false), readResources(true), request.timeBudgetMs, 5);
+      if (!supportsSpellEngine(domain, request.topology)) {
+        throw new Error('N5 Spell Chess supports the orthodox pieces on an 8x8 board.');
+      }
+      const result = searchSpellChess(domain, player, request.topology,
+        readResources(false), readResources(true), request.timeBudgetMs);
       const action = result.bestAction;
       // Revalidate the selected full turn against shared production rules before handing it to the controller.
       const withSpells = domain.metadata?.officialSpellState ? domain : { ...domain, metadata: { ...domain.metadata,

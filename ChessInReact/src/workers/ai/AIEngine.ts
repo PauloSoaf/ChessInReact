@@ -17,6 +17,8 @@ import { NegamaxSearch } from './algorithms/Negamax';
 import { ParanoidSearch } from './algorithms/MaxN';
 import { MCTS } from './algorithms/MCTS';
 import { BoardEvaluator } from './heuristics/BoardEvaluator';
+import { searchStandardChess } from './fast/classicEngine';
+import { supportsStandardEngine } from './fast/domainBridge';
 
 /**
  * High-level AI Engine coordinator (Spec 05 § 1, § 16 RF-01 to RF-15).
@@ -111,7 +113,17 @@ export class AIEngine {
       options?.isMultiplayerFFA || (options?.playerCount && options.playerCount > 2)
     );
 
-    if (isMultiplayer) {
+    const usesCompactEngine =
+      difficulty === 5 &&
+      !isMultiplayer &&
+      !options?.cancellationToken?.aborted &&
+      (!variantConfig || variantConfig.variantId === 'CHESS_STANDARD') &&
+      supportsStandardEngine(state, topology, options?.variantId ?? state.variantId);
+
+    if (usesCompactEngine) {
+      // Level 5 is limited by time; a depth cap applies only when the caller asks for one.
+      result = searchStandardChess(state, topology, mergedOptions.timeBudgetMs ?? diffConfig.timeBudgetMs, options?.depthLimit);
+    } else if (isMultiplayer) {
       result = this.paranoid.searchBestMove(state, topology, mergedOptions, variantConfig);
     } else if (variantConfig?.variantId === 'SIMULTANEOUS') {
       result = this.mcts.searchBestMove(state, topology, mergedOptions, variantConfig);

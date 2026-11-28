@@ -22,6 +22,19 @@ export interface IJumpRayThreat {
 }
 
 export class SpellChessThreatAnalyzer {
+  /** Ordering hint only. Callers still simulate and validate every continuation. */
+  public static quietRoyalRay(domain: IDomainState, move: {pieceId:string;from:string;to:string}): string[] {
+    const p=domain.boardEntities[move.pieceId as EntityId];
+    if(!p||p.type!=='PIECE'||!['QUEEN','ROOK','BISHOP'].includes(p.variantId))return [];
+    const king=this.findKingCoord(domain,p.ownerId==='P1'?'P2':'P1');if(!king)return [];
+    const [x,y]=this.parseCoord(move.to),[kx,ky]=this.parseCoord(king),dx=kx-x,dy=ky-y;
+    const diagonal=Math.abs(dx)===Math.abs(dy)&&dx!==0,straight=(dx===0)!==(dy===0);
+    if(!(p.variantId==='QUEEN'&&(diagonal||straight)||p.variantId==='ROOK'&&straight||p.variantId==='BISHOP'&&diagonal))return [];
+    const path:string[]=[];let cx=x+Math.sign(dx),cy=y+Math.sign(dy),blocks=0;
+    while(cx!==kx||cy!==ky){const c=`${cx},${cy}`;path.push(c);if(c!==move.from&&domain.occupancy[c as CoordinateKey])blocks++;
+      cx+=Math.sign(dx);cy+=Math.sign(dy);}
+    return blocks<=1?path:[];
+  }
   public static parseCoord(coord: string): [number, number] {
     const parts = coord.split(',').map(Number);
     return [parts[0] ?? 0, parts[1] ?? 0];

@@ -3,7 +3,7 @@
  *
  * Routes bot move requests to the specialized AI strategy:
  * - 9 pluggable search families.
- * - Dedicated Worker for official/custom Spell Chess N5 in browsers.
+ * - Dedicated Workers for level 5 standard chess and official/custom Spell Chess in browsers.
  * - Identified fallback with composite king-safety inspection for Spell Chess.
  */
 
@@ -24,6 +24,9 @@ import { SpellOptimizationStrategy } from './strategies/SpellOptimizationStrateg
 import { VariantSpecializedStrategy } from './strategies/VariantSpecializedStrategy';
 import { AlphaBetaMinimaxStrategy } from './strategies/AlphaBetaMinimaxStrategy';
 import { SimultaneousForecaster } from './strategies/SimultaneousForecaster';
+import { searchStandardChess } from './fast/classicEngine';
+import { searchSpellChess } from './fast/spellEngine';
+import { supportsStandardEngine } from './fast/domainBridge';
 
 export class AIWorkerPool {
   private static readonly strategies = new Map<AIEngineStrategyId, IUniversalAIStrategy>();
@@ -92,6 +95,7 @@ export class AIWorkerPool {
     this.ensureInitialized();
     // Async boundary; heavy N5 Spell Chess work is dispatched to a Worker below.
     await Promise.resolve();
+    request.signal?.throwIfAborted();
     const participants = Number(request.specializedContext?.participantCount ?? 2);
     const strategyId = this.selectStrategyForVariant(request.variantId, participants);
     const strategy = this.strategies.get(strategyId);
@@ -100,12 +104,21 @@ export class AIWorkerPool {
       try {
         if (strategyId === 'SPELL_OPTIMIZER' && request.difficultyLevel === 5 &&
           !request.variantId.toUpperCase().includes('EXPANDED') && request.domain && request.topology && typeof Worker !== 'undefined') {
-          return await this.dispatchSpellWorker(request);
+          return await this.dispatchWorker(request, () =>
+            new Worker(new URL('./SpellDecisionWorker.ts', import.meta.url), { type: 'module' }));
+        }
+        if (strategyId === 'MINIMAX_ALPHA_BETA' && request.difficultyLevel === 5 && typeof Worker !== 'undefined' &&
+          request.domain && request.topology &&
+          supportsStandardEngine(request.domain, request.topology, request.variantId)) {
+          // Off the main thread so the board and clocks stay responsive while the engine thinks.
+          return await this.dispatchWorker(request, () =>
+            new Worker(new URL('./ClassicDecisionWorker.ts', import.meta.url), { type: 'module' }));
         }
         const calculationRequest = request.domain
           ? { ...request, domain: JSON.parse(JSON.stringify(request.domain)) }
           : request;
         const result = await strategy.decideMove(calculationRequest);
+        request.signal?.throwIfAborted();
         if (strategyId === 'SPELL_OPTIMIZER' && !request.variantId.toUpperCase().includes('EXPANDED') && request.domain && request.topology) {
           const spell = result.secondaryAction?.type === 'CAST_SPELL'
             ? { type: result.secondaryAction.payload.spellType as 'FREEZE' | 'JUMP', targetSquare: String(result.secondaryAction.payload.targetCoord) }
@@ -114,6 +127,7 @@ export class AIWorkerPool {
         }
         return result;
       } catch (error) {
+        request.signal?.throwIfAborted();
         const reason = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
         console.error('[AIWorkerPool] Search failed', { matchId: request.matchId, strategyId, reason });
         return this.executeEmergencyFallback(request, reason);
@@ -123,13 +137,16 @@ export class AIWorkerPool {
     return this.executeEmergencyFallback(request);
   }
 
-  private static dispatchSpellWorker(request: IAIDecisionRequest): Promise<IAIDecisionResponse> {
+  private static dispatchWorker(request: IAIDecisionRequest, createWorker: () => Worker): Promise<IAIDecisionResponse> {
     return new Promise((resolve, reject) => {
-      const worker = new Worker(new URL('./SpellDecisionWorker.ts', import.meta.url), { type: 'module' });
+      const worker = createWorker();
       const timer = setTimeout(() => {
-        worker.terminate(); reject(new Error('Spell worker stalled beyond search deadline'));
+        stop(); reject(new Error('Engine worker stalled beyond search deadline'));
       }, request.timeBudgetMs + 5000);
-      const stop = () => { clearTimeout(timer); worker.terminate(); };
+      const stop = () => { clearTimeout(timer); request.signal?.removeEventListener('abort', abort); worker.terminate(); };
+      const abort = () => { stop(); reject(request.signal?.reason ?? new DOMException('Search cancelled', 'AbortError')); };
+      request.signal?.addEventListener('abort', abort, { once: true });
+      if (request.signal?.aborted) { abort(); return; }
       worker.onmessage = (event: MessageEvent<{ result?: IAIDecisionResponse; error?: string }>) => {
         stop();
         if (event.data.error || !event.data.result) reject(new Error(event.data.error ?? 'Missing worker decision'));
@@ -137,7 +154,7 @@ export class AIWorkerPool {
       };
       worker.onerror = (event) => { stop(); reject(new Error(event.message)); };
       const topology = request.topology as { width?: number; height?: number };
-      try { worker.postMessage({ request: { ...request, topology: undefined }, width: topology.width ?? 8, height: topology.height ?? 8 }); }
+      try { worker.postMessage({ request: { ...request, signal: undefined, topology: undefined }, width: topology.width ?? 8, height: topology.height ?? 8 }); }
       catch (error) { stop(); reject(error); }
     });
   }
@@ -155,16 +172,31 @@ export class AIWorkerPool {
 
     if (request.variantId.toUpperCase().includes('SPELL') && !request.variantId.toUpperCase().includes('EXPANDED') && request.domain && request.topology) {
       const player = request.actingPlayer as PlayerId;
-      const result = new SpellChessSearch().searchBestTurnAction(request.domain, player, request.topology,
+      const result = searchSpellChess(request.domain, player, request.topology,
         SpellChessSearch.resources(request.domain, player), SpellChessSearch.resources(request.domain, player === 'P1' ? 'P2' : 'P1'),
-        Math.max(100, Math.min(request.timeBudgetMs, 300)), 0);
+        Math.max(100, Math.min(request.timeBudgetMs, 300)));
       const action = result.bestAction;
       return { move: action.move, secondaryAction: action.spell.type === 'NONE' ? undefined : {
         type: 'CAST_SPELL', payload: { spellType: action.spell.type, targetCoord: action.spell.targetSquare },
       }, evaluationCentipawns: result.evaluationCentipawns, depthReached: 0, nodesEvaluated: result.nodesEvaluated,
         elapsedMs: performance.now() - t0, strategyUsed: 'SPELL_OPTIMIZER', fallbackUsed: true, failureReason,
-        spellTrace: { ...result.trace, fallbackUsed: true,
+        spellTrace: { ...result.trace, depthReached:0, fallbackUsed: true,
+          strategicAudit:result.trace.strategicAudit?{...result.trace.strategicAudit,depthCompleted:0,fallbackUsed:true,selectionReason:'EMERGENCY_SAFETY_FALLBACK'}:undefined,
           candidates: result.trace.candidates?.map((d) => ({ ...d, usedFallback: true })) } };
+    }
+    if (request.domain && request.topology &&
+      supportsStandardEngine(request.domain, request.topology, request.variantId)) {
+      // Even in an emergency, standard chess gets a searched move rather than the first capture.
+      const searched = searchStandardChess(request.domain, request.topology, 300);
+      const best = searched.bestMove;
+      if (best && moves.some((m) => m.from === best.fromCoord && m.to === best.toCoord)) {
+        return {
+          move: { from: best.fromCoord, to: best.toCoord, pieceId: best.pieceId, promotion: best.promotionVariant },
+          evaluationCentipawns: searched.evaluationScore, depthReached: searched.depthReached,
+          nodesEvaluated: searched.nodesCalculated, fallbackUsed: true, failureReason,
+          elapsedMs: performance.now() - t0, strategyUsed: 'MINIMAX_ALPHA_BETA',
+        };
+      }
     }
     // Conventional fallback only; Spell Chess above inspects real opponent replies.
     const chosen = moves.find((m) => m.isCapture) ?? moves[0];

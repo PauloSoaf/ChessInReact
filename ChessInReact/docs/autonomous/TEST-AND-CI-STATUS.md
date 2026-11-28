@@ -1,5 +1,13 @@
 # ChessInReact | Test and CI Status
 
+## PATCH-14 (27/11/2026)
+
+Local, com cobertura: **1.584 de 1.586** na execução conjunta; os dois arquivos com falha (latência e timeout sob carga) passaram isolados, 16 de 16. ESLint, build, worker no Chromium e 11 fluxos de aceitação aprovados. O CI remoto deste commit deve ser conferido após o push. [Detalhes e limites](patches/PATCH-14-N5-MOTOR-COMPACTO.md#verificações-antes-do-push).
+
+## Atualização local — PATCH-13 (27/11/2026)
+
+[Relatório de segurança material](patches/PATCH-13-SPELL-CHESS-MATERIAL-SAFETY.md), [comparação das 12 partidas](patches/patch13-evidence/MATERIAL-COMPARISON.md) e [gates finais](patches/patch13-evidence/validation.json). Validação local final: **1.499 testes em 172 arquivos aprovados**, build, ESLint, onze fluxos gerais de aceitação e Spell Chess 2D/3D aprovados. O CI remoto de `95b88c1` não valida estas alterações locais.
+
 ## Atualização local — PATCH-12 (26/11/2026)
 
 O [relatório do PATCH-12](patches/PATCH-12-SPELL-CHESS-N5.md) registra a validação atual, o benchmark e as limitações. Os sete erros da execução remota de `474377d` foram reproduzidos e corrigidos localmente. Build, ESLint, testes, aceitação geral e regressão Spell Chess em navegador real têm evidências em [validation.json](patches/patch12-evidence/validation.json).

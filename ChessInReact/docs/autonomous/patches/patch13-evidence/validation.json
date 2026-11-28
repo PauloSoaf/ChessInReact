@@ -1,0 +1,257 @@
+{
+  "date": "2026-11-27",
+  "timezone": "America/Manaus",
+  "baselineRef": "95b88c15ae0e9748ca70cbace176023bb100a19a",
+  "publication": {
+    "committed": false,
+    "pushed": false,
+    "deployed": false
+  },
+  "checks": [
+    {
+      "command": "npm run build",
+      "exitCode": 0,
+      "log": "<TEMP>\\patch13-build.log"
+    },
+    {
+      "command": "npm run lint",
+      "exitCode": 0,
+      "log": "<TEMP>\\patch13-lint.log"
+    },
+    {
+      "command": "npx vitest run --pool=forks --maxWorkers=4 --minWorkers=1 --reporter=json --outputFile=$env:TEMP/chess-patch13-verified-suite.json",
+      "exitCode": 0,
+      "passed": 1499,
+      "failed": 0,
+      "files": 172,
+      "rawReport": "<TEMP>\\chess-patch13-verified-suite.json"
+    },
+    {
+      "command": "npx vitest run src/workers/ai/strategies/__tests__/SpellChessN5MaterialSafetyRegression.test.ts -t 'compares N5 with N4' --pool=forks --maxWorkers=1 --minWorkers=1",
+      "exitCode": 0,
+      "passed": 2,
+      "note": "Repeated after strengthening N5 >= N4 exchange-score assertion; other 37 cases intentionally filtered by -t."
+    },
+    {
+      "command": "npm run acceptance",
+      "exitCode": 0,
+      "mandatoryFlows": 11,
+      "log": "<TEMP>\\patch13-acceptance.log"
+    },
+    {
+      "command": "$env:SPELL_EVIDENCE_DIR='docs/autonomous/patches/patch13-evidence'; $env:SPELL_MATERIAL_SCENARIOS='1'; npm run acceptance:spell",
+      "exitCode": 0,
+      "log": "<TEMP>\\patch13-browser-verified.log"
+    },
+    {
+      "command": "npm run bench:spell:material",
+      "exitCode": 0,
+      "log": "<TEMP>\\patch13-benchmark-release.log"
+    },
+    {
+      "command": "npm run audit:spell:material",
+      "exitCode": 0,
+      "log": "<TEMP>\\patch13-audit-verified.log"
+    },
+    {
+      "command": "node --check scripts/runSpellChessMaterialBenchmark.mjs; node --check scripts/auditSpellChessMaterialLosses.mjs; node --check scripts/runSpellChessBrowserRegression.mjs",
+      "exitCode": 0
+    }
+  ],
+  "testsAdded": {
+    "materialSafetyCases": 39,
+    "controllerCancellationCases": 4,
+    "additionalTTCase": 1
+  },
+  "browser": {
+    "modes": [
+      "2D",
+      "3D"
+    ],
+    "results": [
+      {
+        "mode": "2D",
+        "engine": "SPELL_COMPOSITE",
+        "fallback": false,
+        "scenarios": [
+          {
+            "scenario": "opening-d3",
+            "spell": "NONE",
+            "depth": 0,
+            "minimumMaterialInspection": true,
+            "materialDeltaCp": 0,
+            "uiFrames": 163,
+            "executedMatchesCalculated": true
+          },
+          {
+            "scenario": "opening-e3",
+            "spell": "NONE",
+            "depth": 0,
+            "minimumMaterialInspection": true,
+            "materialDeltaCp": 0,
+            "uiFrames": 164,
+            "executedMatchesCalculated": true
+          },
+          {
+            "scenario": "forced-jump",
+            "spell": "JUMP",
+            "depth": 1,
+            "minimumMaterialInspection": true,
+            "materialDeltaCp": 99869,
+            "uiFrames": 7,
+            "executedMatchesCalculated": true
+          },
+          {
+            "scenario": "forced-freeze",
+            "spell": "FREEZE",
+            "depth": 5,
+            "minimumMaterialInspection": true,
+            "materialDeltaCp": 0,
+            "uiFrames": 23,
+            "executedMatchesCalculated": true
+          }
+        ]
+      },
+      {
+        "mode": "3D",
+        "engine": "SPELL_COMPOSITE",
+        "fallback": false,
+        "scenarios": [
+          {
+            "scenario": "opening-d3",
+            "spell": "NONE",
+            "depth": 0,
+            "minimumMaterialInspection": true,
+            "materialDeltaCp": 0,
+            "uiFrames": 163,
+            "executedMatchesCalculated": true
+          },
+          {
+            "scenario": "opening-e3",
+            "spell": "NONE",
+            "depth": 0,
+            "minimumMaterialInspection": true,
+            "materialDeltaCp": 0,
+            "uiFrames": 164,
+            "executedMatchesCalculated": true
+          },
+          {
+            "scenario": "forced-jump",
+            "spell": "JUMP",
+            "depth": 1,
+            "minimumMaterialInspection": true,
+            "materialDeltaCp": 99869,
+            "uiFrames": 7,
+            "executedMatchesCalculated": true
+          },
+          {
+            "scenario": "forced-freeze",
+            "spell": "FREEZE",
+            "depth": 5,
+            "minimumMaterialInspection": true,
+            "materialDeltaCp": 0,
+            "uiFrames": 20,
+            "executedMatchesCalculated": true
+          }
+        ]
+      }
+    ]
+  },
+  "benchmark": {
+    "replayedActions": 963,
+    "games": 12,
+    "counterfactualDecisions": 481,
+    "budgetMs": 250,
+    "previous": {
+      "decisions": 481,
+      "queenCapturedInExchangeLine": 16,
+      "uncompensatedQueenInExchangeLine": 16,
+      "queenSacrificesWithDemonstratedCompensation": 0,
+      "immediateRoyalCaptures": 4,
+      "depthZero": 161,
+      "severeMaterialLosses": 112,
+      "royalLosses": 1,
+      "wastedJump": 17,
+      "averageMs": 247.82462972972934,
+      "unchecked": null
+    },
+    "current": {
+      "decisions": 481,
+      "queenCapturedInExchangeLine": 0,
+      "uncompensatedQueenInExchangeLine": 0,
+      "queenSacrificesWithDemonstratedCompensation": 0,
+      "immediateRoyalCaptures": 4,
+      "depthZero": 366,
+      "severeMaterialLosses": 21,
+      "royalLosses": 1,
+      "wastedJump": 0,
+      "averageMs": 306.5469172557174,
+      "unchecked": 0
+    },
+    "betterMaterialDefenseFound": 91,
+    "keyTiming": {
+      "samples": 481,
+      "rounds": 10,
+      "oldKeyMs": 195.45449999999255,
+      "newKeyMs": 115.54349999999977,
+      "lastOldLength": 40182,
+      "lastNewLength": 36
+    }
+  },
+  "adversarialAudit": {
+    "states": 22,
+    "avoidableSevereLosses": 0,
+    "missedMaterialDefenses": 0,
+    "maximumAdditionalLossCp": 0,
+    "notes": [
+      "The root was exhaustively enumerated for these remaining losses; the exchange model itself is bounded.",
+      "An intermediate strict timeout still dropped hanging queens. It was rejected and replaced with multi-attacker defense ordering and mandatory safe-candidate inspection."
+    ]
+  },
+  "limitations": [
+    "Counterfactual decisions on archived states, not fresh full games or an Elo estimate.",
+    "Exchange inspection is bounded to three capture plies with local recaptures; no general long-term compensation proof.",
+    "Global depth zero remains frequent; completed tactical inspection is reported separately.",
+    "Mandatory inspection may exceed the requested budget if no material-safe candidate has been found.",
+    "Compact-key timing is a microcomparison against reconstructed expensive legacy key components, not end-to-end engine speedup.",
+    "No remote CI result is asserted for these local changes."
+  ],
+  "sourceSha256": {
+    "package.json": "a834c72deee97b81ee5ae7ca899abd3aff9a6ffd42cbd5f5c613fe20bb52bc8e",
+    "src/controllers/UniversalMatchController.ts": "818d536bab45d2ceb190077d24ba1125617377268b458e9a0a71fe781d4307a1",
+    "src/controllers/__tests__/SpellChessWorkerCancellation.test.ts": "074682580f97c28d67bca10daf0a969465e015fbf762881bbbd2c2167a13c9fe",
+    "src/engine/variants/__tests__/SpellChessSpecialMoveParity.test.ts": "e56d7765a6fdf0bab009a281e377e39fd12a91b4638a9366932956356f9d4ce6",
+    "src/workers/ai/AIWorkerPool.ts": "712f2d63d469ac41ddc8837f9a916617595936c2e915fb4ef2d9bf85ce0babf9",
+    "src/workers/ai/interfaces/IUniversalAIEngine.ts": "067a5ac1f716ae699a6b85508c0744b5f74c9e3ad97cbe4435164afe1d4e728f",
+    "src/workers/ai/strategies/spell/SpellChessMoveGenerator.ts": "894ae444ad133fa0874cd17cd8f478b0c0c0eec3a7d731305abf33c0e943f078",
+    "src/workers/ai/strategies/spell/SpellChessSearch.ts": "aa71634d51fc62331dd0dc8f83ba5e704549e01b6ddb568646324878d99508af",
+    "src/workers/ai/strategies/spell/SpellChessMaterialSafety.ts": "725472e63fe1be2bffb1271fd872e165951633d8a4195b8d6a003e72b5f73562",
+    "src/workers/ai/strategies/spell/SpellChessTranspositionTable.ts": "ff7e6db544bab099359ef56fbd9c8cb21201a0802995b9919b622d1f7e9bc3bd",
+    "src/workers/ai/strategies/spell/SpellChessTurnAction.ts": "948ff338887513976a78ce3f27cb625dd99cce1165d53ba80f72d0868ca22f30",
+    "src/workers/ai/strategies/spell/testing/MaterialSafetyFixtures.ts": "ef5693f77741b0a568eabb913b6c37aef9b15bba945517ff0b751f5afa4afded",
+    "src/workers/ai/strategies/__tests__/SpellChessN5MaterialSafetyRegression.test.ts": "9888eafcd4f983a665ec7dc18948921d8cab7704cd2e8e37b3baa8a6afd0b26a",
+    "scripts/runSpellChessMaterialBenchmark.mjs": "0aabd755fb89053bea85435b8e46fe8e522911070a2c303059662fa6c9f11997",
+    "scripts/auditSpellChessMaterialLosses.mjs": "e0ddaa832eeb8924f5d1c0be86db6f45884dea3c812385d2044f78bf1bb112d6",
+    "scripts/runSpellChessBrowserRegression.mjs": "d9ea3f9351fabea37bbc798ed888243ce4384ad8c9acd115c067517810dd3f16"
+  },
+  "artifactSha256": {
+    "2d-after.png": "200acbdbb066ba5744d68f32019e1946797b9f2d218418e260162ef6975b7f30",
+    "2d-before.png": "bbd409f789365ce935ecaf160a7e09f4a7f57d7fc755735d899418b92cf72d83",
+    "2d-executed-capture.png": "578ffa7bb47ee810fabaeae22505fe66d9184f254aa942b6f29f471334a170bf",
+    "2d-forced-freeze.png": "f6694576f6dd3277eeb47a33689f760b60556c6f59f933fdee8d16c494ebe5d6",
+    "2d-forced-jump.png": "6b36a68f8077474cd3b1556908297213b5b253e1f49be27921c78b8a3575c4c4",
+    "2d-opening-d3.png": "ad2a609a779069898bafef4f86ebb333662b99cfa6a0f7e70b6a7b7061e29cfa",
+    "2d-opening-e3.png": "e3da3b674424c43f47521cc42abaaf405eb99f555ddec914ff6b4e2b34531672",
+    "3d-after.png": "9cb23129ef6c3f2f130a71592120a6f3d1df87316b10400b44a6c84cb837461f",
+    "3d-before.png": "cb603cb2b57beea0b6e1ec01c262b7b9cfe73b3b23a31f379589d445afad11d3",
+    "3d-executed-capture.png": "d3143298b88a0318c2a21129203e0b52236879a098ebfc6c05405734c3ddeb4c",
+    "3d-forced-freeze.png": "b8e2353dcb740b9eaeaaae1b2c7a33d4e130048dbeea04b77751ff7b6f4dcf18",
+    "3d-forced-jump.png": "ecdd69a4186f3fa2adb862c2ce49a41378ce4233050fc5e5b7f754b4b104caae",
+    "3d-opening-d3.png": "9cb735177ee31fd1eb0dbe03eb64c233b04e1bde31f7b5f362ab364e800fdbc6",
+    "3d-opening-e3.png": "7395638947542df32d05ec4864398be301243ee914d7540113d2d369f03f452a",
+    "browser.json": "1f484163a2508f9f5c79b1b2f0e02f7ecd5319fe0fe838eb565f52bde2c0fdd0",
+    "material-benchmark.json": "a1e3a9817940418fa4bc3cd24a9262c97becfd8fd7c623e38d0187062b00643f",
+    "MATERIAL-COMPARISON.md": "b961b30d29261449cb034f0a2b4af0313b256400aa4dc1edc6b5ed252da93361",
+    "material-loss-audit.json": "90ec673da045cef7530e7d674bff3a3f5f0aea8b211b0992920a352694607663"
+  }
+}

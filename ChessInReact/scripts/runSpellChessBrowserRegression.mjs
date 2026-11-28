@@ -5,7 +5,7 @@ import { createServer } from 'vite';
 
 const browser = ['C:/Program Files/Google/Chrome/Application/chrome.exe', '/usr/bin/google-chrome', '/usr/bin/chromium'].find(existsSync);
 if (!browser) throw new Error('Chromium required for Spell Chess browser regression.');
-const directory = resolve('docs/autonomous/patches/patch12-evidence');
+const directory = resolve(process.env.SPELL_EVIDENCE_DIR ?? 'docs/autonomous/patches/patch12-evidence');
 mkdirSync(directory, { recursive: true });
 const port = 5700 + Math.floor(Math.random() * 100), cdpPort = port + 4000;
 const server = await createServer({ server: { port, host: '127.0.0.1' }, logLevel: 'error' });
@@ -112,7 +112,57 @@ try {
     await delay(350);
     const finalShot = await send('Page.captureScreenshot', { format: 'png' });
     writeFileSync(resolve(directory, `${mode.toLowerCase()}-executed-capture.png`), Buffer.from(finalShot.data, 'base64'));
-    results.push({ mode, ...result, syntheticReplay });
+    const materialScenarios = [];
+    if (process.env.SPELL_MATERIAL_SCENARIOS === '1') for (const scenario of ['opening-d3', 'opening-e3', 'forced-jump', 'forced-freeze']) {
+      const check = await evaluate(`(async () => {
+        const {MatchConfigurationManager:M}=await import('/src/matchmaking/config/MatchConfigurationManager.ts');
+        const {gameStore}=await import('/src/core/state/gameStore.ts');
+        const {openingTrap}=await import('/src/workers/ai/strategies/spell/testing/MaterialSafetyFixtures.ts');
+        const {queenTrap}=await import('/src/workers/ai/strategies/spell/testing/KingSafetyFixtures.ts');
+        const {OfficialSpellRules:R}=await import('/src/engine/variants/spells/OfficialSpellRules.ts');
+        const {SpellChessMaterialSafety:S}=await import('/src/workers/ai/strategies/spell/SpellChessMaterialSafety.ts');
+        let config=M.createDefaultMatch('SPELL_CHESS_KING_CAPTURE_ONLY',2);
+        config=M.updateBotDifficulty(M.updateBotDifficulty(config,0,5),1,5);
+        config={...config,slots:config.slots.map(s=>({...s,role:'HUMAN_LOCAL'}))};window.__CHESS_APP__.launchMatch(config);
+        const c=window.__CHESS_APP__.getMatchController();if(!c.isPaused())c.togglePause();
+        let fixture=${JSON.stringify(scenario)}==='opening-d3'?openingTrap('d3'):${JSON.stringify(scenario)}==='opening-e3'?openingTrap('e3'):queenTrap();
+        if(${JSON.stringify(scenario)}==='forced-freeze'){
+          fixture={...queenTrap({blackFreeze:1}),activePlayer:'P2'};
+          fixture=R.sync(fixture,{...R.getState(fixture),activeFrozenPieceIds:{bk:2,blocker:2}});
+        }
+        fixture={...fixture,matchId:c.getConfig().matchId};gameStore.getState().resetDomainState(fixture);
+        c.updateSlotRole(fixture.activePlayer==='P1'?0:1,'AI_BOT');
+        gameStore.getState().resetDomainState(fixture);
+        let frames=0;const tick=setInterval(()=>frames++,16);
+        const stepped=await c.stepBotTurn();clearInterval(tick);
+        const actual=gameStore.getState().domain,d=c.getMoveHistory()[0]?.aiDecision;
+        if(!d)throw Error('No browser decision');
+        const action={move:d.move,spell:d.secondaryAction?{type:d.secondaryAction.payload.spellType,targetSquare:String(d.secondaryAction.payload.targetCoord)}:{type:'NONE'}};
+        const expected=R.simulate(fixture,action,c.getTopology());
+        const proof=S.inspect(actual,fixture.activePlayer,c.getTopology());
+        const canonical=value=>JSON.stringify(value,(key,v)=>{if(key==='metadata')v={isShielded:false,isInvisible:false,...v};return v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))):v;});
+        return {stepped,frames,action,decision:d,materialDeltaCp:proof.score-S.balance(fixture,fixture.activePlayer),
+          executedMatchesCalculated:canonical(actual.boardEntities)===canonical(expected.boardEntities)&&
+            canonical(actual.occupancy)===canonical(expected.occupancy)&&canonical(R.getState(actual))===canonical(R.getState(expected)),
+          differences:Object.keys(expected.boardEntities).filter(id=>canonical(actual.boardEntities[id])!==canonical(expected.boardEntities[id]))
+            .map(id=>({id,actual:actual.boardEntities[id],expected:expected.boardEntities[id]})),
+          actualSpells:R.getState(actual),expectedSpells:R.getState(expected),
+          winner:actual.winnerId,audit:c.getSpellAudit()};
+      })()`);
+      assert(check.stepped && check.decision.spellTrace?.engine === 'SPELL_COMPOSITE', 'Material scenario did not use N5 Worker');
+      if(!check.executedMatchesCalculated) writeFileSync(resolve(directory,'mismatch.json'),JSON.stringify(check,null,2));
+      assert(!check.decision.fallbackUsed && check.executedMatchesCalculated, 'Calculated turn differs from actual board');
+      assert(check.decision.spellTrace.materialInspectionCompleted, 'Missing material inspection');
+      assert(check.frames > 3, 'Material search blocked UI');
+      if (scenario.startsWith('opening')) assert(check.materialDeltaCp >= -200, 'N5 still loses major material in opening');
+      if (scenario==='forced-jump') assert(check.action.spell.type==='JUMP' && check.winner==='P1', 'Bot Jump was not executed');
+      if (scenario==='forced-freeze') assert(check.action.spell.type==='FREEZE', 'Bot Freeze was not executed');
+      const shot = await send('Page.captureScreenshot', { format: 'png' });
+      writeFileSync(resolve(directory, `${mode.toLowerCase()}-${scenario}.png`), Buffer.from(shot.data, 'base64'));
+      materialScenarios.push({scenario,...check});
+      console.log(`${mode}/${scenario}: depth=${check.decision.depthReached}; material=${check.materialDeltaCp}; frames=${check.frames}`);
+    }
+    results.push({ mode, ...result, syntheticReplay, materialScenarios });
     console.log(`${mode}: safe king on ${result.king}; depth=${result.decision.depthReached}; frames=${result.frames}`);
   }
   writeFileSync(resolve(directory, 'browser.json'), JSON.stringify({ scenarios: 'Controlled partial queen trap, not original spell timeline', results }, null, 2));

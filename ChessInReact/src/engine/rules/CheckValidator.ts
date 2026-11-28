@@ -371,6 +371,7 @@ export class CheckValidator {
     };
 
     const pawnSourceCandidates: CoordinateKey[] = [];
+    const maxBoardSide = Math.max(tw, th);
     if (attackerPlayerId === 'P1') {
       pawnSourceCandidates.push(wrapCoord(targetParsed.x - 1, targetParsed.y - 1));
       pawnSourceCandidates.push(wrapCoord(targetParsed.x + 1, targetParsed.y - 1));
@@ -378,7 +379,9 @@ export class CheckValidator {
       // 2P: advances down from y+1; 4P West: advances right from x-1
       pawnSourceCandidates.push(wrapCoord(targetParsed.x - 1, targetParsed.y + 1));
       pawnSourceCandidates.push(wrapCoord(targetParsed.x + 1, targetParsed.y + 1));
-      pawnSourceCandidates.push(wrapCoord(targetParsed.x - 1, targetParsed.y - 1));
+      // The west-flank square only exists on enlarged multiplayer boards. On 8x8 it
+      // would let a black pawn attack backwards and forbid legal White moves.
+      if (maxBoardSide > 8) pawnSourceCandidates.push(wrapCoord(targetParsed.x - 1, targetParsed.y - 1));
     } else if (attackerPlayerId === 'P3') {
       pawnSourceCandidates.push(wrapCoord(targetParsed.x - 1, targetParsed.y + 1));
       pawnSourceCandidates.push(wrapCoord(targetParsed.x + 1, targetParsed.y + 1));

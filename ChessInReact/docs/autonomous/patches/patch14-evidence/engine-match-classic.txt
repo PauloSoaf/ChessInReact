@@ -1,0 +1,7 @@
+partida 1 | novo joga de brancas | lances 28 | material do novo +100 | fim vencedor NOVO
+partida 2 | novo joga de pretas | lances 7 | material do novo 0 | fim vencedor NOVO
+partida 3 | novo joga de brancas | lances 22 | material do novo +1020 | fim vencedor NOVO
+partida 4 | novo joga de pretas | lances 10 | material do novo -200 | fim vencedor NOVO
+partida 5 | novo joga de brancas | lances 23 | material do novo +1420 | fim vencedor NOVO
+partida 6 | novo joga de pretas | lances 38 | material do novo +1820 | fim vencedor NOVO
+PLACAR DO NOVO: vitorias 6 empates 0 derrotas 0 | profundidade media: novo(0.5s) 8.2 antigo(2.5s) 2.5

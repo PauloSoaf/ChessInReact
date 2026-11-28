@@ -390,7 +390,8 @@ export class MovePieceCommand implements ICommand {
           `Invalid move: Destination coordinate "${this.to}" is occupied by unsupported entity type "${(targetEntity as { type: string }).type}".`
         );
       }
-    } else if (isPawn && this.to === draft.turnState?.enPassantTarget && parsedFrom && parsedTo) {
+    } else if (isPawn && this.to === draft.turnState?.enPassantTarget && parsedFrom && parsedTo &&
+      (parsedFrom.face !== undefined || (parsedFrom.x !== parsedTo.x && parsedFrom.y !== parsedTo.y))) {
       // En Passant capture execution
       const victimCoord = toCoordKey(parsedTo.x, parsedFrom.y);
       const victimId = draft.occupancy[victimCoord];

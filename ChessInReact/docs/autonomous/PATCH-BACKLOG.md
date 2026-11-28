@@ -1,5 +1,13 @@
 # ChessInReact | Patch Backlog (Autonomous Spec Completion Engine)
 
+## PATCH-14 — N5 com motor compacto (local, 27/11/2026)
+
+Novo núcleo de busca para o nível 5 do xadrez normal e do Spell Chess, em Worker, e correção de dois bugs de regra. [Relatório, evidências e limites](patches/PATCH-14-N5-MOTOR-COMPACTO.md). Commit e push autorizados em 27/11/2026 (inclui o PATCH-13); sem merge/deploy; Elo não medido; pendente remover a busca antiga do Spell Chess e os testes que só cobrem esse código.
+
+## PATCH-13 — Segurança material do N5 (local, 27/11/2026)
+
+Inspeção adversarial de capturas e recapturas, proteção de peças maiores, geração progressiva, contexto compacto de transposições e cancelamento do Worker. [Relatório e evidências](patches/PATCH-13-SPELL-CHESS-MATERIAL-SAFETY.md). Sem commit/push/deploy; homologação global de força pendente.
+
 > **Backlog Dinâmico de Patches Executáveis**  
 > **Última Atualização:** 11/11/2026 10:12 (UTC-4)  
 > **Ordem de Prioridade:** Falhas críticas > Erros de regras > Falhas de build/CI > Contratos arquiteturais > Funcionalidades fundamentais > Otimizações > Polimento visual.

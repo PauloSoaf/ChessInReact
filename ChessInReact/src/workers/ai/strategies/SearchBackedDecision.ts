@@ -47,7 +47,9 @@ export function decideWithSearch(
       elapsedMs: result.calculationTimeMs,
       strategyUsed: strategyId,
     };
-  } catch {
+  } catch (error) {
+    // A silent null here would quietly downgrade the bot to the heuristic fallback.
+    console.error('[decideWithSearch] Search failed', error);
     return null;
   }
 }

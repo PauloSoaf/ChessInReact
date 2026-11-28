@@ -24,6 +24,7 @@ export class OfficialSpellRules {
         ? (spells.activeFrozenPieceIds[entity.id] ?? 0) > 0
         : (spells.activeFrozenCoordinates[entity.position] ?? 0) > 0;
       const jump = (spells.activeJumpPieceIds[entity.id] ?? 0) > 0;
+      if (entity.metadata?.isFrozen === frozen && entity.metadata?.hasJump === jump && entity.metadata?.canBeJumpedOver === jump) continue;
       boardEntities[entity.id] = { ...entity, metadata: { ...entity.metadata,
         isFrozen: frozen, hasJump: jump, canBeJumpedOver: jump } };
     }
@@ -85,10 +86,17 @@ export class OfficialSpellRules {
 
   public static simulate(domain: IDomainState, action: { spell: OfficialSpellAction; move: {
     pieceId: string; from: string; to: string; promotion?: string;
-  } }, topology: ITopology): IDomainState {
+  } }, topology: ITopology, cloneMode: 'STRUCTURAL' | 'JSON_REFERENCE' = 'STRUCTURAL'): IDomainState {
     const withSpell = this.cast(domain, action.spell, domain.activePlayer);
     // Commands also update captures, castling, en passant, promotion and repetition counters.
-    const draft = JSON.parse(JSON.stringify(withSpell)) as IDomainState;
+    // MovePieceCommand mutates entity fields, occupancy, inventory arrays and turnState.
+    // Metadata/terrain/history are read-only here; spell transitions replace their values.
+    // Keep the full-copy path as a differential oracle for this explicit write set.
+    const draft: IDomainState = cloneMode === 'JSON_REFERENCE' ? JSON.parse(JSON.stringify(withSpell)) as IDomainState : {
+      ...withSpell, boardEntities: Object.fromEntries(Object.entries(withSpell.boardEntities).map(([id, entity]) => [id, { ...entity }])),
+      occupancy: { ...withSpell.occupancy }, turnState: { ...withSpell.turnState },
+      capturedInventory: Object.fromEntries(Object.entries(withSpell.capturedInventory).map(([player, items]) => [player, [...items]])) as IDomainState['capturedInventory'],
+    };
     new MovePieceCommand(asEntityId(action.move.pieceId), asCoordinateKey(action.move.from),
       asCoordinateKey(action.move.to), domain.activePlayer, undefined, true, true,
       action.move.promotion, topology).execute(draft);

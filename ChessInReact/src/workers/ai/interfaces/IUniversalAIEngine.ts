@@ -34,6 +34,8 @@ export interface IAIDecisionRequest {
   /** Optional authoritative state enabling real tree search instead of heuristics. */
   readonly domain?: IDomainState;
   readonly topology?: ITopology;
+  /** Main-thread cancellation; never serialized into a Worker request. */
+  readonly signal?: AbortSignal;
 }
 
 export interface IAIDecisionResponse {

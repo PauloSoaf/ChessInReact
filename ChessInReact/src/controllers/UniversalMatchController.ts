@@ -179,6 +179,7 @@ export class UniversalMatchController {
   private matchGeneration = 0;
   private botRequestSequence = 0;
   private activeBotRequestId = 0;
+  private botAbortController?: AbortController;
   private listeners = new Set<(snapshot: IUniversalMatchSnapshot) => void>();
   private storeUnsubscribe: (() => void) | null = null;
 
@@ -259,6 +260,7 @@ export class UniversalMatchController {
     // A new configuration invalidates every decision produced for the prior
     // match, including decisions that are still awaiting an async strategy.
     this.matchGeneration++;
+    this.botAbortController?.abort();
     this.activeBotRequestId = 0;
     this.isThinkingState = false;
     this.minigameUndoStack = [];
@@ -337,6 +339,7 @@ export class UniversalMatchController {
     this.isSpectator = this.config.slots.every(
       (s) => s.role === 'AI_BOT' || s.role === 'BOT_STANDIN'
     );
+    this.botAbortController?.abort();
     this.activeBotRequestId = 0;
     this.isThinkingState = false;
     this.clearAutonomousTimer();
@@ -374,6 +377,7 @@ export class UniversalMatchController {
   public togglePause(): void {
     this.isPausedState = !this.isPausedState;
     if (this.isPausedState) {
+      this.botAbortController?.abort();
       this.activeBotRequestId = 0;
       this.stopClockTicking();
     } else {
@@ -440,6 +444,9 @@ export class UniversalMatchController {
    * while maintaining 100% synchronization between Core state, spell charges, mana, and cooldowns.
    */
   public undo(): boolean {
+    this.botAbortController?.abort();
+    this.activeBotRequestId = 0;
+    this.isThinkingState = false;
     let wasSpellOnly = false;
     if (this.minigameUndoStack.length > 0) {
       const prev = this.minigameUndoStack.pop()!;
@@ -501,6 +508,9 @@ export class UniversalMatchController {
    * Reapplies the most recently undone action.
    */
   public redo(): boolean {
+    this.botAbortController?.abort();
+    this.activeBotRequestId = 0;
+    this.isThinkingState = false;
     let wasSpellOnly = false;
     if (this.minigameRedoStack.length > 0) {
       const next = this.minigameRedoStack.pop()!;
@@ -890,6 +900,8 @@ export class UniversalMatchController {
 
     const requestId = ++this.botRequestSequence;
     this.activeBotRequestId = requestId;
+    const abortController = new AbortController();
+    this.botAbortController = abortController;
     const generation = this.matchGeneration;
     const requestContext = {
       matchId: domain.matchId,
@@ -1059,6 +1071,7 @@ export class UniversalMatchController {
       const timeBudgetMs = Math.max(activeSlot.botConfig?.thinkTimeMs ?? standardBudget, standardBudget);
 
       const decision = await AIWorkerPool.dispatchDecision({
+        signal: abortController.signal,
         matchId: domain.matchId,
         variantId: this.config.variantId,
         actingPlayer: domain.activePlayer,
@@ -1336,12 +1349,15 @@ export class UniversalMatchController {
 
       return true;
     } catch (err) {
-      console.warn('[UniversalMatchController] Bot calculation error:', err);
+      if (!abortController.signal.aborted) console.warn('[UniversalMatchController] Bot calculation error:', err);
       return false;
     } finally {
-      this.isThinkingState = false;
-      this.notify();
-      this.scheduleAutonomousTurnIfNeeded();
+      if (this.botAbortController === abortController) {
+        this.botAbortController = undefined;
+        this.isThinkingState = false;
+        this.notify();
+        this.scheduleAutonomousTurnIfNeeded();
+      }
     }
   }
 
@@ -1644,6 +1660,7 @@ export class UniversalMatchController {
 
     if (this.duckState) {
       this.clearAutonomousTimer();
+      this.botAbortController?.abort();
       this.activeBotRequestId = 0;
       try {
         this.duckState = DuckChessEngine.executePieceMove(this.duckState, {
@@ -2147,6 +2164,7 @@ export class UniversalMatchController {
   public dispose(): void {
     this.isDisposedFlag = true;
     this.matchGeneration++;
+    this.botAbortController?.abort();
     this.activeBotRequestId = 0;
     this.clearAutonomousTimer();
     this.stopClockTicking();

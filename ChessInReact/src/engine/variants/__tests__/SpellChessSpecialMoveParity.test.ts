@@ -98,6 +98,9 @@ describe('PATCH-12: special moves and transposition state', () => {
     expect(key(OfficialSpellRules.sync(domain, { ...spells, whiteCharges: { ...spells.whiteCharges, jumpCooldownTurns: 1 } }))).not.toBe(initial);
     expect(key({ ...domain, turnState: { ...domain.turnState, enPassantTarget: asCoordinateKey('3,5') } })).not.toBe(initial);
     expect(key({ ...domain, turnState: { ...domain.turnState, lastActionTimestamp: 123 } })).toBe(initial);
+    const legacy = OfficialSpellRules.sync(domain, { ...spells, activeFrozenCoordinates: { '3,3': 2 } });
+    const pieceBound = OfficialSpellRules.sync(legacy, { ...OfficialSpellRules.getState(legacy), activeFrozenPieceIds: {} });
+    expect(key(legacy)).not.toBe(key(pieceBound));
   });
 
   it('distinguishes repeated boards with different legal spell resources', () => {
@@ -114,6 +117,17 @@ describe('PATCH-12: special moves and transposition state', () => {
     const history = next.turnState.positionHistory!;
     expect(history[history.length - 1]).toBe(computePositionKey(next));
     expect(next.boardEntities[asEntityId('wb')].metadata?.isFrozen).toBe(false);
+  });
+
+  it('hashes repetition counts independently of chronology and keeps adjudication context separate', () => {
+    const domain = position(), tt = new SpellChessTranspositionTable();
+    const key = (history: string[], counter = 0) => tt.computeKey({ ...domain,
+      turnState: { ...domain.turnState, fiftyMoveCounter: counter, positionHistory: history } },
+      'P1', SpellChessSearch.resources(domain, 'P1'), SpellChessSearch.resources(domain, 'P2'), [], []);
+    expect(key(['first', 'second', 'first'])).toBe(key(['second', 'first', 'first']));
+    expect(key(['first', 'second'])).not.toBe(key(['first', 'second', 'first']));
+    expect(key(['first'], 2)).not.toBe(key(['first'], 1));
+    expect(key(['first']).length).toBeLessThan(50);
   });
 
   it('agrees with transpositions disabled at a completed fixed depth', () => {

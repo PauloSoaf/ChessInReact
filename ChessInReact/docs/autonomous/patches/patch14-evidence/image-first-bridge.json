@@ -1,0 +1,2398 @@
+{
+  "hypothesis": true,
+  "domain": {
+    "matchId": "patch14-image-hypothesis",
+    "variantId": "SPELL_CHESS_KING_CAPTURE_ONLY",
+    "isGameOver": false,
+    "winnerId": null,
+    "activePlayer": "P2",
+    "turnNumber": 4,
+    "revision": 0,
+    "boardEntities": {
+      "w-rook-0": {
+        "id": "w-rook-0",
+        "type": "PIECE",
+        "ownerId": "P1",
+        "variantId": "ROOK",
+        "position": "0,0",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "w-pawn-0": {
+        "id": "w-pawn-0",
+        "type": "PIECE",
+        "ownerId": "P1",
+        "variantId": "PAWN",
+        "position": "0,1",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "w-knight-1": {
+        "id": "w-knight-1",
+        "type": "PIECE",
+        "ownerId": "P1",
+        "variantId": "KNIGHT",
+        "position": "1,0",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "w-pawn-1": {
+        "id": "w-pawn-1",
+        "type": "PIECE",
+        "ownerId": "P1",
+        "variantId": "PAWN",
+        "position": "1,1",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "w-bishop-2": {
+        "id": "w-bishop-2",
+        "type": "PIECE",
+        "ownerId": "P1",
+        "variantId": "BISHOP",
+        "position": "2,0",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "w-pawn-2": {
+        "id": "w-pawn-2",
+        "type": "PIECE",
+        "ownerId": "P1",
+        "variantId": "PAWN",
+        "position": "2,1",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "w-queen-3": {
+        "id": "w-queen-3",
+        "type": "PIECE",
+        "ownerId": "P1",
+        "variantId": "QUEEN",
+        "position": "3,0",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "w-pawn-3": {
+        "id": "w-pawn-3",
+        "type": "PIECE",
+        "ownerId": "P1",
+        "variantId": "PAWN",
+        "position": "3,1",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "w-king-4": {
+        "id": "w-king-4",
+        "type": "PIECE",
+        "ownerId": "P1",
+        "variantId": "KING",
+        "position": "4,0",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "w-pawn-4": {
+        "id": "w-pawn-4",
+        "type": "PIECE",
+        "ownerId": "P1",
+        "variantId": "PAWN",
+        "position": "4,2",
+        "hasMoved": true,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "w-bishop-5": {
+        "id": "w-bishop-5",
+        "type": "PIECE",
+        "ownerId": "P1",
+        "variantId": "BISHOP",
+        "position": "1,4",
+        "hasMoved": true,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "w-pawn-5": {
+        "id": "w-pawn-5",
+        "type": "PIECE",
+        "ownerId": "P1",
+        "variantId": "PAWN",
+        "position": "5,1",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "w-knight-6": {
+        "id": "w-knight-6",
+        "type": "PIECE",
+        "ownerId": "P1",
+        "variantId": "KNIGHT",
+        "position": "6,0",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "w-pawn-6": {
+        "id": "w-pawn-6",
+        "type": "PIECE",
+        "ownerId": "P1",
+        "variantId": "PAWN",
+        "position": "6,1",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "w-rook-7": {
+        "id": "w-rook-7",
+        "type": "PIECE",
+        "ownerId": "P1",
+        "variantId": "ROOK",
+        "position": "7,0",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "w-pawn-7": {
+        "id": "w-pawn-7",
+        "type": "PIECE",
+        "ownerId": "P1",
+        "variantId": "PAWN",
+        "position": "7,1",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "b-pawn-0": {
+        "id": "b-pawn-0",
+        "type": "PIECE",
+        "ownerId": "P2",
+        "variantId": "PAWN",
+        "position": "0,6",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "b-rook-0": {
+        "id": "b-rook-0",
+        "type": "PIECE",
+        "ownerId": "P2",
+        "variantId": "ROOK",
+        "position": "0,7",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "b-pawn-1": {
+        "id": "b-pawn-1",
+        "type": "PIECE",
+        "ownerId": "P2",
+        "variantId": "PAWN",
+        "position": "1,6",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "b-knight-1": {
+        "id": "b-knight-1",
+        "type": "PIECE",
+        "ownerId": "P2",
+        "variantId": "KNIGHT",
+        "position": "2,5",
+        "hasMoved": true,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "b-pawn-2": {
+        "id": "b-pawn-2",
+        "type": "PIECE",
+        "ownerId": "P2",
+        "variantId": "PAWN",
+        "position": "2,6",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "b-bishop-2": {
+        "id": "b-bishop-2",
+        "type": "PIECE",
+        "ownerId": "P2",
+        "variantId": "BISHOP",
+        "position": "2,7",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "b-pawn-3": {
+        "id": "b-pawn-3",
+        "type": "PIECE",
+        "ownerId": "P2",
+        "variantId": "PAWN",
+        "position": "3,6",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "b-queen-3": {
+        "id": "b-queen-3",
+        "type": "PIECE",
+        "ownerId": "P2",
+        "variantId": "QUEEN",
+        "position": "3,7",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "b-pawn-4": {
+        "id": "b-pawn-4",
+        "type": "PIECE",
+        "ownerId": "P2",
+        "variantId": "PAWN",
+        "position": "4,6",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "b-king-4": {
+        "id": "b-king-4",
+        "type": "PIECE",
+        "ownerId": "P2",
+        "variantId": "KING",
+        "position": "4,7",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "b-pawn-5": {
+        "id": "b-pawn-5",
+        "type": "PIECE",
+        "ownerId": "P2",
+        "variantId": "PAWN",
+        "position": "5,6",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "b-bishop-5": {
+        "id": "b-bishop-5",
+        "type": "PIECE",
+        "ownerId": "P2",
+        "variantId": "BISHOP",
+        "position": "5,7",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "b-pawn-6": {
+        "id": "b-pawn-6",
+        "type": "PIECE",
+        "ownerId": "P2",
+        "variantId": "PAWN",
+        "position": "6,6",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "b-knight-6": {
+        "id": "b-knight-6",
+        "type": "PIECE",
+        "ownerId": "P2",
+        "variantId": "KNIGHT",
+        "position": "6,7",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "b-pawn-7": {
+        "id": "b-pawn-7",
+        "type": "PIECE",
+        "ownerId": "P2",
+        "variantId": "PAWN",
+        "position": "7,6",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      },
+      "b-rook-7": {
+        "id": "b-rook-7",
+        "type": "PIECE",
+        "ownerId": "P2",
+        "variantId": "ROOK",
+        "position": "7,7",
+        "hasMoved": false,
+        "isCaptured": false,
+        "metadata": {
+          "isFrozen": false,
+          "hasJump": false,
+          "canBeJumpedOver": false
+        }
+      }
+    },
+    "occupancy": {
+      "0,0": "w-rook-0",
+      "0,1": "w-pawn-0",
+      "1,0": "w-knight-1",
+      "1,1": "w-pawn-1",
+      "2,0": "w-bishop-2",
+      "2,1": "w-pawn-2",
+      "3,0": "w-queen-3",
+      "3,1": "w-pawn-3",
+      "4,0": "w-king-4",
+      "5,1": "w-pawn-5",
+      "6,0": "w-knight-6",
+      "6,1": "w-pawn-6",
+      "7,0": "w-rook-7",
+      "7,1": "w-pawn-7",
+      "0,6": "b-pawn-0",
+      "0,7": "b-rook-0",
+      "1,6": "b-pawn-1",
+      "2,6": "b-pawn-2",
+      "2,7": "b-bishop-2",
+      "3,6": "b-pawn-3",
+      "3,7": "b-queen-3",
+      "4,6": "b-pawn-4",
+      "4,7": "b-king-4",
+      "5,6": "b-pawn-5",
+      "5,7": "b-bishop-5",
+      "6,6": "b-pawn-6",
+      "6,7": "b-knight-6",
+      "7,6": "b-pawn-7",
+      "7,7": "b-rook-7",
+      "4,2": "w-pawn-4",
+      "2,5": "b-knight-1",
+      "1,4": "w-bishop-5"
+    },
+    "terrain": {},
+    "capturedInventory": {
+      "P1": [],
+      "P2": [],
+      "P3": [],
+      "P4": [],
+      "P5": [],
+      "P6": [],
+      "P7": [],
+      "P8": [],
+      "P9": [],
+      "P10": [],
+      "P11": [],
+      "P12": [],
+      "NONE": []
+    },
+    "turnState": {
+      "phase": "WAITING",
+      "lastActionTimestamp": 1795803207625,
+      "enPassantTarget": null,
+      "fiftyMoveCounter": 2,
+      "positionHistory": [
+        "P1|KQkq|-|0,0:P1:ROOK;0,1:P1:PAWN;0,6:P2:PAWN;0,7:P2:ROOK;1,0:P1:KNIGHT;1,1:P1:PAWN;1,6:P2:PAWN;1,7:P2:KNIGHT;2,0:P1:BISHOP;2,1:P1:PAWN;2,6:P2:PAWN;2,7:P2:BISHOP;3,0:P1:QUEEN;3,1:P1:PAWN;3,6:P2:PAWN;3,7:P2:QUEEN;4,0:P1:KING;4,1:P1:PAWN;4,6:P2:PAWN;4,7:P2:KING;5,0:P1:BISHOP;5,1:P1:PAWN;5,6:P2:PAWN;5,7:P2:BISHOP;6,0:P1:KNIGHT;6,1:P1:PAWN;6,6:P2:PAWN;6,7:P2:KNIGHT;7,0:P1:ROOK;7,1:P1:PAWN;7,6:P2:PAWN;7,7:P2:ROOK|SPELL_CHESS_KING_CAPTURE_ONLY|[{\"freezeCharges\":5,\"jumpCharges\":2,\"freezeCooldownTurns\":0,\"jumpCooldownTurns\":0},{\"freezeCharges\":5,\"jumpCharges\":2,\"freezeCooldownTurns\":0,\"jumpCooldownTurns\":0},[],false]",
+        "P2|KQkq|-|0,0:P1:ROOK;0,1:P1:PAWN;0,6:P2:PAWN;0,7:P2:ROOK;1,0:P1:KNIGHT;1,1:P1:PAWN;1,6:P2:PAWN;1,7:P2:KNIGHT;2,0:P1:BISHOP;2,1:P1:PAWN;2,6:P2:PAWN;2,7:P2:BISHOP;3,0:P1:QUEEN;3,1:P1:PAWN;3,6:P2:PAWN;3,7:P2:QUEEN;4,0:P1:KING;4,2:P1:PAWN;4,6:P2:PAWN;4,7:P2:KING;5,0:P1:BISHOP;5,1:P1:PAWN;5,6:P2:PAWN;5,7:P2:BISHOP;6,0:P1:KNIGHT;6,1:P1:PAWN;6,6:P2:PAWN;6,7:P2:KNIGHT;7,0:P1:ROOK;7,1:P1:PAWN;7,6:P2:PAWN;7,7:P2:ROOK|SPELL_CHESS_KING_CAPTURE_ONLY|[{\"freezeCharges\":5,\"jumpCharges\":2,\"freezeCooldownTurns\":0,\"jumpCooldownTurns\":0},{\"freezeCharges\":5,\"jumpCharges\":2,\"freezeCooldownTurns\":0,\"jumpCooldownTurns\":0},[],false]",
+        "P1|KQkq|-|0,0:P1:ROOK;0,1:P1:PAWN;0,6:P2:PAWN;0,7:P2:ROOK;1,0:P1:KNIGHT;1,1:P1:PAWN;1,6:P2:PAWN;2,0:P1:BISHOP;2,1:P1:PAWN;2,5:P2:KNIGHT;2,6:P2:PAWN;2,7:P2:BISHOP;3,0:P1:QUEEN;3,1:P1:PAWN;3,6:P2:PAWN;3,7:P2:QUEEN;4,0:P1:KING;4,2:P1:PAWN;4,6:P2:PAWN;4,7:P2:KING;5,0:P1:BISHOP;5,1:P1:PAWN;5,6:P2:PAWN;5,7:P2:BISHOP;6,0:P1:KNIGHT;6,1:P1:PAWN;6,6:P2:PAWN;6,7:P2:KNIGHT;7,0:P1:ROOK;7,1:P1:PAWN;7,6:P2:PAWN;7,7:P2:ROOK|SPELL_CHESS_KING_CAPTURE_ONLY|[{\"freezeCharges\":5,\"jumpCharges\":2,\"freezeCooldownTurns\":0,\"jumpCooldownTurns\":0},{\"freezeCharges\":5,\"jumpCharges\":2,\"freezeCooldownTurns\":0,\"jumpCooldownTurns\":0},[],false]",
+        "P2|KQkq|-|0,0:P1:ROOK;0,1:P1:PAWN;0,6:P2:PAWN;0,7:P2:ROOK;1,0:P1:KNIGHT;1,1:P1:PAWN;1,4:P1:BISHOP;1,6:P2:PAWN;2,0:P1:BISHOP;2,1:P1:PAWN;2,5:P2:KNIGHT;2,6:P2:PAWN;2,7:P2:BISHOP;3,0:P1:QUEEN;3,1:P1:PAWN;3,6:P2:PAWN;3,7:P2:QUEEN;4,0:P1:KING;4,2:P1:PAWN;4,6:P2:PAWN;4,7:P2:KING;5,1:P1:PAWN;5,6:P2:PAWN;5,7:P2:BISHOP;6,0:P1:KNIGHT;6,1:P1:PAWN;6,6:P2:PAWN;6,7:P2:KNIGHT;7,0:P1:ROOK;7,1:P1:PAWN;7,6:P2:PAWN;7,7:P2:ROOK|SPELL_CHESS_KING_CAPTURE_ONLY|[{\"freezeCharges\":5,\"jumpCharges\":2,\"freezeCooldownTurns\":0,\"jumpCooldownTurns\":0},{\"freezeCharges\":5,\"jumpCharges\":2,\"freezeCooldownTurns\":0,\"jumpCooldownTurns\":0},[],false]"
+      ]
+    },
+    "metadata": {
+      "officialSpellState": {
+        "whiteCharges": {
+          "freezeCharges": 5,
+          "jumpCharges": 2,
+          "freezeCooldownTurns": 0,
+          "jumpCooldownTurns": 0
+        },
+        "blackCharges": {
+          "freezeCharges": 5,
+          "jumpCharges": 2,
+          "freezeCooldownTurns": 0,
+          "jumpCooldownTurns": 0
+        },
+        "activeFrozenCoordinates": {},
+        "activeJumpPieceIds": {}
+      },
+      "hasCastSpellThisTurn": false
+    }
+  },
+  "decision": {
+    "move": {
+      "pieceId": "b-knight-6",
+      "from": "6,7",
+      "to": "5,5",
+      "isCapture": false
+    },
+    "secondaryAction": {
+      "type": "CAST_SPELL",
+      "payload": {
+        "spellType": "FREEZE",
+        "targetCoord": "0,3"
+      }
+    },
+    "evaluationCentipawns": -47.7,
+    "depthReached": 0,
+    "nodesEvaluated": 687,
+    "elapsedMs": 2500.2515,
+    "strategyUsed": "SPELL_OPTIMIZER",
+    "spellTrace": {
+      "engine": "SPELL_COMPOSITE",
+      "depthReached": 0,
+      "nodesSearched": 687,
+      "elapsedMs": 2500.2515,
+      "legalTurnActionsConsidered": 49,
+      "chosenAction": {
+        "spell": {
+          "type": "FREEZE",
+          "targetSquare": "0,3"
+        },
+        "move": {
+          "pieceId": "b-knight-6",
+          "from": "6,7",
+          "to": "5,5",
+          "isCapture": false
+        }
+      },
+      "principalVariation": [
+        {
+          "spell": {
+            "type": "FREEZE",
+            "targetSquare": "0,3"
+          },
+          "move": {
+            "pieceId": "b-knight-6",
+            "from": "6,7",
+            "to": "5,5",
+            "isCapture": false
+          }
+        }
+      ],
+      "candidates": [
+        {
+          "action": {
+            "spell": {
+              "type": "NONE"
+            },
+            "move": {
+              "pieceId": "b-knight-1",
+              "from": "2,5",
+              "to": "3,3",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -99998,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": true,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "opponentBestReply": {
+            "spell": {
+              "type": "JUMP",
+              "targetSquare": "3,6"
+            },
+            "move": {
+              "pieceId": "w-bishop-5",
+              "from": "1,4",
+              "to": "4,7",
+              "isCapture": true
+            }
+          },
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": -99998,
+          "materialOutcome": "LOSS",
+          "materialLossCp": 99998,
+          "tacticalReplyCount": 1,
+          "tacticalVariation": [
+            {
+              "spell": {
+                "type": "JUMP",
+                "targetSquare": "3,6"
+              },
+              "move": {
+                "pieceId": "w-bishop-5",
+                "from": "1,4",
+                "to": "4,7",
+                "isCapture": true
+              }
+            }
+          ]
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "NONE"
+            },
+            "move": {
+              "pieceId": "b-knight-1",
+              "from": "2,5",
+              "to": "4,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -99998,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": true,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "opponentBestReply": {
+            "spell": {
+              "type": "JUMP",
+              "targetSquare": "3,6"
+            },
+            "move": {
+              "pieceId": "w-bishop-5",
+              "from": "1,4",
+              "to": "4,7",
+              "isCapture": true
+            }
+          },
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": -99998,
+          "materialOutcome": "LOSS",
+          "materialLossCp": 99998,
+          "tacticalReplyCount": 1,
+          "tacticalVariation": [
+            {
+              "spell": {
+                "type": "JUMP",
+                "targetSquare": "3,6"
+              },
+              "move": {
+                "pieceId": "w-bishop-5",
+                "from": "1,4",
+                "to": "4,7",
+                "isCapture": true
+              }
+            }
+          ]
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-knight-1",
+              "from": "2,5",
+              "to": "3,3",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -370.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "opponentBestReply": {
+            "spell": {
+              "type": "NONE"
+            },
+            "move": {
+              "pieceId": "w-pawn-4",
+              "from": "4,2",
+              "to": "3,3",
+              "isCapture": true
+            }
+          },
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": -320,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 320,
+          "tacticalReplyCount": 36,
+          "tacticalVariation": [
+            {
+              "spell": {
+                "type": "NONE"
+              },
+              "move": {
+                "pieceId": "w-pawn-4",
+                "from": "4,2",
+                "to": "3,3",
+                "isCapture": true
+              }
+            }
+          ]
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-knight-1",
+              "from": "2,5",
+              "to": "4,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -50.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-knight-1",
+              "from": "2,5",
+              "to": "1,3",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -56.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-knight-1",
+              "from": "2,5",
+              "to": "0,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -59.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-knight-1",
+              "from": "2,5",
+              "to": "1,7",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -65.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-knight-6",
+              "from": "6,7",
+              "to": "5,5",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -47.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-knight-6",
+              "from": "6,7",
+              "to": "7,5",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -53.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-pawn-0",
+              "from": "0,6",
+              "to": "0,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -50.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-pawn-3",
+              "from": "3,6",
+              "to": "3,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -50.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-pawn-4",
+              "from": "4,6",
+              "to": "4,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -50.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-pawn-5",
+              "from": "5,6",
+              "to": "5,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -50.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-pawn-6",
+              "from": "6,6",
+              "to": "6,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -50.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-pawn-7",
+              "from": "7,6",
+              "to": "7,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -90.69999999999999,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "opponentBestReply": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "6,6"
+            },
+            "move": {
+              "pieceId": "w-queen-3",
+              "from": "3,0",
+              "to": "7,4",
+              "isCapture": true
+            }
+          },
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": -100,
+          "materialResourceBalanceCp": 0,
+          "materialLossCp": 100,
+          "tacticalReplyCount": 42,
+          "tacticalVariation": [
+            {
+              "spell": {
+                "type": "FREEZE",
+                "targetSquare": "6,6"
+              },
+              "move": {
+                "pieceId": "w-queen-3",
+                "from": "3,0",
+                "to": "7,4",
+                "isCapture": true
+              }
+            }
+          ]
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-pawn-0",
+              "from": "0,6",
+              "to": "0,5",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -53.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-rook-0",
+              "from": "0,7",
+              "to": "1,7",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -53.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-pawn-1",
+              "from": "1,6",
+              "to": "1,5",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -53.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-pawn-3",
+              "from": "3,6",
+              "to": "3,5",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -53.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-pawn-4",
+              "from": "4,6",
+              "to": "4,5",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -53.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-pawn-5",
+              "from": "5,6",
+              "to": "5,5",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -53.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-pawn-6",
+              "from": "6,6",
+              "to": "6,5",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -53.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,3"
+            },
+            "move": {
+              "pieceId": "b-pawn-7",
+              "from": "7,6",
+              "to": "7,5",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -53.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,5"
+            },
+            "move": {
+              "pieceId": "b-knight-1",
+              "from": "2,5",
+              "to": "3,3",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -372.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "opponentBestReply": {
+            "spell": {
+              "type": "NONE"
+            },
+            "move": {
+              "pieceId": "w-pawn-4",
+              "from": "4,2",
+              "to": "3,3",
+              "isCapture": true
+            }
+          },
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": -320,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 320,
+          "tacticalReplyCount": 36,
+          "tacticalVariation": [
+            {
+              "spell": {
+                "type": "NONE"
+              },
+              "move": {
+                "pieceId": "w-pawn-4",
+                "from": "4,2",
+                "to": "3,3",
+                "isCapture": true
+              }
+            }
+          ]
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,5"
+            },
+            "move": {
+              "pieceId": "b-knight-1",
+              "from": "2,5",
+              "to": "4,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -52.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,5"
+            },
+            "move": {
+              "pieceId": "b-knight-1",
+              "from": "2,5",
+              "to": "1,3",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -58.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,5"
+            },
+            "move": {
+              "pieceId": "b-knight-1",
+              "from": "2,5",
+              "to": "0,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -61.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,5"
+            },
+            "move": {
+              "pieceId": "b-knight-1",
+              "from": "2,5",
+              "to": "1,7",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -67.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,5"
+            },
+            "move": {
+              "pieceId": "b-knight-6",
+              "from": "6,7",
+              "to": "5,5",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -49.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,5"
+            },
+            "move": {
+              "pieceId": "b-knight-6",
+              "from": "6,7",
+              "to": "7,5",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -55.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,5"
+            },
+            "move": {
+              "pieceId": "b-pawn-3",
+              "from": "3,6",
+              "to": "3,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -52.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,5"
+            },
+            "move": {
+              "pieceId": "b-pawn-4",
+              "from": "4,6",
+              "to": "4,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -52.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,5"
+            },
+            "move": {
+              "pieceId": "b-pawn-5",
+              "from": "5,6",
+              "to": "5,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -52.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,5"
+            },
+            "move": {
+              "pieceId": "b-pawn-6",
+              "from": "6,6",
+              "to": "6,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -52.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,5"
+            },
+            "move": {
+              "pieceId": "b-pawn-7",
+              "from": "7,6",
+              "to": "7,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -92.69999999999999,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "opponentBestReply": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "6,6"
+            },
+            "move": {
+              "pieceId": "w-queen-3",
+              "from": "3,0",
+              "to": "7,4",
+              "isCapture": true
+            }
+          },
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": -100,
+          "materialResourceBalanceCp": 0,
+          "materialLossCp": 100,
+          "tacticalReplyCount": 42,
+          "tacticalVariation": [
+            {
+              "spell": {
+                "type": "FREEZE",
+                "targetSquare": "6,6"
+              },
+              "move": {
+                "pieceId": "w-queen-3",
+                "from": "3,0",
+                "to": "7,4",
+                "isCapture": true
+              }
+            }
+          ]
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,5"
+            },
+            "move": {
+              "pieceId": "b-rook-0",
+              "from": "0,7",
+              "to": "1,7",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -55.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,5"
+            },
+            "move": {
+              "pieceId": "b-pawn-3",
+              "from": "3,6",
+              "to": "3,5",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -55.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,5"
+            },
+            "move": {
+              "pieceId": "b-pawn-4",
+              "from": "4,6",
+              "to": "4,5",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -55.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,5"
+            },
+            "move": {
+              "pieceId": "b-pawn-5",
+              "from": "5,6",
+              "to": "5,5",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -55.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,5"
+            },
+            "move": {
+              "pieceId": "b-pawn-6",
+              "from": "6,6",
+              "to": "6,5",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -55.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "0,5"
+            },
+            "move": {
+              "pieceId": "b-pawn-7",
+              "from": "7,6",
+              "to": "7,5",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -55.7,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "1,4"
+            },
+            "move": {
+              "pieceId": "b-knight-6",
+              "from": "6,7",
+              "to": "5,5",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -50.900000000000006,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "1,4"
+            },
+            "move": {
+              "pieceId": "b-knight-6",
+              "from": "6,7",
+              "to": "7,5",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -56.900000000000006,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "1,4"
+            },
+            "move": {
+              "pieceId": "b-pawn-0",
+              "from": "0,6",
+              "to": "0,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -53.900000000000006,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "1,4"
+            },
+            "move": {
+              "pieceId": "b-pawn-3",
+              "from": "3,6",
+              "to": "3,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -53.900000000000006,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "1,4"
+            },
+            "move": {
+              "pieceId": "b-pawn-4",
+              "from": "4,6",
+              "to": "4,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -53.900000000000006,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "1,4"
+            },
+            "move": {
+              "pieceId": "b-pawn-5",
+              "from": "5,6",
+              "to": "5,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -53.900000000000006,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "1,4"
+            },
+            "move": {
+              "pieceId": "b-pawn-6",
+              "from": "6,6",
+              "to": "6,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -53.900000000000006,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": 0,
+          "materialResourceBalanceCp": -60,
+          "materialLossCp": 0,
+          "tacticalReplyCount": 3,
+          "tacticalVariation": []
+        },
+        {
+          "action": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "1,4"
+            },
+            "move": {
+              "pieceId": "b-pawn-7",
+              "from": "7,6",
+              "to": "7,4",
+              "isCapture": false
+            }
+          },
+          "legal": true,
+          "score": -93.9,
+          "completedDepth": 0,
+          "allowsImmediateKingCapture": false,
+          "safetyChecked": true,
+          "usedFallback": false,
+          "capturedMaterialCp": 0,
+          "opponentBestReply": {
+            "spell": {
+              "type": "FREEZE",
+              "targetSquare": "6,6"
+            },
+            "move": {
+              "pieceId": "w-queen-3",
+              "from": "3,0",
+              "to": "7,4",
+              "isCapture": true
+            }
+          },
+          "materialSafetyChecked": true,
+          "materialBalanceAfterRepliesCp": -100,
+          "materialResourceBalanceCp": 0,
+          "materialLossCp": 100,
+          "tacticalReplyCount": 42,
+          "tacticalVariation": [
+            {
+              "spell": {
+                "type": "FREEZE",
+                "targetSquare": "6,6"
+              },
+              "move": {
+                "pieceId": "w-queen-3",
+                "from": "3,0",
+                "to": "7,4",
+                "isCapture": true
+              }
+            }
+          ]
+        }
+      ],
+      "timedOut": true,
+      "fallbackUsed": false,
+      "quiescenceNodes": 94,
+      "rootFullyEnumerated": false,
+      "materialInspectionCompleted": true,
+      "exchangePlyLimit": 3,
+      "topCandidates": [
+        {
+          "spell": {
+            "type": "FREEZE",
+            "targetSquare": "0,3"
+          },
+          "move": "6,7->5,5",
+          "score": -47.7
+        },
+        {
+          "spell": {
+            "type": "FREEZE",
+            "targetSquare": "0,5"
+          },
+          "move": "6,7->5,5",
+          "score": -49.7
+        },
+        {
+          "spell": {
+            "type": "FREEZE",
+            "targetSquare": "0,3"
+          },
+          "move": "2,5->4,4",
+          "score": -50.7
+        },
+        {
+          "spell": {
+            "type": "FREEZE",
+            "targetSquare": "0,3"
+          },
+          "move": "0,6->0,4",
+          "score": -50.7
+        },
+        {
+          "spell": {
+            "type": "FREEZE",
+            "targetSquare": "0,3"
+          },
+          "move": "3,6->3,4",
+          "score": -50.7
+        }
+      ]
+    },
+    "fallbackUsed": false
+  },
+  "comparisons": [
+    {
+      "label": "Nf6",
+      "action": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "b-knight-6",
+          "from": "6,7",
+          "to": "5,5"
+        }
+      },
+      "evaluation": 9,
+      "material": {
+        "score": 0,
+        "resourceScore": 0,
+        "line": [],
+        "repliesExamined": 46,
+        "simulations": 21231
+      },
+      "resources": {
+        "whiteCharges": {
+          "freezeCharges": 5,
+          "jumpCharges": 2,
+          "freezeCooldownTurns": 0,
+          "jumpCooldownTurns": 0
+        },
+        "blackCharges": {
+          "freezeCharges": 5,
+          "jumpCharges": 2,
+          "freezeCooldownTurns": 0,
+          "jumpCooldownTurns": 0
+        },
+        "activeFrozenCoordinates": {},
+        "activeJumpPieceIds": {}
+      }
+    },
+    {
+      "label": "Freeze(a4)+Nf6",
+      "action": {
+        "spell": {
+          "type": "FREEZE",
+          "targetSquare": "0,3"
+        },
+        "move": {
+          "pieceId": "b-knight-6",
+          "from": "6,7",
+          "to": "5,5"
+        }
+      },
+      "evaluation": -47.7,
+      "material": {
+        "score": 0,
+        "resourceScore": -60,
+        "line": [],
+        "repliesExamined": 3,
+        "simulations": 3
+      },
+      "resources": {
+        "activeFrozenPieceIds": {
+          "w-bishop-5": 1
+        },
+        "whiteCharges": {
+          "freezeCharges": 5,
+          "jumpCharges": 2,
+          "freezeCooldownTurns": 0,
+          "jumpCooldownTurns": 0
+        },
+        "blackCharges": {
+          "freezeCharges": 4,
+          "jumpCharges": 2,
+          "freezeCooldownTurns": 2,
+          "jumpCooldownTurns": 0
+        },
+        "activeFrozenCoordinates": {
+          "0,2": 1,
+          "0,3": 1,
+          "0,4": 1,
+          "1,2": 1,
+          "1,3": 1,
+          "1,4": 1
+        },
+        "activeJumpPieceIds": {}
+      }
+    },
+    {
+      "label": "Freeze(a4)+a6",
+      "action": {
+        "spell": {
+          "type": "FREEZE",
+          "targetSquare": "0,3"
+        },
+        "move": {
+          "pieceId": "b-pawn-0",
+          "from": "0,6",
+          "to": "0,5"
+        }
+      },
+      "evaluation": -53.7,
+      "material": {
+        "score": 0,
+        "resourceScore": -60,
+        "line": [],
+        "repliesExamined": 3,
+        "simulations": 3
+      },
+      "resources": {
+        "activeFrozenPieceIds": {
+          "w-bishop-5": 1
+        },
+        "whiteCharges": {
+          "freezeCharges": 5,
+          "jumpCharges": 2,
+          "freezeCooldownTurns": 0,
+          "jumpCooldownTurns": 0
+        },
+        "blackCharges": {
+          "freezeCharges": 4,
+          "jumpCharges": 2,
+          "freezeCooldownTurns": 2,
+          "jumpCooldownTurns": 0
+        },
+        "activeFrozenCoordinates": {
+          "0,2": 1,
+          "0,3": 1,
+          "0,4": 1,
+          "1,2": 1,
+          "1,3": 1,
+          "1,4": 1
+        },
+        "activeJumpPieceIds": {}
+      }
+    },
+    {
+      "label": "Nb8",
+      "action": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "b-knight-1",
+          "from": "2,5",
+          "to": "1,7"
+        }
+      },
+      "evaluation": -69,
+      "material": {
+        "score": -99998,
+        "reply": {
+          "spell": {
+            "type": "JUMP",
+            "targetSquare": "3,6"
+          },
+          "move": {
+            "pieceId": "w-bishop-5",
+            "from": "1,4",
+            "to": "4,7",
+            "isCapture": true
+          }
+        },
+        "line": [
+          {
+            "spell": {
+              "type": "JUMP",
+              "targetSquare": "3,6"
+            },
+            "move": {
+              "pieceId": "w-bishop-5",
+              "from": "1,4",
+              "to": "4,7",
+              "isCapture": true
+            }
+          }
+        ],
+        "repliesExamined": 1,
+        "simulations": 0,
+        "outcome": "LOSS"
+      },
+      "resources": {
+        "whiteCharges": {
+          "freezeCharges": 5,
+          "jumpCharges": 2,
+          "freezeCooldownTurns": 0,
+          "jumpCooldownTurns": 0
+        },
+        "blackCharges": {
+          "freezeCharges": 5,
+          "jumpCharges": 2,
+          "freezeCooldownTurns": 0,
+          "jumpCooldownTurns": 0
+        },
+        "activeFrozenCoordinates": {},
+        "activeJumpPieceIds": {}
+      }
+    },
+    {
+      "label": "d5",
+      "action": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "b-pawn-3",
+          "from": "3,6",
+          "to": "3,4"
+        }
+      },
+      "evaluation": -54,
+      "material": {
+        "score": -99998,
+        "reply": {
+          "spell": {
+            "type": "JUMP",
+            "targetSquare": "2,5"
+          },
+          "move": {
+            "pieceId": "w-bishop-5",
+            "from": "1,4",
+            "to": "4,7",
+            "isCapture": true
+          }
+        },
+        "line": [
+          {
+            "spell": {
+              "type": "JUMP",
+              "targetSquare": "2,5"
+            },
+            "move": {
+              "pieceId": "w-bishop-5",
+              "from": "1,4",
+              "to": "4,7",
+              "isCapture": true
+            }
+          }
+        ],
+        "repliesExamined": 1,
+        "simulations": 0,
+        "outcome": "LOSS"
+      },
+      "resources": {
+        "whiteCharges": {
+          "freezeCharges": 5,
+          "jumpCharges": 2,
+          "freezeCooldownTurns": 0,
+          "jumpCooldownTurns": 0
+        },
+        "blackCharges": {
+          "freezeCharges": 5,
+          "jumpCharges": 2,
+          "freezeCooldownTurns": 0,
+          "jumpCooldownTurns": 0
+        },
+        "activeFrozenCoordinates": {},
+        "activeJumpPieceIds": {}
+      }
+    }
+  ]
+}

@@ -1,0 +1,526 @@
+{
+  "results": [
+    {
+      "gameIndex": 0,
+      "ply": 82,
+      "chosenDeltaCp": -800,
+      "bestAvailableDeltaCp": -800,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-king-4",
+          "from": "6,1",
+          "to": "5,2",
+          "isCapture": false
+        }
+      },
+      "actions": 8,
+      "kingSafeActions": 5,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 17.57589999999999,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 0,
+      "ply": 84,
+      "chosenDeltaCp": -800,
+      "bestAvailableDeltaCp": -800,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-king-4",
+          "from": "7,1",
+          "to": "6,2",
+          "isCapture": false
+        }
+      },
+      "actions": 5,
+      "kingSafeActions": 3,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 12.470399999999984,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 0,
+      "ply": 90,
+      "chosenDeltaCp": -800,
+      "bestAvailableDeltaCp": -800,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-king-4",
+          "from": "7,0",
+          "to": "6,1",
+          "isCapture": false
+        }
+      },
+      "actions": 3,
+      "kingSafeActions": 3,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 7.469200000000001,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 0,
+      "ply": 92,
+      "chosenDeltaCp": -800,
+      "bestAvailableDeltaCp": -800,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-king-4",
+          "from": "6,0",
+          "to": "5,1",
+          "isCapture": false
+        }
+      },
+      "actions": 5,
+      "kingSafeActions": 3,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 7.997099999999989,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 0,
+      "ply": 98,
+      "chosenDeltaCp": -800,
+      "bestAvailableDeltaCp": -800,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-king-4",
+          "from": "7,0",
+          "to": "6,0",
+          "isCapture": false
+        }
+      },
+      "actions": 3,
+      "kingSafeActions": 1,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 4.288900000000012,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 0,
+      "ply": 100,
+      "chosenDeltaCp": -800,
+      "bestAvailableDeltaCp": -800,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-king-4",
+          "from": "6,0",
+          "to": "5,1",
+          "isCapture": false
+        }
+      },
+      "actions": 5,
+      "kingSafeActions": 3,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 8.562299999999993,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 0,
+      "ply": 104,
+      "chosenDeltaCp": -800,
+      "bestAvailableDeltaCp": -800,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-king-4",
+          "from": "7,1",
+          "to": "6,2",
+          "isCapture": false
+        }
+      },
+      "actions": 5,
+      "kingSafeActions": 3,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 6.4990999999999985,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 0,
+      "ply": 106,
+      "chosenDeltaCp": -800,
+      "bestAvailableDeltaCp": -800,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-king-4",
+          "from": "6,1",
+          "to": "5,2",
+          "isCapture": false
+        }
+      },
+      "actions": 8,
+      "kingSafeActions": 5,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 11.0308,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 0,
+      "ply": 108,
+      "chosenDeltaCp": -800,
+      "bestAvailableDeltaCp": -800,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-king-4",
+          "from": "7,1",
+          "to": "6,2",
+          "isCapture": false
+        }
+      },
+      "actions": 5,
+      "kingSafeActions": 3,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 7.1732000000000085,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 0,
+      "ply": 110,
+      "chosenDeltaCp": -800,
+      "bestAvailableDeltaCp": -800,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-king-4",
+          "from": "6,1",
+          "to": "5,2",
+          "isCapture": false
+        }
+      },
+      "actions": 8,
+      "kingSafeActions": 5,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 9.8356,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 0,
+      "ply": 112,
+      "chosenDeltaCp": -800,
+      "bestAvailableDeltaCp": -800,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-king-4",
+          "from": "7,1",
+          "to": "6,2",
+          "isCapture": false
+        }
+      },
+      "actions": 5,
+      "kingSafeActions": 3,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 8.111199999999997,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 0,
+      "ply": 114,
+      "chosenDeltaCp": -800,
+      "bestAvailableDeltaCp": -800,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-king-4",
+          "from": "6,1",
+          "to": "5,2",
+          "isCapture": false
+        }
+      },
+      "actions": 8,
+      "kingSafeActions": 5,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 9.579700000000003,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 0,
+      "ply": 116,
+      "chosenDeltaCp": -800,
+      "bestAvailableDeltaCp": -800,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-king-4",
+          "from": "7,1",
+          "to": "6,2",
+          "isCapture": false
+        }
+      },
+      "actions": 5,
+      "kingSafeActions": 3,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 5.857399999999984,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 0,
+      "ply": 118,
+      "chosenDeltaCp": -800,
+      "bestAvailableDeltaCp": -800,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-king-4",
+          "from": "6,1",
+          "to": "5,2",
+          "isCapture": false
+        }
+      },
+      "actions": 8,
+      "kingSafeActions": 5,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 10.751599999999996,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 0,
+      "ply": 120,
+      "chosenDeltaCp": -800,
+      "bestAvailableDeltaCp": -800,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-king-4",
+          "from": "7,1",
+          "to": "6,2",
+          "isCapture": false
+        }
+      },
+      "actions": 5,
+      "kingSafeActions": 3,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 5.8478999999999814,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 1,
+      "ply": 36,
+      "chosenDeltaCp": -500,
+      "bestAvailableDeltaCp": -500,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-king-4",
+          "from": "4,0",
+          "to": "5,1",
+          "isCapture": false
+        }
+      },
+      "actions": 13,
+      "kingSafeActions": 2,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 16.31099999999998,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 5,
+      "ply": 10,
+      "chosenDeltaCp": -500,
+      "bestAvailableDeltaCp": -500,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-king-4",
+          "from": "4,0",
+          "to": "3,1",
+          "isCapture": false
+        }
+      },
+      "actions": 37,
+      "kingSafeActions": 2,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 28.203500000000076,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 5,
+      "ply": 44,
+      "chosenDeltaCp": -98028,
+      "bestAvailableDeltaCp": null,
+      "actions": 5,
+      "kingSafeActions": 0,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 2.2087999999999965,
+      "explanation": "Every legal action permits immediate royal capture"
+    },
+    {
+      "gameIndex": 9,
+      "ply": 16,
+      "chosenDeltaCp": -320,
+      "bestAvailableDeltaCp": -320,
+      "bestAction": {
+        "spell": {
+          "type": "FREEZE",
+          "targetSquare": "0,2"
+        },
+        "move": {
+          "pieceId": "w-knight-1",
+          "from": "4,3",
+          "to": "3,5",
+          "isCapture": false
+        }
+      },
+      "actions": 911,
+      "kingSafeActions": 102,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 934.9488,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 9,
+      "ply": 18,
+      "chosenDeltaCp": -330,
+      "bestAvailableDeltaCp": -330,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-king-4",
+          "from": "4,0",
+          "to": "3,0",
+          "isCapture": false
+        }
+      },
+      "actions": 25,
+      "kingSafeActions": 2,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 17.877100000000155,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 9,
+      "ply": 20,
+      "chosenDeltaCp": -330,
+      "bestAvailableDeltaCp": -330,
+      "bestAction": {
+        "spell": {
+          "type": "NONE"
+        },
+        "move": {
+          "pieceId": "w-knight-6",
+          "from": "6,0",
+          "to": "5,2",
+          "isCapture": false
+        }
+      },
+      "actions": 24,
+      "kingSafeActions": 23,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 724.0893999999998,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    },
+    {
+      "gameIndex": 11,
+      "ply": 21,
+      "chosenDeltaCp": -500,
+      "bestAvailableDeltaCp": -500,
+      "bestAction": {
+        "spell": {
+          "type": "FREEZE",
+          "targetSquare": "0,0"
+        },
+        "move": {
+          "pieceId": "b-pawn-0",
+          "from": "0,6",
+          "to": "0,4",
+          "isCapture": false
+        }
+      },
+      "actions": 796,
+      "kingSafeActions": 796,
+      "avoidableAdditionalLossCp": 0,
+      "missesMaterialDefenseByMoreThanTwoPawns": false,
+      "avoidableSevereLoss": false,
+      "elapsedMs": 3569.3940999999995,
+      "explanation": "Every king-safe action loses material within the bounded exchange model"
+    }
+  ],
+  "avoidable": 0,
+  "missedMaterialDefenses": 0,
+  "notes": "Exhaustive legal root alternatives, bounded local capture exchange; not a proof of long-term loss."
+}

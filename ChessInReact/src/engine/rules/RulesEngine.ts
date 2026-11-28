@@ -984,9 +984,14 @@ export class RulesEngine {
             : 'QUEENSIDE'
           : undefined;
 
+      // En passant is a diagonal capture. A straight Jump double-step can also land on the
+      // target square, and must not capture anything (least of all the moving pawn).
+      const isStraightStep = parsedFrom?.face === undefined &&
+        (destParsed?.x === parsedFrom?.x || destParsed?.y === parsedFrom?.y);
       const isEnPassant =
         (vUpper === 'PAWN' || vUpper === 'P') &&
         dest === state.turnState.enPassantTarget &&
+        !isStraightStep &&
         !state.occupancy[dest];
 
       const capturedPieceId: EntityId | undefined = isEnPassant

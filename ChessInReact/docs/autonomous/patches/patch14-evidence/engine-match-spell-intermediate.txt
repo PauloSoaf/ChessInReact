@@ -1,0 +1,7 @@
+partida 1 captura-do-rei | novo de brancas | lances 8 | rei/mate: venceu o NOVO
+partida 2 captura-do-rei | novo de pretas | lances 11 | rei/mate: venceu o NOVO
+partida 3 captura-do-rei | novo de brancas | lances 16 | rei/mate: venceu o NOVO
+partida 4 captura-do-rei | novo de pretas | lances 22 | rei/mate: venceu o NOVO
+partida 5 oficial | novo de brancas | lances 5 | rei/mate: venceu o NOVO
+partida 6 oficial | novo de pretas | lances 9 | rei/mate: venceu o NOVO
+PLACAR DO NOVO: vitorias 6 empates 0 derrotas 0 | profundidade media novo 7.3 antigo 0.4 | feiticos usados novo 16 antigo 15 | lances novo 71 antigo 68

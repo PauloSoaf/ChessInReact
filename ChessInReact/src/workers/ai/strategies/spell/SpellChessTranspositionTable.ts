@@ -1,5 +1,5 @@
 /**
- * ChessInReact - Spell Chess Transposition Table with Augmented Zobrist Hashing (Spec 15 § 4 Estratégia 7)
+ * ChessInReact - Spell Chess Transposition Table with Compact Positional Hashing (Spec 15 § 4 Estratégia 7)
  *
  * Implements a bounded transposition table indexing:
  * - Board piece placements and owners.
@@ -47,25 +47,54 @@ export class SpellChessTranspositionTable {
     activeFrozenCoords: readonly string[],
     activeJumpCoords: readonly string[]
   ): string {
-    // Collect occupied squares sorted deterministically
-    const occEntries = Object.entries(domain.occupancy)
-      .filter(([, entityId]) => Boolean(entityId))
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([coord, entityId]) => {
-        const ent = domain.boardEntities[entityId as EntityId];
-        const piece = ent && ent.type === 'PIECE' ? (ent as IPieceEntity) : undefined;
-        const isFrozen = ent?.metadata?.isFrozen ? 'F' : '';
-        const hasJump = ent?.metadata?.hasJump ? 'J' : '';
-        return `${coord}:${piece?.ownerId ?? ''}:${piece?.variantId ?? ''}:${piece?.hasMoved}${isFrozen}${hasJump}:${Boolean(ent?.metadata?.canBeJumpedOver)}`;
-      })
-      .join('|');
+    const spells = domain.metadata?.officialSpellState as {
+      activeFrozenPieceIds?: Record<string, number>; activeFrozenCoordinates?: Record<string, number>;
+      activeJumpPieceIds?: Record<string, number>;
+    } | undefined;
+    const records = (value: Record<string, number> | undefined) => Object.entries(value ?? {}).sort(([a], [b]) => a.localeCompare(b));
+    const board = Object.entries(domain.occupancy).sort(([a], [b]) => a.localeCompare(b)).map(([coord, id]) => {
+      const ent = domain.boardEntities[id as EntityId];
+      const piece = ent?.type === 'PIECE' ? ent as IPieceEntity : undefined;
+      return [coord, id, piece?.ownerId, piece?.variantId, piece?.hasMoved,
+        Boolean(ent?.metadata?.isFrozen), Boolean(ent?.metadata?.hasJump), Boolean(ent?.metadata?.canBeJumpedOver)];
+    });
+    const resources = (r: SpellResources) => [r.freezeRemaining, r.jumpRemaining, r.freezeCooldown, r.jumpCooldown];
+    const position = this.digest(JSON.stringify([domain.variantId, actingPlayer, board, resources(p1Resources), resources(p2Resources),
+      spells?.activeFrozenPieceIds !== undefined, records(spells?.activeFrozenPieceIds), records(spells?.activeFrozenCoordinates), records(spells?.activeJumpPieceIds),
+      Boolean(domain.metadata?.hasCastSpellThisTurn), [...activeFrozenCoords].sort(), [...activeJumpCoords].sort(),
+      domain.turnState.phase, domain.turnState.enPassantTarget]));
+    // Repetition is context, not board identity. Count equivalent histories independent of order.
+    const history = domain.turnState.positionHistory ?? [];
+    let context = this.historyKeys.get(history);
+    if (!context) {
+      const counts = new Map<string, number>();
+      for (const key of history) {
+        let compact = this.positionDigests.get(key);
+        if (!compact) {
+          compact = this.digest(key);
+          if (this.positionDigests.size >= 8192) this.positionDigests.clear();
+          this.positionDigests.set(key, compact);
+        }
+        counts.set(compact, (counts.get(compact) ?? 0) + 1);
+      }
+      context = this.digest(JSON.stringify([...counts].sort(([a], [b]) => a.localeCompare(b))));
+      this.historyKeys.set(history, context);
+    }
+    return `${position}:${domain.turnState.fiftyMoveCounter}:${context}`;
+  }
 
-    const frozenStr = [...activeFrozenCoords].sort().join(',');
-    const jumpStr = [...activeJumpCoords].sort().join(',');
-    const p1Str = `${p1Resources.freezeRemaining},${p1Resources.jumpRemaining},${p1Resources.freezeCooldown},${p1Resources.jumpCooldown}`;
-    const p2Str = `${p2Resources.freezeRemaining},${p2Resources.jumpRemaining},${p2Resources.freezeCooldown},${p2Resources.jumpCooldown}`;
+  private readonly historyKeys = new WeakMap<readonly string[], string>();
+  private readonly positionDigests = new Map<string, string>();
 
-    return `${JSON.stringify({ ...domain.turnState, lastActionTimestamp: 0 })}|${JSON.stringify(domain.metadata?.officialSpellState)}|${Boolean(domain.metadata?.hasCastSpellThisTurn)}|${domain.variantId}|${actingPlayer}|${occEntries}|${p1Str}|${p2Str}|${frozenStr}|${jumpStr}`;
+  /** Two independent 32-bit accumulators; bounded cached history strings avoid rehashing full logs. */
+  private digest(value: string): string {
+    let a = 0x811c9dc5, b = 0x9e3779b9;
+    for (let i = 0; i < value.length; i++) {
+      const c = value.charCodeAt(i);
+      a = Math.imul(a ^ c, 0x01000193);
+      b = Math.imul(b ^ c, 0x85ebca6b);
+    }
+    return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0');
   }
 
   public get(key: string): ITTEntry | undefined {

@@ -1,0 +1,41 @@
+{
+  "results": [
+    {
+      "human": true,
+      "ms": 3214,
+      "frames": 164,
+      "longestFrameMs": 420,
+      "san": "d5",
+      "strategy": "MINIMAX_ALPHA_BETA",
+      "depth": 10,
+      "nodes": 239840,
+      "fallback": false,
+      "over": false
+    },
+    {
+      "human": true,
+      "ms": 2548,
+      "frames": 143,
+      "longestFrameMs": 59,
+      "san": "Nf6",
+      "strategy": "MINIMAX_ALPHA_BETA",
+      "depth": 10,
+      "nodes": 116391,
+      "fallback": false,
+      "over": false
+    },
+    {
+      "human": true,
+      "ms": 2658,
+      "frames": 157,
+      "longestFrameMs": 37,
+      "san": "Nxh5",
+      "strategy": "MINIMAX_ALPHA_BETA",
+      "depth": 11,
+      "nodes": 186804,
+      "fallback": false,
+      "over": false
+    }
+  ],
+  "errors": []
+}

@@ -12,6 +12,8 @@
     "acceptance": "node scripts/runAcceptanceVerification.mjs",
     "acceptance:spell": "node scripts/runSpellChessBrowserRegression.mjs",
     "evidence:spell": "node scripts/runSpellChessTacticalEvidence.mjs",
+    "bench:spell:material": "node scripts/runSpellChessMaterialBenchmark.mjs",
+    "audit:spell:material": "node scripts/auditSpellChessMaterialLosses.mjs",
     "bench:spell": "node scripts/runSpellChessBenchmark.mjs",
     "bench": "node --loader ts-node/esm or vitest",
     "bench:memory": "node --expose-gc scripts/runMemoryBenchmark.js",
