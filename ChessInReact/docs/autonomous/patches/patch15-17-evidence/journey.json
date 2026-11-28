@@ -1,0 +1,20 @@
+{
+  "steps": [
+    "guest identity created automatically",
+    "bot opened with Nf3 without any click; black at the bottom; human strip is Black",
+    "black human played e5; bot answered Nxe5; no duplicate",
+    "flip changes only the perspective; black keeps playing from either side",
+    "undo and redo return to the black human turn",
+    "reload restored 5 half-moves, the black seat and the guest identity; no bot move",
+    "3D raycast moved a black piece (Nc6); bot replied Nc3",
+    "live replay: separate positions per ply, animation, keyboard; the live game was untouched",
+    "finished match stayed finished through replay, 2D/3D and Game Review (1 engine requests, unchanged); review names the right seats",
+    "reload of a finished match: result kept, no bot request",
+    "reload between Freeze and the mandatory move restored charges, cooldown and the pending move",
+    "the replay shows the Freeze cast before the black move",
+    "bot against bot: 4 half-moves reviewed, no new engine request",
+    "\"Minhas partidas\" lists 3 matches and reopens one in replay with its result",
+    "closing and reopening the browser keeps the match, the black seat and the identity"
+  ],
+  "errors": []
+}

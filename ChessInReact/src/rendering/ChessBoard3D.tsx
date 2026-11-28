@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { useGameStore, useGameActions } from '../bindings/react/useGameStore';
+import type { IReplayFrame } from '../bindings/react/useGameReplay';
 import { useTheme } from '../ui/theme/ThemeContext';
 import { asCoordinateKey, asEntityId } from '../core/coordinates';
 import { IPieceEntity } from '../core/entities/types';
@@ -26,6 +27,8 @@ import { PlayerId } from '../core/coordinates/types';
 import { globalAudioSynthesizer } from '../audio/WebAudioSynthesizer';
 
 export interface IChessBoard3DProps {
+  /** When set, the board shows this past position and accepts no input. */
+  replay?: IReplayFrame | null;
   boardSize?: number;
   topology?: ITopology;
   isBotThinking?: boolean;
@@ -204,6 +207,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
   botPlayer,
   disabled = false,
   isFlipped = false,
+  replay = null,
   useInstancedBatching = false,
   invalidMoveFeedback,
   onTriggerInvalidMove,
@@ -222,8 +226,11 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
 }) => {
   const { preferences, activeBoardColors, uiTheme } = useTheme();
 
-  const domain = useGameStore((state) => state.domain);
-  const ui = useGameStore((state) => state.ui);
+  const liveDomain = useGameStore((state) => state.domain);
+  const liveUi = useGameStore((state) => state.ui);
+  // A replay draws a stored position. The live store is neither read for it nor written.
+  const domain = replay?.domain ?? liveDomain;
+  const ui = useMemo(() => (replay ? { ...liveUi, selectedPieceId: null } : liveUi), [replay, liveUi]);
   const { executeCommand, selectPiece } = useGameActions();
 
   // Track previous move dynamically via GlobalEventBus (Spec 06 / Spec 07)
@@ -254,12 +261,13 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
   }, []);
 
   const lastMoveCoords = useMemo(() => {
-    if (!internalLastMove) return [];
+    const shown = replay ? replay.lastMove : internalLastMove;
+    if (!shown) return [];
     const arr: string[] = [];
-    if (internalLastMove.from) arr.push(internalLastMove.from);
-    if (internalLastMove.to) arr.push(internalLastMove.to);
+    if (shown.from) arr.push(shown.from);
+    if (shown.to) arr.push(shown.to);
     return arr;
-  }, [internalLastMove]);
+  }, [internalLastMove, replay]);
 
   const arenaLayout = useMemo(() => {
     const v = domain.variantId?.toUpperCase() ?? '';
@@ -372,7 +380,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
   // Handle square or piece click to select or move with check-constraint feedback
   const handleSquareClick = useCallback(
     (coord: string) => {
-      if (disabled || isBotThinking) return;
+      if (replay || disabled || isBotThinking) return;
       if (onVariantSquareClick?.(coord)) return;
       if (botPlayer && domain.activePlayer === botPlayer) return;
 
@@ -523,6 +531,7 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
       }
     },
     [
+      replay,
       disabled,
       isBotThinking,
       botPlayer,
@@ -842,6 +851,8 @@ export const ChessBoard3D: React.FC<IChessBoard3DProps> = ({
               />
             ) : (
               <InstancedPieces
+                // Adjacent replay steps keep the meshes, so they glide; distant ones are redrawn.
+                key={replay ? `replay-${replay.snapKey}` : 'live'}
                 boardSize={effectiveBoardSize}
                 variantId={domain.variantId}
                 pieces={activePieces}

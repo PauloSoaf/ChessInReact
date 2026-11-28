@@ -29,20 +29,20 @@ describe('MoveHistoryList UI Component (Spec 06 Section 18.1 & Spec 09 RF-05)', 
     expect(screen.getByText('f1-c4')).toBeDefined();
   });
 
-  it('supports selecting individual moves via callback', () => {
+  it('selects white and black moves of the same row independently, by absolute ply', () => {
     const handleSelect = vi.fn();
-    render(
-      <MoveHistoryList
-        moves={sampleMoves}
-        onSelectMoveIndex={handleSelect}
-        activeMoveIndex={0}
-      />
-    );
+    const withPlies = sampleMoves.map((move, index) => ({ ...move, whitePly: index * 2 + 1, blackPly: index * 2 + 2 }));
+    render(<MoveHistoryList moves={withPlies} onSelectPly={handleSelect} selectedPly={2} livePly={6} />);
 
-    const firstRow = screen.getByTestId('move-row-1');
-    fireEvent.click(firstRow);
+    fireEvent.click(screen.getByTestId('move-ply-1'));
+    fireEvent.click(screen.getByTestId('move-ply-2'));
+    expect(handleSelect.mock.calls).toEqual([[1], [2]]);
+    expect(screen.getByTestId('move-ply-2').getAttribute('aria-current')).toBe('step');
+    expect(screen.getByTestId('move-ply-1').getAttribute('aria-current')).toBeNull();
 
-    expect(handleSelect).toHaveBeenCalledWith(0);
+    // The row itself is no longer a target.
+    fireEvent.click(screen.getByTestId('move-row-1'));
+    expect(handleSelect).toHaveBeenCalledTimes(2);
   });
 
   it('copies PGN string to clipboard on button click and provides visual feedback', async () => {

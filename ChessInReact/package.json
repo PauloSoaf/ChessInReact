@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "acceptance": "node scripts/runAcceptanceVerification.mjs",
+    "acceptance:journey": "node scripts/runMatchJourneyBrowserCheck.mjs",
     "acceptance:spell": "node scripts/runSpellChessBrowserRegression.mjs",
     "evidence:spell": "node scripts/runSpellChessTacticalEvidence.mjs",
     "bench:spell:material": "node scripts/runSpellChessMaterialBenchmark.mjs",

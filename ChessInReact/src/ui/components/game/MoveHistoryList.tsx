@@ -4,33 +4,80 @@ export interface IMoveItem {
   turnNumber: number;
   white?: string;
   black?: string;
+  /** Absolute half-move numbers of each cell, taken from the match records. */
+  whitePly?: number;
+  blackPly?: number;
   timestamp?: number;
 }
 
 export interface IMoveHistoryListProps {
   moves: IMoveItem[];
-  onSelectMoveIndex?: (moveIndex: number) => void;
-  activeMoveIndex?: number;
+  /** Called with the absolute half-move (ply) of the clicked cell. */
+  onSelectPly?: (ply: number) => void;
+  /** Ply being viewed in the replay, or null/undefined while following the live game. */
+  selectedPly?: number | null;
+  /** Latest committed ply. */
+  livePly?: number;
   maxHeight?: string;
   onExportPGN?: () => string;
 }
 
 export const MoveHistoryList: React.FC<IMoveHistoryListProps> = ({
   moves,
-  onSelectMoveIndex,
-  activeMoveIndex,
+  onSelectPly,
+  selectedPly,
+  livePly,
   maxHeight = '180px',
   onExportPGN,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
 
-  // Auto-scroll to bottom whenever moves update
+  const reviewing = selectedPly !== null && selectedPly !== undefined;
+
+  // Follow new moves only while live, so that browsing keeps the reader's scroll position.
+  const lastPlyShown = livePly ?? moves.length;
   useEffect(() => {
-    if (scrollRef.current) {
+    if (!reviewing && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [moves]);
+  }, [lastPlyShown, reviewing]);
+
+  // Keep the selected cell visible inside the list without scrolling the whole page.
+  useEffect(() => {
+    const list = scrollRef.current;
+    if (!reviewing || !list) return;
+    const cell = list.querySelector<HTMLElement>('[aria-current="step"]');
+    if (!cell) {
+      if (selectedPly === 0) list.scrollTop = 0;
+      return;
+    }
+    const top = cell.offsetTop;
+    if (top < list.scrollTop) list.scrollTop = top;
+    else if (top + cell.offsetHeight > list.scrollTop + list.clientHeight) {
+      list.scrollTop = top + cell.offsetHeight - list.clientHeight;
+    }
+  }, [selectedPly, reviewing]);
+
+  const renderCell = (text: string | undefined, ply: number | undefined, fallback: string) => {
+    if (!text) return fallback;
+    if (!onSelectPly || ply === undefined) return text;
+    const selected = selectedPly === ply;
+    const latest = !reviewing && livePly === ply;
+    return (
+      <button
+        type="button"
+        className="move-cell"
+        data-testid={`move-ply-${ply}`}
+        data-latest={latest || undefined}
+        aria-current={selected ? 'step' : undefined}
+        aria-label={`Lance ${ply}: ${text}`}
+        onClick={() => onSelectPly(ply)}
+      >
+        {text}
+      </button>
+    );
+  };
 
   // Format PGN string for clipboard export
   const exportPgnString = (): string => {
@@ -189,22 +236,11 @@ export const MoveHistoryList: React.FC<IMoveHistoryListProps> = ({
           >
             <tbody>
               {moves.map((item, idx) => {
-                const isSelected = activeMoveIndex === idx;
                 return (
                   <tr
                     key={`${item.turnNumber}-${idx}`}
                     data-testid={`move-row-${item.turnNumber}`}
-                    onClick={() => onSelectMoveIndex?.(idx)}
-                    style={{
-                      cursor: onSelectMoveIndex ? 'pointer' : 'default',
-                      backgroundColor: isSelected
-                        ? 'rgba(59, 130, 246, 0.2)'
-                        : idx % 2 === 1
-                          ? 'rgba(255, 255, 255, 0.02)'
-                          : 'transparent',
-                      borderRadius: '4px',
-                      transition: 'background-color 0.1s ease',
-                    }}
+                    style={{ backgroundColor: idx % 2 === 1 ? 'rgba(255, 255, 255, 0.02)' : 'transparent' }}
                   >
                     {/* Turn Number */}
                     <td
@@ -229,7 +265,7 @@ export const MoveHistoryList: React.FC<IMoveHistoryListProps> = ({
                         fontWeight: 600,
                       }}
                     >
-                      {item.white ?? '...'}
+                      {renderCell(item.white, item.whitePly, '...')}
                     </td>
 
                     {/* Black Move */}
@@ -241,7 +277,7 @@ export const MoveHistoryList: React.FC<IMoveHistoryListProps> = ({
                         fontWeight: 600,
                       }}
                     >
-                      {item.black ?? ''}
+                      {renderCell(item.black, item.blackPly, '')}
                     </td>
                   </tr>
                 );
@@ -251,120 +287,6 @@ export const MoveHistoryList: React.FC<IMoveHistoryListProps> = ({
         )}
       </div>
 
-      {/* Step Navigation Bar (Spec 06 & Spec 09 PGN Navigation) */}
-      {moves.length > 0 && onSelectMoveIndex && (
-        <div
-          data-testid="move-history-nav-bar"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.4rem',
-            padding: '0.35rem 0.5rem',
-            backgroundColor: 'var(--bg-card, #141c2b)',
-            borderTop: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-          }}
-        >
-          <button
-            type="button"
-            data-testid="btn-move-first"
-            aria-label="Primeiro lance"
-            title="Ir para o primeiro lance (Início)"
-            disabled={activeMoveIndex === 0}
-            onClick={() => onSelectMoveIndex(0)}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
-              borderRadius: '4px',
-              padding: '2px 8px',
-              fontSize: '0.72rem',
-              fontWeight: 800,
-              fontFamily: 'var(--font-mono, monospace)',
-              color: 'var(--text-secondary, #94a3b8)',
-              cursor: activeMoveIndex === 0 ? 'default' : 'pointer',
-              opacity: activeMoveIndex === 0 ? 0.35 : 1,
-              transition: 'all 0.12s ease',
-            }}
-          >
-            |◀
-          </button>
-          <button
-            type="button"
-            data-testid="btn-move-prev"
-            aria-label="Lance anterior"
-            title="Ir para o lance anterior"
-            disabled={activeMoveIndex !== undefined && activeMoveIndex <= 0}
-            onClick={() => {
-              const current = activeMoveIndex ?? moves.length - 1;
-              onSelectMoveIndex(Math.max(0, current - 1));
-            }}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
-              borderRadius: '4px',
-              padding: '2px 8px',
-              fontSize: '0.72rem',
-              fontWeight: 800,
-              fontFamily: 'var(--font-mono, monospace)',
-              color: 'var(--text-secondary, #94a3b8)',
-              cursor: activeMoveIndex !== undefined && activeMoveIndex <= 0 ? 'default' : 'pointer',
-              opacity: activeMoveIndex !== undefined && activeMoveIndex <= 0 ? 0.35 : 1,
-              transition: 'all 0.12s ease',
-            }}
-          >
-            ◀
-          </button>
-          <button
-            type="button"
-            data-testid="btn-move-next"
-            aria-label="Próximo lance"
-            title="Ir para o próximo lance"
-            disabled={activeMoveIndex !== undefined && activeMoveIndex >= moves.length - 1}
-            onClick={() => {
-              const current = activeMoveIndex ?? moves.length - 1;
-              onSelectMoveIndex(Math.min(moves.length - 1, current + 1));
-            }}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
-              borderRadius: '4px',
-              padding: '2px 8px',
-              fontSize: '0.72rem',
-              fontWeight: 800,
-              fontFamily: 'var(--font-mono, monospace)',
-              color: 'var(--text-secondary, #94a3b8)',
-              cursor: activeMoveIndex !== undefined && activeMoveIndex >= moves.length - 1 ? 'default' : 'pointer',
-              opacity: activeMoveIndex !== undefined && activeMoveIndex >= moves.length - 1 ? 0.35 : 1,
-              transition: 'all 0.12s ease',
-            }}
-          >
-            ▶
-          </button>
-          <button
-            type="button"
-            data-testid="btn-move-last"
-            aria-label="Último lance"
-            title="Ir para o último lance (Ao vivo)"
-            disabled={activeMoveIndex === undefined || activeMoveIndex === moves.length - 1}
-            onClick={() => onSelectMoveIndex(moves.length - 1)}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
-              borderRadius: '4px',
-              padding: '2px 8px',
-              fontSize: '0.72rem',
-              fontWeight: 800,
-              fontFamily: 'var(--font-mono, monospace)',
-              color: 'var(--text-secondary, #94a3b8)',
-              cursor: activeMoveIndex === undefined || activeMoveIndex === moves.length - 1 ? 'default' : 'pointer',
-              opacity: activeMoveIndex === undefined || activeMoveIndex === moves.length - 1 ? 0.35 : 1,
-              transition: 'all 0.12s ease',
-            }}
-          >
-            ▶|
-          </button>
-        </div>
-      )}
     </div>
   );
 };

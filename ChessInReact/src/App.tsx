@@ -5,6 +5,17 @@ import { useBotMatch } from './bindings/react/useBotMatch';
 import { useMoveFeedback } from './bindings/react/useMoveFeedback';
 import { AIDifficultyLevel } from './workers/ai/interfaces/IAIEngineContracts';
 import { bootstrapGame } from './core/bootstrap/GameInitializer';
+import type { IStoredMatch } from './core/persistence/local/IMatchStore';
+import { useGameReplay } from './bindings/react/useGameReplay';
+import { useMatchPersistence } from './bindings/react/useMatchPersistence';
+import { MatchPlayerStrip } from './ui/components/game/MatchPlayerStrip';
+import { ReplayNavigationBar } from './ui/components/game/ReplayNavigationBar';
+import { MyMatchesPanel } from './ui/components/hub/MyMatchesPanel';
+import { getPreferredColor } from './ui/components/hub/humanColorPreference';
+import {
+  canHumanInteract, defaultFlipped, isBotRole, opponentBotSlot, resigningPlayer, resolveColorChoice,
+  seatHuman, sideName, singleLocalHuman, slotOfPlayer,
+} from './matchmaking/config/participants';
 import { gameStore } from './core/state/gameStore';
 import { ThemeProvider, useTheme } from './ui/theme/ThemeContext';
 import { TopNavBar, AppView } from './ui/components/navigation/TopNavBar';
@@ -13,7 +24,6 @@ import { ThemeCustomizerModal } from './ui/components/navigation/ThemeCustomizer
 import { GameHub, HubTabId } from './ui/components/hub/GameHub';
 import { PuzzleRushArena } from './ui/components/hub/PuzzleRushArena';
 import { BughouseArena } from './ui/components/hub/BughouseArena';
-import { PlayerCard } from './ui/components/game/PlayerCard';
 import { EvaluationBar } from './ui/components/game/EvaluationBar';
 import { GameControlsBar } from './ui/components/game/GameControlsBar';
 import { SpectatorControlsBar } from './ui/components/game/SpectatorControlsBar';
@@ -167,7 +177,8 @@ const AppContent: React.FC = () => {
   const [matchEvaluationsCp, setMatchEvaluationsCp] = useState<number[]>([0]);
 
   const { preferences, updatePreferences } = useTheme();
-  const isBoardFlipped = Boolean(preferences.flipBoard);
+  /** Manual flip of the current match only. The starting side comes from the match itself. */
+  const [orientationOverride, setOrientationOverride] = useState<{ matchId: string; flipped: boolean } | null>(null);
 
   const activePlayer = useActivePlayer();
   const turnNumber = useTurnNumber();
@@ -188,16 +199,6 @@ const AppContent: React.FC = () => {
   const topology = useMemo(
     () => new SquareTopology({ width: boardSize, height: boardSize }),
     [boardSize]
-  );
-
-  // Check state detection for White (P1) and Black (P2)
-  const isP1InCheck = useMemo(
-    () => CheckValidator.isRoyalInCheck('P1', domain, topology),
-    [domain, topology]
-  );
-  const isP2InCheck = useMemo(
-    () => CheckValidator.isRoyalInCheck('P2', domain, topology),
-    [domain, topology]
   );
 
   const {
@@ -249,21 +250,51 @@ const AppContent: React.FC = () => {
       .map((m) => m.san);
   }, [universalMatch.snapshot.moveHistory]);
 
-  // Synchronized Digital Chess Clocks (Spec 06 RF-09, Spec 16 § 4)
-  const p1TimeLeft = universalMatch.snapshot.clocks['P1'] ?? (isUnlimitedClock ? 0 : 300000);
-  const p2TimeLeft = universalMatch.snapshot.clocks['P2'] ?? (isUnlimitedClock ? 0 : 300000);
-  const isUniversalBotMatch = useMemo(
+  const isUniversalMatch = universalMatch.snapshot.config.matchId === domain.matchId;
+  // The seats of the match on screen. Outside Hub matches, the sandbox board keeps its legacy bot on Black.
+  const seatConfig = useMemo(
     () =>
-      universalMatch.snapshot.config.matchId === domain.matchId &&
-      universalMatch.snapshot.config.slots.some(
-        (slot) => slot.role === 'AI_BOT' || slot.role === 'BOT_STANDIN'
-      ),
-    [domain.matchId, universalMatch.snapshot.config]
+      isUniversalMatch
+        ? universalMatch.snapshot.config
+        : MatchConfigurationManager.updateSlotRole(
+          universalMatch.snapshot.config, 1, legacyBotEnabled ? 'AI_BOT' : 'HUMAN_LOCAL'),
+    [isUniversalMatch, universalMatch.snapshot.config, legacyBotEnabled]
   );
+  const isUniversalBotMatch = isUniversalMatch && seatConfig.slots.some((slot) => isBotRole(slot.role));
   // Universal matches expose the same UI state without re-enabling the
   // legacy controller. This keeps the presentation accurate while preserving
   // one and only one bot command authority.
   const isBotEnabled = isUniversalBotMatch || legacyBotEnabled;
+
+  const replay = useGameReplay(universalMatch.controller, domain.matchId);
+  const renderedDomain = replay.frame?.domain ?? domain;
+  const isP1InCheck = useMemo(
+    () => CheckValidator.isRoyalInCheck('P1', renderedDomain, topology),
+    [renderedDomain, topology]
+  );
+  const isP2InCheck = useMemo(
+    () => CheckValidator.isRoyalInCheck('P2', renderedDomain, topology),
+    [renderedDomain, topology]
+  );
+
+  const isBoardFlipped = !isUniversalMatch
+    ? Boolean(preferences.flipBoard)
+    : orientationOverride?.matchId === domain.matchId
+      ? orientationOverride.flipped
+      : defaultFlipped(seatConfig, Boolean(preferences.flipBoard));
+  const bottomPlayerId: PlayerId = isBoardFlipped ? 'P2' : 'P1';
+  const topPlayerId: PlayerId = isBoardFlipped ? 'P1' : 'P2';
+
+  const humanCanAct = canHumanInteract({
+    isGameOver,
+    isSpectator: isUniversalMatch && universalMatch.snapshot.isSpectatorMatch,
+    isReviewing: replay.isReplayMode,
+    actingRole: slotOfPlayer(
+      seatConfig, isUniversalMatch ? universalMatch.snapshot.interactionPlayer : activePlayer)?.role,
+  });
+  const displayDifficulty: AIDifficultyLevel =
+    (isUniversalMatch ? opponentBotSlot(seatConfig, bottomPlayerId)?.botConfig?.difficultyLevel : undefined) ??
+    difficulty;
   const duckCoordinate = useMemo(
     () => normalizeBoardCoordinate(universalMatch.snapshot.duckCoordinate),
     [universalMatch.snapshot.duckCoordinate]
@@ -315,7 +346,7 @@ const AppContent: React.FC = () => {
 
   // Captured pieces & material balance calculation (Spec 06 RF-09 & Section 18)
   const { p1Captured, p2Captured, p1Material, p2Material } = useMemo(() => {
-    const entities = Object.values(domain.boardEntities).filter(
+    const entities = Object.values(renderedDomain.boardEntities).filter(
       (e): e is IPieceEntity => e.type === 'PIECE' && Boolean(e.isCaptured)
     );
     const p1Capt = entities.filter((e) => e.ownerId === 'P2');
@@ -330,7 +361,7 @@ const AppContent: React.FC = () => {
       p1Material: p1Mat,
       p2Material: p2Mat,
     };
-  }, [domain.boardEntities]);
+  }, [renderedDomain.boardEntities]);
 
   // Automatically fallback to 2D if WebGL is unavailable on device/browser (Spec 07 Priority 3)
   useEffect(() => {
@@ -340,12 +371,45 @@ const AppContent: React.FC = () => {
     }
   }, [preferences.boardViewMode, updatePreferences]);
 
+  const [pendingReview, setPendingReview] = useState<{ matchId: string; openAnalysis: boolean } | null>(null);
+  const onMatchRestored = useCallback((match: IStoredMatch) => {
+    const restoredTopology = VariantCatalog.getTopologyForVariant(match.variantId) as { width?: number; height?: number };
+    setBoardSize(Math.max(restoredTopology.width ?? 8, restoredTopology.height ?? 8));
+    setOrientationOverride(null);
+    setPendingDrawOffer(null);
+    setSelectedOfficialSpell(null);
+    setSelectedExpandedSpell(null);
+    setSelectedDropPiece(null);
+    setPortalFirstSquare(null);
+    setMatchEvaluationsCp([0]);
+  }, []);
+  const persistence = useMatchPersistence(universalMatch.controller, onMatchRestored);
+
   // Initialize Core match on first mount (AUDIT-04 Single Source of Truth)
   useEffect(() => {
-    if (entityCount === 0) {
+    if (persistence.bootState === 'READY' && entityCount === 0) {
       bootstrapGame({ targetStore: gameStore });
     }
-  }, [entityCount]);
+  }, [entityCount, persistence.bootState]);
+
+  // Entering the replay drops any half-made action.
+  useEffect(() => {
+    if (!replay.isReplayMode) return;
+    setSelectedOfficialSpell(null);
+    setSelectedExpandedSpell(null);
+    setSelectedDropPiece(null);
+    setPortalFirstSquare(null);
+    gameStore.getState().selectPiece(null);
+  }, [replay.isReplayMode]);
+
+  // A match opened from "Minhas partidas" starts its replay once it is on screen.
+  useEffect(() => {
+    if (!pendingReview || pendingReview.matchId !== domain.matchId || !replay.available) return;
+    setIsVictoryModalDismissed(true);
+    if (pendingReview.openAnalysis) setIsGameReviewOpen(true);
+    else replay.selectPly(0);
+    setPendingReview(null);
+  }, [pendingReview, domain.matchId, replay]);
 
   // Two-way synchronization with URL hash (#game vs #hub vs #puzzle_rush vs #bughouse)
   useEffect(() => {
@@ -383,6 +447,7 @@ const AppContent: React.FC = () => {
   }, []);
 
   const handleReset = useCallback(() => {
+    replay.exit();
     cancelSearch();
     clearFeedback();
     setIsVictoryModalDismissed(false);
@@ -397,28 +462,35 @@ const AppContent: React.FC = () => {
     } else {
       bootstrapGame({ targetStore: gameStore });
     }
-  }, [cancelSearch, clearFeedback, universalMatch]);
+  }, [cancelSearch, clearFeedback, universalMatch, replay]);
 
   const handleToggleBot = useCallback(
     (enabled: boolean) => {
       if (universalMatch.snapshot.config.matchId === gameStore.getState().domain.matchId) {
-        universalMatch.updateSlotRole(1, enabled ? 'AI_BOT' : 'HUMAN_LOCAL', difficulty);
+        // The AI seat is the current bot, or the side facing the player when enabling one.
+        const target = enabled
+          ? slotOfPlayer(seatConfig, topPlayerId)
+          : opponentBotSlot(seatConfig, bottomPlayerId);
+        if (target) {
+          universalMatch.updateSlotRole(target.slotIndex, enabled ? 'AI_BOT' : 'HUMAN_LOCAL', difficulty);
+        }
         toggleBot(false);
       } else {
         toggleBot(enabled);
       }
     },
-    [universalMatch, difficulty, toggleBot]
+    [universalMatch, difficulty, toggleBot, seatConfig, topPlayerId, bottomPlayerId]
   );
 
   const handleSetDifficulty = useCallback(
     (level: AIDifficultyLevel) => {
       setDifficulty(level);
       if (universalMatch.snapshot.config.matchId === gameStore.getState().domain.matchId) {
-        universalMatch.updateBotDifficulty(1, level);
+        const bot = opponentBotSlot(seatConfig, bottomPlayerId);
+        if (bot) universalMatch.updateBotDifficulty(bot.slotIndex, level);
       }
     },
-    [setDifficulty, universalMatch]
+    [setDifficulty, universalMatch, seatConfig, bottomPlayerId]
   );
 
   const handleVariantSquareClick = useCallback(
@@ -618,6 +690,19 @@ const AppContent: React.FC = () => {
     setSelectedDropPiece(null);
     setPortalFirstSquare(null);
 
+    if (replay.isReplayMode) {
+      replay.selectPly((replay.selectedPly ?? replay.livePly) - 1);
+      return;
+    }
+    if (isUniversalMatch && universalMatch.snapshot.isEnded) {
+      triggerFeedback('GAME_EVENT', { message: 'Partida encerrada: use o histórico para rever os lances.' });
+      return;
+    }
+    if (isUniversalBotMatch) {
+      universalMatch.controller?.undoToHumanTurn();
+      return;
+    }
+
     const initialPlayer = gameStore.getState().domain.activePlayer;
     if (isBotEnabled) {
       if (initialPlayer === 'P2') {
@@ -637,7 +722,7 @@ const AppContent: React.FC = () => {
     } else {
       universalMatch.undo();
     }
-  }, [cancelSearch, clearFeedback, isBotEnabled, universalMatch]);
+  }, [cancelSearch, clearFeedback, isBotEnabled, universalMatch, replay, isUniversalMatch, isUniversalBotMatch, triggerFeedback]);
 
   const handleRedo = useCallback(() => {
     cancelSearch();
@@ -646,6 +731,15 @@ const AppContent: React.FC = () => {
     setSelectedExpandedSpell(null);
     setSelectedDropPiece(null);
     setPortalFirstSquare(null);
+
+    if (replay.isReplayMode) {
+      replay.selectPly((replay.selectedPly ?? replay.livePly) + 1);
+      return;
+    }
+    if (isUniversalBotMatch) {
+      universalMatch.controller?.redoToHumanTurn();
+      return;
+    }
 
     if (isBotEnabled) {
       const redoneFirst = universalMatch.redo();
@@ -660,7 +754,7 @@ const AppContent: React.FC = () => {
     } else {
       universalMatch.redo();
     }
-  }, [cancelSearch, clearFeedback, isBotEnabled, universalMatch]);
+  }, [cancelSearch, clearFeedback, isBotEnabled, universalMatch, replay, isUniversalBotMatch]);
 
   const handleBoardSizeChange = useCallback(
     (newSize: number) => {
@@ -673,9 +767,23 @@ const AppContent: React.FC = () => {
   );
 
   const handleFlipBoard = useCallback(() => {
-    updatePreferences({ flipBoard: !preferences.flipBoard });
+    if (isUniversalMatch) {
+      setOrientationOverride({ matchId: domain.matchId, flipped: !isBoardFlipped });
+      // Only spectators keep a lasting viewing preference.
+      if (seatConfig.slots.every((slot) => isBotRole(slot.role))) {
+        updatePreferences({ flipBoard: !isBoardFlipped });
+      }
+    } else {
+      updatePreferences({ flipBoard: !preferences.flipBoard });
+    }
     clearFeedback();
-  }, [preferences.flipBoard, updatePreferences, clearFeedback]);
+  }, [isUniversalMatch, domain.matchId, isBoardFlipped, seatConfig, preferences.flipBoard, updatePreferences, clearFeedback]);
+
+  /** Draws go through the controller so the ending is latched and saved. */
+  const concludeDraw = useCallback(() => {
+    if (isUniversalMatch && universalMatch.controller?.declareDraw()) return;
+    gameStore.setState((s) => ({ domain: { ...s.domain, isGameOver: true, winnerId: null } }));
+  }, [isUniversalMatch, universalMatch.controller]);
 
   const canClaimDraw = useMemo(
     () => !isGameOver && RulesEngine.canClaimDraw(domain, topology),
@@ -689,13 +797,7 @@ const AppContent: React.FC = () => {
     if (canClaimDraw) {
       cancelSearch();
       RulesEngine.claimDraw(domain, topology);
-      gameStore.setState((s) => ({
-        domain: {
-          ...s.domain,
-          isGameOver: true,
-          winnerId: null,
-        },
-      }));
+      concludeDraw();
       setPendingDrawOffer(null);
       triggerFeedback('GAME_TERMINATION', {
         message: 'Empate formal reivindicado por repetição tríplice ou regra dos 50 lances.',
@@ -709,13 +811,7 @@ const AppContent: React.FC = () => {
       const botAccepts = lastEval !== null && Math.abs(lastEval) <= 150;
       if (botAccepts) {
         cancelSearch();
-        gameStore.setState((s) => ({
-          domain: {
-            ...s.domain,
-            isGameOver: true,
-            winnerId: null,
-          },
-        }));
+        concludeDraw();
         triggerFeedback('GAME_TERMINATION', {
           message: 'Proposta de empate aceita pela IA (posição avaliada como equilibrada). Partida encerrada.',
         });
@@ -736,13 +832,7 @@ const AppContent: React.FC = () => {
         });
       } else if (pendingDrawOffer !== activePlayer) {
         // Opponent accepted the draw!
-        gameStore.setState((s) => ({
-          domain: {
-            ...s.domain,
-            isGameOver: true,
-            winnerId: null,
-          },
-        }));
+        concludeDraw();
         setPendingDrawOffer(null);
         triggerFeedback('GAME_TERMINATION', {
           message: 'Proposta de empate aceita por mútuo acordo entre ambos os jogadores locais.',
@@ -767,42 +857,36 @@ const AppContent: React.FC = () => {
     triggerFeedback,
     pendingDrawOffer,
     activePlayer,
+    concludeDraw,
   ]);
 
   const handleResign = useCallback(
-    (resigningPlayer?: PlayerId | unknown) => {
+    (requested?: PlayerId | unknown) => {
       if (isGameOver) return;
       cancelSearch();
       clearFeedback();
 
-      // If playing against Bot, the human is P1 (White); resigning always gives victory to P2 (Bot),
-      // even if human clicks resign during Bot's thinking turn.
-      let resigner: PlayerId;
-      if (typeof resigningPlayer === 'string' && (resigningPlayer === 'P1' || resigningPlayer === 'P2')) {
-        resigner = resigningPlayer;
-      } else if (isBotEnabled) {
-        resigner = 'P1';
-      } else {
-        resigner = activePlayer;
+      // The local human is the one who gives up, whatever their colour and even during the bot's turn.
+      const resigner: PlayerId | null =
+        requested === 'P1' || requested === 'P2' ? requested : resigningPlayer(seatConfig, activePlayer);
+      if (!resigner) {
+        triggerFeedback('GAME_EVENT', { message: 'Não há jogador local nesta partida para desistir.' });
+        return;
       }
 
       const winner: PlayerId = resigner === 'P1' ? 'P2' : 'P1';
       const resignerName = resigner === 'P1' ? 'Brancas' : 'Pretas';
       const winnerName = winner === 'P1' ? 'Brancas' : 'Pretas';
 
-      gameStore.setState((s) => ({
-        domain: {
-          ...s.domain,
-          isGameOver: true,
-          winnerId: winner,
-        },
-      }));
+      if (!(isUniversalMatch && universalMatch.controller?.resign(resigner))) {
+        gameStore.setState((s) => ({ domain: { ...s.domain, isGameOver: true, winnerId: winner } }));
+      }
       setPendingDrawOffer(null);
       triggerFeedback('GAME_TERMINATION', {
         message: `${resignerName} abandonaram a partida. Vitória concedida às ${winnerName}.`,
       });
     },
-    [isGameOver, cancelSearch, clearFeedback, isBotEnabled, activePlayer, triggerFeedback]
+    [isGameOver, cancelSearch, clearFeedback, seatConfig, isUniversalMatch, universalMatch.controller, activePlayer, triggerFeedback]
   );
 
   // Global Keyboard Shortcuts (Strictly disabled when modal is open to avoid unintended rollbacks)
@@ -823,6 +907,34 @@ const AppContent: React.FC = () => {
         return;
       }
 
+      const target = e.target as HTMLElement | null;
+      const modalOpen = isGameReviewOpen || isOpeningExplorerOpen || (isGameOver && !isVictoryModalDismissed);
+      // Replay keys. Arrows pressed on a board square keep moving the board focus.
+      if (currentView === 'GAME' && !modalOpen && replay.available && replay.livePly > 0 &&
+        !e.ctrlKey && !e.metaKey && !e.altKey && !target?.closest?.('[data-testid^="square-"]')) {
+        const current = replay.selectedPly ?? replay.livePly;
+        const jump =
+          e.key === 'ArrowLeft' ? current - 1
+            : e.key === 'ArrowRight' && replay.isReplayMode ? current + 1
+              : e.key === 'Home' ? 0
+                : e.key === 'End' ? replay.livePly
+                  : null;
+        if (jump !== null) {
+          e.preventDefault();
+          replay.selectPly(jump);
+          return;
+        }
+        if (e.key === ' ' && replay.isReplayMode && !(target instanceof HTMLButtonElement)) {
+          e.preventDefault();
+          replay.togglePlay();
+          return;
+        }
+        if (e.key === 'Escape' && replay.isReplayMode) {
+          replay.exit();
+          return;
+        }
+      }
+
       if (e.key === 'Escape') {
         if (selectedOfficialSpell || selectedExpandedSpell || selectedDropPiece || portalFirstSquare) {
           setSelectedOfficialSpell(null);
@@ -837,7 +949,7 @@ const AppContent: React.FC = () => {
       }
 
       if (e.key === '1') {
-        if (universalMatch.snapshot.officialSpellState) {
+        if (universalMatch.snapshot.officialSpellState && humanCanAct) {
           const next = selectedOfficialSpell === 'FREEZE' ? null : 'FREEZE';
           setSelectedOfficialSpell(next);
           triggerFeedback('GAME_EVENT', {
@@ -848,7 +960,7 @@ const AppContent: React.FC = () => {
           return;
         }
       } else if (e.key === '2') {
-        if (universalMatch.snapshot.officialSpellState) {
+        if (universalMatch.snapshot.officialSpellState && humanCanAct) {
           const next = selectedOfficialSpell === 'JUMP' ? null : 'JUMP';
           setSelectedOfficialSpell(next);
           triggerFeedback('GAME_EVENT', {
@@ -893,6 +1005,12 @@ const AppContent: React.FC = () => {
     portalFirstSquare,
     triggerFeedback,
     universalMatch,
+    replay,
+    humanCanAct,
+    isGameOver,
+    isGameReviewOpen,
+    isOpeningExplorerOpen,
+    isVictoryModalDismissed,
   ]);
 
   const handleResumeMatch = useCallback(() => {
@@ -918,9 +1036,11 @@ const AppContent: React.FC = () => {
       // The universal controller is authoritative for launched Hub matches.
       // The legacy controller stays disabled so it cannot dispatch a second
       // command for the same player and turn.
-      if (config.slots[1]?.botConfig) {
-        setDifficulty(config.slots[1].botConfig.difficultyLevel as AIDifficultyLevel);
+      const botSlot = config.slots.find((slot) => isBotRole(slot.role));
+      if (botSlot?.botConfig) {
+        setDifficulty(botSlot.botConfig.difficultyLevel as AIDifficultyLevel);
       }
+      setOrientationOverride(null);
       toggleBot(false);
 
       triggerFeedback('GAME_EVENT', {
@@ -934,13 +1054,12 @@ const AppContent: React.FC = () => {
   const handleStartBotMatch = useCallback(
     (level: number) => {
       setDifficulty(level as AIDifficultyLevel);
-      let cfg = MatchConfigurationManager.createDefaultMatch('standard', 2);
-      cfg = MatchConfigurationManager.updateBotDifficulty(
-        cfg,
-        1,
+      // A random colour is drawn here, once, and then stays in the match configuration.
+      handleLaunchMatch(seatHuman(
+        MatchConfigurationManager.createDefaultMatch('standard', 2),
+        resolveColorChoice(getPreferredColor()),
         level as AIDifficultyLevel
-      );
-      handleLaunchMatch(cfg);
+      ));
     },
     [setDifficulty, handleLaunchMatch]
   );
@@ -967,7 +1086,8 @@ const AppContent: React.FC = () => {
       }
       const participantCount = minigameId.includes('3P') ? 3 : minigameId.includes('4P') ? 4 : 2;
       const defaultCfg = MatchConfigurationManager.createDefaultMatch(minigameId, participantCount);
-      handleLaunchMatch(defaultCfg);
+      const humanSide = participantCount === 2 ? resolveColorChoice(getPreferredColor()) : 'P1';
+      handleLaunchMatch(humanSide === 'P2' ? seatHuman(defaultCfg, 'P2') : defaultCfg);
     },
     [clearFeedback, navigateTo, handleLaunchMatch]
   );
@@ -1038,6 +1158,120 @@ const AppContent: React.FC = () => {
     };
   }, [handleLaunchMinigame, handleLaunchMatch, navigateTo, handleSelectNavDestination, universalMatch.controller]);
 
+  const spellVariant = /^SPELL_CHESS(_OFFICIAL|_KING_CAPTURE_ONLY)?$/.test(
+    universalMatch.snapshot.config.variantId.toUpperCase());
+  const spellState = spellVariant && universalMatch.snapshot.officialSpellState
+    ? (replay.frame
+      ? (renderedDomain.metadata?.officialSpellState as typeof universalMatch.snapshot.officialSpellState) ??
+        universalMatch.snapshot.officialSpellState
+      : universalMatch.snapshot.officialSpellState)
+    : null;
+  // The interactive deck belongs to the local human, or to the human on turn in a pass-and-play duel.
+  const spellControlsPlayer: PlayerId | null =
+    singleLocalHuman(seatConfig) ??
+    (slotOfPlayer(seatConfig, activePlayer)?.role === 'HUMAN_LOCAL' ? activePlayer : null);
+
+  const renderSpellDeck = (playerId: PlayerId): React.ReactNode => {
+    if (!spellState) return undefined;
+    if (playerId !== spellControlsPlayer) {
+      return <OpponentSpellDeck state={spellState} activePlayer={playerId === 'P1' ? 'P2' : 'P1'} />;
+    }
+    return (
+      <OfficialSpellBar
+        compact={true}
+        state={spellState}
+        activePlayer={playerId}
+        canAct={humanCanAct && activePlayer === playerId}
+        selectedSpellType={selectedOfficialSpell}
+        hasCastSpellThisTurn={activePlayer === playerId && universalMatch.snapshot.hasCastSpellThisTurn}
+        onCancelSpell={() => {
+          setSelectedOfficialSpell(null);
+          triggerFeedback('GAME_EVENT', { message: 'Lançamento cancelado.' });
+        }}
+        onCastSpell={(spellType) => {
+          const selectedPieceId = gameStore.getState().ui.selectedPieceId;
+          if (spellType === 'JUMP' && selectedPieceId) {
+            if (universalMatch.castOfficialSpell('JUMP', selectedPieceId)) {
+              setSelectedOfficialSpell(null);
+              triggerFeedback('GAME_EVENT', { message: 'Feitiço JUMP conjurado na peça selecionada!' });
+              return;
+            }
+          }
+          if (selectedOfficialSpell === spellType) {
+            setSelectedOfficialSpell(null);
+            triggerFeedback('GAME_EVENT', { message: `Seleção de ${spellType} cancelada.` });
+            return;
+          }
+          setSelectedOfficialSpell(spellType);
+          triggerFeedback('GAME_EVENT', {
+            message:
+              spellType === 'FREEZE'
+                ? 'Feitiço FREEZE preparado! Passe o mouse no tabuleiro para ver a área 3×3 e clique na casa central (ou clique em Cancelar).'
+                : 'Feitiço JUMP preparado! Clique na peça (aliada ou adversária) que deseja pular no tabuleiro (ou clique em Cancelar).',
+          });
+        }}
+      />
+    );
+  };
+
+  const renderPlayerStrip = (playerId: PlayerId, position: 'top' | 'bottom') => (
+    <MatchPlayerStrip
+      position={position}
+      playerId={playerId}
+      config={seatConfig}
+      activePlayer={renderedDomain.activePlayer}
+      isGameOver={renderedDomain.isGameOver}
+      isThinking={!replay.isReplayMode && (isThinking || universalMatch.snapshot.isThinking)}
+      difficultyLabels={DIFFICULTY_LABELS}
+      capturedPieces={playerId === 'P1' ? p1Captured : p2Captured}
+      materialAdvantage={
+        (playerId === 'P1' ? p1Material - p2Material : p2Material - p1Material) > 0
+          ? Math.abs(p1Material - p2Material)
+          : undefined
+      }
+      timeLeftMs={universalMatch.snapshot.clocks[playerId] ?? (isUnlimitedClock ? 0 : 300000)}
+      isInCheck={!renderedDomain.isGameOver && (playerId === 'P1' ? isP1InCheck : isP2InCheck)}
+      isUnlimited={isUnlimitedClock}
+      timeControlLabel={timeControlLabel}
+      isRanked={isMatchRanked}
+      actionSlot={renderSpellDeck(playerId)}
+    />
+  );
+
+  const seatName = (playerId: 'P1' | 'P2'): string => {
+    const slot = slotOfPlayer(seatConfig, playerId);
+    if (isBotRole(slot?.role)) return `Bot IA (${DIFFICULTY_LABELS[slot?.botConfig?.difficultyLevel ?? difficulty]})`;
+    return singleLocalHuman(seatConfig) === playerId ? `Você (${sideName(playerId)})` : `Humano (${sideName(playerId)})`;
+  };
+
+  const boardDuck = replay.frame ? normalizeBoardCoordinate(replay.frame.duckCoordinate) : duckCoordinate;
+  const boardFrozen = replay.frame
+    ? replay.frame.frozenCoordinates.map(normalizeBoardCoordinate).filter((c): c is string => c !== null)
+    : frozenCoordinates;
+  const saveStatusText: Record<string, string> = {
+    IDLE: '', SAVING: 'Salvando…', LOCAL_SAVED: 'Salvo neste dispositivo',
+    ERROR: 'Erro ao salvar. Tentando novamente.', CONFLICT: 'Esta partida está sendo salva em outra aba.',
+    UNAVAILABLE: 'Salvamento indisponível neste navegador',
+  };
+
+  // No board is shown while a saved match may still replace it.
+  if (persistence.bootState !== 'READY') {
+    return (
+      <div className="boot-screen" role="status" data-testid="boot-screen" data-state={persistence.bootState}>
+        {persistence.bootState === 'RECOVERY_FAILED' ? (
+          <>
+            <strong>Não foi possível restaurar a última partida.</strong>
+            <span>{persistence.bootError}</span>
+            <span>Os dados salvos não foram alterados.</span>
+            <button type="button" onClick={persistence.continueWithoutRestore}>Continuar sem restaurar</button>
+          </>
+        ) : (
+          <span>{persistence.bootState === 'RESTORING_MATCH' ? 'Restaurando sua partida…' : 'Abrindo o armazenamento local…'}</span>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell-with-sidebar">
       {/* Sleek Ergonomic Navigation Rail (Desktop) / Bottom Bar (Mobile) */}
@@ -1070,6 +1304,7 @@ const AppContent: React.FC = () => {
       ) : currentView === 'BUGHOUSE' ? (
         <BughouseArena onBackToHub={() => navigateTo('HUB')} />
       ) : currentView === 'HUB' ? (
+        <>
         <GameHub
           activeTab={hubActiveTab}
           onTabChange={setHubActiveTab}
@@ -1088,6 +1323,26 @@ const AppContent: React.FC = () => {
           onLaunchMinigame={handleLaunchMinigame}
           onLaunchMatch={handleLaunchMatch}
         />
+        {persistence.services && (
+          <MyMatchesPanel
+            services={persistence.services}
+            onContinue={async (matchId) => {
+              await persistence.openMatch(matchId);
+              navigateTo('GAME');
+            }}
+            onReplay={async (matchId) => {
+              await persistence.openMatch(matchId);
+              setPendingReview({ matchId, openAnalysis: false });
+              navigateTo('GAME');
+            }}
+            onReview={async (matchId) => {
+              await persistence.openMatch(matchId);
+              setPendingReview({ matchId, openAnalysis: true });
+              navigateTo('GAME');
+            }}
+          />
+        )}
+        </>
       ) : (
         <div id="match-arena-shell" className="match-arena-shell" data-testid="match-arena-shell">
           <div className="match-arena-grid">
@@ -1238,54 +1493,8 @@ const AppContent: React.FC = () => {
                   />
                 )}
 
-              {/* Top Player Strip (Opponent - Black P2 or Bot 2) */}
-              <div className="match-stage-player-wrap">
-                <PlayerCard
-                  playerId="P2"
-                  displayName={
-                    universalMatch.snapshot.config.slots[1]?.displayName.replace(/\s*\(N[1-5]\).*$/, '').trim() ??
-                    (isBotEnabled ? 'Oponente IA' : 'Jogador 2')
-                  }
-                  subtitle={
-                    universalMatch.snapshot.config.slots[1]?.role === 'AI_BOT' ||
-                      universalMatch.snapshot.config.slots[1]?.role === 'BOT_STANDIN'
-                      ? `Peças Pretas • IA (N${universalMatch.snapshot.config.slots[1]?.botConfig?.difficultyLevel ?? difficulty})`
-                      : 'Peças Pretas • Controle Manual Local'
-                  }
-                  isTurnActive={!isGameOver && activePlayer === 'P2'}
-                  isThinking={isThinking || (universalMatch.snapshot.isThinking && activePlayer === 'P2')}
-                  isBot={
-                    universalMatch.snapshot.config.slots[1]?.role === 'AI_BOT' ||
-                    universalMatch.snapshot.config.slots[1]?.role === 'BOT_STANDIN' ||
-                    isBotEnabled
-                  }
-                  difficultyLabel={
-                    universalMatch.snapshot.config.slots[1]?.botConfig
-                      ? DIFFICULTY_LABELS[universalMatch.snapshot.config.slots[1].botConfig!.difficultyLevel]
-                      : isBotEnabled
-                        ? DIFFICULTY_LABELS[difficulty]
-                        : undefined
-                  }
-                  capturedPieces={p2Captured}
-                  materialAdvantage={p2Material > p1Material ? p2Material - p1Material : undefined}
-                  timeLeftMs={p2TimeLeft}
-                  isInCheck={!isGameOver && isP2InCheck}
-                  isUnlimited={isUnlimitedClock}
-                  timeControlLabel={timeControlLabel}
-                  isRanked={isMatchRanked}
-                  actionSlot={
-                    (universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_OFFICIAL' ||
-                      universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_KING_CAPTURE_ONLY' ||
-                      universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS') &&
-                    universalMatch.snapshot.officialSpellState ? (
-                      <OpponentSpellDeck
-                        state={universalMatch.snapshot.officialSpellState}
-                        activePlayer={activePlayer}
-                      />
-                    ) : undefined
-                  }
-                />
-              </div>
+              {/* Top player: whoever is not at the bottom of the board */}
+              {renderPlayerStrip(topPlayerId, 'top')}
 
               {/* Sculpted Board Bezel: Real-time Evaluation Bar + Protagonist Board */}
               <div className="match-board-bezel" style={{ width: '100%', maxWidth: 'min(calc(100vh - 170px), 720px)', position: 'relative' }}>
@@ -1325,21 +1534,15 @@ const AppContent: React.FC = () => {
                         boardSize={boardSize}
                         topology={universalMatch.controller?.getTopology()}
                         isBotThinking={isThinking || universalMatch.snapshot.isThinking}
-                        botPlayer={isBotEnabled ? 'P2' : undefined}
-                        disabled={
-                          universalMatch.snapshot.isSpectatorMatch ||
-                          (universalMatch.snapshot.duckPhase !== 'PLACE_DUCK' &&
-                            (universalMatch.snapshot.activeSlot?.role === 'AI_BOT' ||
-                              universalMatch.snapshot.activeSlot?.role === 'BOT_STANDIN' ||
-                              (isBotEnabled && activePlayer === 'P2')))
-                        }
+                        disabled={!humanCanAct}
+                        replay={replay.frame}
                         isFlipped={isBoardFlipped}
                         invalidMoveFeedback={invalidMoveFeedback}
                         onTriggerInvalidMove={triggerFeedback}
                         onClearInvalidMove={clearFeedback}
                         onFallbackTo2D={() => updatePreferences({ boardViewMode: '2D' })}
-                        duckCoordinate={duckCoordinate}
-                        frozenCoordinates={frozenCoordinates}
+                        duckCoordinate={boardDuck}
+                        frozenCoordinates={boardFrozen}
                         activePortals={universalMatch.snapshot.expandedSpellState?.activePortals}
                         stealthTraps={universalMatch.snapshot.expandedSpellState?.stealthTraps}
                         selectedSpellType={selectedOfficialSpell ?? selectedExpandedSpell?.type ?? null}
@@ -1384,19 +1587,14 @@ const AppContent: React.FC = () => {
                       boardSize={boardSize}
                       topology={universalMatch.controller?.getTopology()}
                       isBotThinking={isThinking || universalMatch.snapshot.isThinking}
-                      botPlayer={isBotEnabled ? 'P2' : undefined}
-                      disabled={
-                        universalMatch.snapshot.isSpectatorMatch ||
-                        (universalMatch.snapshot.duckPhase !== 'PLACE_DUCK' &&
-                          (universalMatch.snapshot.activeSlot?.role === 'AI_BOT' ||
-                            universalMatch.snapshot.activeSlot?.role === 'BOT_STANDIN' ||
-                            (isBotEnabled && activePlayer === 'P2')))
-                      }
+                      isFlipped={isBoardFlipped}
+                      disabled={!humanCanAct}
+                      replay={replay.frame}
                       invalidMoveFeedback={invalidMoveFeedback}
                       onTriggerInvalidMove={triggerFeedback}
                       onClearInvalidMove={clearFeedback}
-                      duckCoordinate={duckCoordinate}
-                      frozenCoordinates={frozenCoordinates}
+                      duckCoordinate={boardDuck}
+                      frozenCoordinates={boardFrozen}
                       activePortals={universalMatch.snapshot.expandedSpellState?.activePortals}
                       stealthTraps={universalMatch.snapshot.expandedSpellState?.stealthTraps}
                       selectedSpellType={selectedOfficialSpell ?? selectedExpandedSpell?.type ?? null}
@@ -1425,87 +1623,8 @@ const AppContent: React.FC = () => {
                 )}
               </div>
 
-              {/* Bottom Player Strip (Human - White P1 or Bot 1) */}
-              <div className="match-stage-player-wrap">
-                <PlayerCard
-                  playerId="P1"
-                  displayName={
-                    universalMatch.snapshot.config.slots[0]?.displayName.replace(/\s*\(N[1-5]\).*$/, '').trim() ??
-                    'Você'
-                  }
-                  subtitle={
-                    universalMatch.snapshot.config.slots[0]?.role === 'AI_BOT' ||
-                      universalMatch.snapshot.config.slots[0]?.role === 'BOT_STANDIN'
-                      ? `Peças Brancas • IA (N${universalMatch.snapshot.config.slots[0]?.botConfig?.difficultyLevel ?? difficulty})`
-                      : 'Peças Brancas • Perspectiva Principal'
-                  }
-                  isTurnActive={!isGameOver && activePlayer === 'P1'}
-                  isThinking={universalMatch.snapshot.isThinking && activePlayer === 'P1'}
-                  isBot={
-                    universalMatch.snapshot.config.slots[0]?.role === 'AI_BOT' ||
-                    universalMatch.snapshot.config.slots[0]?.role === 'BOT_STANDIN'
-                  }
-                  difficultyLabel={
-                    universalMatch.snapshot.config.slots[0]?.botConfig
-                      ? DIFFICULTY_LABELS[universalMatch.snapshot.config.slots[0].botConfig!.difficultyLevel]
-                      : undefined
-                  }
-                  capturedPieces={p1Captured}
-                  materialAdvantage={p1Material > p2Material ? p1Material - p2Material : undefined}
-                  timeLeftMs={p1TimeLeft}
-                  isInCheck={!isGameOver && isP1InCheck}
-                  isUnlimited={isUnlimitedClock}
-                  timeControlLabel={timeControlLabel}
-                  isRanked={isMatchRanked}
-                  actionSlot={
-                    (universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_OFFICIAL' ||
-                      universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS_KING_CAPTURE_ONLY' ||
-                      universalMatch.snapshot.config.variantId.toUpperCase() === 'SPELL_CHESS') &&
-                    universalMatch.snapshot.officialSpellState ? (
-                      <OfficialSpellBar
-                        compact={true}
-                        state={universalMatch.snapshot.officialSpellState}
-                        activePlayer={activePlayer}
-                        selectedSpellType={selectedOfficialSpell}
-                        hasCastSpellThisTurn={universalMatch.snapshot.hasCastSpellThisTurn}
-                        onCancelSpell={() => {
-                          setSelectedOfficialSpell(null);
-                          triggerFeedback('GAME_EVENT', {
-                            message: 'Lançamento cancelado.',
-                          });
-                        }}
-                        onCastSpell={(spellType) => {
-                          const selectedPieceId = gameStore.getState().ui.selectedPieceId;
-                          if (spellType === 'JUMP' && selectedPieceId) {
-                            const ok = universalMatch.castOfficialSpell('JUMP', selectedPieceId);
-                            if (ok) {
-                              setSelectedOfficialSpell(null);
-                              triggerFeedback('GAME_EVENT', {
-                                message: 'Feitiço JUMP conjurado na peça selecionada!',
-                              });
-                              return;
-                            }
-                          }
-                          if (selectedOfficialSpell === spellType) {
-                            setSelectedOfficialSpell(null);
-                            triggerFeedback('GAME_EVENT', {
-                              message: `Seleção de ${spellType} cancelada.`,
-                            });
-                            return;
-                          }
-                          setSelectedOfficialSpell(spellType);
-                          triggerFeedback('GAME_EVENT', {
-                            message:
-                              spellType === 'FREEZE'
-                                ? 'Feitiço FREEZE preparado! Passe o mouse no tabuleiro para ver a área 3×3 e clique na casa central (ou clique em Cancelar).'
-                                : 'Feitiço JUMP preparado! Clique na peça (aliada ou adversária) que deseja pular no tabuleiro (ou clique em Cancelar).',
-                          });
-                        }}
-                      />
-                    ) : undefined
-                  }
-                />
-              </div>
+              {/* Bottom player: the local human, or the side chosen with the flip button */}
+              {renderPlayerStrip(bottomPlayerId, 'bottom')}
             </div>
 
             {/* Right Sidebar: Match Status & Tactical Controls Deck */}
@@ -1544,7 +1663,7 @@ const AppContent: React.FC = () => {
                       color: 'var(--color-accent)',
                     }}
                   >
-                    {isBotEnabled ? `Partida vs IA (${DIFFICULTY_LABELS[difficulty]})` : 'Duelo Local'}
+                    {isBotEnabled ? `Partida vs IA (${DIFFICULTY_LABELS[displayDifficulty]})` : 'Duelo Local'}
                   </span>
                 </div>
 
@@ -1634,6 +1753,12 @@ const AppContent: React.FC = () => {
                   </>
                 )}
 
+                {isUniversalMatch && saveStatusText[persistence.saveStatus] && (
+                  <span className="save-status" data-testid="save-status" data-status={persistence.saveStatus}>
+                    {saveStatusText[persistence.saveStatus]}
+                  </span>
+                )}
+
                 <div className="match-telemetry-grid">
                   <div className="match-stat-cell">
                     <span className="match-stat-label">Turno</span>
@@ -1657,7 +1782,30 @@ const AppContent: React.FC = () => {
               <GameControlsBar
                 onExportPGN={universalMatch.snapshot.officialSpellState ? () => universalMatch.controller?.exportSpellPGN() ?? '' : undefined}
                 isBotEnabled={isBotEnabled}
-                difficulty={difficulty}
+                botSideLabel={(() => {
+                  const bots = seatConfig.slots.filter((slot) => isBotRole(slot.role));
+                  if (bots.length === 1) return sideName(`P${bots[0].slotIndex + 1}` as PlayerId);
+                  return bots.length ? null : sideName(topPlayerId);
+                })()}
+                difficulty={displayDifficulty}
+                onSelectPly={replay.available ? replay.selectPly : undefined}
+                selectedPly={replay.selectedPly}
+                livePly={replay.livePly}
+                historyLocked={replay.isReplayMode || (isUniversalMatch && universalMatch.snapshot.isEnded)}
+                replayBar={replay.available && replay.livePly > 0 ? (
+                  <ReplayNavigationBar
+                    selectedPly={replay.selectedPly}
+                    livePly={replay.livePly}
+                    isPlaying={replay.isPlaying}
+                    speed={replay.speed}
+                    isEnded={universalMatch.snapshot.isEnded}
+                    spellText={replay.frame?.spellText}
+                    onSelectPly={replay.selectPly}
+                    onTogglePlay={replay.togglePlay}
+                    onSpeedChange={replay.setSpeed}
+                    onExit={replay.exit}
+                  />
+                ) : undefined}
                 isThinking={isThinking || universalMatch.snapshot.isThinking}
                 lastEval={lastEval}
                 boardSize={boardSize}
@@ -1706,8 +1854,8 @@ const AppContent: React.FC = () => {
         moveSans={matchMoveSans}
         evaluationsCp={universalMatch.controller?.getEvaluationsStream() ?? matchEvaluationsCp}
         variantId={universalMatch.snapshot.config.variantId}
-        whitePlayerName="Humano (Brancas)"
-        blackPlayerName={isBotEnabled ? `Bot IA (${DIFFICULTY_LABELS[difficulty]})` : 'Humano (Pretas)'}
+        whitePlayerName={seatName('P1')}
+        blackPlayerName={seatName('P2')}
         onRetryMistake={(ply, bestMoveSan) => {
           triggerFeedback('GAME_EVENT', {
             message: `Tente encontrar o melhor lance no ply #${ply}!${bestMoveSan ? ` (Sugestão: ${bestMoveSan})` : ''}`,

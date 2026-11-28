@@ -4,7 +4,7 @@ import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import BoardSquare from '../../../../components/BoardSquare/BoardSquare';
 import { EvaluationBar } from '../EvaluationBar';
 import { GameControlsBar } from '../GameControlsBar';
-import { MoveHistoryList, IMoveItem } from '../MoveHistoryList';
+import { ReplayNavigationBar } from '../ReplayNavigationBar';
 import { ThemeProvider } from '../../../theme/ThemeContext';
 import { bootstrapGame } from '../../../../core/bootstrap/GameInitializer';
 import { gameStore } from '../../../../core/state/gameStore';
@@ -157,47 +157,29 @@ describe('Intuitive UI & Fluid Polish Suite (Spec 06 RF-14, RF-15 & Lichess/Ches
     });
   });
 
-  describe('MoveHistoryList Step Navigation (Spec 06 & Spec 09 PGN Navigation)', () => {
-    const mockMoves: IMoveItem[] = [
-      { turnNumber: 1, white: 'e2-e4', black: 'e7-e5' },
-      { turnNumber: 2, white: 'g1-f3', black: 'b8-c6' },
-      { turnNumber: 3, white: 'f1-c4', black: 'f8-c5' },
-    ];
-
-    it('renders step navigation controls with proper first/prev/next/last callbacks', () => {
+  describe('Replay navigation bar (PATCH-16)', () => {
+    it('renders first/previous/next/last controls that move one ply at a time', () => {
       const handleSelect = vi.fn();
       render(
-        <MoveHistoryList
-          moves={mockMoves}
-          onSelectMoveIndex={handleSelect}
-          activeMoveIndex={1}
+        <ReplayNavigationBar
+          selectedPly={3}
+          livePly={6}
+          isPlaying={false}
+          speed={1}
+          isEnded={false}
+          onSelectPly={handleSelect}
+          onTogglePlay={() => undefined}
+          onSpeedChange={() => undefined}
+          onExit={() => undefined}
         />
       );
 
-      const navBar = screen.getByTestId('move-history-nav-bar');
-      expect(navBar).toBeDefined();
-
-      const btnFirst = screen.getByTestId('btn-move-first');
-      const btnPrev = screen.getByTestId('btn-move-prev');
-      const btnNext = screen.getByTestId('btn-move-next');
-      const btnLast = screen.getByTestId('btn-move-last');
-
-      expect(btnFirst).toBeDefined();
-      expect(btnPrev).toBeDefined();
-      expect(btnNext).toBeDefined();
-      expect(btnLast).toBeDefined();
-
-      fireEvent.click(btnFirst);
-      expect(handleSelect).toHaveBeenCalledWith(0);
-
-      fireEvent.click(btnPrev);
-      expect(handleSelect).toHaveBeenCalledWith(0);
-
-      fireEvent.click(btnNext);
-      expect(handleSelect).toHaveBeenCalledWith(2);
-
-      fireEvent.click(btnLast);
-      expect(handleSelect).toHaveBeenCalledWith(2);
+      fireEvent.click(screen.getByTestId('btn-move-first'));
+      fireEvent.click(screen.getByTestId('btn-move-prev'));
+      fireEvent.click(screen.getByTestId('btn-move-next'));
+      fireEvent.click(screen.getByTestId('btn-move-last'));
+      expect(handleSelect.mock.calls).toEqual([[0], [2], [4], [6]]);
+      expect(screen.getByTestId('btn-replay-exit').textContent).toContain('Voltar ao vivo');
     });
   });
 

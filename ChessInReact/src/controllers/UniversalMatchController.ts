@@ -54,14 +54,25 @@ import { BoardEvaluator } from '../workers/ai/heuristics/BoardEvaluator';
 import { PGNExporter } from '../core/persistence/pgn/PGNExporter';
 import { OfficialSpellRules } from '../engine/variants/spells/OfficialSpellRules';
 import { IAIDecisionResponse } from '../workers/ai/interfaces/IUniversalAIEngine';
+import { IJournalContext, MatchJournal } from '../core/timeline/MatchJournal';
+import { GameEvent, ITimelineMove, MatchEndReason } from '../core/timeline/events';
+import { ISessionState } from '../core/timeline/sessionState';
+import { ReplayTimeline } from '../core/timeline/ReplayTimeline';
+import { randomId } from '../core/identity/GuestIdentityService';
 import { SpellChessMoveGenerator } from '../workers/ai/strategies/spell/SpellChessMoveGenerator';
 
 export interface IMoveItem {
+  /** Absolute half-move numbers of each cell, taken from the match records. */
+  whitePly?: number;
+  blackPly?: number;
   turnNumber: number;
   white?: string;
   black?: string;
   timestamp?: number;
 }
+
+/** LIVE: playing. REPLAY: viewing the past of a running match. POST_GAME_REVIEW: it ended. */
+export type MatchInteractionMode = 'LIVE' | 'REPLAY' | 'POST_GAME_REVIEW';
 
 export interface ISpellCastEvent {
   readonly id: string;
@@ -119,6 +130,11 @@ export interface IUniversalMatchSnapshot {
   readonly hasCastSpellThisTurn: boolean;
   readonly clocks: Readonly<Record<string, number>>;
   readonly moveHistory: ReadonlyArray<IMoveRecord>;
+  readonly interactionMode: MatchInteractionMode;
+  /** Latched when the match concludes; nothing but a new match clears it. */
+  readonly isEnded: boolean;
+  /** Who must act now. During duck placement it is still the player who moved. */
+  readonly interactionPlayer: PlayerId;
 }
 
 export interface IUniversalMatchHistorySnapshot {
@@ -138,7 +154,30 @@ export interface IUniversalMatchHistorySnapshot {
   readonly spellEvents?: ISpellCastEvent[];
 }
 
+/** Strips search diagnostics and live-only objects from a move record. */
+function toTimelineMove(record: IMoveRecord): ITimelineMove {
+  const decision = record.aiDecision;
+  return {
+    ply: record.ply, turnNumber: record.turnNumber, playerId: record.playerId, from: record.from, to: record.to,
+    pieceId: record.pieceId, pieceVariant: record.pieceVariant, isCapture: record.isCapture,
+    capturedPieceId: record.capturedPieceId, isPromotion: record.isPromotion,
+    promotionVariant: record.promotionVariant, isCastling: record.isCastling, san: record.san, uci: record.uci,
+    clockTimeLeftMs: record.clockTimeLeftMs, actionType: record.actionType, evalCp: record.evalCp,
+    engine: decision ? {
+      strategy: decision.strategyUsed, depth: decision.depthReached,
+      nodes: decision.nodesEvaluated, fallback: Boolean(decision.fallbackUsed),
+    } : undefined,
+  };
+}
+
 export class UniversalMatchController {
+  /** Authoritative event stream of the current match (replay and persistence read it). */
+  public readonly journal = new MatchJournal();
+  private reviewing = false;
+  private ended: { winnerId: PlayerId | null; reason: MatchEndReason } | null = null;
+  private pendingEndReason: MatchEndReason | null = null;
+  private isRewinding = false;
+  private isLoading = false;
   private config: IMatchConfiguration;
   private topology: ITopology;
   private isSpectator: boolean;
@@ -265,6 +304,10 @@ export class UniversalMatchController {
     this.isThinkingState = false;
     this.minigameUndoStack = [];
     this.minigameRedoStack = [];
+    this.reviewing = false;
+    this.ended = null;
+    this.pendingEndReason = null;
+    this.isLoading = true;
 
     if (config) {
       this.config = config;
@@ -312,6 +355,8 @@ export class UniversalMatchController {
     }
 
     this.lastDomain = gameStore.getState().domain;
+    this.isLoading = false;
+    this.journal.start(this.config, this.journalContext());
     this.startClockTicking();
     this.notify();
 
@@ -359,7 +404,7 @@ export class UniversalMatchController {
    * Resets the current match while preserving the active variant and participant slots.
    */
   public resetCurrentMatch(): void {
-    this.startMatch(this.config);
+    this.startMatch({ ...this.config, matchId: `match_${randomId()}` });
   }
 
   public getTopology(): ITopology {
@@ -444,6 +489,8 @@ export class UniversalMatchController {
    * while maintaining 100% synchronization between Core state, spell charges, mana, and cooldowns.
    */
   public undo(): boolean {
+    // A concluded match stays concluded, and viewing the past never rewinds the live game.
+    if (this.ended || this.reviewing) return false;
     this.botAbortController?.abort();
     this.activeBotRequestId = 0;
     this.isThinkingState = false;
@@ -500,6 +547,7 @@ export class UniversalMatchController {
 
     this.syncVariantModifiersToDomain();
     this.persistSpellAudit();
+    this.recordRewind();
     this.notify();
     return wasSpellOnly || coreUndone;
   }
@@ -508,6 +556,7 @@ export class UniversalMatchController {
    * Reapplies the most recently undone action.
    */
   public redo(): boolean {
+    if (this.ended || this.reviewing) return false;
     this.botAbortController?.abort();
     this.activeBotRequestId = 0;
     this.isThinkingState = false;
@@ -562,6 +611,7 @@ export class UniversalMatchController {
 
     this.syncVariantModifiersToDomain();
     this.persistSpellAudit();
+    this.recordRewind();
     this.notify();
     return wasSpellOnly || coreRedone;
   }
@@ -643,6 +693,9 @@ export class UniversalMatchController {
       hasCastSpellThisTurn: this.hasCastSpellThisTurn,
       clocks: this.clockManager.getClocksMap(),
       moveHistory: [...this.moveHistory],
+      interactionMode: this.getInteractionMode(),
+      isEnded: this.ended !== null,
+      interactionPlayer: this.getInteractionPlayer(),
     };
   }
 
@@ -650,6 +703,8 @@ export class UniversalMatchController {
     this.stopClockTicking();
     const domain = gameStore.getState().domain;
     if (domain.isGameOver || this.isPausedState || this.isDisposedFlag) return;
+    // A bot held back by a review must not lose time for it.
+    if (this.reviewing && this.isBotPlayer(domain.activePlayer)) return;
 
     const firstSlotClock = this.config.slots[0]?.clock;
     if (firstSlotClock && firstSlotClock.initialSeconds === 0) return;
@@ -709,6 +764,7 @@ export class UniversalMatchController {
 
   private handleClockTimeout(timedOutPlayer: PlayerId): void {
     this.stopClockTicking();
+    if (this.config.totalParticipants <= 2) this.pendingEndReason = 'TIMEOUT';
     const domain = gameStore.getState().domain;
     if (domain.isGameOver) return;
 
@@ -756,6 +812,7 @@ export class UniversalMatchController {
     }));
 
     GlobalEventBus.emit('GAME_ENDED', { winnerId, reason: 'Tempo Esgotado' });
+    this.commitJournal();
     this.notify();
   }
 
@@ -809,11 +866,13 @@ export class UniversalMatchController {
         currentItem = {
           turnNumber: move.turnNumber,
           white: this.formatSpellMove(move),
+          whitePly: move.ply,
           timestamp: move.clockTimeLeftMs,
         };
       } else {
         if (currentItem && currentItem.turnNumber === move.turnNumber) {
           currentItem.black = this.formatSpellMove(move);
+          currentItem.blackPly = move.ply;
           items.push(currentItem);
           currentItem = null;
         } else {
@@ -821,6 +880,7 @@ export class UniversalMatchController {
           items.push({
             turnNumber: move.turnNumber,
             black: this.formatSpellMove(move),
+            blackPly: move.ply,
             timestamp: move.clockTimeLeftMs,
           });
           currentItem = null;
@@ -847,6 +907,7 @@ export class UniversalMatchController {
   }
 
   private handleStoreUpdate(): void {
+    this.latchEndIfNeeded();
     this.notify();
     this.scheduleAutonomousTurnIfNeeded();
   }
@@ -862,7 +923,7 @@ export class UniversalMatchController {
    * Evaluates whether the current active turn belongs to an AI Bot and schedules execution.
    */
   public scheduleAutonomousTurnIfNeeded(): void {
-    if (this.isDisposedFlag || this.isPausedState || this.isThinkingState) return;
+    if (this.isDisposedFlag || this.isPausedState || this.isThinkingState || this.isAutonomyBlocked()) return;
 
     const domain = gameStore.getState().domain;
     if (domain.isGameOver || domain.matchId !== this.config.matchId) return;
@@ -887,6 +948,15 @@ export class UniversalMatchController {
    * Executes a single step of bot deliberation and command dispatch.
    */
   public async stepBotTurn(): Promise<boolean> {
+    if (this.isAutonomyBlocked()) return false;
+    try {
+      return await this.runBotTurn();
+    } finally {
+      this.commitJournal();
+    }
+  }
+
+  private async runBotTurn(): Promise<boolean> {
     if (this.isDisposedFlag || this.isThinkingState) return false;
 
     const domain = gameStore.getState().domain;
@@ -1086,6 +1156,7 @@ export class UniversalMatchController {
       const currentDomain = gameStore.getState().domain;
       const isStaleRequest =
         this.isDisposedFlag ||
+        this.isAutonomyBlocked() ||
         generation !== this.matchGeneration ||
         requestId !== this.activeBotRequestId ||
         currentDomain.matchId !== requestContext.matchId ||
@@ -1386,7 +1457,7 @@ export class UniversalMatchController {
         spellType === 'FREEZE'
           ? (action.payload.targetCoord as string)
           : ((action.payload.targetCoord as string) ?? (action.payload.targetPieceId as string));
-      this.castOfficialSpell(spellType, target);
+      this.castOfficialSpell(spellType, target, 'BOT');
       return;
     }
 
@@ -1407,6 +1478,7 @@ export class UniversalMatchController {
    * Fully integrated with Core State Command architecture for lossless Undo/Redo.
    */
   public dropPiece(pieceVariant: string, targetCoord: string): boolean {
+    if (this.isAutonomyBlocked()) return false;
     const domain = gameStore.getState().domain;
     const coordKey = asCoordinateKey(targetCoord);
     if (domain.occupancy[coordKey]) return false;
@@ -1451,6 +1523,7 @@ export class UniversalMatchController {
       playerId: mover,
     });
 
+    this.commitJournal();
     this.notify();
     this.scheduleAutonomousTurnIfNeeded();
     return true;
@@ -1460,7 +1533,7 @@ export class UniversalMatchController {
    * Places the rubber duck in Duck Chess Phase 2.
    */
   public placeDuck(targetCoord: string): boolean {
-    if (!this.duckState || this.duckState.currentPhase !== 'PLACE_DUCK') {
+    if (!this.duckState || this.duckState.currentPhase !== 'PLACE_DUCK' || this.isAutonomyBlocked()) {
       return false;
     }
 
@@ -1507,6 +1580,7 @@ export class UniversalMatchController {
         coordinate: asCoordinateKey(targetCoord),
         playerId: mover,
       });
+      this.commitJournal();
 
       this.notify();
       this.scheduleAutonomousTurnIfNeeded();
@@ -1521,6 +1595,14 @@ export class UniversalMatchController {
    * Triggered when a human makes a piece move in Duck Chess, Spell Chess, or multiplayer arenas.
    */
   public onHumanPieceMoved(from: string, to: string, pieceId: string, promotionVariant?: string): void {
+    try {
+      this.applyHumanMove(from, to, pieceId, promotionVariant);
+    } finally {
+      this.commitJournal();
+    }
+  }
+
+  private applyHumanMove(from: string, to: string, pieceId: string, promotionVariant?: string): void {
     this.recordHistorySnapshot('PIECE_MOVE');
     let postMoveDomain = gameStore.getState().domain;
     const movedPlayerSide: 'WHITE' | 'BLACK' = postMoveDomain.activePlayer === 'P2' ? 'WHITE' : 'BLACK';
@@ -1703,10 +1785,13 @@ export class UniversalMatchController {
    * Casts a spell in Official Spell Chess (Freeze or Jump).
    */
   public castOfficialSpell(
-    spellType: 'FREEZE' | 'JUMP', target: { file: number; rank: number } | string
+    spellType: 'FREEZE' | 'JUMP', target: { file: number; rank: number } | string,
+    source: 'HUMAN' | 'BOT' = 'HUMAN'
   ): boolean {
-    if (!this.officialSpellState || this.hasCastSpellThisTurn) return false;
+    if (!this.officialSpellState || this.hasCastSpellThisTurn || this.isAutonomyBlocked()) return false;
     const domain = gameStore.getState().domain;
+    // Nobody may cast on behalf of the bot while it is the bot's turn.
+    if (source === 'HUMAN' && domain.matchId === this.config.matchId && this.isBotPlayer(domain.activePlayer)) return false;
     let targetSquare: string;
     if (typeof target === 'object') targetSquare = `${target.file},${target.rank}`;
     else if (/^[a-h][1-8]$/i.test(target)) targetSquare = SANNotationGenerator.algebraicToCoord(target);
@@ -1723,6 +1808,7 @@ export class UniversalMatchController {
         spell: { type: spellType, targetSquare },
         before: JSON.parse(JSON.stringify(domain)), after: JSON.parse(JSON.stringify(next)) });
       this.persistSpellAudit();
+      this.recordSpellEvent(domain, spellType, targetSquare);
       GlobalEventBus.emit('SPELL_CAST', { spellType, coordinate: asCoordinateKey(targetSquare), playerId: domain.activePlayer });
       this.notify();
       return true;
@@ -1768,6 +1854,18 @@ export class UniversalMatchController {
    * Casts a spell in Expanded Spell Chess.
    */
   public castExpandedSpell(
+    spell: ISpellCard,
+    targetCoord: string,
+    sourceCoord?: string
+  ): boolean {
+    if (this.isAutonomyBlocked()) return false;
+    const before = gameStore.getState().domain;
+    const cast = this.applyExpandedSpell(spell, targetCoord, sourceCoord);
+    if (cast) this.recordSpellEvent(before, spell.type, this.normalizeToGameCoord(targetCoord));
+    return cast;
+  }
+
+  private applyExpandedSpell(
     spell: ISpellCard,
     targetCoord: string,
     sourceCoord?: string
@@ -2159,6 +2257,276 @@ export class UniversalMatchController {
     const num = parseInt(match[1], 10);
     const clamped = Math.max(1, Math.min(12, num));
     return `P${clamped}` as PlayerId;
+  }
+
+  // -------------------------------------------------------------------------
+  // Match lifecycle, review mode and event journal (PATCH-16, PATCH-16A, PATCH-17)
+  // -------------------------------------------------------------------------
+  public getInteractionMode(): MatchInteractionMode {
+    return this.ended ? 'POST_GAME_REVIEW' : this.reviewing ? 'REPLAY' : 'LIVE';
+  }
+
+  public getEndInfo(): { winnerId: PlayerId | null; reason: MatchEndReason } | null {
+    return this.ended;
+  }
+
+  public getInteractionPlayer(): PlayerId {
+    if (this.duckState?.currentPhase === 'PLACE_DUCK') {
+      return this.duckState.activePlayer === 'WHITE' ? 'P1' : 'P2';
+    }
+    return gameStore.getState().domain.activePlayer;
+  }
+
+  /** Single authoritative guard: no bot decision and no game action may happen while true. */
+  private isAutonomyBlocked(): boolean {
+    return this.isLoading || this.isRewinding || this.reviewing || this.ended !== null;
+  }
+
+  private abortPendingBotWork(): void {
+    this.clearAutonomousTimer();
+    this.botAbortController?.abort();
+    this.activeBotRequestId = 0;
+    this.isThinkingState = false;
+  }
+
+  /** Starts viewing the past. The live game is held, never modified. */
+  public enterReview(): void {
+    if (this.reviewing) return;
+    this.reviewing = true;
+    this.abortPendingBotWork();
+    if (!this.ended && this.isBotPlayer(gameStore.getState().domain.activePlayer)) this.stopClockTicking();
+    this.notify();
+  }
+
+  public exitReview(): void {
+    if (!this.reviewing) return;
+    this.reviewing = false;
+    if (!this.ended) {
+      this.startClockTicking();
+      this.scheduleAutonomousTurnIfNeeded();
+    }
+    this.notify();
+  }
+
+  private latchEndIfNeeded(): void {
+    const domain = gameStore.getState().domain;
+    if (this.isLoading || this.ended || !domain.isGameOver || domain.matchId !== this.config.matchId) return;
+    const bothKings = Boolean(CheckValidator.findRoyalPiece('P1', domain) && CheckValidator.findRoyalPiece('P2', domain));
+    const reason: MatchEndReason = this.pendingEndReason ??
+      (!domain.winnerId ? 'DRAW_BY_RULES' : bothKings ? 'CHECKMATE_OR_RULES' : 'KING_CAPTURE');
+    this.ended = { winnerId: domain.winnerId, reason };
+    this.abortPendingBotWork();
+    this.stopClockTicking();
+    // The current action records its move first; this covers endings declared from outside.
+    queueMicrotask(() => this.commitEnd());
+  }
+
+  private journalContext(): IJournalContext {
+    return {
+      state: this.captureSessionState(),
+      playerId: gameStore.getState().domain.activePlayer,
+      clocks: this.clockManager.getClocksMap(),
+    };
+  }
+
+  public captureSessionState(): ISessionState {
+    const cycle = this.turnCycleState;
+    return {
+      domain: gameStore.getState().domain,
+      variant: {
+        officialSpellState: this.officialSpellState,
+        expandedSpellState: this.expandedSpellState,
+        duckState: this.duckState,
+        threeCheckState: this.threeCheckState,
+        racingKingsState: this.racingKingsState,
+        scoresState: this.scoresState,
+        turnCycleState: cycle ? { ...cycle, eliminatedFactions: Array.from(cycle.eliminatedFactions) } : null,
+        hasCastSpellThisTurn: this.hasCastSpellThisTurn,
+        lastMoveSummary: this.lastMoveSummaryStr,
+      },
+    };
+  }
+
+  private isJournaled(): boolean {
+    return !this.isLoading && this.journal.current.length > 0 &&
+      gameStore.getState().domain.matchId === this.config.matchId;
+  }
+
+  /** Records whatever the action that just finished committed. Safe to call repeatedly. */
+  public commitJournal(): void {
+    if (!this.isJournaled() || this.isRewinding) return;
+    const recorded = this.journal.current.livePly;
+    if (this.moveHistory.length > recorded) {
+      for (const record of this.moveHistory.slice(recorded)) {
+        const type = record.actionType === 'DUCK' ? 'DUCK_PLACED' as const
+          : record.actionType === 'DROP' ? 'PIECE_DROPPED' as const : 'PIECE_MOVED' as const;
+        this.journal.record({ type, payload: { move: toTimelineMove(record) } }, this.journalContext());
+      }
+    } else if (!this.ended) {
+      this.journal.record({ type: 'TURN_COMPLETED', payload: {} }, this.journalContext(), false);
+    }
+    this.commitEnd();
+  }
+
+  private commitEnd(): void {
+    if (!this.ended || !this.isJournaled() || this.journal.current.result) return;
+    // Wait for the action in progress to record its final move.
+    if (this.moveHistory.length > this.journal.current.livePly) return;
+    this.journal.record({ type: 'MATCH_ENDED', payload: { ...this.ended } }, this.journalContext());
+  }
+
+  private recordRewind(): void {
+    if (!this.isJournaled()) return;
+    this.journal.record(
+      { type: 'TIMELINE_REWOUND', payload: { moves: this.moveHistory.map(toTimelineMove) } },
+      this.journalContext(), false);
+  }
+
+  private recordSpellEvent(before: IDomainState, spellType: string, targetSquare: string): void {
+    if (!this.isJournaled()) return;
+    const side = before.activePlayer === 'P1' ? 'whiteCharges' : 'blackCharges';
+    const previous = (before.metadata?.officialSpellState as IOfficialSpellState | undefined)?.[side];
+    const next = this.officialSpellState?.[side];
+    const kind = spellType === 'FREEZE' ? 'freeze' : spellType === 'JUMP' ? 'jump' : null;
+    this.journal.record({
+      type: 'SPELL_CAST',
+      payload: {
+        spell: { type: spellType, targetSquare },
+        chargesBefore: kind && previous ? previous[`${kind}Charges`] : null,
+        chargesAfter: kind && next ? next[`${kind}Charges`] : null,
+        cooldownBefore: kind && previous ? previous[`${kind}CooldownTurns`] : null,
+        cooldownAfter: kind && next ? next[`${kind}CooldownTurns`] : null,
+        durationHalfTurns: 2,
+        rules: this.config.variantId,
+      },
+    }, { ...this.journalContext(), playerId: before.activePlayer });
+  }
+
+  public resign(playerId: PlayerId): boolean {
+    return this.concludeByDecision(playerId === 'P1' ? 'P2' : 'P1', 'RESIGNATION');
+  }
+
+  public declareDraw(): boolean {
+    return this.concludeByDecision(null, 'DRAW_AGREED');
+  }
+
+  private concludeByDecision(winnerId: PlayerId | null, reason: MatchEndReason): boolean {
+    const domain = gameStore.getState().domain;
+    if (this.ended || domain.isGameOver || domain.matchId !== this.config.matchId) return false;
+    this.pendingEndReason = reason;
+    this.abortPendingBotWork();
+    gameStore.setState((s) => ({ domain: { ...s.domain, isGameOver: true, winnerId } }));
+    this.latchEndIfNeeded();
+    this.commitJournal();
+    this.notify();
+    return true;
+  }
+
+  /** Undo in a match against a bot: back to the latest point where the human could act. */
+  public undoToHumanTurn(): boolean {
+    if (this.ended || this.reviewing) return false;
+    const active = () => gameStore.getState().domain.activePlayer;
+    const humanActed = this.moveHistory.some((m) => !this.isBotPlayer(m.playerId)) ||
+      (this.hasCastSpellThisTurn && !this.isBotPlayer(active()));
+    if (!humanActed) return false;
+    let undone = false;
+    do {
+      if (!this.undo()) break;
+      undone = true;
+    } while (this.canUndo() && (this.isBotPlayer(active()) || this.peekUndoActionType() === 'SPELL'));
+    this.scheduleAutonomousTurnIfNeeded();
+    return undone;
+  }
+
+  public redoToHumanTurn(): boolean {
+    if (this.ended || this.reviewing) return false;
+    const active = () => gameStore.getState().domain.activePlayer;
+    let redone = false;
+    do {
+      if (!this.redo()) break;
+      redone = true;
+    } while (this.canRedo() &&
+      (this.isBotPlayer(active()) || this.peekRedoActionType() === 'SPELL' || this.hasCastSpellThisTurn));
+    this.scheduleAutonomousTurnIfNeeded();
+    return redone;
+  }
+
+  /** Rebuilds a saved match exactly as it was committed. No bot runs until it is complete. */
+  public restoreSession(events: readonly GameEvent[], savedClocks?: Readonly<Record<string, number>>): void {
+    const first = events[0];
+    if (!first || first.type !== 'MATCH_STARTED') throw new Error('Saved match has no start event.');
+    const timeline = new ReplayTimeline(events);
+    const state: ISessionState = JSON.parse(JSON.stringify(timeline.latestState()));
+
+    this.matchGeneration++;
+    this.abortPendingBotWork();
+    this.stopClockTicking();
+    this.isLoading = true;
+    this.config = first.payload.config;
+    this.topology = this.resolveTopology(this.config);
+    this.isSpectator = this.config.slots.every((slot) => slot.role === 'AI_BOT' || slot.role === 'BOT_STANDIN');
+    this.clockManager.initializeFromConfig(this.config);
+    this.initializeVariantStates();
+
+    gameStore.getState().resetDomainState(state.domain);
+    const variant = state.variant;
+    this.officialSpellState = variant.officialSpellState;
+    this.expandedSpellState = variant.expandedSpellState;
+    this.duckState = variant.duckState;
+    this.threeCheckState = variant.threeCheckState as ICheckCountState | null;
+    this.racingKingsState = variant.racingKingsState as IRacingKingsState | null;
+    this.scoresState = (variant.scoresState ?? {}) as Record<string, IFFAPlayerScore>;
+    const cycle = variant.turnCycleState as (Record<string, unknown> & { eliminatedFactions: string[] }) | null;
+    this.turnCycleState = cycle
+      ? ({ ...cycle, eliminatedFactions: new Set(cycle.eliminatedFactions) } as unknown as ITurnCycleState) : null;
+    this.hasCastSpellThisTurn = variant.hasCastSpellThisTurn;
+    this.lastMoveSummaryStr = variant.lastMoveSummary;
+
+    const spellEvents: ISpellCastEvent[] = [];
+    const restoreSpell = (eventIndex: number, movePly?: number): ISpellCastEvent => {
+      const event = timeline.allEvents[eventIndex] as Extract<GameEvent, { type: 'SPELL_CAST' }>;
+      const spell: ISpellCastEvent = {
+        id: event.id, playerId: event.playerId, turnNumber: event.turnNumber,
+        spell: event.payload.spell as ISpellCastEvent['spell'],
+        before: timeline.stateAfterEvent(eventIndex - 1).domain,
+        after: timeline.stateAfterEvent(eventIndex).domain, movePly,
+      };
+      spellEvents.push(spell);
+      return spell;
+    };
+    this.moveHistory = timeline.moves.map((move) => ({
+      ...move,
+      matchId: this.config.matchId,
+      spells: (timeline.entry(move.ply)?.spells ?? []).map((s) => restoreSpell(s.eventIndex, move.ply)),
+    }));
+    if (this.hasCastSpellThisTurn) {
+      // The spell was cast but its mandatory move had not been made yet.
+      for (let i = timeline.length - 1; i > 0; i--) {
+        if (timeline.allEvents[i].type === 'SPELL_CAST') { restoreSpell(i); break; }
+      }
+    }
+    this.spellEvents = spellEvents;
+    this.initialSpellDomain = this.officialSpellState ? first.payload.initialState.domain : undefined;
+    this.minigameUndoStack = [];
+    this.minigameRedoStack = [];
+    this.clockManager.restoreSnapshot({ ...(savedClocks ?? events[events.length - 1].clocks) });
+    this.clockManager.setActivePlayer(state.domain.activePlayer);
+
+    this.journal.adopt(this.config.matchId, events);
+    this.reviewing = false;
+    this.pendingEndReason = null;
+    this.ended = timeline.result
+      ? { winnerId: timeline.result.winnerId as PlayerId | null, reason: timeline.result.reason }
+      : state.domain.isGameOver ? { winnerId: state.domain.winnerId, reason: 'CHECKMATE_OR_RULES' } : null;
+
+    if (!this.storeUnsubscribe) {
+      this.storeUnsubscribe = gameStore.subscribe(() => this.handleStoreUpdate());
+    }
+    this.lastDomain = gameStore.getState().domain;
+    this.isLoading = false;
+    this.startClockTicking();
+    this.notify();
+    this.scheduleAutonomousTurnIfNeeded();
   }
 
   public dispose(): void {

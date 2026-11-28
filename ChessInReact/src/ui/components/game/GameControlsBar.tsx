@@ -32,8 +32,14 @@ export interface IGameControlsBarProps {
   activePlayer?: string;
   moves?: IMoveItem[];
   onExportPGN?: () => string;
-  onSelectMoveIndex?: (moveIndex: number) => void;
-  activeMoveIndex?: number;
+  onSelectPly?: (ply: number) => void;
+  selectedPly?: number | null;
+  livePly?: number;
+  replayBar?: React.ReactNode;
+  /** The live game cannot be rewound: it has ended or a past position is on screen. */
+  historyLocked?: boolean;
+  /** Colour played by the AI opponent. Omit when there is not exactly one AI seat. */
+  botSideLabel?: string | null;
   onOpenGameReview?: () => void;
   onOpenOpeningExplorer?: () => void;
 }
@@ -64,8 +70,12 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
   pendingDrawOffer = null,
   activePlayer = 'P1',
   moves = [],
-  onSelectMoveIndex,
-  activeMoveIndex,
+  onSelectPly,
+  selectedPly,
+  livePly,
+  replayBar,
+  historyLocked = false,
+  botSideLabel = 'Pretas',
   onOpenGameReview,
   onOpenOpeningExplorer,
 }) => {
@@ -119,6 +129,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
             variant="secondary"
             size="sm"
             aria-label="Desfazer"
+            disabled={historyLocked}
             onClick={onUndo}
             leadingIcon={
               <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -136,6 +147,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
             variant="secondary"
             size="sm"
             aria-label="Refazer"
+            disabled={historyLocked}
             onClick={onRedo}
             leadingIcon={
               <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -152,10 +164,12 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
         <MoveHistoryList
           moves={moves}
           onExportPGN={onExportPGN}
-          onSelectMoveIndex={onSelectMoveIndex}
-          activeMoveIndex={activeMoveIndex}
+          onSelectPly={onSelectPly}
+          selectedPly={selectedPly}
+          livePly={livePly}
           maxHeight="160px"
         />
+        {replayBar}
 
         {/* Spec 12: Interactive Post-Game Review Trigger Button */}
         {isGameOver && onOpenGameReview && (
@@ -240,7 +254,7 @@ export const GameControlsBar: React.FC<IGameControlsBarProps> = ({
                 borderRadius: 'var(--radius-xs)',
               }}
             />
-            <span>Oponente IA (Pretas)</span>
+            <span>Oponente IA{botSideLabel ? ` (${botSideLabel})` : ''}</span>
           </label>
 
           <span

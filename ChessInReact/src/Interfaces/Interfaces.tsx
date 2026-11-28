@@ -18,6 +18,12 @@ export interface IHoverPreviewInfo {
 }
 
 export interface IBoardSquare {
+  /** Replay only: the piece on this square slides in from this many squares away. */
+  replaySlide?: { columns: number; rows: number; token: number };
+  /** Replay only: the piece just captured here, shown fading out. */
+  replayGhost?: { variantId: string; ownerId: string; token: number };
+  /** Replay only: square targeted by the Jump cast on the viewed turn. */
+  isJumpTarget?: boolean;
   piece: IChessPiece;
   backgroundColor?: string;
   handleClick: (squareID: ISquareInfo, piece: IChessPiece) => void;

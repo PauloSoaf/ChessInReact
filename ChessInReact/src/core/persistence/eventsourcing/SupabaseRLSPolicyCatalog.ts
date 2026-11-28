@@ -68,8 +68,33 @@ export class SupabaseRLSPolicyCatalog {
       tableName: 'MatchHistory',
       policyName: 'match_read_participants_or_public',
       command: 'SELECT',
-      usingExpression: 'true', // Matches are publicly replayable by link or ID
-      description: 'Match histories are publicly replayable by ID or PGN link (Spec 09 § 4).',
+      // Private by default. LINK sharing is deliberately not listable: it needs a token-checking
+      // function on the server, which does not exist yet.
+      usingExpression: '"visibility" = \'PUBLIC\' OR auth.uid()::text = "ownerUserId" OR auth.uid()::text = ANY("playerIds")',
+      description: 'Only the owner, the participants, or anyone for matches explicitly made public.',
+    },
+    {
+      tableName: 'MatchHistory',
+      policyName: 'match_owner_manage',
+      command: 'ALL',
+      usingExpression: 'auth.uid()::text = "ownerUserId" AND "isRanked" = false',
+      withCheckExpression: 'auth.uid()::text = "ownerUserId" AND "isRanked" = false',
+      description: 'Players manage only their own unranked matches; ranked results are written by the server.',
+    },
+    {
+      tableName: 'MatchEvent',
+      policyName: 'match_event_read_with_match',
+      command: 'SELECT',
+      usingExpression: 'EXISTS (SELECT 1 FROM "MatchHistory" m WHERE m.id = "matchId" AND (m."visibility" = \'PUBLIC\' OR auth.uid()::text = m."ownerUserId" OR auth.uid()::text = ANY(m."playerIds")))',
+      description: 'Events are as private as the match they belong to.',
+    },
+    {
+      tableName: 'MatchEvent',
+      policyName: 'match_event_owner_append',
+      command: 'INSERT',
+      usingExpression: 'true',
+      withCheckExpression: 'EXISTS (SELECT 1 FROM "MatchHistory" m WHERE m.id = "matchId" AND auth.uid()::text = m."ownerUserId" AND m."isRanked" = false)',
+      description: 'Only the owner appends events, and never to a ranked match.',
     },
     {
       tableName: 'PlayerRating',
@@ -120,7 +145,9 @@ export class SupabaseRLSPolicyCatalog {
   public static generatePostgresMigrationSql(): string {
     const rlsSql = this.POLICIES.map((p) => {
       const withCheck = p.withCheckExpression ? ` WITH CHECK (${p.withCheckExpression})` : '';
-      return `-- ${p.description}\nALTER TABLE "${p.tableName}" ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "${p.policyName}" ON "${p.tableName}" FOR ${p.command} USING (${p.usingExpression})${withCheck};`;
+      // PostgreSQL accepts only WITH CHECK on INSERT policies.
+      const using = p.command === 'INSERT' ? '' : ` USING (${p.usingExpression})`;
+      return `-- ${p.description}\nALTER TABLE "${p.tableName}" ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "${p.policyName}" ON "${p.tableName}" FOR ${p.command}${using}${withCheck};`;
     }).join('\n\n');
 
     const indexSql = this.INDEXES.map((idx) => {

@@ -12,6 +12,8 @@ export interface IOfficialSpellBarProps {
   readonly selectedSpellType?: 'FREEZE' | 'JUMP' | null;
   readonly compact?: boolean;
   readonly hasCastSpellThisTurn?: boolean;
+  /** false while the owner of this bar may not act (the opponent's turn, replay, game over). */
+  readonly canAct?: boolean;
 }
 
 export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
@@ -22,6 +24,7 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
   selectedSpellType,
   compact = false,
   hasCastSpellThisTurn = false,
+  canAct = true,
 }) => {
   const isWhite = activePlayer === 'P1' || (activePlayer as string) === 'WHITE';
   const charges = isWhite ? state.whiteCharges : state.blackCharges;
@@ -38,7 +41,7 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
         return;
       }
 
-      if (hasCastSpellThisTurn) {
+      if (hasCastSpellThisTurn || !canAct) {
         return;
       }
 
@@ -69,12 +72,13 @@ export const OfficialSpellBar: React.FC<IOfficialSpellBarProps> = ({
     charges.jumpCooldownTurns,
     selectedSpellType,
     hasCastSpellThisTurn,
+    canAct,
     onCastSpell,
     onCancelSpell,
   ]);
 
-  const isFreezeAvailable = !hasCastSpellThisTurn && charges.freezeCharges > 0 && charges.freezeCooldownTurns === 0;
-  const isJumpAvailable = !hasCastSpellThisTurn && charges.jumpCharges > 0 && charges.jumpCooldownTurns === 0;
+  const isFreezeAvailable = canAct && !hasCastSpellThisTurn && charges.freezeCharges > 0 && charges.freezeCooldownTurns === 0;
+  const isJumpAvailable = canAct && !hasCastSpellThisTurn && charges.jumpCharges > 0 && charges.jumpCooldownTurns === 0;
 
   return (
     <div

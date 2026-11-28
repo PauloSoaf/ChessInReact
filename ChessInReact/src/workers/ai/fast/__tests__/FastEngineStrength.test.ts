@@ -33,7 +33,9 @@ describe('level 5 standard chess', () => {
     ['takes the hanging queen', 'rnb1kbnr/pppp1ppp/8/4p1q1/3PP3/8/PPP2PPP/RNBQKBNR w KQkq - 0 3', 'c1', 'g5'],
     ['only king move that catches a distant passed pawn', '7k/8/5K2/p7/8/8/8/8 w - - 0 1', 'f6', 'e5'],
   ])('%s', (_name, fen, from, to) => {
-    const result = bestMove(fen);
+    // A found mate ends the search at once, so a generous budget keeps mating puzzles
+    // independent of machine load without slowing them down.
+    const result = bestMove(fen, /mate|WAC/.test(_name) ? 8000 : 1500);
     expect([result.bestMove?.fromCoord, result.bestMove?.toCoord]).toEqual([square(from), square(to)]);
   }, 15000);
 

@@ -1,5 +1,9 @@
 # ChessInReact | Test and CI Status
 
+## PATCH-15, 16, 16A e 17 (28/11/2026)
+
+Local, código final: **1.606 de 1.606**. Com cobertura houve 4 falhas por tempo sob carga; um orçamento de teste foi ajustado e os arquivos afetados e os novos passaram isolados com cobertura (53 de 53). ESLint, build, worker no Chromium, 11 fluxos de aceitação, Spell Chess 2D/3D e a jornada `npm run acceptance:journey` (15 de 15) aprovados. A jornada nova não faz parte do CI. [Detalhes e limites](patches/PATCH-15-16-17-PRETAS-REPLAY-SALVAMENTO.md#verificações).
+
 ## PATCH-14 (27/11/2026)
 
 Local, com cobertura: **1.584 de 1.586** na execução conjunta; os dois arquivos com falha (latência e timeout sob carga) passaram isolados, 16 de 16. ESLint, build, worker no Chromium e 11 fluxos de aceitação aprovados. O CI remoto deste commit deve ser conferido após o push. [Detalhes e limites](patches/PATCH-14-N5-MOTOR-COMPACTO.md#verificações-antes-do-push).

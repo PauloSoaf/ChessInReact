@@ -1,5 +1,9 @@
 # ChessInReact | Patch Backlog (Autonomous Spec Completion Engine)
 
+## PATCH-15/16/16A/17 — pretas, replay e salvamento (local, 27/11/2026)
+
+Jogar de pretas, histórico clicável com replay isolado, partida encerrada travada e salvamento local com recuperação. [Relatório e limites](patches/PATCH-15-16-17-PRETAS-REPLAY-SALVAMENTO.md). Commit e push autorizados em 28/11/2026; sem merge/deploy. Pendente: backend para nuvem e autenticação e desfazer após recarga. Motor preservado na tag [engine-n5-v1.0.0](../engine/VERSOES-DO-MOTOR.md).
+
 ## PATCH-14 — N5 com motor compacto (local, 27/11/2026)
 
 Novo núcleo de busca para o nível 5 do xadrez normal e do Spell Chess, em Worker, e correção de dois bugs de regra. [Relatório, evidências e limites](patches/PATCH-14-N5-MOTOR-COMPACTO.md). Commit e push autorizados em 27/11/2026 (inclui o PATCH-13); sem merge/deploy; Elo não medido; pendente remover a busca antiga do Spell Chess e os testes que só cobrem esse código.

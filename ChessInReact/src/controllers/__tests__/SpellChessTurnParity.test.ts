@@ -58,11 +58,18 @@ describe('PATCH-12: live controller, simulator, spells and faithful replay', () 
       expect(final.boardEntities).toEqual(audit.finalState.boardEntities);
       expect(final.metadata?.officialSpellState).toEqual(audit.finalState.metadata?.officialSpellState);
       expect(final.winnerId).toBe('P1');
-      expect(controller.undo()).toBe(true);
-      expect(gameStore.getState().domain.isGameOver).toBe(false);
-      expect(controller.redo()).toBe(true);
+      // PATCH-16A: a concluded match stays concluded. Earlier positions come from the replay.
+      expect(controller.undo()).toBe(false);
+      expect(controller.redo()).toBe(false);
       expect(gameStore.getState().domain.winnerId).toBe('P1');
       expect(controller.getMoveHistory().length).toBe(11);
+      const timeline = controller.journal.current;
+      expect(timeline.livePly).toBe(11);
+      expect(timeline.stateAtPly(10).domain.isGameOver).toBe(false);
+      expect(timeline.stateAtPly(11).domain.boardEntities).toEqual(gameStore.getState().domain.boardEntities);
+      expect(timeline.entry(11)?.spells.map((s) => s.payload.spell.type)).toEqual(['JUMP']);
+      expect(timeline.findCorruption()).toBeNull();
+      expect(gameStore.getState().domain.winnerId).toBe('P1');
     } finally { controller.dispose(); }
   });
 

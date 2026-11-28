@@ -4,6 +4,10 @@ import {
   ParticipantRole,
 } from '../../../matchmaking/config/IMatchConfiguration';
 import { MatchConfigurationManager } from '../../../matchmaking/config/MatchConfigurationManager';
+import {
+  HumanColorChoice, isBotRole, resolveColorChoice, seatHuman, singleLocalHuman,
+} from '../../../matchmaking/config/participants';
+import { ColorChoiceButtons } from './HumanColorPicker';
 import { TimeControlManager, ITimeControlPreset } from '../../../matchmaking/config/TimeControlManager';
 import { VariantCatalog } from '../../../engine/variants/catalog/VariantCatalog';
 import { ActionButton } from '../primitives/ActionButton';
@@ -25,6 +29,7 @@ export const PreMatchStagingModal: React.FC<IPreMatchStagingModalProps> = ({
   onClose,
   onLaunchMatch,
 }) => {
+  const [randomColor, setRandomColor] = React.useState(false);
   const [config, setConfig] = React.useState<IMatchConfiguration>(() =>
     MatchConfigurationManager.createDefaultMatch(variantId, initialParticipantsCount)
   );
@@ -528,6 +533,20 @@ export const PreMatchStagingModal: React.FC<IPreMatchStagingModalProps> = ({
           </div>
         </div>
 
+        {config.totalParticipants === 2 && (
+          <ColorChoiceButtons
+            idPrefix="staging"
+            value={randomColor ? 'RANDOM'
+              : config.slots.some((slot) => isBotRole(slot.role)) && singleLocalHuman(config)
+                ? singleLocalHuman(config) === 'P1' ? 'WHITE' : 'BLACK'
+                : null}
+            onChange={(choice: HumanColorChoice) => {
+              setRandomColor(choice === 'RANDOM');
+              if (choice !== 'RANDOM') setConfig(seatHuman(config, resolveColorChoice(choice)));
+            }}
+          />
+        )}
+
         {/* Participant Slots Table */}
         <div>
           <h3 style={{ fontSize: '0.95rem', margin: '0 0 0.5rem 0' }}>Participantes da Arena (Slots)</h3>
@@ -667,7 +686,10 @@ export const PreMatchStagingModal: React.FC<IPreMatchStagingModalProps> = ({
             <ActionButton variant="secondary" onClick={onClose}>
               Cancelar
             </ActionButton>
-            <ActionButton variant="primary" onClick={() => onLaunchMatch(config)}>
+            <ActionButton
+              variant="primary"
+              onClick={() => onLaunchMatch(randomColor ? seatHuman(config, resolveColorChoice('RANDOM')) : config)}
+            >
               Iniciar Arena
             </ActionButton>
           </div>

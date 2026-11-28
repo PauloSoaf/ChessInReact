@@ -1,5 +1,7 @@
 # ChessInReact | Current State Assessment (Autonomous Audit)
 
+> **Atualização de 28/11/2026 (PATCH-15, 16, 16A e 17):** é possível jogar de pretas contra a IA; o histórico tem replay isolado; partida encerrada fica travada; as partidas são salvas e recuperadas no dispositivo. Nuvem e autenticação seguem bloqueadas por falta de servidor. O motor N5 está preservado na tag [engine-n5-v1.0.0](../engine/VERSOES-DO-MOTOR.md). [Relatório e limites](patches/PATCH-15-16-17-PRETAS-REPLAY-SALVAMENTO.md).
+
 > **Atualização de 27/11/2026 (PATCH-14):** o nível 5 do xadrez normal e do Spell Chess usa um motor compacto em Worker, e dois bugs de regra foram corrigidos. Commit e push autorizados pelo usuário, incluindo o PATCH-13 descrito abaixo; sem merge ou deploy. Força em Elo não medida. [Relatório, evidências e limites](patches/PATCH-14-N5-MOTOR-COMPACTO.md).
 
 > **Atualização local de 27/11/2026:** PATCH-13 acrescenta inspeção material obrigatória e trocas legais ao N5, geração progressiva, quiescência defensiva e cancelamento de Worker. [Implementação, evidências e limites](patches/PATCH-13-SPELL-CHESS-MATERIAL-SAFETY.md). Sem commit/push/deploy; força global não homologada.

@@ -1,3 +1,4 @@
+import { HumanColorPicker } from './HumanColorPicker';
 import React from 'react';
 import { Card } from '../primitives/Card';
 import { ActionButton } from '../primitives/ActionButton';
@@ -158,6 +159,10 @@ export const ClassicModesSection: React.FC<IClassicModesSectionProps> = ({
               }}
             >
               {activeDiff.desc}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <HumanColorPicker idPrefix="hub" />
             </div>
 
             {/* Dual 2D / 3D Board View Mode Selector */}

@@ -56,6 +56,9 @@ const BoardSquare: React.FC<IBoardSquareProps> = ({
   tabIndex,
   onFocusSquare,
   hoverPreview,
+  replaySlide,
+  replayGhost,
+  isJumpTarget,
   onMouseEnter,
   onMouseLeave,
 }) => {
@@ -189,7 +192,7 @@ const BoardSquare: React.FC<IBoardSquareProps> = ({
       onMouseLeave={onMouseLeave}
       className={`board-square ${
         isSelected ? 'board-square--selected' : ''
-      } ${
+      } ${replaySlide ? 'board-square--replay-sliding' : ''} ${isJumpTarget ? 'board-square--jump-target' : ''} ${
         isCheckKingError
           ? 'board-square--check-king-error'
           : isCheckSourceError
@@ -545,6 +548,12 @@ const BoardSquare: React.FC<IBoardSquareProps> = ({
         </div>
       )}
 
+      {replayGhost && (
+        <div key={replayGhost.token} className="replay-capture" aria-hidden="true">
+          <PieceRenderer variantId={replayGhost.variantId} ownerId={replayGhost.ownerId as 'P1' | 'P2'} pieceSet={pieceSet} />
+        </div>
+      )}
+
       {/* Chess Piece with Spell Skins / Enchantments */}
       {isPiecePresent ? (
         <div
@@ -584,6 +593,18 @@ const BoardSquare: React.FC<IBoardSquareProps> = ({
             transition: 'transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1), filter 140ms ease',
           }}
         >
+          <div
+            key={replaySlide?.token ?? 'still'}
+            className={replaySlide ? 'replay-slide' : undefined}
+            data-testid={replaySlide ? 'replay-sliding-piece' : undefined}
+            style={{
+              width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              ...(replaySlide ? {
+                ['--replay-dx' as string]: `${replaySlide.columns * 100}%`,
+                ['--replay-dy' as string]: `${replaySlide.rows * 100}%`,
+              } : {}),
+            }}
+          >
           <PieceRenderer
             variantId={piece.name}
             ownerId={
@@ -599,6 +620,7 @@ const BoardSquare: React.FC<IBoardSquareProps> = ({
             }
             pieceSet={pieceSet}
           />
+          </div>
           {hasJump && (
             <span
               style={{

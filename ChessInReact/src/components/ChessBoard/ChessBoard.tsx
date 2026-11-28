@@ -18,6 +18,7 @@ import { VariantCatalog } from '../../engine/variants/catalog/VariantCatalog';
 import { GlobalEventBus } from '../../core/events/EventBus';
 import { IInvalidMoveFeedback, ITriggerFeedbackOptions, InvalidMoveReason } from '../../bindings/react/useMoveFeedback';
 import { PromotionModal } from '../../ui/components/game/PromotionModal';
+import type { IReplayFrame } from '../../bindings/react/useGameReplay';
 import { globalAudioSynthesizer } from '../../audio/WebAudioSynthesizer';
 
 export interface IChessBoardProps {
@@ -54,6 +55,10 @@ export interface IChessBoardProps {
   onHumanPieceMoved?: (from: string, to: string, pieceId: string) => void;
   /** Handles a variant-specific click such as Duck Chess placement or Spell targeting. */
   onVariantSquareClick?: (coordinate: string) => boolean;
+  /** When set, the board shows this past position and accepts no input. */
+  replay?: IReplayFrame | null;
+  /** Effective orientation of the match; without it the saved viewing preference applies. */
+  isFlipped?: boolean;
 }
 
 export const ChessBoard: React.FC<IChessBoardProps> = ({
@@ -76,12 +81,17 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
   lastMove: propLastMove,
   onHumanPieceMoved,
   onVariantSquareClick,
+  replay = null,
+  isFlipped: orientation,
 }) => {
   const { preferences, activeBoardColors } = useTheme();
-  const isFlipped = Boolean(preferences.flipBoard);
+  const isFlipped = orientation ?? Boolean(preferences.flipBoard);
 
-  const domain = useGameStore((state) => state.domain);
-  const ui = useGameStore((state) => state.ui);
+  const liveDomain = useGameStore((state) => state.domain);
+  const liveUi = useGameStore((state) => state.ui);
+  // A replay draws a stored position. The live store is neither read for it nor written.
+  const domain = replay?.domain ?? liveDomain;
+  const ui = replay ? { ...liveUi, selectedPieceId: null } : liveUi;
   const { executeCommand, selectPiece } = useGameActions();
 
   // Track previous move dynamically via GlobalEventBus (Spec 06 Section 18)
@@ -110,7 +120,7 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
     };
   }, []);
 
-  const activeLastMove = propLastMove !== undefined ? propLastMove : internalLastMove;
+  const activeLastMove = replay ? replay.lastMove : propLastMove !== undefined ? propLastMove : internalLastMove;
 
   // Single authoritative topology resolved from prop or master variant catalog (Spec 02 § 6 & Audit)
   const topology = useMemo(() => {
@@ -415,8 +425,17 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
       : activeBoardColors.lightSquare;
   };
 
+  /** Offset, in squares on screen, from the origin of the replayed move to its destination. */
+  const replaySlideFor = (animation: { from: string; to: string; token: number }) => {
+    const [fromX, fromY] = animation.from.split(',').map(Number);
+    const [toX, toY] = animation.to.split(',').map(Number);
+    const direction = isFlipped ? -1 : 1;
+    return { columns: (fromX - toX) * direction, rows: (toY - fromY) * direction, token: animation.token };
+  };
+
   const handleSquareClick = (squareInfo: ISquareInfo) => {
     if (
+      replay ||
       domain.isGameOver ||
       domain.winnerId !== null ||
       isBotThinking ||
@@ -1024,6 +1043,10 @@ export const ChessBoard: React.FC<IChessBoardProps> = ({
               hasPortal={portalCoordSet.has(coordKey)}
               hasTrap={Boolean(stealthTraps && stealthTraps[coordKey])}
               hasJump={Boolean(pieceEntity?.metadata?.hasJump)}
+              replaySlide={replay?.animation && replay.animation.to === coordKey ? replaySlideFor(replay.animation) : undefined}
+              replayGhost={replay?.animation?.captured && replay.animation.to === coordKey
+                ? { ...replay.animation.captured, token: replay.animation.token } : undefined}
+              isJumpTarget={replay?.jumpCoordinate === coordKey}
               isShielded={Boolean(pieceEntity?.metadata?.isShielded)}
               isInvisible={Boolean(pieceEntity?.metadata?.isInvisible)}
               isArcaneSkin={isSpellVariant}
